@@ -124,7 +124,9 @@ create schema if not exists academia;
 grant usage on schema academia to anon, authenticated, service_role;
 ```
    Dashboard → Settings → API → **Exposed schemas:** agregar `academia`. Sin esto PostgREST no expone las tablas y el cliente JS falla silenciosamente.
-2. **Auth:** provider Google OAuth + Email/Password habilitados. **"Allow new users to sign up" = OFF** (las cuentas se crean solo server-side con service role). **"Link accounts with the same email" = ON**. Redirect URLs: `https://academia.vadai.com.mx/**` y `http://localhost:3000/**`.
+2. **Auth:** provider Google OAuth + Email/Password habilitados. **"Allow new users to sign up" = OFF** (las cuentas se crean solo server-side con service role). **la vinculación por correo es automática** (no hay toggle: Supabase vincula
+   identidades cuando el correo de la cuenta existente está confirmado; el ajuste
+   "Allow manual linking" del dashboard es otra función y no hace falta). Redirect URLs: `https://academia.vadai.com.mx/**` y `http://localhost:3000/**`.
 3. **SMTP:** Gmail SMTP (smtp.gmail.com:587 con App Password) para invite y reset. Templates en español. Límite ~500 correos/día y entregabilidad limitada — aceptado para el lanzamiento; trigger de migración a Resend: >100 invitaciones/día sostenidas o correos cayendo a spam.
 4. **Storage — buckets de esta app:**
 

@@ -258,11 +258,30 @@ async function main() {
     aviso('Configuración de Auth', `no se pudo leer (${conf.res?.status})`, 'verifica a mano el paso 3')
   }
 
-  aviso(
-    'Account linking',
-    'no es consultable por API',
-    'confirma a mano: "Link accounts with the same email" = ON'
-  )
+  // Vincular Google con email/password del mismo correo (§0.B) es comportamiento
+  // automático de Supabase, no un toggle: ocurre cuando el correo de la cuenta
+  // existente está CONFIRMADO. Eso sí se puede verificar.
+  //
+  // Ojo: "Allow manual linking" del dashboard es otra cosa — habilita la API
+  // linkIdentity() para que un usuario ya dentro pegue otro proveedor a mano.
+  // No hace falta para lo que pide §0.B.
+  const usuarios = await pedir(`${URL_BASE}/auth/v1/admin/users?per_page=200`, {
+    headers: { apikey: SERVICE, Authorization: `Bearer ${SERVICE}` },
+  })
+
+  const cuentas = Array.isArray(usuarios.json?.users) ? usuarios.json.users : []
+  if (cuentas.length === 0) {
+    aviso('Vinculación por correo', 'no hay usuarios que revisar', 'se verifica al sembrar')
+  } else {
+    const sinConfirmar = cuentas.filter((u) => !u.email_confirmed_at)
+    sinConfirmar.length === 0
+      ? ok('Vinculación por correo', `los ${cuentas.length} usuarios tienen correo confirmado`)
+      : falla(
+          'Vinculación por correo',
+          `${sinConfirmar.length} usuario(s) con correo sin confirmar`,
+          'sin correo confirmado, entrar con Google crea una cuenta aparte en vez de vincular'
+        )
+  }
 
   // 6. Service role funciona
   const admin = await pedir(`${URL_BASE}/auth/v1/admin/users?page=1&per_page=1`, {

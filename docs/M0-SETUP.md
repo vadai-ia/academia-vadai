@@ -1,6 +1,8 @@
 # M0 — Setup manual de infraestructura
 
-> **Estado: 3 pasos pendientes, todos de dashboard.** Lo automatizable ya está hecho.
+> **Estado: M0 COMPLETO.** `pnpm check:m0` sale en verde (15 verificaciones).
+> Los avisos restantes son las variables de Stripe y Bunny, que corresponden a
+> M9 y M3/M4.
 > Verificado por API el 20-ago-2026 contra el proyecto `mtrojwqwnuzzcgtmmoop`.
 >
 > Para ver el estado en cualquier momento: `node scripts/check-m0.mjs`.
@@ -14,9 +16,9 @@
 |---|---|---|---|
 | 0 | Identificar el proyecto Supabase | ✅ confirmado | — |
 | 1 | Crear schema `academia` + grants | ✅ **hecho** | automatizado |
-| 2 | Exponer `academia` en la API | ⛔ **pendiente** | Alejandro (dashboard) |
-| 3 | Auth: Google ON, sign-up OFF, linking ON, redirect URLs | ⛔ **pendiente** | Alejandro (dashboard) |
-| 4 | SMTP Gmail + templates en español | ⛔ **pendiente** | Alejandro (dashboard) |
+| 2 | Exponer `academia` en la API | ✅ **hecho** | Alejandro |
+| 3 | Auth: Google ON, sign-up OFF, redirect URLs | ✅ **hecho** | Alejandro |
+| 4 | SMTP Gmail + templates en español | ✅ **hecho** | Alejandro |
 | 5 | Crear los 3 buckets `academia-*` | ✅ **hecho** | `scripts/setup-m0.mjs` |
 | 6 | Credenciales en `.env.local` | ✅ **hecho** | Alejandro |
 | 7 | Vercel + dominio | ⏳ no bloquea M1 | Alejandro |
@@ -122,9 +124,16 @@ Dashboard → **Authentication** → **Sign In / Providers**
   - Es el requisito de §0.B: el acceso es un producto pagado, las cuentas nacen de una compra
     o de una invitación, siempre server-side.
   - Aquí no rompe nada: el proyecto tiene 0 usuarios y ningún otro sistema.
-- [ ] **"Link accounts with the same email" = ON**
-  - Para que Google y password del mismo correo sean la misma cuenta.
-  - No es consultable por API; hay que confirmarlo a ojo.
+- [x] **Vinculación de Google con correo/contraseña** — no hay toggle que activar.
+  - En el dashboard actual **no existe** una casilla "Link accounts with the same
+    email". §0.B la nombra así, pero describe un **comportamiento automático** de
+    Supabase: al entrar con Google, si el correo coincide con una cuenta cuyo
+    correo ya está confirmado, las identidades se vinculan solas.
+  - **"Allow manual linking" es otra cosa** y puede quedarse en OFF: habilita la
+    API `linkIdentity()` para que un usuario ya dentro pegue otro proveedor a
+    mano. No hace falta para lo que pide §0.B.
+  - Lo que sí importa y `pnpm check:m0` ya verifica: que las cuentas tengan el
+    correo confirmado.
 
 Dashboard → **Authentication** → **URL Configuration**
 
