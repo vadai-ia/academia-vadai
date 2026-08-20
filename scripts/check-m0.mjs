@@ -258,6 +258,31 @@ async function main() {
     aviso('Configuración de Auth', `no se pudo leer (${conf.res?.status})`, 'verifica a mano el paso 3')
   }
 
+  // 6.b El SMTP, que SÍ es verificable.
+  //
+  // Antes se daba por no comprobable. No lo es: `recover` intenta un envío real,
+  // así que si el SMTP está mal responde 500 y si funciona responde 200. Manda
+  // un correo a una dirección QA cada vez que se corre, que es el precio de
+  // saber con certeza que el correo sale — y sin correo no hay lanzamiento.
+  const correoPrueba = 'qa-alumno1@academia.vadai.com.mx'
+  const envio = await pedir(`${URL_BASE}/auth/v1/recover`, {
+    method: 'POST',
+    headers: { apikey: ANON, 'Content-Type': 'application/json' },
+    body: JSON.stringify({ email: correoPrueba }),
+  })
+
+  if (envio.res?.status === 200) {
+    ok('SMTP envía', 'recover aceptado (200)')
+  } else if (envio.res?.status === 429) {
+    aviso('SMTP envía', 'límite de frecuencia', 'espera un minuto y vuelve a correrlo')
+  } else {
+    falla(
+      'SMTP envía',
+      `${envio.res?.status ?? 'sin respuesta'}: ${envio.json?.msg ?? ''}`.trim(),
+      'con Gmail, el sender debe ser la MISMA cuenta autenticada o un alias verificado. Ver docs/M0-SETUP.md paso 4'
+    )
+  }
+
   // Vincular Google con email/password del mismo correo (§0.B) es comportamiento
   // automático de Supabase, no un toggle: ocurre cuando el correo de la cuenta
   // existente está CONFIRMADO. Eso sí se puede verificar.

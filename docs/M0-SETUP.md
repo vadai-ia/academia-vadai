@@ -1,8 +1,8 @@
 # M0 — Setup manual de infraestructura
 
-> **Estado: M0 COMPLETO.** `pnpm check:m0` sale en verde (15 verificaciones).
-> Los avisos restantes son las variables de Stripe y Bunny, que corresponden a
-> M9 y M3/M4.
+> **Estado: falta el correo.** `pnpm check:m0` está en verde salvo **SMTP envía**.
+> Es lo más urgente del proyecto: sin correo nadie recibe su invitación ni puede
+> recuperar su contraseña, y eso bloquea M2 y M9 a la vez.
 > Verificado por API el 20-ago-2026 contra el proyecto `mtrojwqwnuzzcgtmmoop`.
 >
 > Para ver el estado en cualquier momento: `node scripts/check-m0.mjs`.
@@ -18,7 +18,7 @@
 | 1 | Crear schema `academia` + grants | ✅ **hecho** | automatizado |
 | 2 | Exponer `academia` en la API | ✅ **hecho** | Alejandro |
 | 3 | Auth: Google ON, sign-up OFF, redirect URLs | ✅ **hecho** | Alejandro |
-| 4 | SMTP Gmail + templates en español | ✅ **hecho** | Alejandro |
+| 4 | Correo transaccional (Resend) | ⛔ **pendiente** | Alejandro |
 | 5 | Crear los 3 buckets `academia-*` | ✅ **hecho** | `scripts/setup-m0.mjs` |
 | 6 | Credenciales en `.env.local` | ✅ **hecho** | Alejandro |
 | 7 | Vercel + dominio | ⏳ no bloquea M1 | Alejandro |
@@ -143,29 +143,67 @@ Dashboard → **Authentication** → **URL Configuration**
 
 ---
 
-## Paso 4 — SMTP (Gmail) ✅ HECHO
+## Paso 4 — Correo transaccional (Resend) ⛔ PENDIENTE
 
-Dashboard → **Settings** → **Authentication** → **SMTP Settings** → Enable Custom SMTP
+> **Decisión del 20-ago-2026: se migra de Gmail SMTP a Resend.** §0.B había
+> elegido Gmail con un disparador de migración explícito ("correos cayendo a
+> spam"), y el escenario del lanzamiento lo activa: 40 personas recibiendo el
+> mismo correo casi a la vez desde una cuenta sin autenticación de dominio es el
+> patrón que los filtros marcan.
+
+### Por qué falló Gmail
+
+`POST /auth/v1/recover` devolvía **500 "Error sending recovery email"**. La causa
+no era la contraseña sino el remitente:
 
 | Campo | Valor |
 |---|---|
-| Host | `smtp.gmail.com` |
+| Sender email | `noreply@vadai.com.mx` |
+| Username SMTP | `vadai.agencia.ai@gmail.com` |
+
+**Gmail se niega a enviar desde una dirección que no sea la cuenta autenticada o
+un alias verificado en ella.** Rechaza en el `MAIL FROM`.
+
+### Configurar Resend
+
+1. Crea la cuenta en [resend.com](https://resend.com)
+2. **Domains → Add Domain** → `vadai.com.mx`
+3. Resend te da registros DNS (SPF, DKIM y opcionalmente DMARC). Agrégalos donde
+   administres el dominio y espera a que Resend marque el dominio como verificado.
+   Esa espera es lo único lento de todo esto.
+4. **API Keys → Create** → guarda la llave
+5. En Supabase → Authentication → SMTP Settings:
+
+| Campo | Valor |
+|---|---|
+| Host | `smtp.resend.com` |
 | Port | `587` |
-| Username | la cuenta de Gmail que envía |
-| Password | **App Password** de Google (no la contraseña normal) |
-| Sender email | el mismo correo |
+| Username | `resend` |
+| Password | la API key de Resend |
+| Sender email | `noreply@vadai.com.mx` |
 | Sender name | `VADAI Academia` |
 
-- [x] SMTP configurado
-- [x] Rate limit de correos subido a **300/hora** (Authentication → Rate Limits)
+- [ ] Dominio verificado en Resend
+- [ ] Credenciales SMTP en Supabase
+- [ ] `pnpm check:m0` con **SMTP envía** en verde
 - [ ] Templates de **Invite** y **Reset password** en español
-      (Authentication → Email Templates) ← pendiente, no bloquea
+      (Authentication → Email Templates)
 
-> No es consultable por API: `check-m0` no puede verificarlo. La prueba real es
-> pedir una recuperación desde `/recuperar` y ver si llega el correo.
+### Cómo saber que quedó
 
-> Entregabilidad limitada por ser Gmail. Aceptado para el lanzamiento.
-> Trigger para migrar a Resend: correos cayendo a spam de forma sostenida.
+```bash
+pnpm check:m0
+```
+
+La línea **"SMTP envía"** hace un envío real (`/auth/v1/recover` sobre una
+dirección QA). Si responde 200, el correo sale. Si responde 500, sigue roto.
+
+> **Nota sobre límites:** el plan gratuito de Resend ronda los 3,000 correos al
+> mes y 100 al día. Para una cohorte de 40 alumnos sobra; revísalo antes de un
+> lanzamiento más grande.
+>
+> **El código no cambia con esta migración.** La app nunca manda correo por su
+> cuenta (§7.3): todo sale de Supabase Auth, y esto solo cambia por dónde.
 
 ---
 
