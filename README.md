@@ -15,6 +15,7 @@ septiembre de 2026.
 | [docs/M0-SETUP.md](docs/M0-SETUP.md) | Checklist de infraestructura, con el estado de cada paso |
 | [docs/M1.md](docs/M1.md) | Schema, RLS y seeds: qué se construyó y cómo verificarlo |
 | [docs/M2.md](docs/M2.md) | Autenticación: login, middleware y pantalla de sin-acceso |
+| [docs/M3.md](docs/M3.md) | Admin de cursos, módulos, lecciones y adjuntos |
 
 ## Migraciones
 
@@ -59,6 +60,8 @@ pnpm dev
 | `pnpm db:seed` | Siembra los datos QA (idempotente) |
 | `pnpm test:rls` | Matriz de policies con cinco usuarios reales |
 | `pnpm test:auth` | Matriz de acceso contra la app corriendo (requiere `pnpm start`) |
+| `pnpm test:admin` | Ejecuta las server actions del admin de verdad (requiere `pnpm start`) |
+| `pnpm check:bunny` | Verifica las credenciales de Bunny Stream contra su API |
 | `pnpm db:types` | Regenera `lib/supabase/types.ts` desde la base |
 | `pnpm db:purge` | Lista los datos QA a borrar (`--confirmar` para ejecutar) |
 

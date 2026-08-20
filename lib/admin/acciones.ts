@@ -1,0 +1,486 @@
+'use server'
+
+import { revalidatePath } from 'next/cache'
+import { redirect } from 'next/navigation'
+
+import { exigirAdmin } from '@/lib/auth/sesion'
+import { crearClienteServidor } from '@/lib/supabase/server'
+
+import { slugOcupado } from './consultas'
+import { esquemaCurso, esquemaLeccion, esquemaModulo, generarSlug } from './esquemas'
+import type { EstadoAccion } from './tipos'
+
+/**
+ * Mutaciones del admin.
+ *
+ * Todas empiezan por `exigirAdmin()`. Es redundante con el middleware y con RLS
+ * —tres barreras— y así debe ser: una server action es un endpoint público, y
+ * nadie garantiza que la petición haya pasado por el middleware.
+ */
+
+const BUCKET_ADJUNTOS = 'academia-adjuntos'
+
+function primerError(resultado: { success: boolean; error?: { issues: Array<{ message: string }> } }) {
+  return resultado.error?.issues[0]?.message ?? 'Revisa los datos del formulario.'
+}
+
+function registrarFallo(operacion: string, detalle: Record<string, unknown>, error: string) {
+  console.error(JSON.stringify({ operacion, ...detalle, error }))
+}
+
+function leerFormulario(datos: FormData, campos: readonly string[]) {
+  const crudo: Record<string, string> = {}
+  for (const campo of campos) {
+    const valor = datos.get(campo)
+    crudo[campo] = typeof valor === 'string' ? valor : ''
+  }
+  return crudo
+}
+
+const CAMPOS_CURSO = [
+  'title', 'slug', 'description', 'cover_url', 'price_mxn', 'price_usd',
+  'stripe_payment_link_mxn', 'stripe_payment_link_usd', 'access_days',
+  'course_type', 'status', 'certificate_enabled',
+] as const
+
+const CAMPOS_LECCION = [
+  'module_id', 'title', 'lesson_type', 'status', 'is_required',
+  'description_rich', 'bunny_video_id', 'video_duration_sec',
+] as const
+
+// ==========================================================================
+// Cursos
+// ==========================================================================
+
+export async function crearCurso(_previo: EstadoAccion, datos: FormData): Promise<EstadoAccion> {
+  await exigirAdmin()
+
+  const crudo = leerFormulario(datos, CAMPOS_CURSO)
+  // El slug se deriva del título si el admin no lo escribió.
+  if (!crudo.slug) crudo.slug = generarSlug(crudo.title ?? '')
+
+  const resultado = esquemaCurso.safeParse(crudo)
+  if (!resultado.success) return { error: primerError(resultado) }
+
+  if (await slugOcupado(resultado.data.slug)) {
+    return { error: `Ya existe un curso con el slug "${resultado.data.slug}".` }
+  }
+
+  const supabase = await crearClienteServidor()
+  const { data, error } = await supabase
+    .from('courses')
+    .insert(resultado.data)
+    .select('id')
+    .single()
+
+  if (error || !data) {
+    registrarFallo('crearCurso', { slug: resultado.data.slug }, error?.message ?? 'sin id')
+    return { error: 'No se pudo crear el curso.' }
+  }
+
+  revalidatePath('/admin/cursos')
+  redirect(`/admin/cursos/${data.id}`)
+}
+
+export async function actualizarCurso(_previo: EstadoAccion, datos: FormData): Promise<EstadoAccion> {
+  await exigirAdmin()
+
+  const id = String(datos.get('id') ?? '')
+  if (!id) return { error: 'Falta el curso.' }
+
+  const crudo = leerFormulario(datos, CAMPOS_CURSO)
+  if (!crudo.slug) crudo.slug = generarSlug(crudo.title ?? '')
+
+  const resultado = esquemaCurso.safeParse(crudo)
+  if (!resultado.success) return { error: primerError(resultado) }
+
+  if (await slugOcupado(resultado.data.slug, id)) {
+    return { error: `Ya existe otro curso con el slug "${resultado.data.slug}".` }
+  }
+
+  const supabase = await crearClienteServidor()
+  const { error } = await supabase.from('courses').update(resultado.data).eq('id', id)
+
+  if (error) {
+    registrarFallo('actualizarCurso', { id }, error.message)
+    return { error: 'No se pudo guardar el curso.' }
+  }
+
+  revalidatePath('/admin/cursos')
+  revalidatePath(`/admin/cursos/${id}`)
+  return { aviso: 'Curso guardado.' }
+}
+
+/**
+ * Archiva en vez de borrar. Un curso con pagos registrados no se puede eliminar
+ * (payments.course_id es on delete restrict), y archivarlo conserva el historial
+ * de quienes lo compraron.
+ */
+export async function archivarCurso(datos: FormData): Promise<void> {
+  await exigirAdmin()
+  const id = String(datos.get('id') ?? '')
+  if (!id) return
+
+  const supabase = await crearClienteServidor()
+  const { error } = await supabase.from('courses').update({ status: 'archived' }).eq('id', id)
+
+  if (error) registrarFallo('archivarCurso', { id }, error.message)
+
+  revalidatePath('/admin/cursos')
+  revalidatePath(`/admin/cursos/${id}`)
+}
+
+// ==========================================================================
+// Módulos
+// ==========================================================================
+
+export async function crearModulo(_previo: EstadoAccion, datos: FormData): Promise<EstadoAccion> {
+  await exigirAdmin()
+
+  const resultado = esquemaModulo.safeParse({
+    course_id: datos.get('course_id'),
+    title: datos.get('title'),
+  })
+  if (!resultado.success) return { error: primerError(resultado) }
+
+  const supabase = await crearClienteServidor()
+
+  // Se coloca al final: una posición más que el último módulo del curso.
+  const { data: ultimo } = await supabase
+    .from('modules')
+    .select('position')
+    .eq('course_id', resultado.data.course_id)
+    .order('position', { ascending: false })
+    .limit(1)
+    .maybeSingle()
+
+  const { error } = await supabase
+    .from('modules')
+    .insert({ ...resultado.data, position: (ultimo?.position ?? 0) + 1 })
+
+  if (error) {
+    registrarFallo('crearModulo', { curso: resultado.data.course_id }, error.message)
+    return { error: 'No se pudo crear el módulo.' }
+  }
+
+  revalidatePath(`/admin/cursos/${resultado.data.course_id}`)
+  return { aviso: 'Módulo creado.' }
+}
+
+export async function renombrarModulo(datos: FormData): Promise<void> {
+  await exigirAdmin()
+
+  const id = String(datos.get('id') ?? '')
+  const cursoId = String(datos.get('course_id') ?? '')
+  const title = String(datos.get('title') ?? '').trim()
+  if (!id || title.length < 2) return
+
+  const supabase = await crearClienteServidor()
+  const { error } = await supabase.from('modules').update({ title }).eq('id', id)
+
+  if (error) registrarFallo('renombrarModulo', { id }, error.message)
+  revalidatePath(`/admin/cursos/${cursoId}`)
+}
+
+export async function eliminarModulo(datos: FormData): Promise<void> {
+  await exigirAdmin()
+
+  const id = String(datos.get('id') ?? '')
+  const cursoId = String(datos.get('course_id') ?? '')
+  if (!id) return
+
+  // Cascada: se lleva sus lecciones y todo lo que cuelgue de ellas.
+  const supabase = await crearClienteServidor()
+  const { error } = await supabase.from('modules').delete().eq('id', id)
+
+  if (error) registrarFallo('eliminarModulo', { id }, error.message)
+  revalidatePath(`/admin/cursos/${cursoId}`)
+}
+
+// ==========================================================================
+// Lecciones
+// ==========================================================================
+
+export async function crearLeccion(_previo: EstadoAccion, datos: FormData): Promise<EstadoAccion> {
+  await exigirAdmin()
+
+  const moduleId = String(datos.get('module_id') ?? '')
+  const cursoId = String(datos.get('course_id') ?? '')
+  const title = String(datos.get('title') ?? '').trim()
+  const tipo = String(datos.get('lesson_type') ?? 'video')
+
+  if (!moduleId || title.length < 2) return { error: 'La lección necesita un título.' }
+
+  const supabase = await crearClienteServidor()
+
+  const { data: ultima } = await supabase
+    .from('lessons')
+    .select('position')
+    .eq('module_id', moduleId)
+    .order('position', { ascending: false })
+    .limit(1)
+    .maybeSingle()
+
+  const { error } = await supabase.from('lessons').insert({
+    module_id: moduleId,
+    title,
+    lesson_type: tipo as 'video' | 'text' | 'quiz' | 'assignment',
+    // Nace en borrador: que aparezca sola ante los alumnos sería peor default.
+    status: 'draft',
+    position: (ultima?.position ?? 0) + 1,
+  })
+
+  if (error) {
+    registrarFallo('crearLeccion', { modulo: moduleId }, error.message)
+    return { error: 'No se pudo crear la lección.' }
+  }
+
+  revalidatePath(`/admin/cursos/${cursoId}`)
+  return { aviso: 'Lección creada en borrador.' }
+}
+
+export async function actualizarLeccion(_previo: EstadoAccion, datos: FormData): Promise<EstadoAccion> {
+  await exigirAdmin()
+
+  const id = String(datos.get('id') ?? '')
+  const cursoId = String(datos.get('course_id') ?? '')
+  if (!id) return { error: 'Falta la lección.' }
+
+  const resultado = esquemaLeccion.safeParse(leerFormulario(datos, CAMPOS_LECCION))
+  if (!resultado.success) return { error: primerError(resultado) }
+
+  const supabase = await crearClienteServidor()
+  const { error } = await supabase.from('lessons').update(resultado.data).eq('id', id)
+
+  if (error) {
+    registrarFallo('actualizarLeccion', { id }, error.message)
+    return { error: 'No se pudo guardar la lección.' }
+  }
+
+  revalidatePath(`/admin/cursos/${cursoId}`)
+  revalidatePath(`/admin/lecciones/${id}`)
+  return { aviso: 'Lección guardada.' }
+}
+
+export async function eliminarLeccion(datos: FormData): Promise<void> {
+  await exigirAdmin()
+
+  const id = String(datos.get('id') ?? '')
+  const cursoId = String(datos.get('course_id') ?? '')
+  if (!id) return
+
+  const supabase = await crearClienteServidor()
+  const { error } = await supabase.from('lessons').delete().eq('id', id)
+
+  if (error) registrarFallo('eliminarLeccion', { id }, error.message)
+
+  revalidatePath(`/admin/cursos/${cursoId}`)
+  redirect(`/admin/cursos/${cursoId}`)
+}
+
+// ==========================================================================
+// Orden
+//
+// §3.2 dice que botones subir/bajar bastan para el MVP. El movimiento
+// intercambia la posición con el vecino, así que el orden nunca queda con
+// huecos ni empates.
+// ==========================================================================
+
+/**
+ * Intercambia la posición con el vecino de arriba o de abajo.
+ *
+ * Van dos implementaciones casi iguales en vez de una genérica: el tipado de
+ * PostgREST es por tabla, y una función que reciba el nombre de la tabla pierde
+ * la comprobación de columnas justo donde más importa.
+ */
+export async function moverModulo(datos: FormData): Promise<void> {
+  await exigirAdmin()
+
+  const id = String(datos.get('id') ?? '')
+  const cursoId = String(datos.get('course_id') ?? '')
+  const direccion = String(datos.get('direccion') ?? '')
+  if (!id || !cursoId || (direccion !== 'arriba' && direccion !== 'abajo')) return
+
+  const supabase = await crearClienteServidor()
+  const arriba = direccion === 'arriba'
+
+  const { data: actual } = await supabase
+    .from('modules')
+    .select('id, position')
+    .eq('id', id)
+    .maybeSingle()
+  if (!actual) return
+
+  const consulta = supabase.from('modules').select('id, position').eq('course_id', cursoId)
+  const { data: vecino } = await (arriba
+    ? consulta.lt('position', actual.position).order('position', { ascending: false })
+    : consulta.gt('position', actual.position).order('position', { ascending: true })
+  )
+    .limit(1)
+    .maybeSingle()
+
+  // Ya está en el extremo: no hay con quién intercambiar.
+  if (!vecino) return
+
+  const { error: e1 } = await supabase
+    .from('modules')
+    .update({ position: vecino.position })
+    .eq('id', actual.id)
+  const { error: e2 } = await supabase
+    .from('modules')
+    .update({ position: actual.position })
+    .eq('id', vecino.id)
+
+  if (e1 || e2) registrarFallo('moverModulo', { id }, e1?.message ?? e2?.message ?? '')
+
+  revalidatePath(`/admin/cursos/${cursoId}`)
+}
+
+export async function moverLeccion(datos: FormData): Promise<void> {
+  await exigirAdmin()
+
+  const id = String(datos.get('id') ?? '')
+  const moduloId = String(datos.get('padre') ?? '')
+  const cursoId = String(datos.get('course_id') ?? '')
+  const direccion = String(datos.get('direccion') ?? '')
+  if (!id || !moduloId || (direccion !== 'arriba' && direccion !== 'abajo')) return
+
+  const supabase = await crearClienteServidor()
+  const arriba = direccion === 'arriba'
+
+  const { data: actual } = await supabase
+    .from('lessons')
+    .select('id, position')
+    .eq('id', id)
+    .maybeSingle()
+  if (!actual) return
+
+  const consulta = supabase.from('lessons').select('id, position').eq('module_id', moduloId)
+  const { data: vecino } = await (arriba
+    ? consulta.lt('position', actual.position).order('position', { ascending: false })
+    : consulta.gt('position', actual.position).order('position', { ascending: true })
+  )
+    .limit(1)
+    .maybeSingle()
+
+  if (!vecino) return
+
+  const { error: e1 } = await supabase
+    .from('lessons')
+    .update({ position: vecino.position })
+    .eq('id', actual.id)
+  const { error: e2 } = await supabase
+    .from('lessons')
+    .update({ position: actual.position })
+    .eq('id', vecino.id)
+
+  if (e1 || e2) registrarFallo('moverLeccion', { id }, e1?.message ?? e2?.message ?? '')
+
+  revalidatePath(`/admin/cursos/${cursoId}`)
+}
+
+// ==========================================================================
+// Adjuntos
+// ==========================================================================
+
+export async function subirAdjunto(_previo: EstadoAccion, datos: FormData): Promise<EstadoAccion> {
+  await exigirAdmin()
+
+  const leccionId = String(datos.get('lesson_id') ?? '')
+  const cursoId = String(datos.get('course_id') ?? '')
+  const archivo = datos.get('archivo')
+
+  if (!leccionId) return { error: 'Falta la lección.' }
+  if (!(archivo instanceof File) || archivo.size === 0) {
+    return { error: 'Elige un archivo.' }
+  }
+
+  const supabase = await crearClienteServidor()
+
+  // Prefijo por lección, según la convención de academia_0015_storage.sql.
+  // Se antepone la marca de tiempo para que dos archivos con el mismo nombre
+  // no se pisen entre sí.
+  const limpio = archivo.name.replace(/[^\w.\-]+/g, '_').slice(-120)
+  const ruta = `lecciones/${leccionId}/${Date.now()}-${limpio}`
+
+  const { error: errorSubida } = await supabase.storage
+    .from(BUCKET_ADJUNTOS)
+    .upload(ruta, archivo, { contentType: archivo.type || undefined, upsert: false })
+
+  if (errorSubida) {
+    registrarFallo('subirAdjunto', { leccionId, ruta }, errorSubida.message)
+    return {
+      error: /exceeded|maximum/i.test(errorSubida.message)
+        ? 'El archivo excede el tamaño máximo permitido por el proyecto.'
+        : 'No se pudo subir el archivo.',
+    }
+  }
+
+  const { error } = await supabase.from('lesson_attachments').insert({
+    lesson_id: leccionId,
+    storage_path: ruta,
+    file_name: archivo.name,
+    mime_type: archivo.type || null,
+    size_bytes: archivo.size,
+  })
+
+  if (error) {
+    // La fila no se creó: el archivo quedaría huérfano en el bucket.
+    await supabase.storage.from(BUCKET_ADJUNTOS).remove([ruta])
+    registrarFallo('subirAdjunto:registro', { leccionId, ruta }, error.message)
+    return { error: 'Se subió el archivo pero no se pudo registrar. Intenta de nuevo.' }
+  }
+
+  revalidatePath(`/admin/lecciones/${leccionId}`)
+  revalidatePath(`/admin/cursos/${cursoId}`)
+  return { aviso: `"${archivo.name}" agregado.` }
+}
+
+export async function eliminarAdjunto(datos: FormData): Promise<void> {
+  await exigirAdmin()
+
+  const id = String(datos.get('id') ?? '')
+  const leccionId = String(datos.get('lesson_id') ?? '')
+  if (!id) return
+
+  const supabase = await crearClienteServidor()
+
+  const { data: adjunto } = await supabase
+    .from('lesson_attachments')
+    .select('storage_path')
+    .eq('id', id)
+    .maybeSingle()
+
+  const { error } = await supabase.from('lesson_attachments').delete().eq('id', id)
+  if (error) {
+    registrarFallo('eliminarAdjunto', { id }, error.message)
+    return
+  }
+
+  // El archivo se borra después de la fila: si esto falla queda basura en el
+  // bucket, que es menos grave que una fila apuntando a un archivo inexistente.
+  if (adjunto?.storage_path) {
+    await supabase.storage.from(BUCKET_ADJUNTOS).remove([adjunto.storage_path])
+  }
+
+  revalidatePath(`/admin/lecciones/${leccionId}`)
+}
+
+/**
+ * URL firmada para que el admin descargue un adjunto.
+ * Los buckets son privados: nunca se expone una URL directa (§4).
+ */
+export async function urlDeDescarga(rutaStorage: string): Promise<string | null> {
+  await exigirAdmin()
+
+  const supabase = await crearClienteServidor()
+  const { data, error } = await supabase.storage
+    .from(BUCKET_ADJUNTOS)
+    .createSignedUrl(rutaStorage, 60 * 5)
+
+  if (error) {
+    registrarFallo('urlDeDescarga', { rutaStorage }, error.message)
+    return null
+  }
+  return data.signedUrl
+}
