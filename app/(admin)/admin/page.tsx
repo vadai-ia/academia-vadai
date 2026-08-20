@@ -8,9 +8,9 @@ export const metadata: Metadata = { title: 'Administración' }
 export const dynamic = 'force-dynamic'
 
 const PENDIENTES = [
+  { clave: 'M5', nombre: 'Quizzes' },
   { clave: 'M6', nombre: 'Bandeja de entregas' },
-  { clave: 'M8', nombre: 'Cohortes y sesiones' },
-  { clave: 'M9', nombre: 'Alumnos y pagos' },
+  { clave: 'M7', nombre: 'Comunidad y blog' },
 ] as const
 
 export default async function PaginaAdmin() {
@@ -35,7 +35,20 @@ export default async function PaginaAdmin() {
           <span className="flex flex-col gap-0.5">
             <span className="font-medium">Cursos</span>
             <span className="text-sm text-muted-foreground">
-              Módulos, lecciones, adjuntos y publicación
+              Módulos, lecciones, videos, adjuntos y cohortes
+            </span>
+          </span>
+          <span className="text-vadai-cyan">→</span>
+        </Link>
+
+        <Link
+          href="/admin/alumnos"
+          className="flex items-center justify-between rounded-lg border border-border px-4 py-4 transition-colors hover:border-vadai-cyan/60"
+        >
+          <span className="flex flex-col gap-0.5">
+            <span className="font-medium">Alumnos y pagos</span>
+            <span className="text-sm text-muted-foreground">
+              Alta manual, vigencias y pagos recibidos
             </span>
           </span>
           <span className="text-vadai-cyan">→</span>

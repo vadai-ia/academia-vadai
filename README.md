@@ -18,6 +18,7 @@ septiembre de 2026.
 | [docs/M3.md](docs/M3.md) | Admin de cursos, módulos, lecciones y adjuntos |
 | [docs/M4.md](docs/M4.md) | Vista del alumno: mis cursos, player con token y progreso |
 | [docs/M8.md](docs/M8.md) | Cohortes, sesiones en vivo y grabaciones ligadas |
+| [docs/M9.md](docs/M9.md) | Stripe: webhook, provisioning y alta manual |
 
 ## Migraciones
 
@@ -65,6 +66,7 @@ pnpm dev
 | `pnpm test:admin` | Ejecuta las server actions del admin de verdad (requiere `pnpm start`) |
 | `pnpm test:alumno` | Progreso, player firmado y acceso vencido (requiere `pnpm start`) |
 | `pnpm test:cohortes` | Calendario, zona horaria y grabaciones (requiere `pnpm start`) |
+| `pnpm test:stripe` | Webhook con eventos firmados sintéticos (requiere `pnpm start`) |
 | `pnpm check:bunny` | Verifica las credenciales de Bunny Stream contra su API |
 | `pnpm db:types` | Regenera `lib/supabase/types.ts` desde la base |
 | `pnpm db:purge` | Lista los datos QA a borrar (`--confirmar` para ejecutar) |
