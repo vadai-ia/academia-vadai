@@ -1,12 +1,18 @@
+import Link from 'next/link'
+
+import { Wordmark } from '@/components/marca/wordmark'
+import { Button } from '@/components/ui/button'
+import { RUTAS } from '@/lib/auth/rutas'
 import { verificarConexion } from '@/lib/supabase/estado'
 
 // La sonda consulta Supabase en vivo: nunca debe quedar cacheada en el build.
 export const dynamic = 'force-dynamic'
 
 const HITOS = [
-  { clave: 'M0', nombre: 'Infraestructura', estado: 'en curso' },
-  { clave: 'M1', nombre: 'Schema y RLS', estado: 'siguiente' },
-  { clave: 'M2', nombre: 'Autenticación', estado: 'pendiente' },
+  { clave: 'M0', nombre: 'Infraestructura', estado: 'listo' },
+  { clave: 'M1', nombre: 'Schema y RLS', estado: 'listo' },
+  { clave: 'M2', nombre: 'Autenticación', estado: 'listo' },
+  { clave: 'M3', nombre: 'Admin de cursos', estado: 'siguiente' },
 ] as const
 
 export default async function Inicio() {
@@ -14,18 +20,20 @@ export default async function Inicio() {
 
   return (
     <main className="mx-auto flex min-h-dvh w-full max-w-2xl flex-col justify-center gap-10 px-6 py-16">
-      <header className="flex flex-col gap-3">
-        <p className="text-sm font-semibold tracking-[0.2em] text-vadai-cyan uppercase">
-          VADAI
-        </p>
+      <header className="flex flex-col gap-4">
+        <Wordmark />
         <h1 className="text-4xl font-bold tracking-tight text-balance sm:text-5xl">
-          Academia
+          IA aplicada para tu empresa
         </h1>
         <p className="max-w-md text-pretty text-muted-foreground">
-          IA aplicada para dueños de negocio. Primer curso:{' '}
-          <span className="text-foreground">Claude en tu Empresa</span>, 21 de septiembre
-          de 2026.
+          Primer curso: <span className="text-foreground">Claude en tu Empresa</span>,
+          21 de septiembre de 2026.
         </p>
+        <div>
+          <Button asChild>
+            <Link href={RUTAS.login}>Entrar a mi academia</Link>
+          </Button>
+        </div>
       </header>
 
       <section

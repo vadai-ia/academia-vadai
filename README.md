@@ -14,6 +14,7 @@ septiembre de 2026.
 | [docs/academia-master-document.md](docs/academia-master-document.md) | Fuente de verdad funcional: negocio, modelo de datos, milestones |
 | [docs/M0-SETUP.md](docs/M0-SETUP.md) | Checklist de infraestructura, con el estado de cada paso |
 | [docs/M1.md](docs/M1.md) | Schema, RLS y seeds: qué se construyó y cómo verificarlo |
+| [docs/M2.md](docs/M2.md) | Autenticación: login, middleware y pantalla de sin-acceso |
 
 ## Migraciones
 
@@ -57,6 +58,7 @@ pnpm dev
 | `pnpm db:migrate` | Aplica las migraciones pendientes, cada una en su transacción |
 | `pnpm db:seed` | Siembra los datos QA (idempotente) |
 | `pnpm test:rls` | Matriz de policies con cinco usuarios reales |
+| `pnpm test:auth` | Matriz de acceso contra la app corriendo (requiere `pnpm start`) |
 | `pnpm db:types` | Regenera `lib/supabase/types.ts` desde la base |
 | `pnpm db:purge` | Lista los datos QA a borrar (`--confirmar` para ejecutar) |
 
