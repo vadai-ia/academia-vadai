@@ -67,6 +67,7 @@ Implicación de diseño: todo se modela multi-curso y membership-ready desde el 
 | `profiles.email` denormalizado | El webhook de Stripe (§3.1-B) resuelve al usuario por email y el admin lista alumnos por correo; PostgREST no puede hacer join con `auth.users` desde el schema `academia` |
 | `correct_option_id` fuera del cliente vía vista | Fuga no contemplada en el spec: con RLS a nivel de fila, un alumno con acceso podría leer la respuesta correcta antes de contestar |
 | Usuarios QA con prefijo `qa-` + script de purga | M11 exige "datos de prueba purgados" de un `auth.users` compartido; el prefijo los hace identificables y borrables sin tocar usuarios reales |
+| **Solo tarjeta en los Payment Links**, sin OXXO ni SPEI | Con métodos asíncronos, `checkout.session.completed` llega con `payment_status: 'unpaid'` y el pago real confirma horas o días después. Eso rompe la promesa de §6.1 ("compra → acceso en <2 min") y obligaría a diseñar qué ve el alumno mientras su voucher se paga. Se acepta perder a quien no usa tarjeta a cambio de que el acceso sea inmediato y el flujo, uno solo. Los eventos async quedan suscritos igual, por si se activa después |
 | **Proyecto Supabase dedicado**, no el compartido | Corrige la decisión original de §0.B. La academia vive en `mtrojwqwnuzzcgtmmoop` (vacío al arrancar: 0 tablas en `public`, 0 usuarios, 0 buckets), no en `ukgbklhmjbniffssacjm` donde ya viven otros seis sistemas VADAI. Se gana aislamiento real de auth y de datos, y desaparece el riesgo de que un cambio de configuración global (sign-up, exposed schemas) afecte a sistemas ajenos. La Regla Cero se conserva igual: cuesta cero y deja la puerta abierta a convivir después |
 
 ---
@@ -362,7 +363,23 @@ public_profiles         user_id, full_name, avatar_url (para autoría en comenta
 
 ### 7.1 Stripe
 - Products/Prices creados manualmente en dashboard: "Claude en tu Empresa" en MXN y USD (pago único). Payment Links con `allow_promotion_codes` y campo obligatorio de email.
-- Webhook endpoint: `/api/stripe/webhook`. Eventos: `checkout.session.completed`, `charge.refunded` (marca payment `refunded` y revoca enrollment).
+- Webhook endpoint: `/api/stripe/webhook`. Eventos suscritos:
+
+| Evento | Qué hace |
+|---|---|
+| `checkout.session.completed` | Crea cuenta si no existe + enrollment + registra payment |
+| `charge.refunded` | Marca payment `refunded` y revoca el enrollment |
+| `checkout.session.async_payment_succeeded` | Suscrito por si se activa OXXO/SPEI. Hoy no debería dispararse |
+| `checkout.session.async_payment_failed` | Ídem |
+| `charge.dispute.created` | Contracargo. Solo para enterarse; no revoca automáticamente |
+
+  **El handler valida `payment_status === 'paid'` antes de provisionar**, aunque hoy
+  solo se acepte tarjeta. Es correcto en ambos escenarios y evita que activar OXXO
+  algún día regale cursos a quien genere un voucher y nunca lo pague.
+
+- Llave de API: **restringida (`rk_`)**, no secreta. El backend solo lee Checkout
+  Sessions, Customers y Charges; no escribe nada en Stripe. Si se filtra, no
+  permite cobrar ni mover dinero.
 - Verificación de firma obligatoria + idempotencia vía `stripe_events`.
 - La moneda/curso se resuelve por metadata del Payment Link (`course_id`, `currency`).
 
