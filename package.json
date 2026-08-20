@@ -9,7 +9,13 @@
     "lint": "eslint",
     "typecheck": "tsc --noEmit",
     "setup:m0": "node scripts/setup-m0.mjs",
-    "check:m0": "node scripts/check-m0.mjs"
+    "check:m0": "node scripts/check-m0.mjs",
+    "db:migrate": "node scripts/migrate.mjs",
+    "db:status": "node scripts/migrate.mjs --status",
+    "db:seed": "node scripts/seed.mjs",
+    "test:rls": "node scripts/test-rls.mjs",
+    "db:purge": "node scripts/seed-purge.mjs",
+    "db:types": "node scripts/gen-types.mjs"
   },
   "dependencies": {
     "@supabase/ssr": "^0.12.4",

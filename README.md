@@ -13,6 +13,17 @@ septiembre de 2026.
 | [CLAUDE.md](CLAUDE.md) | Contexto permanente, reglas y anti-patterns. Manda sobre cualquier suposición |
 | [docs/academia-master-document.md](docs/academia-master-document.md) | Fuente de verdad funcional: negocio, modelo de datos, milestones |
 | [docs/M0-SETUP.md](docs/M0-SETUP.md) | Checklist de infraestructura, con el estado de cada paso |
+| [docs/M1.md](docs/M1.md) | Schema, RLS y seeds: qué se construyó y cómo verificarlo |
+
+## Migraciones
+
+Se aplican con un runner propio, **no** con `supabase db push`: el CLI crea el
+schema `supabase_migrations` con un historial global del proyecto. El nuestro
+guarda su ledger en `academia.schema_migrations`, aplica cada archivo en una
+transacción, detecta si una migración ya aplicada cambió, y **aborta si aparece
+cualquier objeto fuera de `academia`**.
+
+Una migración aplicada es historia: no se edita. El cambio va en un archivo nuevo.
 
 ## Regla Cero
 
@@ -42,6 +53,12 @@ pnpm dev
 | `pnpm typecheck` | TypeScript en modo estricto, sin emitir |
 | `pnpm setup:m0` | Crea los buckets `academia-*` (idempotente) |
 | `pnpm check:m0` | Verifica variables, conexión, schema expuesto, Auth y buckets |
+| `pnpm db:status` | Qué migraciones están aplicadas y cuáles faltan |
+| `pnpm db:migrate` | Aplica las migraciones pendientes, cada una en su transacción |
+| `pnpm db:seed` | Siembra los datos QA (idempotente) |
+| `pnpm test:rls` | Matriz de policies con cinco usuarios reales |
+| `pnpm db:types` | Regenera `lib/supabase/types.ts` desde la base |
+| `pnpm db:purge` | Lista los datos QA a borrar (`--confirmar` para ejecutar) |
 
 ## Stack
 
