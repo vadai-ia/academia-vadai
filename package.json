@@ -19,7 +19,8 @@
     "test:auth": "node scripts/test-auth.mjs",
     "test:admin": "node scripts/test-admin.mjs",
     "check:bunny": "node scripts/check-bunny.mjs",
-    "test:alumno": "node scripts/test-alumno.mjs"
+    "test:alumno": "node scripts/test-alumno.mjs",
+    "test:cohortes": "node scripts/test-cohortes.mjs"
   },
   "dependencies": {
     "@supabase/ssr": "^0.12.4",

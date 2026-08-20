@@ -1,6 +1,6 @@
 'use client'
 
-import { useActionState, useRef } from 'react'
+import { useActionState } from 'react'
 import { useFormStatus } from 'react-dom'
 
 import { Button } from '@/components/ui/button'
@@ -19,16 +19,21 @@ function Boton() {
   )
 }
 
-export function NuevaLeccion({ moduloId, cursoId }: { moduloId: string; cursoId: string }) {
+export function NuevaLeccion({
+  moduloId,
+  cursoId,
+  reinicio,
+}: {
+  moduloId: string
+  cursoId: string
+  reinicio: number
+}) {
   const [estado, accion] = useActionState(crearLeccion, SIN_ESTADO)
-  const campo = useRef<HTMLInputElement>(null)
 
   return (
     <form
-      action={async (datos) => {
-        await accion(datos)
-        if (campo.current) campo.current.value = ''
-      }}
+      key={reinicio}
+      action={accion}
       className="flex flex-col gap-2 border-t border-border px-3 py-2"
     >
       <input type="hidden" name="module_id" value={moduloId} />
@@ -36,7 +41,6 @@ export function NuevaLeccion({ moduloId, cursoId }: { moduloId: string; cursoId:
 
       <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
         <Input
-          ref={campo}
           name="title"
           placeholder="Título de la lección"
           aria-label="Título de la lección"

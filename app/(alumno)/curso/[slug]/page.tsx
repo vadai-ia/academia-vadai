@@ -5,8 +5,10 @@ import { notFound } from 'next/navigation'
 import { AccesoVencido } from '@/components/alumno/acceso-vencido'
 import { BarraProgreso } from '@/components/alumno/barra-progreso'
 import { IndiceCurso } from '@/components/alumno/indice-curso'
+import { SesionesEnVivo } from '@/components/alumno/sesiones-en-vivo'
 import { Button } from '@/components/ui/button'
 import { cursoDelAlumno } from '@/lib/alumno/consultas'
+import { sesionesDelAlumno } from '@/lib/alumno/sesiones'
 import { exigirPerfil } from '@/lib/auth/sesion'
 
 export const dynamic = 'force-dynamic'
@@ -27,6 +29,10 @@ export default async function PaginaCurso({ params }: { params: Promise<{ slug: 
 
   const curso = await cursoDelAlumno(slug)
   if (!curso) notFound()
+
+  // La policy de cohort_sessions exige pertenecer a la cohorte Y tener acceso
+  // vigente: el alumno vencido recibe una lista vacía sin que haya que filtrar.
+  const sesiones = await sesionesDelAlumno(slug)
 
   // Retomar donde se quedó (§3.3): la primera sin completar que esté disponible.
   const planas = curso.modulos.flatMap((m) => m.lecciones)
@@ -79,6 +85,8 @@ export default async function PaginaCurso({ params }: { params: Promise<{ slug: 
       </div>
 
       {!curso.vigente ? <AccesoVencido curso={curso} /> : null}
+
+      <SesionesEnVivo sesiones={sesiones} />
 
       <section className="flex flex-col gap-4">
         <h2 className="text-lg font-semibold">Contenido</h2>

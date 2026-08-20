@@ -162,12 +162,16 @@ export function ArbolCurso({ curso }: { curso: CursoCompleto }) {
               </ul>
             ) : null}
 
-            <NuevaLeccion moduloId={modulo.id} cursoId={curso.id} />
+            <NuevaLeccion
+              moduloId={modulo.id}
+              cursoId={curso.id}
+              reinicio={modulo.lecciones.length}
+            />
           </li>
         ))}
       </ul>
 
-      <NuevoModulo cursoId={curso.id} />
+      <NuevoModulo cursoId={curso.id} reinicio={curso.modulos.length} />
     </div>
   )
 }

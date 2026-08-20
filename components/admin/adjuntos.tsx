@@ -1,6 +1,6 @@
 'use client'
 
-import { useActionState, useRef, useState, useTransition } from 'react'
+import { useActionState, useState, useTransition } from 'react'
 import { useFormStatus } from 'react-dom'
 
 import { Button } from '@/components/ui/button'
@@ -67,7 +67,6 @@ export function Adjuntos({
   cursoId: string
 }) {
   const [estado, accion] = useActionState(subirAdjunto, SIN_ESTADO)
-  const campo = useRef<HTMLInputElement>(null)
 
   return (
     <section className="flex flex-col gap-4">
@@ -121,19 +120,12 @@ export function Adjuntos({
         </ul>
       )}
 
-      <form
-        action={async (datos) => {
-          await accion(datos)
-          if (campo.current) campo.current.value = ''
-        }}
-        className="flex flex-col gap-2"
-      >
+      <form key={adjuntos.length} action={accion} className="flex flex-col gap-2">
         <input type="hidden" name="lesson_id" value={leccionId} />
         <input type="hidden" name="course_id" value={cursoId} />
 
         <div className="flex flex-col gap-2 sm:flex-row">
           <Input
-            ref={campo}
             name="archivo"
             type="file"
             aria-label="Archivo a subir"

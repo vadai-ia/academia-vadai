@@ -1,6 +1,6 @@
 'use client'
 
-import { useActionState, useRef } from 'react'
+import { useActionState } from 'react'
 import { useFormStatus } from 'react-dom'
 
 import { Button } from '@/components/ui/button'
@@ -19,23 +19,14 @@ function Boton() {
   )
 }
 
-export function NuevoModulo({ cursoId }: { cursoId: string }) {
+export function NuevoModulo({ cursoId, reinicio }: { cursoId: string; reinicio: number }) {
   const [estado, accion] = useActionState(crearModulo, SIN_ESTADO)
-  const campo = useRef<HTMLInputElement>(null)
 
   return (
-    <form
-      action={async (datos) => {
-        await accion(datos)
-        // Deja el campo listo para el siguiente módulo sin recargar.
-        if (campo.current) campo.current.value = ''
-      }}
-      className="flex flex-col gap-2"
-    >
+    <form key={reinicio} action={accion} className="flex flex-col gap-2">
       <input type="hidden" name="course_id" value={cursoId} />
       <div className="flex flex-col gap-2 sm:flex-row">
         <Input
-          ref={campo}
           name="title"
           placeholder="Nombre del módulo"
           aria-label="Nombre del módulo"
