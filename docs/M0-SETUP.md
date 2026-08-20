@@ -79,9 +79,10 @@ forma idempotente, así que el schema se puede recrear desde cero en otro ambien
 
 ---
 
-## Paso 2 — Exponer el schema a la API ⛔ PENDIENTE
+## Paso 2 — Exponer el schema a la API ✅ HECHO
 
-**Es el paso que bloquea todo lo demás.**
+Fue el paso que bloqueaba todo lo demás. Verificado por API: PostgREST resuelve
+el schema `academia`.
 
 Dashboard → **Settings** → **API** → sección **Exposed schemas**
 
@@ -100,7 +101,7 @@ public, graphql_public, academia
 **Añade, no reemplaces.** (En este proyecto no hay otros sistemas que romper, pero es el
 hábito correcto y en el proyecto compartido de VADAI sí importa de verdad.)
 
-- [ ] `academia` aparece en Exposed schemas
+- [x] `academia` aparece en Exposed schemas
 
 > Sin esto, PostgREST rechaza el schema y el cliente JS **falla en silencio**: devuelve
 > arrays vacíos en lugar de un error. Es la causa #1 de horas perdidas.
@@ -108,19 +109,19 @@ hábito correcto y en el proyecto compartido de VADAI sí importa de verdad.)
 
 ---
 
-## Paso 3 — Auth ⛔ PENDIENTE
+## Paso 3 — Auth ✅ HECHO
 
 Dashboard → **Authentication** → **Providers**
 
 - [x] **Email / password** habilitado — ya está ✓
-- [ ] **Google** habilitado — **hoy está apagado**
+- [x] **Google** habilitado ✓
   - Necesitas Client ID y Client Secret de Google Cloud Console
   - En Google Cloud → Credentials → OAuth 2.0 Client, el *Authorized redirect URI* es:
     `https://mtrojwqwnuzzcgtmmoop.supabase.co/auth/v1/callback`
 
 Dashboard → **Authentication** → **Sign In / Providers**
 
-- [ ] **"Allow new users to sign up" = OFF** — **hoy está en ON**
+- [x] **"Allow new users to sign up" = OFF** ✓ (verificado: `disable_signup = true`)
   - Es el requisito de §0.B: el acceso es un producto pagado, las cuentas nacen de una compra
     o de una invitación, siempre server-side.
   - Aquí no rompe nada: el proyecto tiene 0 usuarios y ningún otro sistema.
@@ -137,12 +138,12 @@ Dashboard → **Authentication** → **Sign In / Providers**
 
 Dashboard → **Authentication** → **URL Configuration**
 
-- [ ] Site URL: `https://academia.vadai.com.mx`
+- [ ] Site URL: `https://academia.vadai.com.mx`  ← confirmar antes del deploy
 - [ ] Redirect URLs incluye `https://academia.vadai.com.mx/**` y `http://localhost:3000/**`
 
 ---
 
-## Paso 4 — SMTP (Gmail) ⛔ PENDIENTE
+## Paso 4 — SMTP (Gmail) ✅ HECHO
 
 Dashboard → **Settings** → **Authentication** → **SMTP Settings** → Enable Custom SMTP
 
@@ -155,15 +156,16 @@ Dashboard → **Settings** → **Authentication** → **SMTP Settings** → Enab
 | Sender email | el mismo correo |
 | Sender name | `VADAI Academia` |
 
-- [ ] SMTP configurado y probado
+- [x] SMTP configurado
+- [x] Rate limit de correos subido a **300/hora** (Authentication → Rate Limits)
 - [ ] Templates de **Invite** y **Reset password** en español
-      (Authentication → Email Templates)
+      (Authentication → Email Templates) ← pendiente, no bloquea
 
-> Límite ~500 correos/día y entregabilidad limitada. Aceptado para el lanzamiento.
-> Trigger para migrar a Resend: >100 invitaciones/día sostenidas, o correos cayendo a spam.
->
-> **No bloquea M1** (las migraciones y los seeds no mandan correo), pero sí bloquea M2,
-> donde el alta de alumnos depende del email de invitación.
+> No es consultable por API: `check-m0` no puede verificarlo. La prueba real es
+> pedir una recuperación desde `/recuperar` y ver si llega el correo.
+
+> Entregabilidad limitada por ser Gmail. Aceptado para el lanzamiento.
+> Trigger para migrar a Resend: correos cayendo a spam de forma sostenida.
 
 ---
 
