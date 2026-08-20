@@ -235,8 +235,12 @@ async function main() {
   })
   afirmar(A, 'auto-aprobarse una tarea bloqueado', false, autoAprobarse.ok)
 
-  afirmar(A, 'progreso de otros alumnos invisible', 1,
-    await contar(t.alumnoVigente, 'lesson_progress?select=lesson_id'))
+  // Se afirma la propiedad, no el conteo: cuántas filas de progreso tenga este
+  // alumno depende de qué suites hayan corrido antes. Lo que nunca debe pasar es
+  // que aparezca una fila ajena.
+  const progresoVisible = await filas(t.alumnoVigente, 'lesson_progress?select=user_id')
+  afirmar(A, 'progreso de otros alumnos invisible', true,
+    progresoVisible.length > 0 && progresoVisible.every((p) => p.user_id === idVigente))
 
   const autoAprobarQuiz = await escribir('POST', t.alumnoVigente, 'quiz_attempts', {
     quiz_id: IDS.quiz, user_id: idVigente, answers: {}, score: 100, passed: true,
