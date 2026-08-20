@@ -4,6 +4,7 @@ import { useActionState, useState } from 'react'
 import { useFormStatus } from 'react-dom'
 
 import { EditorRico } from '@/components/admin/editor-rico'
+import { SubidaVideo } from '@/components/admin/subida-video'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
@@ -29,9 +30,11 @@ function Guardar() {
 export function FormularioLeccion({
   leccion,
   cursoId,
+  bunnyListo,
 }: {
   leccion: Leccion
   cursoId: string
+  bunnyListo: boolean
 }) {
   const [estado, accion] = useActionState(actualizarLeccion, SIN_ESTADO)
   const [tipo, setTipo] = useState(leccion.lesson_type)
@@ -102,14 +105,26 @@ export function FormularioLeccion({
           <div className="flex flex-col gap-1">
             <h3 className="text-sm font-medium">Video</h3>
             <p className="text-xs text-muted-foreground">
-              Sube el video en el panel de Bunny Stream y pega aquí su GUID. La URL de
-              reproducción se firma en el servidor: nunca se expone sin token.
+              {bunnyListo
+                ? 'El archivo va del navegador directo a Bunny, sin pasar por nuestro servidor. Si se corta la conexión, la subida continúa donde se quedó.'
+                : 'Bunny Stream no está configurado. Sube el video en su panel y pega aquí el GUID.'}
             </p>
           </div>
 
+          {bunnyListo ? (
+            <SubidaVideo
+              leccionId={leccion.id}
+              cursoId={cursoId}
+              titulo={leccion.title}
+              guidActual={leccion.bunny_video_id}
+            />
+          ) : null}
+
           <div className="grid gap-4 sm:grid-cols-2">
             <div className="flex flex-col gap-2">
-              <Label htmlFor="bunny_video_id">GUID de Bunny</Label>
+              <Label htmlFor="bunny_video_id">
+                GUID de Bunny{bunnyListo ? ' (se llena solo al subir)' : ''}
+              </Label>
               <Input
                 id="bunny_video_id"
                 name="bunny_video_id"

@@ -107,8 +107,55 @@ async function main() {
     CDN.includes('.b-cdn.net') ? CDN : `${CDN} — se esperaba algo.b-cdn.net`
   )
 
+  // 4. ¿Se está aplicando Token Authentication? (§7.2 lo exige)
+  //
+  // No es consultable directamente: la configuración de la biblioteca vive en
+  // api.bunny.net y pide una llave de cuenta, no la de Stream. Lo que sí se
+  // puede es sondear las dos rutas de reproducción y reportar lo observado.
+  const sonda = await fetch(`${API}/library/${LIBRARY}/videos`, {
+    method: 'POST',
+    headers: { AccessKey: APIKEY, 'Content-Type': 'application/json', accept: 'application/json' },
+    body: JSON.stringify({ title: 'qa-token-probe-borrar' }),
+  })
+
+  if (sonda.ok) {
+    const video = await sonda.json()
+
+    const iframe = await fetch(`https://iframe.mediadelivery.net/embed/${LIBRARY}/${video.guid}`, {
+      redirect: 'manual',
+    })
+    const cdn = await fetch(`https://${CDN}/${video.guid}/playlist.m3u8`, { redirect: 'manual' })
+
+    linea(
+      cdn.status === 403 ? 'ok' : 'falla',
+      'CDN directo sin token',
+      cdn.status === 403 ? 'bloqueado (403)' : `ABIERTO (${cdn.status})`
+    )
+
+    linea(
+      iframe.status === 200 ? 'aviso' : 'ok',
+      'Embed sin token',
+      iframe.status === 200
+        ? 'responde 200 — confirma Token Authentication a mano'
+        : `bloqueado (${iframe.status})`
+    )
+
+    await fetch(`${API}/library/${LIBRARY}/videos/${video.guid}`, {
+      method: 'DELETE',
+      headers: { AccessKey: APIKEY, accept: 'application/json' },
+    })
+  }
+
   console.log('')
-  console.log('  Bunny listo. Avísame y termino el upload desde el admin.')
+  console.log('  Bunny listo para subir.')
+  console.log('')
+  console.log('  Queda una cosa que NO se puede verificar por API: que Token')
+  console.log('  Authentication esté encendido en la biblioteca. Es lo que impide')
+  console.log('  que un alumno comparta la URL del video (§7.2, "el contenido es')
+  console.log('  el negocio"). Confírmalo en:')
+  console.log('')
+  console.log('    Bunny → Stream → tu Video Library → Security')
+  console.log('      Enable Token Authentication  = ON')
   console.log('')
 }
 

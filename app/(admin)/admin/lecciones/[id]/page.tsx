@@ -6,6 +6,7 @@ import { Adjuntos } from '@/components/admin/adjuntos'
 import { FormularioLeccion } from '@/components/admin/formulario-leccion'
 import { Button } from '@/components/ui/button'
 import { eliminarLeccion } from '@/lib/admin/acciones'
+import { bunnyConfigurado } from '@/lib/bunny/cliente'
 import { obtenerLeccion } from '@/lib/admin/consultas'
 import { exigirAdmin } from '@/lib/auth/sesion'
 
@@ -40,7 +41,11 @@ export default async function PaginaLeccion({ params }: { params: Promise<{ id: 
         <h1 className="text-2xl font-semibold tracking-tight">{leccion.title}</h1>
       </header>
 
-      <FormularioLeccion leccion={leccion} cursoId={leccion.curso_id} />
+      <FormularioLeccion
+        leccion={leccion}
+        cursoId={leccion.curso_id}
+        bunnyListo={bunnyConfigurado()}
+      />
 
       <div className="border-t border-border pt-8">
         <Adjuntos
