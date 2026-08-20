@@ -1,0 +1,162 @@
+@import "tailwindcss";
+@import "tw-animate-css";
+@import "shadcn/tailwind.css";
+
+@custom-variant dark (&:is(.dark *));
+
+@theme inline {
+    --font-heading: var(--font-sans);
+    --font-sans: var(--font-sans);
+    --color-sidebar-ring: var(--sidebar-ring);
+    --color-sidebar-border: var(--sidebar-border);
+    --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
+    --color-sidebar-accent: var(--sidebar-accent);
+    --color-sidebar-primary-foreground: var(--sidebar-primary-foreground);
+    --color-sidebar-primary: var(--sidebar-primary);
+    --color-sidebar-foreground: var(--sidebar-foreground);
+    --color-sidebar: var(--sidebar);
+    --color-chart-5: var(--chart-5);
+    --color-chart-4: var(--chart-4);
+    --color-chart-3: var(--chart-3);
+    --color-chart-2: var(--chart-2);
+    --color-chart-1: var(--chart-1);
+    --color-ring: var(--ring);
+    --color-input: var(--input);
+    --color-border: var(--border);
+    --color-destructive: var(--destructive);
+    --color-accent-foreground: var(--accent-foreground);
+    --color-accent: var(--accent);
+    --color-muted-foreground: var(--muted-foreground);
+    --color-muted: var(--muted);
+    --color-secondary-foreground: var(--secondary-foreground);
+    --color-secondary: var(--secondary);
+    --color-primary-foreground: var(--primary-foreground);
+    --color-primary: var(--primary);
+    --color-popover-foreground: var(--popover-foreground);
+    --color-popover: var(--popover);
+    --color-card-foreground: var(--card-foreground);
+    --color-card: var(--card);
+    --color-foreground: var(--foreground);
+    --color-background: var(--background);
+    --radius-sm: calc(var(--radius) * 0.6);
+    --radius-md: calc(var(--radius) * 0.8);
+    --radius-lg: var(--radius);
+    --radius-xl: calc(var(--radius) * 1.4);
+    --radius-2xl: calc(var(--radius) * 1.8);
+    --radius-3xl: calc(var(--radius) * 2.2);
+    --radius-4xl: calc(var(--radius) * 2.6);
+}
+
+/* ---------------------------------------------------------------------------
+   Paleta VADAI — §9 del master document.
+   Estos tokens permiten usar los colores de marca por nombre en cualquier
+   clase de Tailwind: bg-vadai-navy, text-vadai-lima, border-vadai-cyan.
+   Los tokens semánticos de shadcn (abajo) se derivan de estos mismos colores.
+--------------------------------------------------------------------------- */
+@theme {
+    --color-vadai-navy: #0a1a2f;
+    --color-vadai-cyan: #00a0db;
+    --color-vadai-azul: #006e96;
+    --color-vadai-lima: #c6f24e;
+    --color-vadai-texto: #f5f8fb;
+    --color-vadai-gris: #93a3b5;
+}
+
+/* ---------------------------------------------------------------------------
+   Tema único: dark mode premium (§9 — "Dark mode premium como único tema").
+   No hay tema claro. Por eso la paleta vive directamente en :root y la clase
+   .dark solo la repite, para que los componentes de shadcn que la consultan se
+   vean igual sin importar cómo se monten.
+--------------------------------------------------------------------------- */
+:root {
+    color-scheme: dark;
+
+    --background: #0a1a2f;           /* navy de la landing */
+    --foreground: #f5f8fb;
+
+    --card: #0f2440;                 /* navy un paso más claro, para superficies */
+    --card-foreground: #f5f8fb;
+    --popover: #0f2440;
+    --popover-foreground: #f5f8fb;
+
+    --primary: #00a0db;              /* cyan VADAI */
+    --primary-foreground: #04121f;   /* texto oscuro sobre cyan: contraste AA */
+
+    --secondary: #006e96;            /* azul profundo */
+    --secondary-foreground: #f5f8fb;
+
+    --muted: #16304f;
+    --muted-foreground: #93a3b5;     /* gris secundario */
+
+    --accent: #c6f24e;               /* lima: CTAs y highlights */
+    --accent-foreground: #0a1a2f;    /* texto navy sobre lima */
+
+    --destructive: #f2565b;          /* rojo legible sobre navy */
+
+    --border: #1e3a5c;
+    --input: #1e3a5c;
+    --ring: #00a0db;
+
+    --chart-1: #00a0db;
+    --chart-2: #c6f24e;
+    --chart-3: #006e96;
+    --chart-4: #93a3b5;
+    --chart-5: #f5f8fb;
+
+    --radius: 0.625rem;
+
+    --sidebar: #0c1f38;
+    --sidebar-foreground: #f5f8fb;
+    --sidebar-primary: #00a0db;
+    --sidebar-primary-foreground: #04121f;
+    --sidebar-accent: #16304f;
+    --sidebar-accent-foreground: #f5f8fb;
+    --sidebar-border: #1e3a5c;
+    --sidebar-ring: #00a0db;
+}
+
+.dark {
+    --background: #0a1a2f;
+    --foreground: #f5f8fb;
+    --card: #0f2440;
+    --card-foreground: #f5f8fb;
+    --popover: #0f2440;
+    --popover-foreground: #f5f8fb;
+    --primary: #00a0db;
+    --primary-foreground: #04121f;
+    --secondary: #006e96;
+    --secondary-foreground: #f5f8fb;
+    --muted: #16304f;
+    --muted-foreground: #93a3b5;
+    --accent: #c6f24e;
+    --accent-foreground: #0a1a2f;
+    --destructive: #f2565b;
+    --border: #1e3a5c;
+    --input: #1e3a5c;
+    --ring: #00a0db;
+    --chart-1: #00a0db;
+    --chart-2: #c6f24e;
+    --chart-3: #006e96;
+    --chart-4: #93a3b5;
+    --chart-5: #f5f8fb;
+    --sidebar: #0c1f38;
+    --sidebar-foreground: #f5f8fb;
+    --sidebar-primary: #00a0db;
+    --sidebar-primary-foreground: #04121f;
+    --sidebar-accent: #16304f;
+    --sidebar-accent-foreground: #f5f8fb;
+    --sidebar-border: #1e3a5c;
+    --sidebar-ring: #00a0db;
+}
+
+@layer base {
+  * {
+    @apply border-border outline-ring/50;
+    }
+  body {
+    @apply bg-background text-foreground antialiased;
+    }
+  html {
+    @apply font-sans;
+    }
+}
