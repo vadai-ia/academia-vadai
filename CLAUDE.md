@@ -83,6 +83,8 @@ En su lugar: `pnpm db:migrate` → `scripts/migrate.mjs`, que aplica los `.sql` 
 - Zona horaria de sesiones: se guarda `timestamptz`; UI muestra hora local del navegador con referencia CDMX.
 - Certificado solo si 100% de lecciones `is_required` completadas y quizzes/tareas obligatorias aprobadas.
 - Archivos: descargas SIEMPRE por signed URL generada server-side; buckets privados.
+- Los correos de la academia (bienvenida y recuperación) los manda **nuestro código por la API de Resend**, no el SMTP de Supabase. Plantillas en `/lib/correo`, en español y con marca. El SMTP queda como respaldo.
+- Un fallo de correo **nunca** debe abortar un alta: la cuenta y la inscripción se crean primero, el correo se intenta después y su fallo solo se reporta.
 - `quiz_questions.correct_option_id` NUNCA se expone al cliente. El alumno lee la vista `academia.quiz_questions_public`; la calificación es server-side.
 
 ## ANTI-PATTERNS — NO HACEMOS
@@ -132,6 +134,12 @@ BUNNY_STREAM_LIBRARY_ID=
 BUNNY_STREAM_API_KEY=
 BUNNY_STREAM_TOKEN_KEY=
 BUNNY_STREAM_CDN_HOSTNAME=
+
+# Correo transaccional. Dependencia de producción: sin esto no salen ni las
+# invitaciones ni las recuperaciones de contraseña.
+RESEND_API_KEY=
+CORREO_REMITENTE=noreply@automail.vadai.com.mx
+CORREO_REMITENTE_NOMBRE=VADAI Academia
 ```
 
 ## BRANDING

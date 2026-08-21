@@ -5,6 +5,9 @@ import { redirect } from 'next/navigation'
 import { headers } from 'next/headers'
 import { z } from 'zod'
 
+import { plantillaRecuperacion } from '@/lib/correo/plantillas'
+import { enviarCorreo } from '@/lib/correo/resend'
+import { generarEnlaceDeAcceso } from '@/lib/stripe/provisioning'
 import { crearClienteServidor } from '@/lib/supabase/server'
 
 import { traducirError } from './mensajes'
@@ -132,24 +135,33 @@ export async function enviarRecuperacion(
   const resultado = esquemaRecuperar.safeParse({ correo: datos.get('correo') })
   if (!resultado.success) return { error: primerError(resultado) }
 
-  const supabase = await crearClienteServidor()
-  const base = await urlDeLaApp()
+  // El enlace se genera con service role y el correo lo manda Resend desde
+  // nuestro código, no el SMTP de Supabase. Ver lib/correo/resend.ts.
+  const enlace = await generarEnlaceDeAcceso(resultado.data.correo, RUTAS.nuevaContrasena)
 
-  const { error } = await supabase.auth.resetPasswordForEmail(resultado.data.correo, {
-    redirectTo: `${base}/auth/confirmar?proximo=${encodeURIComponent(RUTAS.nuevaContrasena)}`,
-  })
+  if (enlace) {
+    const plantilla = plantillaRecuperacion(enlace)
+    const envio = await enviarCorreo({
+      para: resultado.data.correo,
+      asunto: plantilla.asunto,
+      html: plantilla.html,
+      texto: plantilla.texto,
+    })
 
-  if (error) {
-    console.error(
-      JSON.stringify({ operacion: 'enviarRecuperacion', correo: resultado.data.correo, error: error.message })
-    )
-    // Los errores de cuota sí se dicen; el resto no, para no revelar qué
-    // correos existen.
-    if (/rate limit/i.test(error.message)) return { error: traducirError(error.message) }
+    if (!envio.ok) {
+      console.error(
+        JSON.stringify({
+          operacion: 'enviarRecuperacion',
+          correo: resultado.data.correo,
+          error: envio.motivo,
+        })
+      )
+    }
   }
 
   // Respuesta idéntica exista o no la cuenta: si dijéramos "ese correo no está
-  // registrado", cualquiera podría averiguar quién compró el curso.
+  // registrado", cualquiera podría averiguar quién compró el curso. Por eso
+  // tampoco se refleja el resultado del envío.
   return {
     aviso:
       'Si ese correo tiene una cuenta, te llegará un enlace para crear una contraseña nueva. Revisa también tu carpeta de spam.',

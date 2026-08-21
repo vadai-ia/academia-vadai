@@ -1,5 +1,7 @@
 import 'server-only'
 
+import { plantillaBienvenida } from '@/lib/correo/plantillas'
+import { enviarCorreo } from '@/lib/correo/resend'
 import { crearClienteServiceRole } from '@/lib/supabase/service-role'
 
 /**
@@ -156,7 +158,12 @@ export async function darDeAlta(opciones: Opciones): Promise<ResultadoAlta> {
   //    Si el SMTP está caído, el alumno ya tiene cuenta e inscripción; lo único
   //    que falta es que pueda entrar, y eso se reintenta desde el admin.
   if (creado) {
-    invitado = await enviarAccesoInicial(email, opciones.urlRedireccion)
+    invitado = await enviarAccesoInicial(
+      email,
+      opciones.urlRedireccion,
+      curso.title,
+      opciones.nombre
+    )
     if (!invitado) {
       registrar('darDeAlta:sinCorreo', {
         email,
@@ -177,24 +184,64 @@ export async function darDeAlta(opciones: Opciones): Promise<ResultadoAlta> {
 }
 
 /**
- * Manda el correo para que la persona defina su contraseña.
+ * Genera el enlace de acceso apuntando a NUESTRO `/auth/confirmar`.
  *
- * Se usa `resetPasswordForEmail` y no `inviteUserByEmail` porque la cuenta ya
- * existe: invitar a alguien registrado falla. Devuelve false en vez de lanzar,
- * porque quien llama debe poder seguir adelante sin el correo.
+ * `generateLink` devuelve también un `action_link` que pasa por el dominio de
+ * Supabase, pero ese depende del Site URL configurado en su dashboard. Armar la
+ * URL con el `hashed_token` deja el enlace enteramente bajo nuestro control y
+ * aterriza directo en el route handler que ya existe desde M2.
+ */
+export async function generarEnlaceDeAcceso(
+  email: string,
+  destino = '/nueva-contrasena'
+): Promise<string | null> {
+  const supabase = crearClienteServiceRole()
+
+  const { data, error } = await supabase.auth.admin.generateLink({
+    type: 'recovery',
+    email: email.trim().toLowerCase(),
+  })
+
+  const token =
+    (data?.properties as { hashed_token?: string } | undefined)?.hashed_token ??
+    (data as { hashed_token?: string } | null)?.hashed_token
+
+  if (error || !token) {
+    registrar('generarEnlaceDeAcceso:fallo', { email, error: error?.message ?? 'sin token' })
+    return null
+  }
+
+  const base = (process.env.NEXT_PUBLIC_APP_URL ?? '').replace(/\/+$/, '')
+  return `${base}/auth/confirmar?token_hash=${encodeURIComponent(token)}&type=recovery&proximo=${encodeURIComponent(destino)}`
+}
+
+/**
+ * Manda el correo de bienvenida con el enlace para definir contraseña.
+ *
+ * Va por la API de Resend, no por el SMTP de Supabase: ver lib/correo/resend.ts
+ * para el porqué. Devuelve false en vez de lanzar, porque quien llama debe poder
+ * seguir adelante sin el correo — un fallo de correo no puede costar una
+ * inscripción.
  */
 export async function enviarAccesoInicial(
   email: string,
-  urlRedireccion?: string
+  _urlRedireccion?: string,
+  curso = 'tu curso',
+  nombre?: string | null
 ): Promise<boolean> {
-  const supabase = crearClienteServiceRole()
+  const enlace = await generarEnlaceDeAcceso(email)
+  if (!enlace) return false
 
-  const { error } = await supabase.auth.resetPasswordForEmail(email.trim().toLowerCase(), {
-    redirectTo: urlRedireccion,
+  const plantilla = plantillaBienvenida(enlace, curso, nombre)
+  const resultado = await enviarCorreo({
+    para: email.trim().toLowerCase(),
+    asunto: plantilla.asunto,
+    html: plantilla.html,
+    texto: plantilla.texto,
   })
 
-  if (error) {
-    registrar('enviarAccesoInicial:fallo', { email, error: error.message })
+  if (!resultado.ok) {
+    registrar('enviarAccesoInicial:fallo', { email, motivo: resultado.motivo })
     return false
   }
   return true

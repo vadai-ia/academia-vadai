@@ -258,30 +258,49 @@ async function main() {
     aviso('Configuración de Auth', `no se pudo leer (${conf.res?.status})`, 'verifica a mano el paso 3')
   }
 
-  // 6.b El SMTP, que SÍ es verificable.
-  //
-  // Antes se daba por no comprobable. No lo es: `recover` intenta un envío real,
-  // así que si el SMTP está mal responde 500 y si funciona responde 200. Manda
-  // un correo a una dirección QA cada vez que se corre, que es el precio de
-  // saber con certeza que el correo sale — y sin correo no hay lanzamiento.
-  const correoPrueba = 'qa-alumno1@academia.vadai.com.mx'
+  // 6.b El correo, que ahora sale por la API de Resend y no por el SMTP de
+  //     Supabase (decidido 21-ago-2026; ver lib/correo/resend.ts).
+  if (!vars.RESEND_API_KEY) {
+    falla('Correo (Resend)', 'falta RESEND_API_KEY', 'Resend → API keys → Create. Ver docs/M0-SETUP.md paso 4')
+  } else {
+    const dominios = await pedir('https://api.resend.com/domains', {
+      headers: { Authorization: `Bearer ${vars.RESEND_API_KEY}` },
+    })
+
+    if (dominios.res?.status === 401) {
+      const restringida = /restricted/i.test(dominios.json?.name ?? '')
+      restringida
+        ? aviso('Correo (Resend)', 'llave restringida a solo envío', 'funciona para enviar; con full access se puede verificar el dominio')
+        : falla('Correo (Resend)', 'la llave fue rechazada (401)', 'genera una nueva en Resend → API keys')
+    } else if (dominios.res?.status !== 200) {
+      falla('Correo (Resend)', `HTTP ${dominios.res?.status}`, 'revisa RESEND_API_KEY')
+    } else {
+      const remitente = vars.CORREO_REMITENTE ?? 'noreply@automail.vadai.com.mx'
+      const lista = dominios.json?.data ?? []
+      const nuestro = lista.find((d) => remitente.endsWith(`@${d.name}`))
+
+      if (!nuestro) {
+        falla('Correo (Resend)', `${remitente} no pertenece a ningún dominio de la cuenta`, 'verifica el dominio en Resend → Domains')
+      } else if (nuestro.status !== 'verified') {
+        falla('Correo (Resend)', `${nuestro.name} está en "${nuestro.status}"`, 'completa los registros DNS que pide Resend')
+      } else {
+        ok('Correo (Resend)', `${remitente} sobre ${nuestro.name} (verified)`)
+      }
+    }
+  }
+
+  // El SMTP de Supabase queda como respaldo por si Supabase manda algo por su
+  // cuenta. Que falle ya no bloquea nada: los correos de la academia salen por
+  // la API. Se reporta como aviso, no como falla.
   const envio = await pedir(`${URL_BASE}/auth/v1/recover`, {
     method: 'POST',
     headers: { apikey: ANON, 'Content-Type': 'application/json' },
-    body: JSON.stringify({ email: correoPrueba }),
+    body: JSON.stringify({ email: vars.EMAIL_PRUEBA_SMTP || 'qa-alumno1@academia.vadai.com.mx' }),
   })
 
-  if (envio.res?.status === 200) {
-    ok('SMTP envía', 'recover aceptado (200)')
-  } else if (envio.res?.status === 429) {
-    aviso('SMTP envía', 'límite de frecuencia', 'espera un minuto y vuelve a correrlo')
-  } else {
-    falla(
-      'SMTP envía',
-      `${envio.res?.status ?? 'sin respuesta'}: ${envio.json?.msg ?? ''}`.trim(),
-      'con Gmail, el sender debe ser la MISMA cuenta autenticada o un alias verificado. Ver docs/M0-SETUP.md paso 4'
-    )
-  }
+  envio.res?.status === 200
+    ? ok('SMTP de Supabase (respaldo)', 'también envía')
+    : aviso('SMTP de Supabase (respaldo)', `${envio.res?.status}`, 'no bloquea: la academia manda por la API de Resend')
 
   // Vincular Google con email/password del mismo correo (§0.B) es comportamiento
   // automático de Supabase, no un toggle: ocurre cuando el correo de la cuenta

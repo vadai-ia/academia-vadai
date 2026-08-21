@@ -67,6 +67,7 @@ Implicación de diseño: todo se modela multi-curso y membership-ready desde el 
 | `profiles.email` denormalizado | El webhook de Stripe (§3.1-B) resuelve al usuario por email y el admin lista alumnos por correo; PostgREST no puede hacer join con `auth.users` desde el schema `academia` |
 | `correct_option_id` fuera del cliente vía vista | Fuga no contemplada en el spec: con RLS a nivel de fila, un alumno con acceso podría leer la respuesta correcta antes de contestar |
 | Usuarios QA con prefijo `qa-` + script de purga | M11 exige "datos de prueba purgados" de un `auth.users` compartido; el prefijo los hace identificables y borrables sin tocar usuarios reales |
+| **Correo por la API de Resend, no por SMTP** | El SMTP de Supabase fallaba con un 500 sin detalle y sus intentos nunca aparecían en los logs de Resend: una caja negra imposible de depurar a un mes del lanzamiento. Mandar desde nuestro código da error legible, control de reintentos y, sobre todo, **plantillas propias en español y con marca** en vez de las default de Supabase en inglés. Corrige §7.3 y convierte `RESEND_API_KEY` en dependencia de producción |
 | **Resend en vez de Gmail SMTP** | Corrige la decisión original de §0.B, que ya contemplaba este cambio con el disparador "correos cayendo a spam". Se adelanta por dos motivos: Gmail rechaza enviar desde una dirección de `vadai.com.mx` porque no es la cuenta autenticada (era la causa del 500 en `/auth/v1/recover`), y 40 invitaciones simultáneas desde un Gmail sin autenticación de dominio es justo el patrón que los filtros marcan. Con SPF/DKIM sobre un subdominio dedicado (`automail.vadai.com.mx`) el correo llega a bandeja y la reputación de envío queda aislada del correo corporativo, que es de lo que depende §6.1. **No cambia una línea de código**: la app nunca manda correo por su cuenta (§7.3) |
 | **Solo tarjeta en los Payment Links**, sin OXXO ni SPEI | Con métodos asíncronos, `checkout.session.completed` llega con `payment_status: 'unpaid'` y el pago real confirma horas o días después. Eso rompe la promesa de §6.1 ("compra → acceso en <2 min") y obligaría a diseñar qué ve el alumno mientras su voucher se paga. Se acepta perder a quien no usa tarjeta a cambio de que el acceso sea inmediato y el flujo, uno solo. Los eventos async quedan suscritos igual, por si se activa después |
 | **Proyecto Supabase dedicado**, no el compartido | Corrige la decisión original de §0.B. La academia vive en `mtrojwqwnuzzcgtmmoop` (vacío al arrancar: 0 tablas en `public`, 0 usuarios, 0 buckets), no en `ukgbklhmjbniffssacjm` donde ya viven otros seis sistemas VADAI. Se gana aislamiento real de auth y de datos, y desaparece el riesgo de que un cambio de configuración global (sign-up, exposed schemas) afecte a sistemas ajenos. La Regla Cero se conserva igual: cuesta cero y deja la puerta abierta a convivir después |
@@ -390,8 +391,16 @@ public_profiles         user_id, full_name, avatar_url (para autoría en comenta
 - Reproducción: iframe del player de Bunny con token firmado server-side (`token = sha256(security_key + video_id + expiration)`), expiración 6 h, generado en el server component de la lección SOLO si el enrollment está activo.
 - Env vars: `BUNNY_STREAM_LIBRARY_ID`, `BUNNY_STREAM_API_KEY`, `BUNNY_STREAM_TOKEN_KEY`, `BUNNY_STREAM_CDN_HOSTNAME`.
 
-### 7.3 Google OAuth + SMTP
-Definidos en §1.B. La app no envía correos propios en MVP fuera de los de Supabase Auth (invite, reset). Notificaciones de sesiones en vivo = anuncio en plataforma, no email (post-MVP).
+### 7.3 Google OAuth + correo transaccional
+Google OAuth definido en §1.B.
+
+**Corrección 21-ago-2026.** Esta sección decía que la app no envía correos propios. Ya no es cierto: los dos correos del MVP —bienvenida tras el alta y recuperación de contraseña— **los manda nuestro código por la API de Resend**, con plantillas propias en `/lib/correo`.
+
+El motivo fue doble. El SMTP de Supabase fallaba con un `500 unexpected_failure` indescifrable, y los logs de Resend confirmaron que sus intentos nunca llegaban siquiera. Pero aunque hubiera funcionado, las plantillas default de Supabase están **en inglés y sin marca**: el primer correo que recibe alguien que acaba de pagar 15 000 pesos no puede decir "Follow this link to reset your password" (§0: cero jerga, español, sensación premium).
+
+El enlace se arma con `admin.generateLink` y apunta a nuestro `/auth/confirmar`, no al dominio de Supabase, para no depender de su Site URL.
+
+Notificaciones de sesiones en vivo siguen fuera del MVP: anuncio en plataforma, no correo.
 
 ---
 
