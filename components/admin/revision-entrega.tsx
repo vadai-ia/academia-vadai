@@ -77,7 +77,7 @@ export function RevisionEntrega({ entrega }: { entrega: EntregaEnBandeja }) {
       </div>
 
       {entrega.texto ? (
-        <p className="rounded-md bg-muted/40 px-3 py-2.5 text-sm whitespace-pre-wrap">
+        <p className="rounded-md bg-muted/40 px-3 py-2.5 text-sm break-words whitespace-pre-wrap">
           {entrega.texto}
         </p>
       ) : null}

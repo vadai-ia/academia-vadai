@@ -38,6 +38,12 @@ export function IndiceCurso({
             {modulo.titulo}
           </h3>
 
+          {modulo.lecciones.length === 0 ? (
+            <p className="px-2 py-1.5 text-xs text-muted-foreground">
+              Este módulo todavía no tiene lecciones.
+            </p>
+          ) : null}
+
           <ul className="flex flex-col">
             {modulo.lecciones.map((leccion) => {
               const activa = leccion.id === leccionActiva

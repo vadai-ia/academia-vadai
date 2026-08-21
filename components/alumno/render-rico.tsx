@@ -85,7 +85,9 @@ export function RenderRico({ contenido }: { contenido: Json | null }) {
   if (!contenido || typeof contenido !== 'object') return null
 
   return (
-    <div className="text-sm leading-relaxed text-foreground/90">
+    // `break-words` porque esto renderiza texto de alumnos: una URL pegada sin
+    // espacios no cabe en un teléfono y empujaría toda la página a lo ancho.
+    <div className="text-sm leading-relaxed break-words text-foreground/90">
       {render(contenido as Nodo)}
     </div>
   )

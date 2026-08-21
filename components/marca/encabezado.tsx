@@ -16,10 +16,10 @@ export function Encabezado({
   return (
     <header className="border-b border-border">
       <div className="mx-auto flex w-full max-w-5xl flex-wrap items-center justify-between gap-3 px-5 py-4">
-        <span className="flex items-center gap-6">
+        <span className="flex min-w-0 flex-wrap items-center gap-x-6 gap-y-2">
           <Wordmark className="text-sm" />
           {navegacion.length > 0 ? (
-            <nav className="flex items-center gap-4">
+            <nav className="flex flex-wrap items-center gap-x-4 gap-y-1">
               {navegacion.map((n) => (
                 <Link
                   key={n.href}
@@ -33,11 +33,12 @@ export function Encabezado({
           ) : null}
         </span>
 
-        <div className="flex items-center gap-3">
-          <span className="text-sm text-muted-foreground">
-            {nombreVisible(perfil)}
+        <div className="flex min-w-0 items-center gap-3">
+          <span className="flex min-w-0 items-center text-sm text-muted-foreground">
+            {/* Un nombre largo no puede empujar el botón de salir fuera de pantalla. */}
+            <span className="truncate">{nombreVisible(perfil)}</span>
             {equipo ? (
-              <span className="ml-2 rounded-full border border-vadai-lima/40 bg-vadai-lima/10 px-2 py-0.5 text-[11px] text-vadai-lima">
+              <span className="ml-2 hidden shrink-0 rounded-full border border-vadai-lima/40 bg-vadai-lima/10 px-2 py-0.5 text-[11px] text-vadai-lima sm:inline">
                 Equipo VADAI
               </span>
             ) : null}

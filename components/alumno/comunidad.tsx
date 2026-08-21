@@ -260,7 +260,7 @@ function Publicacion({
                   </form>
                 ) : null}
               </span>
-              <p className="text-sm whitespace-pre-wrap">{c.contenido}</p>
+              <p className="text-sm break-words whitespace-pre-wrap">{c.contenido}</p>
             </li>
           ))}
         </ul>

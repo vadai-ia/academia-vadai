@@ -123,7 +123,7 @@ export function Tarea({
           )}
         >
           <p className="text-xs font-medium text-muted-foreground">Comentarios del equipo</p>
-          <p className="text-sm whitespace-pre-wrap">{entrega.feedback}</p>
+          <p className="text-sm break-words whitespace-pre-wrap">{entrega.feedback}</p>
         </div>
       ) : null}
 
@@ -131,7 +131,7 @@ export function Tarea({
         <div className="flex flex-col gap-2 rounded-md border border-border px-4 py-3">
           <p className="text-xs font-medium text-muted-foreground">Lo que entregaste</p>
           {entrega.texto ? (
-            <p className="text-sm whitespace-pre-wrap">{entrega.texto}</p>
+            <p className="text-sm break-words whitespace-pre-wrap">{entrega.texto}</p>
           ) : null}
           {entrega.archivos.length > 0 ? (
             <div className="flex flex-wrap gap-2">

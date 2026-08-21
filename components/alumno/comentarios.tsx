@@ -127,7 +127,7 @@ function Fila({
           </span>
         </div>
 
-        <p className="text-sm whitespace-pre-wrap">{comentario.contenido}</p>
+        <p className="text-sm break-words whitespace-pre-wrap">{comentario.contenido}</p>
 
         <div className="flex flex-wrap items-center gap-1">
           {comentario.editable ? (
