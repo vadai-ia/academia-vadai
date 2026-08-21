@@ -158,7 +158,7 @@ no era la contraseña sino el remitente:
 
 | Campo | Valor |
 |---|---|
-| Sender email | `noreply@vadai.com.mx` |
+| Sender email | `noreply@automail.vadai.com.mx` |
 | Username SMTP | `vadai.agencia.ai@gmail.com` |
 
 **Gmail se niega a enviar desde una dirección que no sea la cuenta autenticada o
@@ -167,7 +167,9 @@ un alias verificado en ella.** Rechaza en el `MAIL FROM`.
 ### Configurar Resend
 
 1. Crea la cuenta en [resend.com](https://resend.com)
-2. **Domains → Add Domain** → `vadai.com.mx`
+2. **Domains → Add Domain** → `automail.vadai.com.mx`
+   (subdominio dedicado, no el raíz: aísla la reputación de envío transaccional
+   de la del correo corporativo)
 3. Resend te da registros DNS (SPF, DKIM y opcionalmente DMARC). Agrégalos donde
    administres el dominio y espera a que Resend marque el dominio como verificado.
    Esa espera es lo único lento de todo esto.
@@ -180,7 +182,7 @@ un alias verificado en ella.** Rechaza en el `MAIL FROM`.
 | Port | `587` |
 | Username | `resend` |
 | Password | la API key de Resend |
-| Sender email | `noreply@vadai.com.mx` |
+| Sender email | `noreply@automail.vadai.com.mx` |
 | Sender name | `VADAI Academia` |
 
 - [ ] Dominio verificado en Resend
