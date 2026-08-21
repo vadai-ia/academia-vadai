@@ -30,12 +30,17 @@ export default async function PaginaCurso({ params }: { params: Promise<{ slug: 
   const perfil = await exigirPerfil()
   const { slug } = await params
 
-  const curso = await cursoDelAlumno(slug)
-  if (!curso) notFound()
-
+  // Las dos dependen solo del slug, así que van juntas. La de sesiones no
+  // necesita esperar a que llegue el curso para empezar.
+  //
   // La policy de cohort_sessions exige pertenecer a la cohorte Y tener acceso
   // vigente: el alumno vencido recibe una lista vacía sin que haya que filtrar.
-  const sesiones = await sesionesDelAlumno(slug)
+  const [curso, sesiones] = await Promise.all([
+    cursoDelAlumno(slug),
+    sesionesDelAlumno(slug),
+  ])
+
+  if (!curso) notFound()
 
   // El certificado sobrevive al vencimiento: lo ganó, es suyo (§6.3 dice que
   // el progreso no se borra, y un certificado emitido menos todavía).

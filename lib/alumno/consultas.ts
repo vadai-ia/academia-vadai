@@ -191,19 +191,14 @@ export async function cursoDelAlumno(slug: string): Promise<CursoDelAlumno | nul
   // habría escondido, pero el chequeo explícito evita depender de eso.
   if (!inscripcion && !equipo) return null
 
-  const { data: modulos } = await supabase
-    .from('modules')
-    .select('id, title, position')
-    .eq('course_id', curso.id)
-
-  const { data: outline } = await supabase
-    .from('lesson_outline')
-    .select('*')
-    .eq('course_id', curso.id)
-
-  const { data: progreso } = await supabase
-    .from('lesson_progress')
-    .select('lesson_id, completed')
+  // Las tres son independientes entre sí: en serie son tres viajes de red
+  // encadenados, en paralelo es uno solo de larga. Desde México eso son
+  // decenas de milisegundos por consulta, y aquí se notan.
+  const [{ data: modulos }, { data: outline }, { data: progreso }] = await Promise.all([
+    supabase.from('modules').select('id, title, position').eq('course_id', curso.id),
+    supabase.from('lesson_outline').select('*').eq('course_id', curso.id),
+    supabase.from('lesson_progress').select('lesson_id, completed'),
+  ])
 
   const completadas = new Set(
     (progreso ?? []).filter((p) => p.completed).map((p) => p.lesson_id)

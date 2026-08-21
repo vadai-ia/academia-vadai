@@ -26,6 +26,7 @@
     "check:resend": "node scripts/check-resend.mjs",
     "check:prod": "node scripts/check-produccion.mjs",
     "qa": "node scripts/qa-checklist.mjs",
+    "medir": "node scripts/medir-latencia.mjs",
     "test:quizzes": "node scripts/test-quizzes.mjs",
     "test:tareas": "node scripts/test-tareas.mjs",
     "test:comunidad": "node scripts/test-comunidad.mjs",

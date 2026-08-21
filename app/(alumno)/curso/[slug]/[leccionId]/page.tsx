@@ -38,20 +38,30 @@ export default async function PaginaLeccion({
   const perfil = await exigirPerfil()
   const { slug, leccionId } = await params
 
-  const curso = await cursoDelAlumno(slug)
-  if (!curso) notFound()
-
+  // Las tres dependen solo de los params, no una de otra: encadenarlas eran
+  // tres viajes de red donde cabe uno.
+  //
+  // Los comentarios se piden antes de saber si hay acceso, y no importa: la
+  // policy de `lesson_comments` exige has_active_access, así que quien no deba
+  // verlos recibe cero filas. Quien decide es RLS, no el orden de los awaits.
+  //
   // Sin acceso vigente la lección simplemente no trae filas: la policy de
   // `lessons` exige has_active_access. Se devuelve al índice, que sí se ve y
   // lleva el CTA de recompra.
-  const leccion = await contenidoDeLeccion(leccionId)
+  const [curso, leccion, comentarios] = await Promise.all([
+    cursoDelAlumno(slug),
+    contenidoDeLeccion(leccionId),
+    comentariosDeLeccion(leccionId, perfil.user_id),
+  ])
+
+  if (!curso) notFound()
   if (!leccion) redirect(`/curso/${slug}`)
 
   const { anterior, siguiente, indice, total } = vecinas(curso, leccionId)
 
+  // Estas sí necesitan saber de qué tipo es la lección, y son excluyentes.
   const quiz = leccion.tipo === 'quiz' ? await quizParaAlumno(leccion.id) : null
   const tarea = leccion.tipo === 'assignment' ? await tareaParaAlumno(leccion.id) : null
-  const comentarios = await comentariosDeLeccion(leccion.id, perfil.user_id)
 
   // La firma se genera aquí, en el servidor, y solo porque llegamos hasta este
   // punto: si el acceso hubiera vencido, `leccion` sería null y ya habríamos

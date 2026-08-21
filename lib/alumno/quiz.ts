@@ -49,16 +49,16 @@ export async function quizParaAlumno(leccionId: string): Promise<QuizParaAlumno 
 
   if (!quiz) return null
 
-  const { data: preguntas } = await supabase
-    .from('quiz_questions_public')
-    .select('*')
-    .eq('quiz_id', quiz.id)
-
-  const { data: intentos } = await supabase
-    .from('quiz_attempts')
-    .select('score, passed, answers, created_at')
-    .eq('quiz_id', quiz.id)
-    .order('created_at', { ascending: false })
+  // Las preguntas y los intentos solo necesitan el id del quiz, que ya está:
+  // en serie eran dos viajes de red donde cabe uno.
+  const [{ data: preguntas }, { data: intentos }] = await Promise.all([
+    supabase.from('quiz_questions_public').select('*').eq('quiz_id', quiz.id),
+    supabase
+      .from('quiz_attempts')
+      .select('score, passed, answers, created_at')
+      .eq('quiz_id', quiz.id)
+      .order('created_at', { ascending: false }),
+  ])
 
   const lista = intentos ?? []
   const ultimo = lista[0]

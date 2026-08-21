@@ -67,70 +67,65 @@ export async function revisarElegibilidad(
 
   const ids = obligatorias.map((l) => l.id)
 
-  const { data: progreso } = await servicio
-    .from('lesson_progress')
-    .select('lesson_id, completed')
-    .eq('user_id', userId)
-    .in('lesson_id', ids)
+  const idsQuiz = obligatorias.filter((l) => l.lesson_type === 'quiz').map((l) => l.id)
+  const idsTarea = obligatorias
+    .filter((l) => l.lesson_type === 'assignment')
+    .map((l) => l.id)
+
+  // Progreso, quizzes y tareas no dependen entre sí: van juntos. En serie eran
+  // hasta cinco viajes encadenados a Supabase en cada carga de la vista del
+  // curso, que es donde más se sentía.
+  const [{ data: progreso }, { data: quizzes }, { data: tareas }] = await Promise.all([
+    servicio
+      .from('lesson_progress')
+      .select('lesson_id, completed')
+      .eq('user_id', userId)
+      .in('lesson_id', ids),
+    idsQuiz.length > 0
+      ? servicio.from('quizzes').select('id, lesson_id').in('lesson_id', idsQuiz)
+      : Promise.resolve({ data: [] }),
+    idsTarea.length > 0
+      ? servicio.from('assignments').select('id, lesson_id').in('lesson_id', idsTarea)
+      : Promise.resolve({ data: [] }),
+  ])
 
   const completadas = new Set(
     (progreso ?? []).filter((p) => p.completed).map((p) => p.lesson_id)
   )
 
-  // Quizzes aprobados. El join va por `quizzes.lesson_id`, que es único.
-  const idsQuiz = obligatorias.filter((l) => l.lesson_type === 'quiz').map((l) => l.id)
+  const porQuiz = new Map((quizzes ?? []).map((q) => [q.id, q.lesson_id]))
+  const porTarea = new Map((tareas ?? []).map((t) => [t.id, t.lesson_id]))
+
+  // Los intentos y las entregas sí dependen de lo anterior, pero entre sí no.
+  const [{ data: intentos }, { data: entregas }] = await Promise.all([
+    porQuiz.size > 0
+      ? servicio
+          .from('quiz_attempts')
+          .select('quiz_id')
+          .eq('user_id', userId)
+          .eq('passed', true)
+          .in('quiz_id', [...porQuiz.keys()])
+      : Promise.resolve({ data: [] }),
+    porTarea.size > 0
+      ? servicio
+          .from('assignment_submissions')
+          .select('assignment_id')
+          .eq('user_id', userId)
+          .eq('status', 'approved')
+          .in('assignment_id', [...porTarea.keys()])
+      : Promise.resolve({ data: [] }),
+  ])
+
   const quizAprobado = new Set<string>()
-
-  if (idsQuiz.length > 0) {
-    const { data: quizzes } = await servicio
-      .from('quizzes')
-      .select('id, lesson_id')
-      .in('lesson_id', idsQuiz)
-
-    const porQuiz = new Map((quizzes ?? []).map((q) => [q.id, q.lesson_id]))
-
-    if (porQuiz.size > 0) {
-      const { data: intentos } = await servicio
-        .from('quiz_attempts')
-        .select('quiz_id')
-        .eq('user_id', userId)
-        .eq('passed', true)
-        .in('quiz_id', [...porQuiz.keys()])
-
-      for (const intento of intentos ?? []) {
-        const leccion = porQuiz.get(intento.quiz_id)
-        if (leccion) quizAprobado.add(leccion)
-      }
-    }
+  for (const intento of intentos ?? []) {
+    const leccion = porQuiz.get(intento.quiz_id)
+    if (leccion) quizAprobado.add(leccion)
   }
 
-  // Tareas aprobadas, por el mismo camino.
-  const idsTarea = obligatorias
-    .filter((l) => l.lesson_type === 'assignment')
-    .map((l) => l.id)
   const tareaAprobada = new Set<string>()
-
-  if (idsTarea.length > 0) {
-    const { data: tareas } = await servicio
-      .from('assignments')
-      .select('id, lesson_id')
-      .in('lesson_id', idsTarea)
-
-    const porTarea = new Map((tareas ?? []).map((t) => [t.id, t.lesson_id]))
-
-    if (porTarea.size > 0) {
-      const { data: entregas } = await servicio
-        .from('assignment_submissions')
-        .select('assignment_id')
-        .eq('user_id', userId)
-        .eq('status', 'approved')
-        .in('assignment_id', [...porTarea.keys()])
-
-      for (const entrega of entregas ?? []) {
-        const leccion = porTarea.get(entrega.assignment_id)
-        if (leccion) tareaAprobada.add(leccion)
-      }
-    }
+  for (const entrega of entregas ?? []) {
+    const leccion = porTarea.get(entrega.assignment_id)
+    if (leccion) tareaAprobada.add(leccion)
   }
 
   const faltantes: Faltante[] = []

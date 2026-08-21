@@ -84,6 +84,7 @@ pnpm dev
 | `pnpm db:purge` | Lista los datos QA a borrar, filas y archivos (`--confirmar` para ejecutar) |
 | `pnpm storage:huerfanos` | Archivos que ya no referencia nadie (`--borrar` para limpiarlos) |
 | `pnpm qa` | Corre el checklist completo y lo firma en `docs/QA.md` |
+| `pnpm medir` | Latencia por vista (`-- --prod` contra el dominio en vivo) |
 
 ## Stack
 

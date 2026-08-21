@@ -1,6 +1,7 @@
 import 'server-only'
 
 import { redirect } from 'next/navigation'
+import { cache } from 'react'
 
 import { crearClienteServidor } from '@/lib/supabase/server'
 import type { Tabla } from '@/lib/supabase/types'
@@ -27,8 +28,17 @@ export type Sesion =
  *
  * Usa getUser() y no getSession(): getSession lee la cookie sin validarla contra
  * el servidor de Auth, así que una cookie manipulada pasaría. getUser verifica.
+ *
+ * Envuelto en `cache()` de React, que memoriza por PETICIÓN — no entre
+ * peticiones, así que no cachea sesiones ajenas ni sobrevive a un logout.
+ *
+ * Sin esto, una sola vista del curso resolvía la sesión tres veces: la pide el
+ * layout, la vuelve a pedir `cursoDelAlumno` para saber si es del equipo, y otra
+ * vez `sesionesDelAlumno`. Cada una son DOS viajes a Supabase —getUser y luego
+ * `profiles`— y desde México cada viaje son decenas de milisegundos. Eran cuatro
+ * viajes de red gastados en volver a preguntar algo que ya se sabía.
  */
-export async function obtenerSesion(): Promise<Sesion> {
+export const obtenerSesion = cache(async function obtenerSesion(): Promise<Sesion> {
   const supabase = await crearClienteServidor()
 
   const {
@@ -47,7 +57,7 @@ export async function obtenerSesion(): Promise<Sesion> {
   if (perfil.status === 'suspended') return { tipo: 'suspendido', perfil }
 
   return { tipo: 'activo', perfil }
-}
+})
 
 /**
  * Para páginas que exigen pertenecer a la academia.
