@@ -35,6 +35,55 @@ async function pedir(url, opciones = {}) {
   }
 }
 
+/**
+ * El `redirect_to` que producción le manda a Supabase al arrancar el login con
+ * Google. Es la única forma de ver desde fuera qué `NEXT_PUBLIC_APP_URL` tiene
+ * Vercel: la variable se lee en una server action, así que no se inlinea en el
+ * bundle del cliente.
+ *
+ * Se replica el formulario por HTTP, aprovechando que funciona sin JavaScript.
+ * No completa el login: solo lee la URL de autorización y se detiene ahí.
+ */
+async function redirectToDeProduccion() {
+  const res = await pedir(`${DOMINIO}/login`)
+  if (res.status !== 200) return null
+
+  const cookies = (res.headers.getSetCookie?.() ?? []).map((c) => c.split(';')[0]).join('; ')
+  const html = await res.text()
+
+  let campos = null
+  for (const bloque of html.matchAll(/<form\b[^>]*>([\s\S]*?)<\/form>/g)) {
+    if (!/Google/i.test(bloque[1])) continue
+    const encontrados = {}
+    for (const etiqueta of bloque[1].matchAll(/<input\b[^>]*>/g)) {
+      const nombre = etiqueta[0].match(/name="([^"]*)"/)?.[1]
+      if (!nombre) continue
+      encontrados[nombre] = (etiqueta[0].match(/value="([^"]*)"/)?.[1] ?? '').replace(/&amp;/g, '&')
+    }
+    if (Object.keys(encontrados).some((n) => n.startsWith('$ACTION'))) campos = encontrados
+  }
+
+  if (!campos) return null
+
+  const cuerpo = new FormData()
+  for (const [n, v] of Object.entries(campos)) cuerpo.append(n, v)
+
+  const accion = await pedir(`${DOMINIO}/login`, {
+    method: 'POST',
+    headers: cookies ? { cookie: cookies } : {},
+    body: cuerpo,
+  })
+
+  const destino = accion.headers.get('location') ?? ''
+  if (!destino) return null
+
+  try {
+    return new URL(destino).searchParams.get('redirect_to')
+  } catch {
+    return null
+  }
+}
+
 async function main() {
   titulo('SMOKE TEST DE PRODUCCIÓN')
   console.log(`  Dominio:  ${DOMINIO}`)
@@ -133,6 +182,29 @@ async function main() {
   }
 
   // ------------------------------------------------------------------
+  // Todo lo de arriba usa el DOMINIO de este .env.local. Pero el que importa
+  // es el NEXT_PUBLIC_APP_URL de Vercel, que puede ser otro y no se ve desde
+  // aquí: se lee server-side, así que tampoco aparece en el bundle.
+  //
+  // Se saca arrancando el login con Google y mirando el `redirect_to` que
+  // producción le manda a Supabase. Es una lectura: no crea sesión ni usuario.
+  const G6 = 'LO QUE VERCEL TIENE DE VERDAD'
+
+  const real = await redirectToDeProduccion()
+
+  if (real === null) {
+    comprobar(G6, 'se pudo leer el redirect_to de producción', false, 'no se encontró')
+  } else {
+    comprobar(G6, 'coincide con el dominio esperado',
+      real === `${DOMINIO}/auth/callback`, real)
+    comprobar(G6, 'usa https', real.startsWith('https://'), real)
+
+    const permitidoReal = await permitido(real)
+    comprobar(G6, 'y ese valor SÍ está en la lista blanca', permitidoReal.permitido,
+      permitidoReal.permitido ? 'ok' : `rebota a ${permitidoReal.aDonde}`)
+  }
+
+  // ------------------------------------------------------------------
   imprimir()
 }
 
@@ -165,7 +237,19 @@ function imprimir() {
   }
 
   console.log(`  ${fallidas.length} de ${resultados.length} comprobaciones FALLARON:`)
-  for (const f of fallidas) console.log(`    ${f.grupo} · ${f.descripcion}`)
+  for (const f of fallidas) console.log(`    ${f.grupo} · ${f.descripcion}  ${f.detalle}`)
+
+  if (fallidas.some((f) => f.grupo === 'LO QUE VERCEL TIENE DE VERDAD')) {
+    console.log('')
+    console.log('  ── Cómo arreglar NEXT_PUBLIC_APP_URL ──────────────────────')
+    console.log('  Vercel → Settings → Environment Variables:')
+    console.log('')
+    console.log(`    NEXT_PUBLIC_APP_URL = ${DOMINIO}`)
+    console.log('')
+    console.log('  Con https y sin barra final. Después hay que REDEPLOYAR:')
+    console.log('  las NEXT_PUBLIC_* se hornean en el build, así que cambiar')
+    console.log('  la variable sin volver a construir no cambia nada.')
+  }
 
   if (fallidas.some((f) => f.grupo === 'REDIRECTS DE SUPABASE AUTH' && f.descripcion.includes('lista blanca'))) {
     console.log('')

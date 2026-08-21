@@ -142,6 +142,20 @@ Verificado el 21-ago-2026 con `pnpm check:prod`: **el dominio no está en la lis
 blanca**. Hoy la Site URL sigue siendo `http://localhost:3000`, y Supabase rebota
 ahí cualquier `redirect_to` que no reconozca — **sin dar error**.
 
+Y hay un segundo problema encadenado: en Vercel, `NEXT_PUBLIC_APP_URL` quedó como
+`http://academia.vadai.com.mx`. Se comprobó leyendo el `redirect_to` que
+producción le manda a Supabase al arrancar el login con Google. Aunque se agregue
+el dominio a la lista blanca en `https`, el que producción manda es `http` y
+seguiría rebotando.
+
+**Los dos hay que arreglarlos, y en este orden:**
+
+1. Vercel → Settings → Environment Variables →
+   `NEXT_PUBLIC_APP_URL = https://academia.vadai.com.mx`
+   (con `https`, sin barra final) y **redeployar**: las `NEXT_PUBLIC_*` se hornean
+   en el build, cambiar la variable sin volver a construir no cambia nada.
+2. Supabase → Authentication → URL Configuration, abajo.
+
 En claro: un alumno que pague hoy recibiría su correo de invitación con una liga
 a `localhost`, y no habría manera de que entrara. Tampoco funcionaría el login
 con Google ni la recuperación de contraseña en producción.
