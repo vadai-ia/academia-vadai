@@ -163,6 +163,22 @@ async function idDe(bd, email) {
 
 /** Deja al alumno como recién sembrado: sin progreso, sin intentos, sin entregas. */
 async function limpiar(bd, alumnoId) {
+  // Los PDFs primero: una vez borrada la fila ya no hay de dónde sacar la ruta,
+  // y el archivo se quedaría en el bucket para siempre sin nadie que lo nombre.
+  // Cada corrida dejaba uno más — cuatro llevaba acumulados cuando se detectó.
+  const { rows } = await bd.query(
+    `select pdf_path from academia.certificates where user_id = $1 and pdf_path is not null`,
+    [alumnoId]
+  )
+
+  if (rows.length > 0) {
+    await fetch(`${SUPABASE}/storage/v1/object/academia-certificados`, {
+      method: 'DELETE',
+      headers: { apikey: SERVICE, Authorization: `Bearer ${SERVICE}`, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ prefixes: rows.map((f) => f.pdf_path) }),
+    }).catch(() => {})
+  }
+
   await bd.query(`delete from academia.certificates where user_id = $1`, [alumnoId])
   await bd.query(`delete from academia.lesson_progress where user_id = $1`, [alumnoId])
   await bd.query(`delete from academia.quiz_attempts where user_id = $1`, [alumnoId])

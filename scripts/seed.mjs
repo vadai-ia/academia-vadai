@@ -162,6 +162,13 @@ async function sembrarDatos(cliente, usuarios) {
     )
 
     // Adjunto de lección: el vigente lo ve, el vencido no.
+    //
+    // El archivo se sube de verdad, no solo la fila. Una fila que nombra un
+    // archivo inexistente firma bien y falla al descargar: la prueba pasaría y
+    // el alumno se llevaría un 404. `pnpm storage:huerfanos` lo cazaría, pero
+    // más vale que el seed no lo siembre.
+    await subirAdjuntoDePrueba(`lecciones/${IDS.leccionVideo}/guia-qa.pdf`)
+
     await cliente.query(
       `insert into academia.lesson_attachments
          (id, lesson_id, storage_path, file_name, mime_type, size_bytes)
@@ -304,6 +311,42 @@ async function main() {
     console.log('')
   } finally {
     await cliente.end().catch(() => {})
+  }
+}
+
+/**
+ * Sube un PDF mínimo pero VÁLIDO al bucket de adjuntos.
+ *
+ * Se arma a mano en vez de leerlo de disco para no meter un binario al repo por
+ * 300 bytes. Tiene cabecera, un catálogo, una página vacía y el trailer, que es
+ * lo que cualquier visor necesita para abrirlo sin quejarse.
+ */
+async function subirAdjuntoDePrueba(ruta) {
+  const pdf = [
+    '%PDF-1.4',
+    '1 0 obj<</Type/Catalog/Pages 2 0 R>>endobj',
+    '2 0 obj<</Type/Pages/Kids[3 0 R]/Count 1>>endobj',
+    '3 0 obj<</Type/Page/Parent 2 0 R/MediaBox[0 0 612 792]>>endobj',
+    'trailer<</Root 1 0 R>>',
+    '%%EOF',
+  ].join('\n')
+
+  const res = await fetch(
+    `${URL_BASE}/storage/v1/object/academia-adjuntos/${ruta}`,
+    {
+      method: 'POST',
+      headers: {
+        apikey: SERVICE,
+        Authorization: `Bearer ${SERVICE}`,
+        'Content-Type': 'application/pdf',
+        'x-upsert': 'true',
+      },
+      body: pdf,
+    }
+  )
+
+  if (!res.ok && res.status !== 409) {
+    linea('aviso', 'adjunto de prueba', `no se pudo subir (${res.status})`)
   }
 }
 

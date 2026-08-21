@@ -23,6 +23,8 @@ septiembre de 2026.
 | [docs/M8.md](docs/M8.md) | Cohortes, sesiones en vivo y grabaciones ligadas |
 | [docs/M9.md](docs/M9.md) | Stripe: webhook, provisioning y alta manual |
 | [docs/M10.md](docs/M10.md) | Certificados: PDF, folio verificable y perfil del alumno |
+| [docs/M11.md](docs/M11.md) | QA y hardening: checklist firmado y purga completa |
+| [docs/QA.md](docs/QA.md) | Último checklist QA corrido, firmado con su commit |
 
 ## Migraciones
 
@@ -79,7 +81,9 @@ pnpm dev
 | `pnpm check:bunny` | Verifica las credenciales de Bunny Stream contra su API |
 | `pnpm check:prod` | Smoke test del dominio en vivo, de solo lectura |
 | `pnpm db:types` | Regenera `lib/supabase/types.ts` desde la base |
-| `pnpm db:purge` | Lista los datos QA a borrar (`--confirmar` para ejecutar) |
+| `pnpm db:purge` | Lista los datos QA a borrar, filas y archivos (`--confirmar` para ejecutar) |
+| `pnpm storage:huerfanos` | Archivos que ya no referencia nadie (`--borrar` para limpiarlos) |
+| `pnpm qa` | Corre el checklist completo y lo firma en `docs/QA.md` |
 
 ## Stack
 

@@ -32,10 +32,24 @@ function sugerir(grupo, descripcion, ok, detalle = '') {
   resultados.push({ grupo, descripcion, ok, detalle, blando: true })
 }
 
-async function pedir(url, opciones = {}) {
+/**
+ * Con un reintento. Esto sale a internet, y un tropiezo de red reportado como
+ * falla manda a revisar una configuración que estaba bien — que es peor que
+ * tardar dos segundos más.
+ */
+async function pedir(url, opciones = {}, intento = 1) {
   try {
-    return await fetch(url, { redirect: 'manual', ...opciones })
+    const res = await fetch(url, {
+      redirect: 'manual',
+      signal: AbortSignal.timeout(20_000),
+      ...opciones,
+    })
+    return res
   } catch (error) {
+    if (intento < 3) {
+      await new Promise((r) => setTimeout(r, 500 * intento))
+      return pedir(url, opciones, intento + 1)
+    }
     return { status: 0, headers: new Headers(), error: error.message, text: async () => '' }
   }
 }
