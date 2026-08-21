@@ -23,7 +23,8 @@
     "test:cohortes": "node scripts/test-cohortes.mjs",
     "test:stripe": "node scripts/test-stripe.mjs",
     "check:resend": "node scripts/check-resend.mjs",
-    "test:quizzes": "node scripts/test-quizzes.mjs"
+    "test:quizzes": "node scripts/test-quizzes.mjs",
+    "test:tareas": "node scripts/test-tareas.mjs"
   },
   "dependencies": {
     "@supabase/ssr": "^0.12.4",

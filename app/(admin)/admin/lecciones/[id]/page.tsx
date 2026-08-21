@@ -4,12 +4,14 @@ import { notFound } from 'next/navigation'
 
 import { Adjuntos } from '@/components/admin/adjuntos'
 import { ConstructorQuiz } from '@/components/admin/constructor-quiz'
+import { ConstructorTarea } from '@/components/admin/constructor-tarea'
 import { FormularioLeccion } from '@/components/admin/formulario-leccion'
 import { Button } from '@/components/ui/button'
 import { eliminarLeccion } from '@/lib/admin/acciones'
 import { bunnyConfigurado } from '@/lib/bunny/cliente'
 import { obtenerLeccion } from '@/lib/admin/consultas'
 import { quizDeLeccion } from '@/lib/admin/quizzes'
+import { tareaDeLeccion } from '@/lib/admin/tareas'
 import { exigirAdmin } from '@/lib/auth/sesion'
 
 export const dynamic = 'force-dynamic'
@@ -32,6 +34,8 @@ export default async function PaginaLeccion({ params }: { params: Promise<{ id: 
   if (!leccion) notFound()
 
   const quiz = leccion.lesson_type === 'quiz' ? await quizDeLeccion(leccion.id) : null
+  const tarea =
+    leccion.lesson_type === 'assignment' ? await tareaDeLeccion(leccion.id) : null
 
   return (
     <div className="flex max-w-2xl flex-col gap-10">
@@ -54,6 +58,12 @@ export default async function PaginaLeccion({ params }: { params: Promise<{ id: 
       {leccion.lesson_type === 'quiz' ? (
         <div className="border-t border-border pt-8">
           <ConstructorQuiz quiz={quiz} leccionId={leccion.id} />
+        </div>
+      ) : null}
+
+      {leccion.lesson_type === 'assignment' ? (
+        <div className="border-t border-border pt-8">
+          <ConstructorTarea tarea={tarea} leccionId={leccion.id} />
         </div>
       ) : null}
 
