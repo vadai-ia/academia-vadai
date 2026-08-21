@@ -23,6 +23,7 @@
     "test:cohortes": "node scripts/test-cohortes.mjs",
     "test:stripe": "node scripts/test-stripe.mjs",
     "check:resend": "node scripts/check-resend.mjs",
+    "check:prod": "node scripts/check-produccion.mjs",
     "test:quizzes": "node scripts/test-quizzes.mjs",
     "test:tareas": "node scripts/test-tareas.mjs",
     "test:comunidad": "node scripts/test-comunidad.mjs",

@@ -159,4 +159,28 @@
   html {
     @apply font-sans;
     }
+
+  /* Tailwind 4 cambió el Preflight respecto a la v3: ahora pone
+     `cursor: default` en los <button>. El resultado es que nada de la interfaz
+     se siente clickeable — el puntero no cambia sobre ningún control.
+
+     Se corrige aquí y no solo en <Button> para que también valgan los <select>,
+     los checkboxes, los <summary> de los recuadros colapsables y cualquier
+     botón suelto que no pase por el componente. */
+  button:not(:disabled),
+  [role='button']:not([aria-disabled='true']),
+  summary,
+  select,
+  label[for],
+  input[type='checkbox'],
+  input[type='radio'],
+  input[type='file'],
+  ::file-selector-button {
+    cursor: pointer;
+    }
+
+  button:disabled,
+  [aria-disabled='true'] {
+    cursor: not-allowed;
+    }
 }

@@ -136,10 +136,30 @@ Dashboard → **Authentication** → **Sign In / Providers**
   - Lo que sí importa y `pnpm check:m0` ya verifica: que las cuentas tengan el
     correo confirmado.
 
-Dashboard → **Authentication** → **URL Configuration**
+Dashboard → **Authentication** → **URL Configuration** ⛔ **BLOQUEADOR DE LANZAMIENTO**
 
-- [ ] Site URL: `https://academia.vadai.com.mx`  ← confirmar antes del deploy
-- [ ] Redirect URLs incluye `https://academia.vadai.com.mx/**` y `http://localhost:3000/**`
+Verificado el 21-ago-2026 con `pnpm check:prod`: **el dominio no está en la lista
+blanca**. Hoy la Site URL sigue siendo `http://localhost:3000`, y Supabase rebota
+ahí cualquier `redirect_to` que no reconozca — **sin dar error**.
+
+En claro: un alumno que pague hoy recibiría su correo de invitación con una liga
+a `localhost`, y no habría manera de que entrara. Tampoco funcionaría el login
+con Google ni la recuperación de contraseña en producción.
+
+- [ ] Site URL: `https://academia.vadai.com.mx`
+- [ ] Redirect URLs, **una por línea**:
+      - `https://academia.vadai.com.mx/**`
+      - `http://localhost:3000/**`  ← para poder seguir probando en local
+
+Se comprueba con:
+
+```bash
+pnpm check:prod
+```
+
+El script manda un `verify` con token inválido y mira a dónde rebota Supabase.
+Incluye un control negativo con un dominio ajeno: si ese también saliera
+"permitido", la lista blanca sería un comodín y la comprobación no valdría nada.
 
 ---
 

@@ -77,6 +77,7 @@ pnpm dev
 | `pnpm test:certificados` | Elegibilidad, PDF y verificación por folio (requiere `pnpm start`) |
 | `pnpm test:todo` | Todas las suites en secuencia, con resumen (requiere `pnpm start`) |
 | `pnpm check:bunny` | Verifica las credenciales de Bunny Stream contra su API |
+| `pnpm check:prod` | Smoke test del dominio en vivo, de solo lectura |
 | `pnpm db:types` | Regenera `lib/supabase/types.ts` desde la base |
 | `pnpm db:purge` | Lista los datos QA a borrar (`--confirmar` para ejecutar) |
 

@@ -121,6 +121,8 @@ export function Quiz({
                     <label
                       className={cn(
                         'flex cursor-pointer items-start gap-3 rounded-md border px-3 py-2.5 text-sm transition-colors',
+                        // Sin hover, una opción sin elegir no parece clickeable.
+                        !calificado && 'hover:border-vadai-cyan/60 hover:bg-muted/50',
                         elegida ? 'border-vadai-cyan bg-vadai-cyan/5' : 'border-border',
                         calificado && 'cursor-default',
                         // Al calificar: verde la correcta, roja la que eligió si falló.
