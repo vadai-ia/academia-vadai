@@ -1,5 +1,6 @@
 import 'server-only'
 
+import { esEquipo, obtenerSesion } from '@/lib/auth/sesion'
 import { crearClienteServidor } from '@/lib/supabase/server'
 import type { Json, Tabla, Vista } from '@/lib/supabase/types'
 
@@ -179,9 +180,16 @@ export async function cursoDelAlumno(slug: string): Promise<CursoDelAlumno | nul
     .eq('status', 'active')
     .maybeSingle()
 
+  // El equipo entra sin estar inscrito, y esto no es una excepción cosmética:
+  // sin ella un admin no puede abrir una lección para moderar su hilo (§6.4) ni
+  // revisar el curso como lo ve el alumno. RLS ya se lo permite (`is_admin() or
+  // has_active_access()`); lo que faltaba era que la consulta no lo cortara.
+  const sesion = await obtenerSesion()
+  const equipo = sesion.tipo === 'activo' && esEquipo(sesion.perfil)
+
   // Sin inscripción activa el curso no existe para este alumno. RLS ya lo
   // habría escondido, pero el chequeo explícito evita depender de eso.
-  if (!inscripcion) return null
+  if (!inscripcion && !equipo) return null
 
   const { data: modulos } = await supabase
     .from('modules')
@@ -208,7 +216,7 @@ export async function cursoDelAlumno(slug: string): Promise<CursoDelAlumno | nul
   const filas = (outline ?? []) as FilaOutline[]
   const hechas = filas.filter((l) => l.id && completadas.has(l.id)).length
   const vigente =
-    !inscripcion.expires_at || new Date(inscripcion.expires_at).getTime() > Date.now()
+    equipo || !inscripcion?.expires_at || new Date(inscripcion.expires_at).getTime() > Date.now()
 
   return {
     id: curso.id,
@@ -217,8 +225,8 @@ export async function cursoDelAlumno(slug: string): Promise<CursoDelAlumno | nul
     descripcion: curso.description,
     portada: curso.cover_url,
     vigente,
-    expiraEn: inscripcion.expires_at,
-    diasRestantes: diasHasta(inscripcion.expires_at),
+    expiraEn: inscripcion?.expires_at ?? null,
+    diasRestantes: diasHasta(inscripcion?.expires_at ?? null),
     totalLecciones: filas.length,
     completadas: hechas,
     porcentaje: filas.length === 0 ? 0 : Math.round((hechas / filas.length) * 100),

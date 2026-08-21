@@ -1,15 +1,23 @@
 import type { Metadata } from 'next'
 
+import { RenderRico } from '@/components/alumno/render-rico'
 import { TarjetaCurso } from '@/components/alumno/tarjeta-curso'
 import { misCursos } from '@/lib/alumno/consultas'
 import { exigirPerfil, nombreVisible } from '@/lib/auth/sesion'
+import { publicacionesParaAlumno } from '@/lib/comunidad/posts'
 
 export const metadata: Metadata = { title: 'Mis cursos' }
 export const dynamic = 'force-dynamic'
 
 export default async function PaginaMisCursos() {
   const perfil = await exigirPerfil()
-  const cursos = await misCursos()
+  const [cursos, anuncios] = await Promise.all([
+    misCursos(),
+    publicacionesParaAlumno('announcement'),
+  ])
+
+  // Solo el más reciente: si aquí cupieran cinco, el alumno dejaría de leerlos.
+  const anuncio = anuncios[0]
 
   return (
     <div className="flex flex-col gap-8">
@@ -25,6 +33,16 @@ export default async function PaginaMisCursos() {
               : `Tus ${cursos.length} cursos y tu avance.`}
         </p>
       </header>
+
+      {anuncio ? (
+        <section className="flex flex-col gap-2 rounded-lg border border-vadai-cyan/40 bg-vadai-cyan/5 p-5">
+          <span className="text-xs font-semibold tracking-[0.15em] text-vadai-cyan uppercase">
+            Anuncio
+          </span>
+          <h2 className="font-medium text-balance">{anuncio.titulo}</h2>
+          {anuncio.contenido ? <RenderRico contenido={anuncio.contenido} /> : null}
+        </section>
+      ) : null}
 
       {cursos.length === 0 ? (
         <div className="rounded-lg border border-dashed border-border px-5 py-12 text-center">

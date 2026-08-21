@@ -12,7 +12,13 @@ export default async function LayoutAlumno({ children }: { children: ReactNode }
 
   return (
     <div className="flex min-h-dvh flex-col">
-      <Encabezado perfil={perfil} />
+      <Encabezado
+        perfil={perfil}
+        navegacion={[
+          { href: '/mis-cursos', etiqueta: 'Mis cursos' },
+          { href: '/blog', etiqueta: 'Blog' },
+        ]}
+      />
       <main className="mx-auto w-full max-w-5xl flex-1 px-5 py-8">{children}</main>
     </div>
   )

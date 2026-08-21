@@ -97,6 +97,11 @@ En su lugar: `pnpm db:migrate` → `scripts/migrate.mjs`, que aplica los `.sql` 
 - NO instalar dependencias no listadas en el stack sin justificación explícita
 - NO tocar `public` ni ningún schema ajeno bajo ninguna circunstancia
 - NO habilitar sign-up público "para probar"
+- NO envolver una server action en un closure de cliente: `action={async (d) => { await accion(d); ... }}`
+  le quita a React el `$ACTION_ID` y el `<form>` deja de funcionar sin JavaScript. La acción va
+  directa (`action={accion}`) y el reset de los campos se hace con `key`, con un valor del servidor
+- NO esconder un formulario detrás de `useState` + `onClick`: sin JS el botón no hace nada.
+  Lo que se abre y se cierra va en `<details>`/`<summary>`
 
 ## PATTERNS — CÓMO LO HACEMOS
 
@@ -105,6 +110,8 @@ En su lugar: `pnpm db:migrate` → `scripts/migrate.mjs`, que aplica los `.sql` 
 - Errores con contexto (qué operación, qué ids) en logs JSON
 - Commits atómicos por feature, mensajes en español imperativo
 - Estados vacíos y de carga diseñados en cada vista (no pantallas en blanco)
+- Cada milestone cierra con su suite (`scripts/test-*.mjs`) probando el criterio **literal** de §10,
+  contra la app corriendo y verificando en Postgres, no en la pantalla que acaba de escribir
 
 ## MILESTONES — DISCIPLINA
 

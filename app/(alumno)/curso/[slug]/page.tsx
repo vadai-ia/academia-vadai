@@ -88,6 +88,21 @@ export default async function PaginaCurso({ params }: { params: Promise<{ slug: 
 
       <SesionesEnVivo sesiones={sesiones} />
 
+      {curso.vigente ? (
+        <Link
+          href={`/curso/${curso.slug}/comunidad`}
+          className="flex items-center justify-between rounded-lg border border-border px-4 py-4 transition-colors hover:border-vadai-cyan/60"
+        >
+          <span className="flex flex-col gap-0.5">
+            <span className="font-medium">Comunidad</span>
+            <span className="text-sm text-muted-foreground">
+              Preguntas y avances de tu grupo
+            </span>
+          </span>
+          <span className="text-vadai-cyan">→</span>
+        </Link>
+      ) : null}
+
       <section className="flex flex-col gap-4">
         <h2 className="text-lg font-semibold">Contenido</h2>
         {curso.modulos.length === 0 ? (

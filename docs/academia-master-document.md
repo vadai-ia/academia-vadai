@@ -58,7 +58,7 @@ Implicación de diseño: todo se modela multi-curso y membership-ready desde el 
 | Supabase compartido con otros sistemas VADAI | Un solo costo y un solo pool de auth; el aislamiento lo garantiza el schema `academia` + RLS, no la separación de proyectos |
 | Membresía solo schema-ready | El modelo de membresía se definirá después con datos reales del curso 1; construir la UI hoy sería adivinar |
 
-### Decisiones añadidas el 20-ago-2026 (arranque de M1)
+### Decisiones añadidas durante la construcción (M1–M7, 20-ago-2026 en adelante)
 
 | Decisión | Por qué |
 |----------|---------|
@@ -71,6 +71,9 @@ Implicación de diseño: todo se modela multi-curso y membership-ready desde el 
 | **Resend en vez de Gmail SMTP** | Corrige la decisión original de §0.B, que ya contemplaba este cambio con el disparador "correos cayendo a spam". Se adelanta por dos motivos: Gmail rechaza enviar desde una dirección de `vadai.com.mx` porque no es la cuenta autenticada (era la causa del 500 en `/auth/v1/recover`), y 40 invitaciones simultáneas desde un Gmail sin autenticación de dominio es justo el patrón que los filtros marcan. Con SPF/DKIM sobre un subdominio dedicado (`automail.vadai.com.mx`) el correo llega a bandeja y la reputación de envío queda aislada del correo corporativo, que es de lo que depende §6.1. **No cambia una línea de código**: la app nunca manda correo por su cuenta (§7.3) |
 | **Solo tarjeta en los Payment Links**, sin OXXO ni SPEI | Con métodos asíncronos, `checkout.session.completed` llega con `payment_status: 'unpaid'` y el pago real confirma horas o días después. Eso rompe la promesa de §6.1 ("compra → acceso en <2 min") y obligaría a diseñar qué ve el alumno mientras su voucher se paga. Se acepta perder a quien no usa tarjeta a cambio de que el acceso sea inmediato y el flujo, uno solo. Los eventos async quedan suscritos igual, por si se activa después |
 | **Proyecto Supabase dedicado**, no el compartido | Corrige la decisión original de §0.B. La academia vive en `mtrojwqwnuzzcgtmmoop` (vacío al arrancar: 0 tablas en `public`, 0 usuarios, 0 buckets), no en `ukgbklhmjbniffssacjm` donde ya viven otros seis sistemas VADAI. Se gana aislamiento real de auth y de datos, y desaparece el riesgo de que un cambio de configuración global (sign-up, exposed schemas) afecte a sistemas ajenos. La Regla Cero se conserva igual: cuesta cero y deja la puerta abierta a convivir después |
+| **El equipo entra a los cursos sin estar inscrito** | §6.4 pide moderar "a dos clics desde el propio hilo", pero los hilos viven dentro de `/curso/[slug]/...` y un admin nunca tiene `enrollment`: la consulta devolvía `null` y la página respondía 404. Los botones de *Ocultar* y *Fijar* estaban en código inalcanzable. RLS ya se lo permitía (`is_admin() or has_active_access()`); lo que cortaba era la consulta. Ahora el equipo entra con `vigente = true`, y el detalle del curso en el panel enlaza a la vista de alumno y a la comunidad |
+| **Los recuadros colapsables son `<details>`, no estado de React** | Un botón con `onClick` no hace nada sin JavaScript: el formulario que esconde nunca llega a existir. Aplica a *Responder*, *Escribir una publicación* y *Comentar*. Junto con la regla de no envolver las server actions en closures —eso le quita a React el `$ACTION_ID`—, es lo que sostiene que la plataforma funcione con JS desactivado o todavía sin hidratar |
+| **El cuerpo de la comunidad se escribe en `<textarea>`, no en Tiptap** | Pedirle un editor rico a un alumno para preguntar una duda es fricción pura. Se convierte a documento Tiptap al guardar, así `content_rich` tiene una sola forma en toda la base y la comunidad, el blog y las lecciones comparten renderizador |
 
 ---
 

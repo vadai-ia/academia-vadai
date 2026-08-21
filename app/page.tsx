@@ -8,11 +8,15 @@ import { verificarConexion } from '@/lib/supabase/estado'
 // La sonda consulta Supabase en vivo: nunca debe quedar cacheada en el build.
 export const dynamic = 'force-dynamic'
 
+/**
+ * Se lista lo construido, no el plan. Un tablero que promete cosas que aún no
+ * existen envejece mal, y esta página es pública.
+ */
 const HITOS = [
-  { clave: 'M0', nombre: 'Infraestructura', estado: 'listo' },
-  { clave: 'M1', nombre: 'Schema y RLS', estado: 'listo' },
-  { clave: 'M2', nombre: 'Autenticación', estado: 'listo' },
-  { clave: 'M3', nombre: 'Admin de cursos', estado: 'siguiente' },
+  { clave: 'M1–M4', nombre: 'Schema, acceso, admin y player', estado: 'listo' },
+  { clave: 'M5–M6', nombre: 'Quizzes y tareas', estado: 'listo' },
+  { clave: 'M8–M9', nombre: 'Cohortes y pagos', estado: 'listo' },
+  { clave: 'M7', nombre: 'Comunidad y blog', estado: 'en curso' },
 ] as const
 
 export default async function Inicio() {

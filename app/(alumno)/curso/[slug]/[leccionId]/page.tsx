@@ -6,6 +6,7 @@ import { AdjuntosAlumno } from '@/components/alumno/adjuntos-alumno'
 import { BotonCompletada } from '@/components/alumno/boton-completada'
 import { IndiceCurso } from '@/components/alumno/indice-curso'
 import { Quiz } from '@/components/alumno/quiz'
+import { Comentarios } from '@/components/alumno/comentarios'
 import { Tarea } from '@/components/alumno/tarea'
 import { RenderRico } from '@/components/alumno/render-rico'
 import { Reproductor } from '@/components/alumno/reproductor'
@@ -13,7 +14,8 @@ import { Button } from '@/components/ui/button'
 import { contenidoDeLeccion, cursoDelAlumno, vecinas } from '@/lib/alumno/consultas'
 import { quizParaAlumno } from '@/lib/alumno/quiz'
 import { tareaParaAlumno } from '@/lib/alumno/tarea'
-import { exigirPerfil } from '@/lib/auth/sesion'
+import { esEquipo, exigirPerfil } from '@/lib/auth/sesion'
+import { comentariosDeLeccion } from '@/lib/comunidad/comentarios'
 import { firmarReproduccion, reproduccionConfigurada } from '@/lib/bunny/reproduccion'
 
 export const dynamic = 'force-dynamic'
@@ -33,7 +35,7 @@ export default async function PaginaLeccion({
 }: {
   params: Promise<{ slug: string; leccionId: string }>
 }) {
-  await exigirPerfil()
+  const perfil = await exigirPerfil()
   const { slug, leccionId } = await params
 
   const curso = await cursoDelAlumno(slug)
@@ -49,6 +51,7 @@ export default async function PaginaLeccion({
 
   const quiz = leccion.tipo === 'quiz' ? await quizParaAlumno(leccion.id) : null
   const tarea = leccion.tipo === 'assignment' ? await tareaParaAlumno(leccion.id) : null
+  const comentarios = await comentariosDeLeccion(leccion.id, perfil.user_id)
 
   // La firma se genera aquí, en el servidor, y solo porque llegamos hasta este
   // punto: si el acceso hubiera vencido, `leccion` sería null y ya habríamos
@@ -121,6 +124,13 @@ export default async function PaginaLeccion({
             ) : null}
           </div>
         </div>
+
+        <Comentarios
+          comentarios={comentarios}
+          leccionId={leccion.id}
+          cursoSlug={slug}
+          soyEquipo={esEquipo(perfil)}
+        />
       </div>
 
       <aside className="w-full shrink-0 border-t border-border pt-6 lg:w-72 lg:border-t-0 lg:pt-0">

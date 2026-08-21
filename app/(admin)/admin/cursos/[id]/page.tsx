@@ -47,6 +47,23 @@ export default async function PaginaCurso({ params }: { params: Promise<{ id: st
             {ETIQUETA_ESTADO_CURSO[curso.status]}
           </Badge>
         </h1>
+
+        {/* El equipo entra al curso sin estar inscrito. Es la única puerta a la
+            comunidad y a los hilos de comentarios, que se moderan desde ahí. */}
+        <p className="flex flex-wrap gap-4 pt-1 text-sm">
+          <Link
+            href={`/curso/${curso.slug}`}
+            className="text-vadai-cyan underline-offset-4 hover:underline"
+          >
+            Verlo como alumno →
+          </Link>
+          <Link
+            href={`/curso/${curso.slug}/comunidad`}
+            className="text-vadai-cyan underline-offset-4 hover:underline"
+          >
+            Comunidad →
+          </Link>
+        </p>
       </header>
 
       <ArbolCurso curso={curso} />

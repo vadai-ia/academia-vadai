@@ -24,7 +24,9 @@
     "test:stripe": "node scripts/test-stripe.mjs",
     "check:resend": "node scripts/check-resend.mjs",
     "test:quizzes": "node scripts/test-quizzes.mjs",
-    "test:tareas": "node scripts/test-tareas.mjs"
+    "test:tareas": "node scripts/test-tareas.mjs",
+    "test:comunidad": "node scripts/test-comunidad.mjs",
+    "test:todo": "node scripts/test-todo.mjs"
   },
   "dependencies": {
     "@supabase/ssr": "^0.12.4",

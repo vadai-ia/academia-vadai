@@ -7,10 +7,7 @@ import { exigirAdmin, nombreVisible } from '@/lib/auth/sesion'
 export const metadata: Metadata = { title: 'Administración' }
 export const dynamic = 'force-dynamic'
 
-const PENDIENTES = [
-  { clave: 'M7', nombre: 'Comunidad y blog' },
-  { clave: 'M10', nombre: 'Certificados' },
-] as const
+const PENDIENTES = [{ clave: 'M10', nombre: 'Certificados' }] as const
 
 export default async function PaginaAdmin() {
   const perfil = await exigirAdmin()
@@ -35,6 +32,19 @@ export default async function PaginaAdmin() {
             <span className="font-medium">Cursos</span>
             <span className="text-sm text-muted-foreground">
               Módulos, lecciones, videos, adjuntos y cohortes
+            </span>
+          </span>
+          <span className="text-vadai-cyan">→</span>
+        </Link>
+
+        <Link
+          href="/admin/publicaciones"
+          className="flex items-center justify-between rounded-lg border border-border px-4 py-4 transition-colors hover:border-vadai-cyan/60"
+        >
+          <span className="flex flex-col gap-0.5">
+            <span className="font-medium">Publicaciones</span>
+            <span className="text-sm text-muted-foreground">
+              Anuncios para el panel del alumno y entradas de blog
             </span>
           </span>
           <span className="text-vadai-cyan">→</span>
