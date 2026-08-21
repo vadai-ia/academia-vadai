@@ -27,6 +27,11 @@ function comprobar(grupo, descripcion, ok, detalle = '') {
   resultados.push({ grupo, descripcion, ok, detalle })
 }
 
+/** Como `comprobar`, pero no tumba la corrida: avisa y sigue. */
+function sugerir(grupo, descripcion, ok, detalle = '') {
+  resultados.push({ grupo, descripcion, ok, detalle, blando: true })
+}
+
 async function pedir(url, opciones = {}) {
   try {
     return await fetch(url, { redirect: 'manual', ...opciones })
@@ -175,9 +180,22 @@ async function main() {
   const ajeno = await permitido('https://no-autorizado.example.com/x')
   comprobar(G5, 'un dominio ajeno NO se permite', !ajeno.permitido, ajeno.aDonde || '—')
 
-  for (const ruta of ['/auth/callback', '/auth/confirmar', '/nueva-contrasena', '/mis-cursos']) {
+  // `/auth/callback` es el ÚNICO que la lista blanca decide de verdad: es el
+  // `redirectTo` de signInWithOAuth, y sin él no hay login con Google (§10, M2).
+  const callback = await permitido(`${DOMINIO}/auth/callback`)
+  comprobar(G5, '/auth/callback está permitido (login con Google)', callback.permitido,
+    callback.permitido ? 'ok' : `rebota a ${callback.aDonde}`)
+
+  // Los demás NO hacen falta con el diseño actual: los correos de invitación y
+  // de recuperación no pasan por `/auth/v1/verify`. `generarEnlaceDeAcceso` toma
+  // el `hashed_token` crudo y arma la liga directo a nuestro /auth/confirmar,
+  // así que solo dependen de NEXT_PUBLIC_APP_URL.
+  //
+  // Se comprueban de todas formas, pero como sugerencia: tenerlos permitidos es
+  // la red por si algún día se usa el `action_link` que devuelve generateLink.
+  for (const ruta of ['/auth/confirmar', '/nueva-contrasena', '/mis-cursos']) {
     const r = await permitido(`${DOMINIO}${ruta}`)
-    comprobar(G5, `${ruta} está en la lista blanca`, r.permitido,
+    sugerir(G5, `${ruta} permitido (opcional, red de respaldo)`, r.permitido,
       r.permitido ? 'ok' : `rebota a ${r.aDonde}`)
   }
 
@@ -221,16 +239,21 @@ function imprimir() {
     console.log(`  ${grupo}`)
     console.log('  ' + '─'.repeat(ancho + 26))
     for (const c of casos) {
-      console.log(`  ${c.ok ? '✓' : '✗'}  ${c.descripcion.padEnd(ancho)}  ${c.detalle}`)
+      const icono = c.ok ? '✓' : c.blando ? '·' : '✗'
+      console.log(`  ${icono}  ${c.descripcion.padEnd(ancho)}  ${c.detalle}`)
     }
   }
 
-  const fallidas = resultados.filter((r) => !r.ok)
+  const fallidas = resultados.filter((r) => !r.ok && !r.blando)
+  const sugerencias = resultados.filter((r) => !r.ok && r.blando)
 
   console.log('')
   console.log('  ' + '─'.repeat(ancho + 26))
   if (fallidas.length === 0) {
     console.log(`  PRODUCCIÓN EN VERDE — ${resultados.length} comprobaciones.`)
+    if (sugerencias.length > 0) {
+      console.log(`  (${sugerencias.length} sugerencia(s) sin atender, marcadas con ·)`)
+    }
     console.log('')
     process.exitCode = 0
     return
@@ -251,7 +274,7 @@ function imprimir() {
     console.log('  la variable sin volver a construir no cambia nada.')
   }
 
-  if (fallidas.some((f) => f.grupo === 'REDIRECTS DE SUPABASE AUTH' && f.descripcion.includes('lista blanca'))) {
+  if ([...fallidas, ...sugerencias].some((f) => f.grupo === 'REDIRECTS DE SUPABASE AUTH')) {
     console.log('')
     console.log('  ── Cómo arreglar la lista blanca ──────────────────────────')
     console.log('  Supabase → Authentication → URL Configuration:')
