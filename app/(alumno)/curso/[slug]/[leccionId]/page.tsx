@@ -5,10 +5,12 @@ import { notFound, redirect } from 'next/navigation'
 import { AdjuntosAlumno } from '@/components/alumno/adjuntos-alumno'
 import { BotonCompletada } from '@/components/alumno/boton-completada'
 import { IndiceCurso } from '@/components/alumno/indice-curso'
+import { Quiz } from '@/components/alumno/quiz'
 import { RenderRico } from '@/components/alumno/render-rico'
 import { Reproductor } from '@/components/alumno/reproductor'
 import { Button } from '@/components/ui/button'
 import { contenidoDeLeccion, cursoDelAlumno, vecinas } from '@/lib/alumno/consultas'
+import { quizParaAlumno } from '@/lib/alumno/quiz'
 import { exigirPerfil } from '@/lib/auth/sesion'
 import { firmarReproduccion, reproduccionConfigurada } from '@/lib/bunny/reproduccion'
 
@@ -42,6 +44,8 @@ export default async function PaginaLeccion({
   if (!leccion) redirect(`/curso/${slug}`)
 
   const { anterior, siguiente, indice, total } = vecinas(curso, leccionId)
+
+  const quiz = leccion.tipo === 'quiz' ? await quizParaAlumno(leccion.id) : null
 
   // La firma se genera aquí, en el servidor, y solo porque llegamos hasta este
   // punto: si el acceso hubiera vencido, `leccion` sería null y ya habríamos
@@ -87,6 +91,8 @@ export default async function PaginaLeccion({
         ) : null}
 
         {leccion.descripcion ? <RenderRico contenido={leccion.descripcion} /> : null}
+
+        {quiz ? <Quiz quiz={quiz} leccionId={leccion.id} cursoSlug={slug} /> : null}
 
         <AdjuntosAlumno adjuntos={leccion.adjuntos} />
 

@@ -3,11 +3,13 @@ import Link from 'next/link'
 import { notFound } from 'next/navigation'
 
 import { Adjuntos } from '@/components/admin/adjuntos'
+import { ConstructorQuiz } from '@/components/admin/constructor-quiz'
 import { FormularioLeccion } from '@/components/admin/formulario-leccion'
 import { Button } from '@/components/ui/button'
 import { eliminarLeccion } from '@/lib/admin/acciones'
 import { bunnyConfigurado } from '@/lib/bunny/cliente'
 import { obtenerLeccion } from '@/lib/admin/consultas'
+import { quizDeLeccion } from '@/lib/admin/quizzes'
 import { exigirAdmin } from '@/lib/auth/sesion'
 
 export const dynamic = 'force-dynamic'
@@ -29,6 +31,8 @@ export default async function PaginaLeccion({ params }: { params: Promise<{ id: 
   const leccion = await obtenerLeccion(id)
   if (!leccion) notFound()
 
+  const quiz = leccion.lesson_type === 'quiz' ? await quizDeLeccion(leccion.id) : null
+
   return (
     <div className="flex max-w-2xl flex-col gap-10">
       <header className="flex flex-col gap-1">
@@ -46,6 +50,12 @@ export default async function PaginaLeccion({ params }: { params: Promise<{ id: 
         cursoId={leccion.curso_id}
         bunnyListo={bunnyConfigurado()}
       />
+
+      {leccion.lesson_type === 'quiz' ? (
+        <div className="border-t border-border pt-8">
+          <ConstructorQuiz quiz={quiz} leccionId={leccion.id} />
+        </div>
+      ) : null}
 
       <div className="border-t border-border pt-8">
         <Adjuntos
