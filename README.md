@@ -22,6 +22,7 @@ septiembre de 2026.
 | [docs/M7.md](docs/M7.md) | Comentarios por lección, comunidad por curso y blog |
 | [docs/M8.md](docs/M8.md) | Cohortes, sesiones en vivo y grabaciones ligadas |
 | [docs/M9.md](docs/M9.md) | Stripe: webhook, provisioning y alta manual |
+| [docs/M10.md](docs/M10.md) | Certificados: PDF, folio verificable y perfil del alumno |
 
 ## Migraciones
 
@@ -73,7 +74,8 @@ pnpm dev
 | `pnpm test:cohortes` | Calendario, zona horaria y grabaciones (requiere `pnpm start`) |
 | `pnpm test:stripe` | Webhook con eventos firmados sintéticos (requiere `pnpm start`) |
 | `pnpm test:comunidad` | Moderación, fijado y audiencia del blog (requiere `pnpm start`) |
-| `pnpm test:todo` | Las nueve suites en secuencia, con resumen (requiere `pnpm start`) |
+| `pnpm test:certificados` | Elegibilidad, PDF y verificación por folio (requiere `pnpm start`) |
+| `pnpm test:todo` | Todas las suites en secuencia, con resumen (requiere `pnpm start`) |
 | `pnpm check:bunny` | Verifica las credenciales de Bunny Stream contra su API |
 | `pnpm db:types` | Regenera `lib/supabase/types.ts` desde la base |
 | `pnpm db:purge` | Lista los datos QA a borrar (`--confirmar` para ejecutar) |
@@ -81,4 +83,5 @@ pnpm dev
 ## Stack
 
 Next.js 15 (App Router) · React 19 · TypeScript estricto · Tailwind 4 · shadcn/ui ·
-Supabase (sin ORM) · Bunny Stream · Stripe Payment Links · Vercel · pnpm
+Supabase (sin ORM) · Bunny Stream · Stripe Payment Links · @react-pdf/renderer ·
+Vercel · pnpm

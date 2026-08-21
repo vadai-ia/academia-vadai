@@ -4,12 +4,15 @@ import { notFound } from 'next/navigation'
 
 import { AccesoVencido } from '@/components/alumno/acceso-vencido'
 import { BarraProgreso } from '@/components/alumno/barra-progreso'
+import { CertificadoDelCurso } from '@/components/alumno/certificado-del-curso'
 import { IndiceCurso } from '@/components/alumno/indice-curso'
 import { SesionesEnVivo } from '@/components/alumno/sesiones-en-vivo'
 import { Button } from '@/components/ui/button'
 import { cursoDelAlumno } from '@/lib/alumno/consultas'
 import { sesionesDelAlumno } from '@/lib/alumno/sesiones'
 import { exigirPerfil } from '@/lib/auth/sesion'
+import { certificadoDelCurso } from '@/lib/certificados/consultas'
+import { revisarElegibilidad } from '@/lib/certificados/elegibilidad'
 
 export const dynamic = 'force-dynamic'
 
@@ -24,7 +27,7 @@ export async function generateMetadata({
 }
 
 export default async function PaginaCurso({ params }: { params: Promise<{ slug: string }> }) {
-  await exigirPerfil()
+  const perfil = await exigirPerfil()
   const { slug } = await params
 
   const curso = await cursoDelAlumno(slug)
@@ -33,6 +36,13 @@ export default async function PaginaCurso({ params }: { params: Promise<{ slug: 
   // La policy de cohort_sessions exige pertenecer a la cohorte Y tener acceso
   // vigente: el alumno vencido recibe una lista vacía sin que haya que filtrar.
   const sesiones = await sesionesDelAlumno(slug)
+
+  // El certificado sobrevive al vencimiento: lo ganó, es suyo (§6.3 dice que
+  // el progreso no se borra, y un certificado emitido menos todavía).
+  const [folio, elegibilidad] = await Promise.all([
+    certificadoDelCurso(curso.id),
+    revisarElegibilidad(perfil.user_id, curso.id),
+  ])
 
   // Retomar donde se quedó (§3.3): la primera sin completar que esté disponible.
   const planas = curso.modulos.flatMap((m) => m.lecciones)
@@ -85,6 +95,14 @@ export default async function PaginaCurso({ params }: { params: Promise<{ slug: 
       </div>
 
       {!curso.vigente ? <AccesoVencido curso={curso} /> : null}
+
+      <CertificadoDelCurso
+        cursoId={curso.id}
+        cursoSlug={curso.slug}
+        folio={folio}
+        cumple={elegibilidad.cumple}
+        faltantes={curso.vigente ? elegibilidad.faltantes : []}
+      />
 
       <SesionesEnVivo sesiones={sesiones} />
 

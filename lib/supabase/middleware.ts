@@ -62,6 +62,14 @@ export async function actualizarSesion(request: NextRequest) {
   if (!user) {
     if (esPublica(ruta)) return respuesta
 
+    // Una ruta de API contesta con un status, no con un redirect: quien la
+    // llama es un fetch, y siguiendo el 307 recibiría el HTML del login con un
+    // 200 encima. Un 401 se puede manejar; una página de login disfrazada de
+    // respuesta exitosa, no.
+    if (ruta.startsWith('/api/')) {
+      return NextResponse.json({ error: 'Necesitas iniciar sesión.' }, { status: 401 })
+    }
+
     // Se recuerda a dónde iba, para devolverlo ahí después del login.
     const url = request.nextUrl.clone()
     url.pathname = RUTAS.login

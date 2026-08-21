@@ -58,7 +58,7 @@ Implicación de diseño: todo se modela multi-curso y membership-ready desde el 
 | Supabase compartido con otros sistemas VADAI | Un solo costo y un solo pool de auth; el aislamiento lo garantiza el schema `academia` + RLS, no la separación de proyectos |
 | Membresía solo schema-ready | El modelo de membresía se definirá después con datos reales del curso 1; construir la UI hoy sería adivinar |
 
-### Decisiones añadidas durante la construcción (M1–M7, 20-ago-2026 en adelante)
+### Decisiones añadidas durante la construcción (M1–M10, 20-ago-2026 en adelante)
 
 | Decisión | Por qué |
 |----------|---------|
@@ -74,6 +74,11 @@ Implicación de diseño: todo se modela multi-curso y membership-ready desde el 
 | **El equipo entra a los cursos sin estar inscrito** | §6.4 pide moderar "a dos clics desde el propio hilo", pero los hilos viven dentro de `/curso/[slug]/...` y un admin nunca tiene `enrollment`: la consulta devolvía `null` y la página respondía 404. Los botones de *Ocultar* y *Fijar* estaban en código inalcanzable. RLS ya se lo permitía (`is_admin() or has_active_access()`); lo que cortaba era la consulta. Ahora el equipo entra con `vigente = true`, y el detalle del curso en el panel enlaza a la vista de alumno y a la comunidad |
 | **Los recuadros colapsables son `<details>`, no estado de React** | Un botón con `onClick` no hace nada sin JavaScript: el formulario que esconde nunca llega a existir. Aplica a *Responder*, *Escribir una publicación* y *Comentar*. Junto con la regla de no envolver las server actions en closures —eso le quita a React el `$ACTION_ID`—, es lo que sostiene que la plataforma funcione con JS desactivado o todavía sin hidratar |
 | **El cuerpo de la comunidad se escribe en `<textarea>`, no en Tiptap** | Pedirle un editor rico a un alumno para preguntar una duda es fricción pura. Se convierte a documento Tiptap al guardar, así `content_rich` tiene una sola forma en toda la base y la comunidad, el blog y las lecciones comparten renderizador |
+| **El certificado no se fía de `lesson_progress.completed`** | §3.6 pide "100% de lecciones obligatorias (y aprobar quizzes/tareas marcadas como obligatorias)", y ese paréntesis no es una aclaración: el botón *Marcar como completada* de §3.3 funciona en cualquier lección, incluidas las de quiz y tarea. Fiándose de la marca, cualquiera obtendría el certificado con cuatro clics. Se exige además un intento con `passed = true` y una entrega con `status = 'approved'` |
+| **Aprobar una tarea completa su lección** | §3.4 lo dice de los quizzes y §3.5 no dice nada de las tareas, así que una lección de tipo `assignment` no tenía NINGÚN camino a `completed`: la barra de progreso nunca se movía y un curso con tarea obligatoria jamás llegaba al 100%, dejando §3.6 fuera del alcance de cualquier curso real |
+| **Folio de azar criptográfico con alfabeto Crockford** | Es la única llave de una página sin login y se teclea desde un PDF impreso: sin I, L, O ni U (se confunden con 1, 0 y entre sí) y 10 caracteres aleatorios, 32^10 ≈ 1.1e15. Un folio secuencial convertiría `/certificado/[folio]` en un directorio de alumnos |
+| **Sin nombre no se emite certificado** | El PDF puede caer al correo si falta el nombre —lo recibe su dueño— pero la página pública de verificación no: publicaría la dirección del alumno a quien tenga el folio. De aquí sale `/perfil`, que §3.6 pedía de pasada y donde el alumno corrige el nombre que se imprime |
+| **Las rutas `/api/` contestan 401, no redirigen al login** | Quien las llama es un `fetch`, que sigue el 307 y recibe el HTML del login con un 200 encima. Un 401 se puede manejar; una página de login disfrazada de respuesta exitosa, no |
 
 ---
 

@@ -26,9 +26,11 @@
     "test:quizzes": "node scripts/test-quizzes.mjs",
     "test:tareas": "node scripts/test-tareas.mjs",
     "test:comunidad": "node scripts/test-comunidad.mjs",
+    "test:certificados": "node scripts/test-certificados.mjs",
     "test:todo": "node scripts/test-todo.mjs"
   },
   "dependencies": {
+    "@react-pdf/renderer": "^4.6.1",
     "@supabase/ssr": "^0.12.4",
     "@supabase/supabase-js": "^2.112.3",
     "@tiptap/pm": "^3.30.2",

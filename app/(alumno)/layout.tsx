@@ -17,6 +17,7 @@ export default async function LayoutAlumno({ children }: { children: ReactNode }
         navegacion={[
           { href: '/mis-cursos', etiqueta: 'Mis cursos' },
           { href: '/blog', etiqueta: 'Blog' },
+          { href: '/perfil', etiqueta: 'Mi perfil' },
         ]}
       />
       <main className="mx-auto w-full max-w-5xl flex-1 px-5 py-8">{children}</main>

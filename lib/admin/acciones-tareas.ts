@@ -5,6 +5,7 @@ import { z } from 'zod'
 
 import { exigirAdmin } from '@/lib/auth/sesion'
 import { crearClienteServidor } from '@/lib/supabase/server'
+import { crearClienteServiceRole } from '@/lib/supabase/service-role'
 import type { Json } from '@/lib/supabase/types'
 
 import type { EstadoAccion } from './tipos'
@@ -135,6 +136,12 @@ export async function revisarEntrega(
     return { error: 'No se pudo guardar la revisión.' }
   }
 
+  // Una tarea aprobada completa su lección, igual que un quiz aprobado (§3.4).
+  // Sin esto, una lección de tarea NUNCA se marca completada —ni al entregar ni
+  // al aprobar— y el curso jamás llega al 100%: el certificado de §3.6 quedaría
+  // fuera del alcance de cualquier curso con una tarea obligatoria.
+  if (decision === 'approved') await completarLeccionDeLaEntrega(id)
+
   revalidatePath('/admin/entregas')
   return {
     aviso: decision === 'approved' ? 'Entrega aprobada.' : 'Se le pidieron correcciones.',
@@ -153,4 +160,49 @@ export async function urlDeEntrega(rutaStorage: string): Promise<string | null> 
     return null
   }
   return data.signedUrl
+}
+
+/**
+ * Marca completada la lección de una entrega aprobada.
+ *
+ * Va con service role porque el progreso es del ALUMNO, no del admin que
+ * aprueba: con el cliente del admin la policy de `lesson_progress` escribiría
+ * —o rechazaría— la fila equivocada. Es el mismo camino que usa la calificación
+ * de quizzes.
+ *
+ * Un fallo aquí no tumba la revisión: la entrega ya quedó aprobada, que es lo
+ * que el admin pidió. Se registra y el alumno puede marcar la lección él mismo.
+ */
+async function completarLeccionDeLaEntrega(entregaId: string): Promise<void> {
+  const servicio = crearClienteServiceRole()
+
+  const { data: entrega } = await servicio
+    .from('assignment_submissions')
+    .select('user_id, assignment_id')
+    .eq('id', entregaId)
+    .maybeSingle()
+
+  if (!entrega) return
+
+  const { data: tarea } = await servicio
+    .from('assignments')
+    .select('lesson_id')
+    .eq('id', entrega.assignment_id)
+    .maybeSingle()
+
+  if (!tarea) return
+
+  const { error } = await servicio.from('lesson_progress').upsert(
+    {
+      user_id: entrega.user_id,
+      lesson_id: tarea.lesson_id,
+      completed: true,
+      completed_at: new Date().toISOString(),
+    },
+    { onConflict: 'user_id,lesson_id' }
+  )
+
+  if (error) {
+    registrarFallo('completarLeccionDeLaEntrega', { entregaId }, error.message)
+  }
 }

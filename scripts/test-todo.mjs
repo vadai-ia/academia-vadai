@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 /**
- * test-todo.mjs — Corre las nueve suites en orden y resume.
+ * test-todo.mjs — Corre todas las suites en orden y resume.
  *
  * Se corren en secuencia, nunca en paralelo: varias escriben en los mismos
  * datos sembrados (progreso, intentos, entregas) y en paralelo se pisarían
@@ -29,6 +29,7 @@ const SUITES = [
   { llave: 'comunidad', archivo: 'test-comunidad.mjs', titulo: 'Comunidad y blog', milestone: 'M7' },
   { llave: 'cohortes', archivo: 'test-cohortes.mjs', titulo: 'Cohortes y sesiones', milestone: 'M8' },
   { llave: 'stripe', archivo: 'test-stripe.mjs', titulo: 'Pagos y provisioning', milestone: 'M9' },
+  { llave: 'certificados', archivo: 'test-certificados.mjs', titulo: 'Certificados', milestone: 'M10' },
 ]
 
 /** Corre una suite heredando stdio y devuelve su código de salida. */
