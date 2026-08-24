@@ -70,6 +70,7 @@ pnpm dev
 | `pnpm test:rls` | Matriz de policies con cinco usuarios reales |
 | `pnpm test:auth` | Matriz de acceso contra la app corriendo (requiere `pnpm start`) |
 | `pnpm test:admin` | Ejecuta las server actions del admin de verdad (requiere `pnpm start`) |
+| `pnpm test:recuperacion` | Recuperar contraseña, regreso de Google y logout (requiere `pnpm start`) |
 | `pnpm test:alumno` | Progreso, player firmado y acceso vencido (requiere `pnpm start`) |
 | `pnpm test:quizzes` | Calificación, fuga de respuestas y progreso (requiere `pnpm start`) |
 | `pnpm test:tareas` | Ciclo completo de entrega y revisión (requiere `pnpm start`) |

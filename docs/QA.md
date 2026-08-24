@@ -1,11 +1,11 @@
 # Checklist QA
 
-> **Sin firmar.** 1 paso(s) fallaron. Ver el detalle abajo.
+> **Firmado.** Todos los pasos críticos en verde.
 
 | | |
 |---|---|
-| Fecha | 21 de agosto de 2026 a las 2:09 p.m. (CDMX) |
-| Commit | `7ee8304` en `main` |
+| Fecha | 24 de agosto de 2026 a las 10:54 a.m. (CDMX) |
+| Commit | `b8ca94e` en `main` |
 | Árbol | **con cambios sin commitear** |
 
 Se regenera con `pnpm qa`, que corre cada paso de verdad. Un checklist que
@@ -35,7 +35,7 @@ el commit, así que dice qué versión exacta pasó.
 | | Paso | Resultado |
 |---|---|---|
 | ✅ | Datos QA sembrados | ok |
-| ✅ | Las diez suites de milestone | 10 suites, 282 aserciones |
+| ✅ | Las once suites de milestone | 11 suites, 310 aserciones |
 
 ## Higiene
 
@@ -47,41 +47,7 @@ el commit, así que dice qué versión exacta pasó.
 
 | | Paso | Resultado |
 |---|---|---|
-| ❌ | Smoke test del dominio en vivo | 3 de 24 comprobaciones fallaron |
-
----
-
-## Lo que falló
-
-### Smoke test del dominio en vivo
-
-```
-  ✓  /auth/callback está permitido (login con Google)         ok
-  ✓  /auth/confirmar permitido (opcional, red de respaldo)    ok
-  ✓  /nueva-contrasena permitido (opcional, red de respaldo)  ok
-  ✓  /mis-cursos permitido (opcional, red de respaldo)        ok
-
-  LO QUE VERCEL TIENE DE VERDAD
-  ─────────────────────────────────────────────────────────────────────────────────
-  ✗  coincide con el dominio esperado                         http://academia.vadai.com.mx/auth/callback
-  ✗  usa https                                                http://academia.vadai.com.mx/auth/callback
-  ✗  y ese valor SÍ está en la lista blanca                   rebota a https://academia.vadai.com.mx
-
-  ─────────────────────────────────────────────────────────────────────────────────
-  3 de 24 comprobaciones FALLARON:
-    LO QUE VERCEL TIENE DE VERDAD · coincide con el dominio esperado  http://academia.vadai.com.mx/auth/callback
-    LO QUE VERCEL TIENE DE VERDAD · usa https  http://academia.vadai.com.mx/auth/callback
-    LO QUE VERCEL TIENE DE VERDAD · y ese valor SÍ está en la lista blanca  rebota a https://academia.vadai.com.mx
-
-  ── Cómo arreglar NEXT_PUBLIC_APP_URL ──────────────────────
-  Vercel → Settings → Environment Variables:
-
-    NEXT_PUBLIC_APP_URL = https://academia.vadai.com.mx
-
-  Con https y sin barra final. Después hay que REDEPLOYAR:
-  las NEXT_PUBLIC_* se hornean en el build, así que cambiar
-  la variable sin volver a construir no cambia nada.
-```
+| ✅ | Smoke test del dominio en vivo | 24 comprobaciones |
 
 ---
 

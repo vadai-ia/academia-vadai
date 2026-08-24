@@ -85,6 +85,10 @@ En su lugar: `pnpm db:migrate` → `scripts/migrate.mjs`, que aplica los `.sql` 
 - Archivos: descargas SIEMPRE por signed URL generada server-side; buckets privados.
 - Los correos de la academia (bienvenida y recuperación) los manda **nuestro código por la API de Resend**, no el SMTP de Supabase. Plantillas en `/lib/correo`, en español y con marca. El SMTP queda como respaldo.
 - Un fallo de correo **nunca** debe abortar un alta: la cuenta y la inscripción se crean primero, el correo se intenta después y su fallo solo se reporta.
+- **Jamás se manda correo a una dirección `qa-*@academia.vadai.com.mx`.** Ese dominio no tiene MX,
+  así que cada intento es un rebote duro, y la cuenta de Resend es compartida con los demás dominios
+  de VADAI: la tasa de rebote de nuestras pruebas se cobra sobre la reputación de envío de todos.
+  El corte vive en `lib/correo/resend.ts`, no en las pruebas, para que no se pueda olvidar.
 - `quiz_questions.correct_option_id` NUNCA se expone al cliente. El alumno lee la vista `academia.quiz_questions_public`; la calificación es server-side.
 
 ## ANTI-PATTERNS — NO HACEMOS

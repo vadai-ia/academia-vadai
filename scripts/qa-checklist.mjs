@@ -79,7 +79,7 @@ const PASOS = [
   },
   {
     llave: 'suites',
-    titulo: 'Las diez suites de milestone',
+    titulo: 'Las once suites de milestone',
     comando: ['node', 'scripts/test-todo.mjs'],
     seccion: 'Funcionalidad',
   },

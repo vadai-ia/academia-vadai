@@ -22,6 +22,7 @@ const AQUI = path.dirname(fileURLToPath(import.meta.url))
 const SUITES = [
   { llave: 'rls', archivo: 'test-rls.mjs', titulo: 'Policies de RLS', milestone: 'M1' },
   { llave: 'auth', archivo: 'test-auth.mjs', titulo: 'Sesión y roles', milestone: 'M2' },
+  { llave: 'recuperacion', archivo: 'test-recuperacion.mjs', titulo: 'Recuperación y logout', milestone: 'M2' },
   { llave: 'admin', archivo: 'test-admin.mjs', titulo: 'Panel de admin', milestone: 'M3' },
   { llave: 'alumno', archivo: 'test-alumno.mjs', titulo: 'Curso y progreso', milestone: 'M4' },
   { llave: 'quizzes', archivo: 'test-quizzes.mjs', titulo: 'Quizzes', milestone: 'M5' },

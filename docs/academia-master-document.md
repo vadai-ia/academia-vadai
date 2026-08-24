@@ -79,6 +79,7 @@ Implicación de diseño: todo se modela multi-curso y membership-ready desde el 
 | **Folio de azar criptográfico con alfabeto Crockford** | Es la única llave de una página sin login y se teclea desde un PDF impreso: sin I, L, O ni U (se confunden con 1, 0 y entre sí) y 10 caracteres aleatorios, 32^10 ≈ 1.1e15. Un folio secuencial convertiría `/certificado/[folio]` en un directorio de alumnos |
 | **Sin nombre no se emite certificado** | El PDF puede caer al correo si falta el nombre —lo recibe su dueño— pero la página pública de verificación no: publicaría la dirección del alumno a quien tenga el folio. De aquí sale `/perfil`, que §3.6 pedía de pasada y donde el alumno corrige el nombre que se imprime |
 | **Las rutas `/api/` contestan 401, no redirigen al login** | Quien las llama es un `fetch`, que sigue el 307 y recibe el HTML del login con un 200 encima. Un 401 se puede manejar; una página de login disfrazada de respuesta exitosa, no |
+| **Ningún correo sale hacia una dirección QA** | `academia.vadai.com.mx` no tiene registro MX, así que todo envío a un `qa-*@` de ese dominio rebota duro. `test:stripe` provisiona una cuenta y manda la bienvenida en cada corrida: se acumularon 14 rebotes y 3 supresiones antes de notarlo. La cuenta de Resend es COMPARTIDA con los otros dominios de VADAI, así que esa tasa de rebote se cobra sobre la reputación de envío de todos — la misma de la que depende §6.1 para que las 40 invitaciones lleguen a bandeja. El corte va en la capa de envío, donde no se puede olvidar |
 
 ---
 

@@ -17,10 +17,37 @@ import 'server-only'
 
 const API = 'https://api.resend.com/emails'
 
+/**
+ * A estas direcciones NO se les manda correo, nunca.
+ *
+ * `academia.vadai.com.mx` no tiene registro MX, así que todo correo a un buzón
+ * de ese dominio **rebota duro**. Y las cuentas QA viven ahí: cada corrida de la
+ * suite de Stripe provisiona `qa-stripe@` y le manda la bienvenida. Se
+ * acumularon 14 rebotes antes de que alguien lo notara, y Resend ya había
+ * empezado a suprimir la dirección.
+ *
+ * Eso no es un detalle de laboratorio. La cuenta de Resend es COMPARTIDA con los
+ * otros dominios de VADAI, así que la tasa de rebote de nuestras pruebas se
+ * cobra sobre la reputación de envío de todos — justo la que §6.1 necesita
+ * intacta para que las 40 invitaciones del lanzamiento lleguen a bandeja.
+ *
+ * El corte va aquí y no en cada prueba: en la capa de envío no se puede olvidar,
+ * y cubre todos los caminos —bienvenida, recuperación, reenvío de acceso— sin
+ * que quien escriba la siguiente prueba tenga que acordarse.
+ */
+const DOMINIO_QA = '@academia.vadai.com.mx'
+
+function esDireccionQA(para: string): boolean {
+  const limpia = para.trim().toLowerCase()
+  return limpia.startsWith('qa-') && limpia.endsWith(DOMINIO_QA)
+}
+
 export type ResultadoCorreo = {
   ok: boolean
   id?: string
   motivo?: string
+  /** true cuando no se mandó por ser dirección de prueba. */
+  omitido?: boolean
 }
 
 function remitente(): string {
@@ -44,6 +71,15 @@ export async function enviarCorreo(opciones: {
   if (!llave) {
     console.error(JSON.stringify({ operacion: 'enviarCorreo', error: 'falta RESEND_API_KEY' }))
     return { ok: false, motivo: 'Correo no configurado.' }
+  }
+
+  // Devuelve ok: quien llama no debe tratar esto como un fallo, porque no lo es.
+  // Un alta QA tiene que seguir su curso igual que un alta real.
+  if (esDireccionQA(opciones.para)) {
+    console.log(
+      JSON.stringify({ operacion: 'enviarCorreo:omitido', para: opciones.para, motivo: 'QA' })
+    )
+    return { ok: true, omitido: true }
   }
 
   try {
