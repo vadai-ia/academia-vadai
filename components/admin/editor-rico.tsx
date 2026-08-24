@@ -92,7 +92,7 @@ export function EditorRico({
               className={cn(
                 'size-7 rounded text-sm hover:bg-muted',
                 'clase' in boton ? boton.clase : undefined,
-                editor?.isActive(boton.clave) && 'bg-muted text-vadai-cyan'
+                editor?.isActive(boton.clave) && 'bg-muted text-primary'
               )}
             >
               {boton.etiqueta}

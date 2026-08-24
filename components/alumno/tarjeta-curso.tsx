@@ -16,7 +16,7 @@ export function TarjetaCurso({ curso }: { curso: CursoDelAlumno }) {
   return (
     <Link
       href={`/curso/${curso.slug}`}
-      className="flex flex-col gap-4 rounded-lg border border-border p-5 transition-colors hover:border-vadai-cyan/60"
+      className="flex flex-col gap-4 rounded-lg border border-border p-5 transition-colors hover:border-primary/60"
     >
       <div className="flex flex-col gap-2">
         <span className="flex flex-wrap items-center gap-2">

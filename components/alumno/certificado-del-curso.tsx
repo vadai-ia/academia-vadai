@@ -43,7 +43,7 @@ export function CertificadoDelCurso({
 
   if (emitido) {
     return (
-      <section className="flex flex-col gap-4 rounded-lg border border-vadai-lima/40 bg-vadai-lima/5 p-5">
+      <section className="flex flex-col gap-4 rounded-lg border border-exito/40 bg-exito/5 p-5">
         <div className="flex flex-col gap-1">
           <h2 className="font-semibold">Curso completado</h2>
           <p className="text-sm text-muted-foreground">
@@ -67,7 +67,7 @@ export function CertificadoDelCurso({
     return (
       <form
         action={accion}
-        className="flex flex-col gap-4 rounded-lg border border-vadai-lima/40 bg-vadai-lima/5 p-5"
+        className="flex flex-col gap-4 rounded-lg border border-exito/40 bg-exito/5 p-5"
       >
         <input type="hidden" name="curso_id" value={cursoId} />
 
@@ -104,7 +104,7 @@ export function CertificadoDelCurso({
           <li key={faltante.leccionId} className="flex flex-wrap items-baseline gap-x-2 text-sm">
             <Link
               href={`/curso/${cursoSlug}/${faltante.leccionId}`}
-              className="text-vadai-cyan underline-offset-4 hover:underline"
+              className="text-primary underline-offset-4 hover:underline"
             >
               {faltante.titulo}
             </Link>

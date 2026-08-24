@@ -54,7 +54,7 @@ export function IndiceCurso({
                     aria-hidden
                     className={cn(
                       'w-4 shrink-0 text-center text-xs',
-                      leccion.completada ? 'text-vadai-lima' : 'text-muted-foreground'
+                      leccion.completada ? 'text-exito' : 'text-muted-foreground'
                     )}
                   >
                     {leccion.completada ? '✓' : (ICONO_TIPO[leccion.tipo] ?? '•')}

@@ -50,7 +50,7 @@ export function FormularioRecuperar() {
 
       <Link
         href={RUTAS.login}
-        className="text-center text-sm text-vadai-cyan underline-offset-4 hover:underline"
+        className="text-center text-sm text-primary underline-offset-4 hover:underline"
       >
         Volver a entrar
       </Link>

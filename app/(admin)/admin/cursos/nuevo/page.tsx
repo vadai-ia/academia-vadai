@@ -14,7 +14,7 @@ export default async function PaginaNuevoCurso() {
       <header className="flex flex-col gap-1">
         <Link
           href="/admin/cursos"
-          className="text-sm text-vadai-cyan underline-offset-4 hover:underline"
+          className="text-sm text-primary underline-offset-4 hover:underline"
         >
           ← Cursos
         </Link>

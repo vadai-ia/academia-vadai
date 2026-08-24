@@ -65,7 +65,7 @@ function render(nodo: Nodo): ReactNode {
       return <li className="mb-1">{hijos(nodo)}</li>
     case 'blockquote':
       return (
-        <blockquote className="mb-3 border-l-2 border-vadai-cyan pl-4 text-muted-foreground">
+        <blockquote className="mb-3 border-l-2 border-primary pl-4 text-muted-foreground">
           {hijos(nodo)}
         </blockquote>
       )

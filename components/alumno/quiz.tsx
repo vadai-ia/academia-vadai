@@ -91,7 +91,7 @@ export function Quiz({
       </div>
 
       {quiz.aprobado && !resultado ? (
-        <p className="rounded-md border border-vadai-lima/40 bg-vadai-lima/10 px-4 py-2.5 text-sm text-vadai-lima">
+        <p className="rounded-md border border-exito/40 bg-exito/10 px-4 py-2.5 text-sm text-exito">
           Ya aprobaste este quiz
           {quiz.ultimoIntento ? ` con ${quiz.ultimoIntento.score}%` : ''}. Puedes volver a
           intentarlo si quieres.
@@ -122,11 +122,11 @@ export function Quiz({
                       className={cn(
                         'flex cursor-pointer items-start gap-3 rounded-md border px-3 py-2.5 text-sm transition-colors',
                         // Sin hover, una opción sin elegir no parece clickeable.
-                        !calificado && 'hover:border-vadai-cyan/60 hover:bg-muted/50',
-                        elegida ? 'border-vadai-cyan bg-vadai-cyan/5' : 'border-border',
+                        !calificado && 'hover:border-primary/60 hover:bg-muted/50',
+                        elegida ? 'border-primary bg-primary/5' : 'border-border',
                         calificado && 'cursor-default',
                         // Al calificar: verde la correcta, roja la que eligió si falló.
-                        esCorrecta && 'border-vadai-lima bg-vadai-lima/10',
+                        esCorrecta && 'border-exito bg-exito/10',
                         calificado && elegida && fallada(pregunta.id) && !esCorrecta &&
                           'border-destructive bg-destructive/10'
                       )}
@@ -173,7 +173,7 @@ export function Quiz({
             className={cn(
               'rounded-md border px-4 py-3 text-sm',
               resultado?.aprobado
-                ? 'border-vadai-lima/40 bg-vadai-lima/10 text-vadai-lima'
+                ? 'border-exito/40 bg-exito/10 text-exito'
                 : 'border-destructive/40 bg-destructive/10 text-destructive'
             )}
           >

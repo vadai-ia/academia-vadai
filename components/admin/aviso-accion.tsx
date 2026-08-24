@@ -16,7 +16,7 @@ export function AvisoAccion({ estado }: { estado: EstadoAccion }) {
         'rounded-md border px-3 py-2 text-sm',
         esError
           ? 'border-destructive/40 bg-destructive/10 text-destructive'
-          : 'border-vadai-lima/40 bg-vadai-lima/10 text-vadai-lima'
+          : 'border-exito/40 bg-exito/10 text-exito'
       )}
     >
       {texto}

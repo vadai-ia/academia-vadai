@@ -46,7 +46,7 @@ export function ConstructorTarea({
           ) : null}
           <Link
             href="/admin/entregas"
-            className="text-vadai-cyan underline-offset-4 hover:underline"
+            className="text-primary underline-offset-4 hover:underline"
           >
             Ir a la bandeja
           </Link>

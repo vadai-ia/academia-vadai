@@ -155,7 +155,26 @@ CORREO_REMITENTE_NOMBRE=VADAI Academia
 
 ## BRANDING
 
-Dark mode único. Fondo `#0A1A2F`, primario `#00A0DB`, azul profundo `#006E96`, acento lima `#C6F24E` (CTAs), texto `#F5F8FB`, secundario `#93A3B5`. Inter/sans sistema. Mobile-first en vistas de alumno. Estética Skool-limpia, no LMS corporativo.
+**Dos temas** (decidido 24-ago-2026, corrige "dark mode único"). El default lo pone
+el sistema operativo de cada persona; un botón en el encabezado lo cambia a mano y
+la elección se recuerda.
+
+Paleta base: fondo `#0A1A2F`, primario `#00A0DB`, azul profundo `#006E96`, acento
+lima `#C6F24E` (CTAs), texto `#F5F8FB`, secundario `#93A3B5`. Inter/sans sistema.
+Mobile-first en vistas de alumno. Estética Skool-limpia, no LMS corporativo.
+
+- **Los colores van por token semántico, nunca a mano.** `text-primary`, no
+  `text-vadai-cyan`: el cyan da 6.4:1 sobre navy pero 2.6:1 sobre el fondo claro,
+  así que reprueba AA en cuanto alguien cambia de tema. Cada token se define una
+  sola vez con `light-dark()` en `app/globals.css`, con su contraste verificado en
+  los dos temas.
+- **El modo oscuro no es el claro invertido.** Invertir produce texto que cumple en
+  un tema y desaparece en el otro. Los pares se eligen por separado.
+- **El logo es arte negro sobre transparente**, así que va siempre sobre placa
+  blanca (`components/marca/wordmark.tsx`). No se recolorea con filtros CSS:
+  modificar los colores de una marca es lo que las guías de uso prohíben.
+- **El guion de tema vive inline en el `<head>`** (`lib/tema/guion.ts`). Si se
+  mueve a un componente o a un efecto, vuelve el destello al cargar.
 
 ## DEPLOYMENT
 

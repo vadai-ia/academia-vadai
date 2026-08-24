@@ -176,12 +176,57 @@ async function main() {
   // ======================================================================
   const G1 = 'SIN SESIÓN'
 
-  afirmar(G1, 'la portada es pública', 200, (await pedir('/')).status)
+  // La raíz no es una página, es una puerta: sin sesión lleva al login.
+  // Antes había ahí una portada con el avance del proyecto y una sonda de
+  // conexión a Supabase, que le contaba a cualquier visitante qué base usamos.
+  afirmar(G1, 'la raíz lleva al login', '/login', destino(await pedir('/')))
   afirmar(G1, '/login es público', 200, (await pedir('/login')).status)
   afirmar(G1, '/recuperar es público', 200, (await pedir('/recuperar')).status)
   afirmar(G1, '/mis-cursos redirige a login', '/login', destino(await pedir('/mis-cursos')))
   afirmar(G1, '/admin redirige a login', '/login', destino(await pedir('/admin')))
   afirmar(G1, '/sin-acceso redirige a login', '/login', destino(await pedir('/sin-acceso')))
+
+  // ======================================================================
+  // El tema y la marca son la primera impresión de la plataforma, y las dos
+  // piezas que los sostienen son invisibles: si alguien quita el script del
+  // <head> o el respaldo de `@supports`, nada falla en pantalla hasta que un
+  // usuario con el equipo en oscuro, o con un navegador viejo, abre la página.
+  const GT = 'MARCA Y TEMA'
+
+  const portada = await (await pedir('/login')).text()
+
+  afirmar(GT, 'el logo real está en la portada', true, portada.includes('vadai-wordmark'))
+  afirmar(GT, 'con texto alternativo', true, /alt="VADAI[^"]*"/.test(portada))
+  afirmar(GT, 'y el texto de venta', true, portada.includes('Ponla a trabajar'))
+
+  const logo = await fetch(`${APP}/vadai-wordmark.png`)
+  afirmar(GT, 'el archivo del logo se sirve', 200, logo.status)
+  const bytes = new Uint8Array((await logo.arrayBuffer()).slice(0, 8))
+  afirmar(GT, 'y ES un PNG', 'PNG', String.fromCharCode(...bytes.slice(1, 4)))
+
+  // El script tiene que ir ANTES de que se pinte, o se ve el destello.
+  const cabeza = portada.slice(0, portada.indexOf('</head>'))
+  afirmar(GT, 'el guion de tema va en el <head>', true, cabeza.includes('vadai-tema'))
+  afirmar(GT, 'y antes del <body>', true, portada.indexOf('vadai-tema') < portada.indexOf('<body'))
+
+  const hojaRuta = portada.match(/\/_next\/static\/css\/[a-z0-9]+\.css/)?.[0]
+  afirmar(GT, 'hay hoja de estilos', true, Boolean(hojaRuta))
+
+  if (hojaRuta) {
+    const css = await (await fetch(`${APP}${hojaRuta}`)).text()
+
+    // Sin esto el tema no seguiría al sistema cuando no hay JavaScript.
+    afirmar(GT, 'los tokens usan light-dark()', true, css.includes('light-dark('))
+    afirmar(GT, 'la raíz sigue al sistema', true, /:root\{[^}]*color-scheme:light dark/.test(css))
+
+    // Sin esto un Safari viejo se queda sin ningún color.
+    afirmar(GT, 'hay respaldo para navegadores viejos', true, css.includes('@supports not'))
+    afirmar(GT, 'y el respaldo trae el navy', true, css.includes('--background:#0a1a2f'))
+
+    // Los dark: de shadcn tienen que valer también sin clase puesta.
+    afirmar(GT, 'el variant dark cubre el sistema', true,
+      css.includes(':root:not(.light)'))
+  }
 
   // ======================================================================
   const G2 = 'ALUMNO (qa-alumno1, por enlace de correo)'
@@ -192,6 +237,7 @@ async function main() {
   afirmar(G2, 'entra a /mis-cursos', 200, (await pedir('/mis-cursos', alumno.frasco)).status)
   afirmar(G2, '/admin lo devuelve a lo suyo', '/mis-cursos', destino(await pedir('/admin', alumno.frasco)))
   afirmar(G2, '/login ya no lo detiene', '/mis-cursos', destino(await pedir('/login', alumno.frasco)))
+  afirmar(G2, 'la raíz lo lleva a sus cursos', '/mis-cursos', destino(await pedir('/', alumno.frasco)))
   afirmar(
     G2,
     '/sin-acceso no aplica para él',
@@ -210,6 +256,8 @@ async function main() {
 
   const admin = await iniciarSesion(correo.admin)
   afirmar(G4, 'aterriza en administración', 200, (await pedir('/admin', admin.frasco)).status)
+  // La misma raíz manda a cada quien a su lugar, sin pantalla intermedia.
+  afirmar(G4, 'la raíz lo lleva al panel', '/admin', destino(await pedir('/', admin.frasco)))
   afirmar(G4, '/login lo manda a /admin', '/admin', destino(await pedir('/login', admin.frasco)))
   afirmar(G4, 'también puede ver /mis-cursos', 200, (await pedir('/mis-cursos', admin.frasco)).status)
 

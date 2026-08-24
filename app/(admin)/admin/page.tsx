@@ -26,7 +26,7 @@ export default async function PaginaAdmin() {
       <section className="flex flex-col gap-3">
         <Link
           href="/admin/cursos"
-          className="flex items-center justify-between rounded-lg border border-border px-4 py-4 transition-colors hover:border-vadai-cyan/60"
+          className="flex items-center justify-between rounded-lg border border-border px-4 py-4 transition-colors hover:border-primary/60"
         >
           <span className="flex flex-col gap-0.5">
             <span className="font-medium">Cursos</span>
@@ -34,12 +34,12 @@ export default async function PaginaAdmin() {
               Módulos, lecciones, videos, adjuntos y cohortes
             </span>
           </span>
-          <span className="text-vadai-cyan">→</span>
+          <span className="text-primary">→</span>
         </Link>
 
         <Link
           href="/admin/publicaciones"
-          className="flex items-center justify-between rounded-lg border border-border px-4 py-4 transition-colors hover:border-vadai-cyan/60"
+          className="flex items-center justify-between rounded-lg border border-border px-4 py-4 transition-colors hover:border-primary/60"
         >
           <span className="flex flex-col gap-0.5">
             <span className="font-medium">Publicaciones</span>
@@ -47,12 +47,12 @@ export default async function PaginaAdmin() {
               Anuncios para el panel del alumno y entradas de blog
             </span>
           </span>
-          <span className="text-vadai-cyan">→</span>
+          <span className="text-primary">→</span>
         </Link>
 
         <Link
           href="/admin/entregas"
-          className="flex items-center justify-between rounded-lg border border-border px-4 py-4 transition-colors hover:border-vadai-cyan/60"
+          className="flex items-center justify-between rounded-lg border border-border px-4 py-4 transition-colors hover:border-primary/60"
         >
           <span className="flex flex-col gap-0.5">
             <span className="font-medium">Entregas</span>
@@ -60,12 +60,12 @@ export default async function PaginaAdmin() {
               Revisar y calificar las tareas de los alumnos
             </span>
           </span>
-          <span className="text-vadai-cyan">→</span>
+          <span className="text-primary">→</span>
         </Link>
 
         <Link
           href="/admin/alumnos"
-          className="flex items-center justify-between rounded-lg border border-border px-4 py-4 transition-colors hover:border-vadai-cyan/60"
+          className="flex items-center justify-between rounded-lg border border-border px-4 py-4 transition-colors hover:border-primary/60"
         >
           <span className="flex flex-col gap-0.5">
             <span className="font-medium">Alumnos y pagos</span>
@@ -73,7 +73,7 @@ export default async function PaginaAdmin() {
               Alta manual, vigencias y pagos recibidos
             </span>
           </span>
-          <span className="text-vadai-cyan">→</span>
+          <span className="text-primary">→</span>
         </Link>
       </section>
 
@@ -88,7 +88,7 @@ export default async function PaginaAdmin() {
             className="flex items-center justify-between rounded-md border border-border px-4 py-3"
           >
             <span className="flex items-center gap-3">
-              <span className="font-mono text-sm text-vadai-cyan">{p.clave}</span>
+              <span className="font-mono text-sm text-primary">{p.clave}</span>
               <span className="text-sm">{p.nombre}</span>
             </span>
             <span className="text-xs text-muted-foreground">pendiente</span>

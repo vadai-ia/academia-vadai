@@ -49,7 +49,7 @@ export default async function PaginaAlumnos() {
       ) : null}
 
       {huerfanos.length > 0 ? (
-        <section className="flex flex-col gap-3 rounded-lg border border-vadai-lima/40 bg-vadai-lima/5 p-4">
+        <section className="flex flex-col gap-3 rounded-lg border border-exito/40 bg-exito/5 p-4">
           <h2 className="font-medium">
             {huerfanos.length} pago(s) sin cuenta asociada
           </h2>

@@ -59,7 +59,7 @@ export default async function PaginaCurso({ params }: { params: Promise<{ slug: 
       <header className="flex flex-col gap-3">
         <Link
           href="/mis-cursos"
-          className="text-sm text-vadai-cyan underline-offset-4 hover:underline"
+          className="text-sm text-primary underline-offset-4 hover:underline"
         >
           ← Mis cursos
         </Link>
@@ -114,7 +114,7 @@ export default async function PaginaCurso({ params }: { params: Promise<{ slug: 
       {curso.vigente ? (
         <Link
           href={`/curso/${curso.slug}/comunidad`}
-          className="flex items-center justify-between rounded-lg border border-border px-4 py-4 transition-colors hover:border-vadai-cyan/60"
+          className="flex items-center justify-between rounded-lg border border-border px-4 py-4 transition-colors hover:border-primary/60"
         >
           <span className="flex flex-col gap-0.5">
             <span className="font-medium">Comunidad</span>
@@ -122,7 +122,7 @@ export default async function PaginaCurso({ params }: { params: Promise<{ slug: 
               Preguntas y avances de tu grupo
             </span>
           </span>
-          <span className="text-vadai-cyan">→</span>
+          <span className="text-primary">→</span>
         </Link>
       ) : null}
 

@@ -116,7 +116,7 @@ export function ConstructorQuiz({
                       className="flex items-center gap-2 text-sm text-muted-foreground"
                     >
                       <span className="w-4 shrink-0 font-mono text-xs uppercase">{opcion.id}</span>
-                      <span className={esCorrecta ? 'text-vadai-lima' : undefined}>
+                      <span className={esCorrecta ? 'text-exito' : undefined}>
                         {opcion.text}
                       </span>
                       {esCorrecta ? (

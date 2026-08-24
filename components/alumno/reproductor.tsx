@@ -114,7 +114,7 @@ export function Reproductor({
       </div>
 
       {completada ? (
-        <p className="text-xs text-vadai-lima" role="status">
+        <p className="text-xs text-exito" role="status">
           Lección completada
         </p>
       ) : (

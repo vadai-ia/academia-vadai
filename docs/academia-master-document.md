@@ -80,6 +80,9 @@ Implicación de diseño: todo se modela multi-curso y membership-ready desde el 
 | **Sin nombre no se emite certificado** | El PDF puede caer al correo si falta el nombre —lo recibe su dueño— pero la página pública de verificación no: publicaría la dirección del alumno a quien tenga el folio. De aquí sale `/perfil`, que §3.6 pedía de pasada y donde el alumno corrige el nombre que se imprime |
 | **Las rutas `/api/` contestan 401, no redirigen al login** | Quien las llama es un `fetch`, que sigue el 307 y recibe el HTML del login con un 200 encima. Un 401 se puede manejar; una página de login disfrazada de respuesta exitosa, no |
 | **Ningún correo sale hacia una dirección QA** | `academia.vadai.com.mx` no tiene registro MX, así que todo envío a un `qa-*@` de ese dominio rebota duro. `test:stripe` provisiona una cuenta y manda la bienvenida en cada corrida: se acumularon 14 rebotes y 3 supresiones antes de notarlo. La cuenta de Resend es COMPARTIDA con los otros dominios de VADAI, así que esa tasa de rebote se cobra sobre la reputación de envío de todos — la misma de la que depende §6.1 para que las 40 invitaciones lleguen a bandeja. El corte va en la capa de envío, donde no se puede olvidar |
+| **Dos temas en vez de dark mode único** | Corrige §9. El default sale del sistema operativo de cada persona y un botón del encabezado lo cambia a mano. Se resuelve con `light-dark()` en CSS, así que el tema del sistema funciona SIN JavaScript y no hay que mantener dos listas de 30 tokens en sincronía — que es lo que siempre acaba desincronizándose. Un bloque `@supports not` cubre los navegadores anteriores a 2024, donde la declaración sería inválida y la página saldría sin ningún color |
+| **La raíz redirige, no es una portada** | En `/` había un tablero con el avance por milestone y una sonda de conexión que le informaba a cualquier visitante qué base de datos usamos y cómo se llama el schema. Servía como smoke test del scaffold; como página pública era una fuga de detalles internos y además envejeció mal (seguía diciendo que M7 estaba "en curso" días después de cerrarlo). Ahora la raíz manda a cada quien a su lugar: alumno a /mis-cursos, admin a /admin, y quien no tiene sesión al login |
+| **El cyan de marca no se usa para texto en tema claro** | Da 2.6:1 sobre el fondo claro y reprueba AA. En claro el token `primary` es el azul profundo `#006E96` (5.4:1), que es la misma marca en el tono que sí se lee; el cyan queda para acentos grandes, donde 3:1 basta |
 
 ---
 
@@ -424,9 +427,9 @@ Notificaciones de sesiones en vivo siguen fuera del MVP: anuncio en plataforma, 
 ## 9. DISEÑO Y BRANDING
 
 - **Paleta (de la landing del curso):** fondo navy `#0A1A2F`, primario cyan `#00A0DB`, azul profundo `#006E96`, acento lima `#C6F24E` (CTAs y highlights), texto blanco `#F5F8FB`, gris secundario `#93A3B5`.
-- Dark mode premium como único tema. Tipografía sans del sistema (Inter). Sin gradientes barrocos.
+- ~~Dark mode premium como único tema.~~ **Corregido el 24-ago-2026: dos temas.** El default lo decide el sistema operativo de cada persona y un botón del encabezado lo cambia a mano. Tipografía sans del sistema (Inter). Sin gradientes barrocos.
 - **Mobile-first** para vista alumno (mucho consumo desde celular); admin puede ser desktop-first.
-- Logo VADAI wordmark (asset a proveer por Alejandro en `/public`).
+- Logo VADAI wordmark en `/public` (entregado el 24-ago-2026): `vadai-wordmark.png` horizontal y `vadai-sello.png` circular. Arte negro sobre transparente, así que siempre sobre placa blanca.
 - Sensación: Skool-limpio, no LMS corporativo.
 
 ---

@@ -92,7 +92,7 @@ export function FormularioLogin({ destino, errorInicial }: { destino?: string; e
             <Label htmlFor="contrasena">Contraseña</Label>
             <Link
               href={RUTAS.recuperar}
-              className="text-xs text-vadai-cyan underline-offset-4 hover:underline"
+              className="text-xs text-primary underline-offset-4 hover:underline"
             >
               ¿La olvidaste?
             </Link>

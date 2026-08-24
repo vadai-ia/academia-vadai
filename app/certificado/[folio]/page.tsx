@@ -1,6 +1,8 @@
 import type { Metadata } from 'next'
 import Link from 'next/link'
 
+import { CambiarTema } from '@/components/marca/cambiar-tema'
+import { EtiquetaAcademia, Wordmark } from '@/components/marca/wordmark'
 import { verificarFolio } from '@/lib/certificados/verificacion'
 
 export const dynamic = 'force-dynamic'
@@ -48,9 +50,12 @@ export default async function PaginaCertificado({
 
   return (
     <main className="mx-auto flex min-h-dvh w-full max-w-xl flex-col justify-center gap-8 px-5 py-16">
-      <header className="flex flex-col gap-1">
-        <span className="text-lg font-semibold tracking-[0.2em]">VADAI</span>
-        <span className="text-[0.7rem] tracking-[0.2em] text-vadai-cyan">ACADEMIA</span>
+      <header className="flex items-center justify-between gap-4">
+        <span className="flex items-center gap-3">
+          <Wordmark alto={22} prioridad />
+          <EtiquetaAcademia />
+        </span>
+        <CambiarTema />
       </header>
 
       {certificado ? (
@@ -72,7 +77,7 @@ export default async function PaginaCertificado({
 
             <div className="flex flex-col gap-0.5">
               <dt className="text-xs tracking-wider text-muted-foreground">POR COMPLETAR</dt>
-              <dd className="text-base font-medium text-vadai-cyan text-balance">
+              <dd className="text-base font-medium text-primary text-balance">
                 {certificado.curso}
               </dd>
             </div>
@@ -107,7 +112,7 @@ export default async function PaginaCertificado({
       )}
 
       <footer className="text-sm">
-        <Link href="/" className="text-vadai-cyan underline-offset-4 hover:underline">
+        <Link href="/" className="text-primary underline-offset-4 hover:underline">
           Ir a VADAI Academia →
         </Link>
       </footer>

@@ -16,7 +16,7 @@ export function Mensaje({ estado }: { estado: EstadoFormulario }) {
         'rounded-md border px-3 py-2 text-sm',
         esError
           ? 'border-destructive/40 bg-destructive/10 text-destructive'
-          : 'border-vadai-cyan/40 bg-vadai-cyan/10 text-vadai-texto'
+          : 'border-primary/40 bg-primary/10 text-foreground'
       )}
     >
       {texto}

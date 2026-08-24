@@ -47,7 +47,7 @@ export default async function PaginaSinAcceso() {
       <div className="flex flex-col gap-3">
         <a
           href="mailto:hola@vadai.com.mx?subject=No%20puedo%20entrar%20a%20la%20academia"
-          className="text-center text-sm text-vadai-cyan underline-offset-4 hover:underline"
+          className="text-center text-sm text-primary underline-offset-4 hover:underline"
         >
           Escribir a soporte
         </a>

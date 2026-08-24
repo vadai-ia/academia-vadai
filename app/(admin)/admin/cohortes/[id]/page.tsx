@@ -55,7 +55,7 @@ export default async function PaginaCohorte({ params }: { params: Promise<{ id: 
       <header className="flex flex-col gap-1">
         <Link
           href={`/admin/cursos/${cohorte.cursoId}`}
-          className="text-sm text-vadai-cyan underline-offset-4 hover:underline"
+          className="text-sm text-primary underline-offset-4 hover:underline"
         >
           ← {cohorte.cursoTitulo}
         </Link>
@@ -95,7 +95,7 @@ export default async function PaginaCohorte({ params }: { params: Promise<{ id: 
                           href={sesion.meet_url}
                           target="_blank"
                           rel="noopener noreferrer"
-                          className="truncate text-xs text-vadai-cyan underline-offset-4 hover:underline"
+                          className="truncate text-xs text-primary underline-offset-4 hover:underline"
                         >
                           {sesion.meet_url}
                         </a>

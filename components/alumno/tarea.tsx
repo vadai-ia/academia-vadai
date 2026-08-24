@@ -119,7 +119,7 @@ export function Tarea({
             'flex flex-col gap-1 rounded-md border px-4 py-3',
             rechazada
               ? 'border-destructive/40 bg-destructive/10'
-              : 'border-vadai-lima/40 bg-vadai-lima/10'
+              : 'border-exito/40 bg-exito/10'
           )}
         >
           <p className="text-xs font-medium text-muted-foreground">Comentarios del equipo</p>
@@ -144,7 +144,7 @@ export function Tarea({
       ) : null}
 
       {aprobada ? (
-        <p className="rounded-md border border-vadai-lima/40 bg-vadai-lima/10 px-4 py-3 text-sm text-vadai-lima">
+        <p className="rounded-md border border-exito/40 bg-exito/10 px-4 py-3 text-sm text-exito">
           Tu tarea quedó aprobada. No hay nada más que hacer aquí.
         </p>
       ) : enRevision ? (

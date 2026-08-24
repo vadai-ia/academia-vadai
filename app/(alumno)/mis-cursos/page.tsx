@@ -35,8 +35,8 @@ export default async function PaginaMisCursos() {
       </header>
 
       {anuncio ? (
-        <section className="flex flex-col gap-2 rounded-lg border border-vadai-cyan/40 bg-vadai-cyan/5 p-5">
-          <span className="text-xs font-semibold tracking-[0.15em] text-vadai-cyan uppercase">
+        <section className="flex flex-col gap-2 rounded-lg border border-primary/40 bg-primary/5 p-5">
+          <span className="text-xs font-semibold tracking-[0.15em] text-primary uppercase">
             Anuncio
           </span>
           <h2 className="font-medium text-balance">{anuncio.titulo}</h2>
@@ -51,7 +51,7 @@ export default async function PaginaMisCursos() {
           </p>
           <a
             href="mailto:hola@vadai.com.mx?subject=No%20veo%20mi%20curso"
-            className="mt-2 inline-block text-sm text-vadai-cyan underline-offset-4 hover:underline"
+            className="mt-2 inline-block text-sm text-primary underline-offset-4 hover:underline"
           >
             Si compraste uno, escríbenos
           </a>

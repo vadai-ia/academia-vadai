@@ -37,7 +37,7 @@ export default async function PaginaCurso({ params }: { params: Promise<{ id: st
       <header className="flex flex-col gap-1">
         <Link
           href="/admin/cursos"
-          className="text-sm text-vadai-cyan underline-offset-4 hover:underline"
+          className="text-sm text-primary underline-offset-4 hover:underline"
         >
           ← Cursos
         </Link>
@@ -53,13 +53,13 @@ export default async function PaginaCurso({ params }: { params: Promise<{ id: st
         <p className="flex flex-wrap gap-4 pt-1 text-sm">
           <Link
             href={`/curso/${curso.slug}`}
-            className="text-vadai-cyan underline-offset-4 hover:underline"
+            className="text-primary underline-offset-4 hover:underline"
           >
             Verlo como alumno →
           </Link>
           <Link
             href={`/curso/${curso.slug}/comunidad`}
-            className="text-vadai-cyan underline-offset-4 hover:underline"
+            className="text-primary underline-offset-4 hover:underline"
           >
             Comunidad →
           </Link>
@@ -82,7 +82,7 @@ export default async function PaginaCurso({ params }: { params: Promise<{ id: st
               <li key={cohorte.id}>
                 <Link
                   href={`/admin/cohortes/${cohorte.id}`}
-                  className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-border px-4 py-3 transition-colors hover:border-vadai-cyan/60"
+                  className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-border px-4 py-3 transition-colors hover:border-primary/60"
                 >
                   <span className="flex min-w-0 flex-col gap-0.5">
                     <span className="truncate font-medium">{cohorte.name}</span>

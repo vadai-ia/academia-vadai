@@ -166,7 +166,7 @@ export function SubidaVideo({
             estado.fase === 'error'
               ? 'border-destructive/40 bg-destructive/10 text-destructive'
               : estado.fase === 'listo'
-                ? 'border-vadai-lima/40 bg-vadai-lima/10 text-vadai-lima'
+                ? 'border-exito/40 bg-exito/10 text-exito'
                 : 'border-border text-muted-foreground'
           )}
         >

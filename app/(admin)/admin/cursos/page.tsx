@@ -48,7 +48,7 @@ export default async function PaginaCursos() {
             <li key={curso.id}>
               <Link
                 href={`/admin/cursos/${curso.id}`}
-                className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-border px-4 py-3 transition-colors hover:border-vadai-cyan/60"
+                className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-border px-4 py-3 transition-colors hover:border-primary/60"
               >
                 <div className="flex min-w-0 flex-col gap-1">
                   <span className="flex items-center gap-2">

@@ -77,7 +77,7 @@ export default async function PaginaLeccion({
         <header className="flex flex-col gap-2">
           <Link
             href={`/curso/${slug}`}
-            className="text-sm text-vadai-cyan underline-offset-4 hover:underline"
+            className="text-sm text-primary underline-offset-4 hover:underline"
           >
             ← {curso.titulo}
           </Link>

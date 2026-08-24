@@ -42,7 +42,7 @@ export default async function PaginaLeccion({ params }: { params: Promise<{ id: 
       <header className="flex flex-col gap-1">
         <Link
           href={`/admin/cursos/${leccion.curso_id}`}
-          className="text-sm text-vadai-cyan underline-offset-4 hover:underline"
+          className="text-sm text-primary underline-offset-4 hover:underline"
         >
           ← {leccion.curso_titulo}
         </Link>

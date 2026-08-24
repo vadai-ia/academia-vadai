@@ -127,10 +127,19 @@ async function main() {
   // ------------------------------------------------------------------
   const G2 = 'RUTAS PÚBLICAS'
 
-  for (const ruta of ['/', '/login', '/recuperar']) {
+  for (const ruta of ['/login', '/recuperar']) {
     const r = await pedir(`${DOMINIO}${ruta}`)
     comprobar(G2, `${ruta} responde 200`, r.status === 200, String(r.status))
   }
+
+  // La raíz es una puerta, no una página: sin sesión lleva al login.
+  const raiz = await pedir(`${DOMINIO}/`)
+  comprobar(
+    G2,
+    '/ lleva al login sin sesión',
+    [302, 307].includes(raiz.status) && (raiz.headers.get('location') ?? '').includes('/login'),
+    `${raiz.status} → ${raiz.headers.get('location') ?? '—'}`
+  )
 
   // Un folio inexistente contesta 200 con explicación, no 404 (§3.6).
   const folioFalso = await pedir(`${DOMINIO}/certificado/VADAI-2026-ZZZZZZZZZZ`)

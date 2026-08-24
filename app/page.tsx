@@ -1,96 +1,29 @@
-import Link from 'next/link'
+import { redirect } from 'next/navigation'
 
-import { Wordmark } from '@/components/marca/wordmark'
-import { Button } from '@/components/ui/button'
-import { RUTAS } from '@/lib/auth/rutas'
-import { verificarConexion } from '@/lib/supabase/estado'
+import { obtenerSesion } from '@/lib/auth/sesion'
+import { RUTAS, rutaDeInicio } from '@/lib/auth/rutas'
 
-// La sonda consulta Supabase en vivo: nunca debe quedar cacheada en el build.
 export const dynamic = 'force-dynamic'
 
 /**
- * Se lista lo construido, no el plan. Un tablero que promete cosas que aún no
- * existen envejece mal, y esta página es pública.
+ * La raíz no dibuja nada: manda a donde corresponde.
+ *
+ * Antes había aquí una portada con una sonda de conexión a Supabase y una lista
+ * del avance por milestone. Servía como smoke test durante el scaffold, pero
+ * como página pública era un error: le contaba a cualquier visitante qué base
+ * de datos usamos, cómo se llama el schema y qué partes del producto estaban a
+ * medias — y encima esa lista se quedó desactualizada, que es lo que le pasa
+ * siempre a un tablero de progreso puesto en una portada.
+ *
+ * Esto es una plataforma privada: la puerta es el login, y para quien ya entró
+ * la puerta debe abrirse sola hacia su lugar. Un alumno cae en /mis-cursos y un
+ * admin en /admin, sin pasar por una pantalla intermedia que no le dice nada.
  */
-const HITOS = [
-  { clave: 'M1–M4', nombre: 'Schema, acceso, admin y player', estado: 'listo' },
-  { clave: 'M5–M6', nombre: 'Quizzes y tareas', estado: 'listo' },
-  { clave: 'M8–M9', nombre: 'Cohortes y pagos', estado: 'listo' },
-  { clave: 'M7', nombre: 'Comunidad y blog', estado: 'en curso' },
-] as const
+export default async function Raiz() {
+  const sesion = await obtenerSesion()
 
-export default async function Inicio() {
-  const conexion = await verificarConexion()
+  if (sesion.tipo === 'activo') redirect(rutaDeInicio(sesion.perfil.role))
+  if (sesion.tipo === 'sinPerfil' || sesion.tipo === 'suspendido') redirect(RUTAS.sinAcceso)
 
-  return (
-    <main className="mx-auto flex min-h-dvh w-full max-w-2xl flex-col justify-center gap-10 px-6 py-16">
-      <header className="flex flex-col gap-4">
-        <Wordmark />
-        <h1 className="text-4xl font-bold tracking-tight text-balance sm:text-5xl">
-          IA aplicada para tu empresa
-        </h1>
-        <p className="max-w-md text-pretty text-muted-foreground">
-          Primer curso: <span className="text-foreground">Claude en tu Empresa</span>,
-          21 de septiembre de 2026.
-        </p>
-        <div>
-          <Button asChild>
-            <Link href={RUTAS.login}>Entrar a mi academia</Link>
-          </Button>
-        </div>
-      </header>
-
-      <section
-        aria-labelledby="estado-plataforma"
-        className="rounded-lg border border-border bg-card p-5"
-      >
-        <h2 id="estado-plataforma" className="sr-only">
-          Estado de la plataforma
-        </h2>
-
-        <div className="flex items-start gap-3">
-          <span
-            aria-hidden
-            className={`mt-1.5 size-2.5 shrink-0 rounded-full ${
-              conexion.ok ? 'bg-vadai-lima' : 'bg-destructive'
-            }`}
-          />
-          <div className="flex flex-col gap-1">
-            <p className="font-medium">{conexion.titulo}</p>
-            <p className="text-sm text-muted-foreground">{conexion.detalle}</p>
-            {conexion.comoArreglar ? (
-              <p className="text-sm text-vadai-cyan">{conexion.comoArreglar}</p>
-            ) : null}
-          </div>
-        </div>
-      </section>
-
-      <section aria-labelledby="avance" className="flex flex-col gap-3">
-        <h2
-          id="avance"
-          className="text-xs font-semibold tracking-[0.15em] text-muted-foreground uppercase"
-        >
-          Avance
-        </h2>
-        <ul className="flex flex-col gap-2">
-          {HITOS.map((hito) => (
-            <li
-              key={hito.clave}
-              className="flex items-center justify-between rounded-md border border-border px-4 py-3"
-            >
-              <span className="flex items-center gap-3">
-                <span className="font-mono text-sm text-vadai-cyan">{hito.clave}</span>
-                <span className="text-sm">{hito.nombre}</span>
-              </span>
-              <span className="text-xs text-muted-foreground">{hito.estado}</span>
-            </li>
-          ))}
-        </ul>
-      </section>
-
-      <footer className="text-xs text-muted-foreground">
-        Plataforma privada. El acceso se obtiene comprando un curso o por invitación.
-      </footer>
-    </main>
-  )
+  redirect(RUTAS.login)
 }

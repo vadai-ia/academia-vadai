@@ -11,7 +11,7 @@ export function AccesoVencido({ curso }: { curso: CursoDelAlumno }) {
   const hayLinks = Boolean(curso.linkRecompraMxn ?? curso.linkRecompraUsd)
 
   return (
-    <section className="flex flex-col gap-4 rounded-lg border border-vadai-cyan/40 bg-vadai-cyan/5 p-5">
+    <section className="flex flex-col gap-4 rounded-lg border border-primary/40 bg-primary/5 p-5">
       <div className="flex flex-col gap-1.5">
         <h2 className="font-medium">Tu acceso a este curso venció</h2>
         <p className="text-sm text-pretty text-muted-foreground">
@@ -43,7 +43,7 @@ export function AccesoVencido({ curso }: { curso: CursoDelAlumno }) {
       ) : (
         <a
           href="mailto:hola@vadai.com.mx?subject=Quiero%20renovar%20mi%20acceso"
-          className="text-sm text-vadai-cyan underline-offset-4 hover:underline"
+          className="text-sm text-primary underline-offset-4 hover:underline"
         >
           Escríbenos para renovar
         </a>
