@@ -18,17 +18,35 @@ import { EtiquetaAcademia, Wordmark } from '@/components/marca/wordmark'
  * busca la acción.
  */
 
-const DATOS_CURSO = [
-  { valor: '5', etiqueta: 'módulos' },
-  { valor: '8', etiqueta: 'sesiones en vivo' },
-  { valor: '2.5 h', etiqueta: 'cada sesión' },
+/**
+ * Cifras de marca, no de un curso.
+ *
+ * Antes esto decía "5 módulos · 8 sesiones · 2.5 h", que son los datos de
+ * "Claude en tu Empresa". La academia es multi-curso desde el día uno (§1), así
+ * que la portada tenía fecha de caducidad: al segundo curso, mentía.
+ *
+ * Las tres salen de vadai.com.mx y de la landing del curso — son afirmaciones
+ * que VADAI ya hace públicamente, no inventadas aquí.
+ */
+const CREDENCIALES = [
+  { valor: '+40', etiqueta: 'empresas capacitadas' },
+  { valor: '4.9', etiqueta: 'de calificación' },
+  { valor: '#1', etiqueta: 'agencia de IA en México' },
 ] as const
 
+/**
+ * Lo que la academia da, en su lenguaje.
+ *
+ * La voz de VADAI es concreta y anti-teoría: nombra objetos que el dueño de una
+ * empresa reconoce —Excel, Word, correo— en vez de hablar de "transformación
+ * digital". Se respeta eso: cada línea dice algo que se puede comprobar, no una
+ * promesa abstracta.
+ */
 const INCLUYE = [
-  'Sesiones en vivo los lunes y jueves, con grabación disponible después.',
-  'Ejercicios y tareas revisadas una por una, no autocalificadas.',
-  'Comunidad privada de tu cohorte para resolver dudas entre sesiones.',
-  'Certificado con folio verificable al completar el curso.',
+  'Cursos en video a tu ritmo, con sesiones en vivo para resolver dudas.',
+  'Aplicado al Excel, el Word y el correo que tu equipo ya usa todos los días.',
+  'Ejercicios revisados uno por uno por el equipo, no autocalificados.',
+  'Certificado con folio verificable al completar cada curso.',
 ] as const
 
 export default function LayoutAuth({ children }: { children: ReactNode }) {
@@ -58,21 +76,22 @@ export default function LayoutAuth({ children }: { children: ReactNode }) {
 
           <div className="flex flex-col gap-4">
             <h1 className="text-3xl font-semibold tracking-tight text-balance sm:text-4xl lg:text-[2.75rem] lg:leading-[1.1]">
-              Deja de leer sobre IA.{' '}
-              <span className="text-primary">Ponla a trabajar.</span>
+              La IA ya cambió las reglas.{' '}
+              <span className="text-primary">Enséñale a tu equipo a jugar.</span>
             </h1>
-            <p className="max-w-[52ch] text-pretty text-base text-muted-foreground sm:text-lg">
-              <strong className="font-medium text-foreground">Claude en tu Empresa</strong> es un
-              curso en vivo para dueños de negocio y sus equipos. Sales con procesos funcionando en
-              tu operación, no con apuntes.
+            <p className="max-w-[54ch] text-pretty text-base text-muted-foreground sm:text-lg">
+              La academia de <strong className="font-medium text-foreground">VADAI</strong>, la
+              agencia #1 de inteligencia artificial en México. Tu equipo aprende a usarla dentro de
+              la operación que ya tienes: sin cambiar de programas, sin saber de tecnología y sin
+              contratar a nadie nuevo.
             </p>
           </div>
 
           <dl className="flex flex-wrap gap-x-8 gap-y-4">
-            {DATOS_CURSO.map((dato) => (
+            {CREDENCIALES.map((dato) => (
               <div key={dato.etiqueta} className="flex flex-col">
                 <dt className="sr-only">{dato.etiqueta}</dt>
-                <dd className="text-2xl font-semibold tabular-nums">{dato.valor}</dd>
+                <dd className="text-2xl font-semibold tabular-nums text-primary">{dato.valor}</dd>
                 <dd className="text-xs tracking-wide text-muted-foreground uppercase">
                   {dato.etiqueta}
                 </dd>
@@ -93,7 +112,10 @@ export default function LayoutAuth({ children }: { children: ReactNode }) {
             <span className="inline-flex items-center rounded-full bg-vadai-lima px-3 py-1 text-xs font-semibold text-vadai-navy">
               Próxima cohorte
             </span>
-            <span className="text-muted-foreground">21 de septiembre de 2026</span>
+            <span className="text-muted-foreground">
+              <strong className="font-medium text-foreground">Claude en tu Empresa</strong> · 21 de
+              septiembre de 2026
+            </span>
           </p>
         </div>
       </section>

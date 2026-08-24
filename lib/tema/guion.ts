@@ -6,11 +6,10 @@
  * ya se pintó, y quien eligió un tema distinto al de su sistema habría visto el
  * otro durante un instante.
  *
- * Ojo con lo que este script NO hace: no decide el tema por defecto. Eso lo
- * resuelve `light-dark()` en el CSS a partir del `color-scheme`, que sin clase
- * vale `light dark` y sigue al sistema. Por eso la plataforma se ve bien
- * incluso con JavaScript desactivado — este script solo aplica la ELECCIÓN
- * guardada, que es lo único que el CSS no puede saber.
+ * Ojo con lo que este script NO hace: no decide el tema por defecto. El default
+ * es el CLARO y lo fija el CSS con `color-scheme: light`. Por eso la plataforma
+ * se ve bien incluso con JavaScript desactivado — este script solo aplica la
+ * ELECCIÓN guardada, que es lo único que el CSS no puede saber.
  */
 
 export const LLAVE_TEMA = 'vadai-tema'
@@ -26,8 +25,7 @@ export type Tema = 'claro' | 'oscuro'
  * pintar.
  */
 export const GUION_TEMA = `(function(){try{
-var g=localStorage.getItem('${LLAVE_TEMA}');
-if(g==='oscuro'||g==='claro'){
-document.documentElement.classList.add(g==='oscuro'?'dark':'light');
+if(localStorage.getItem('${LLAVE_TEMA}')==='oscuro'){
+document.documentElement.classList.add('dark');
 }
 }catch(_){}})();`

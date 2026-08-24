@@ -167,11 +167,24 @@ CORREO_REMITENTE=noreply@automail.vadai.com.mx
 CORREO_REMITENTE_NOMBRE=VADAI Academia
 ```
 
+## VOZ
+
+Tomada de vadai.com.mx y de la landing del curso, no inventada aquí. Directa, en
+segunda persona, **anti-teoría**. Nombra objetos que el dueño de una empresa
+reconoce —Excel, Word, correo— en vez de hablar de "transformación digital".
+
+- Los textos de la plataforma hablan de la **academia**, no de un curso: es
+  multi-curso desde el día uno (§1), y un texto que anuncia "5 módulos" caduca
+  en cuanto entra el segundo curso.
+- Credenciales que VADAI ya afirma en público y se pueden reusar: **+40 empresas
+  capacitadas**, **4.9/5** de calificación, **agencia #1 de IA en México**.
+- Cada línea dice algo comprobable. Nada de promesas abstractas.
+
 ## BRANDING
 
-**Dos temas** (decidido 24-ago-2026, corrige "dark mode único"). El default lo pone
-el sistema operativo de cada persona; un botón en el encabezado lo cambia a mano y
-la elección se recuerda.
+**Dos temas** (decidido 24-ago-2026, corrige "dark mode único"). El default es el
+**claro** — es la vista en la que el logo, el cyan y el lima se ven como se
+diseñaron. Un botón en el encabezado lo cambia a oscuro y la elección se recuerda.
 
 Paleta base: fondo `#0A1A2F`, primario `#00A0DB`, azul profundo `#006E96`, acento
 lima `#C6F24E` (CTAs), texto `#F5F8FB`, secundario `#93A3B5`. Inter/sans sistema.

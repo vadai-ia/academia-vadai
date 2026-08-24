@@ -2,54 +2,70 @@ import Link from 'next/link'
 
 import { BotonSalir } from '@/components/auth/boton-salir'
 import { CambiarTema } from '@/components/marca/cambiar-tema'
+import { NavegacionPrincipal, type Destino } from '@/components/marca/navegacion'
 import { EtiquetaAcademia, Wordmark } from '@/components/marca/wordmark'
+import { Avatar } from '@/components/ui-vadai/superficie'
 import { nombreVisible, type Perfil } from '@/lib/auth/sesion'
 
+/**
+ * Encabezado de la plataforma.
+ *
+ * Pegajoso: en una lección larga, tener que subir hasta arriba para cambiar de
+ * sección es de las cosas que hacen sentir pesada una plataforma.
+ *
+ * En móvil la navegación baja a su propio renglón en vez de apretarse contra la
+ * marca. Cuatro pastillas no caben a 375 px junto al logo y el nombre.
+ */
 export function Encabezado({
   perfil,
   navegacion = [],
 }: {
   perfil: Perfil
-  navegacion?: Array<{ href: string; etiqueta: string }>
+  navegacion?: Destino[]
 }) {
   const equipo = perfil.role === 'admin' || perfil.role === 'superadmin'
 
   return (
-    <header className="border-b border-border">
-      <div className="mx-auto flex w-full max-w-5xl flex-wrap items-center justify-between gap-3 px-5 py-4">
-        <span className="flex min-w-0 flex-wrap items-center gap-x-6 gap-y-2">
-          <Link href="/" className="flex items-center gap-2.5 rounded-lg focus-visible:ring-3 focus-visible:ring-ring/50 focus-visible:outline-none">
+    <header className="sticky top-0 z-30 border-b border-border bg-background/85 backdrop-blur-md">
+      <div className="mx-auto w-full max-w-6xl px-5">
+        <div className="flex h-16 items-center justify-between gap-4">
+          <Link
+            href="/"
+            className="flex shrink-0 items-center gap-2.5 rounded-lg focus-visible:ring-3 focus-visible:ring-ring/50 focus-visible:outline-none"
+          >
             <Wordmark alto={20} prioridad />
             <EtiquetaAcademia className="hidden text-[0.6rem] tracking-[0.28em] sm:inline" />
           </Link>
-          {navegacion.length > 0 ? (
-            <nav className="flex flex-wrap items-center gap-x-4 gap-y-1">
-              {navegacion.map((n) => (
-                <Link
-                  key={n.href}
-                  href={n.href}
-                  className="text-sm text-muted-foreground underline-offset-4 hover:text-foreground hover:underline"
-                >
-                  {n.etiqueta}
-                </Link>
-              ))}
-            </nav>
-          ) : null}
-        </span>
 
-        <div className="flex min-w-0 items-center gap-3">
-          <span className="flex min-w-0 items-center text-sm text-muted-foreground">
-            {/* Un nombre largo no puede empujar el botón de salir fuera de pantalla. */}
-            <span className="truncate">{nombreVisible(perfil)}</span>
-            {equipo ? (
-              <span className="ml-2 hidden shrink-0 rounded-full border border-exito/40 bg-exito/10 px-2 py-0.5 text-[11px] text-exito sm:inline">
-                Equipo VADAI
+          {navegacion.length > 0 ? (
+            <div className="hidden min-w-0 flex-1 md:flex">
+              <NavegacionPrincipal destinos={navegacion} />
+            </div>
+          ) : null}
+
+          <div className="flex shrink-0 items-center gap-2">
+            <span className="hidden min-w-0 items-center gap-2 sm:flex">
+              <Avatar nombre={nombreVisible(perfil)} tamano={28} />
+              <span className="hidden max-w-36 truncate text-sm text-muted-foreground lg:inline">
+                {nombreVisible(perfil)}
               </span>
-            ) : null}
-          </span>
-          <CambiarTema />
-          <BotonSalir />
+              {equipo ? (
+                <span className="shrink-0 rounded-full bg-vadai-lima px-2 py-0.5 text-[11px] font-medium text-vadai-navy">
+                  Equipo
+                </span>
+              ) : null}
+            </span>
+
+            <CambiarTema />
+            <BotonSalir />
+          </div>
         </div>
+
+        {navegacion.length > 0 ? (
+          <div className="pb-2 md:hidden">
+            <NavegacionPrincipal destinos={navegacion} />
+          </div>
+        ) : null}
       </div>
     </header>
   )

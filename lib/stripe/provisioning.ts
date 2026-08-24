@@ -24,12 +24,24 @@ export type ResultadoAlta = {
   motivo?: string
 }
 
+export type RolDeAlta = 'alumno' | 'admin' | 'superadmin'
+
 type Opciones = {
   email: string
   nombre?: string | null
-  courseId: string
+  /**
+   * Sin curso no se crea inscripción. Es el caso de alguien del equipo: un
+   * admin no necesita estar inscrito para entrar al panel.
+   */
+  courseId?: string | null
   cohortId?: string | null
   origen: 'stripe' | 'manual'
+  /**
+   * Solo se manda cuando la intención es FIJAR el rol —el alta de equipo—.
+   * Omitirlo conserva el rol que la persona ya tenga, que es lo que quieren el
+   * webhook y el alta de alumno. Ver el comentario del upsert de perfil.
+   */
+  rol?: RolDeAlta
   /** URL a la que apunta el correo de invitación. */
   urlRedireccion?: string
 }
@@ -76,16 +88,22 @@ export async function darDeAlta(opciones: Opciones): Promise<ResultadoAlta> {
 
   const supabase = crearClienteServiceRole()
 
-  // 1. El curso, para calcular la vigencia
-  const { data: curso, error: errorCurso } = await supabase
-    .from('courses')
-    .select('id, access_days, title')
-    .eq('id', opciones.courseId)
-    .maybeSingle()
+  // 1. El curso, para calcular la vigencia. Puede no haber: un alta de equipo
+  //    crea la cuenta y el rol, sin inscribir a nadie en nada.
+  let curso: { id: string; access_days: number | null; title: string } | null = null
 
-  if (errorCurso || !curso) {
-    registrar('darDeAlta:cursoInexistente', { courseId: opciones.courseId })
-    return { ok: false, motivo: 'El curso no existe.' }
+  if (opciones.courseId) {
+    const { data, error: errorCurso } = await supabase
+      .from('courses')
+      .select('id, access_days, title')
+      .eq('id', opciones.courseId)
+      .maybeSingle()
+
+    if (errorCurso || !data) {
+      registrar('darDeAlta:cursoInexistente', { courseId: opciones.courseId })
+      return { ok: false, motivo: 'El curso no existe.' }
+    }
+    curso = data
   }
 
   // 2. El usuario de auth
@@ -117,12 +135,27 @@ export async function darDeAlta(opciones: Opciones): Promise<ResultadoAlta> {
   }
 
   // 3. El perfil: es lo que da pertenencia a la academia (Regla Cero)
+  //
+  // Antes esto ponía `role: 'alumno'` y `full_name: nombre || ''` siempre, y
+  // eso PISABA lo que ya había. Consecuencia concreta: si un superadmin compraba
+  // un curso por Stripe, el webhook lo DEGRADABA a alumno y lo dejaba fuera de
+  // su propio panel. Con el nombre pasaba lo mismo — un alta sin nombre borraba
+  // el que ya estaba, y ese nombre es el que se imprime en el certificado.
+  //
+  // Ahora un alta nunca rebaja a nadie: el rol solo cambia si el llamador lo
+  // pide explícitamente, que es únicamente el alta de equipo.
+  const { data: previo } = await supabase
+    .from('profiles')
+    .select('role, full_name')
+    .eq('user_id', usuario.id)
+    .maybeSingle()
+
   const { error: errorPerfil } = await supabase.from('profiles').upsert(
     {
       user_id: usuario.id,
       email,
-      full_name: opciones.nombre?.trim() || '',
-      role: 'alumno',
+      full_name: opciones.nombre?.trim() || previo?.full_name || '',
+      role: opciones.rol ?? previo?.role ?? 'alumno',
     },
     { onConflict: 'user_id', ignoreDuplicates: false }
   )
@@ -132,22 +165,26 @@ export async function darDeAlta(opciones: Opciones): Promise<ResultadoAlta> {
     return { ok: false, motivo: 'No se pudo crear el perfil.' }
   }
 
-  // 4. La inscripción
-  const expiraEn = curso.access_days
-    ? new Date(Date.now() + curso.access_days * 24 * 60 * 60 * 1000).toISOString()
-    : null
+  // 4. La inscripción, solo si el alta trae curso. Alguien del equipo entra por
+  //    su rol, no por estar inscrito en nada.
+  const expiraEn =
+    curso?.access_days != null
+      ? new Date(Date.now() + curso.access_days * 24 * 60 * 60 * 1000).toISOString()
+      : null
 
-  const { error: errorInscripcion } = await supabase.from('enrollments').upsert(
-    {
-      user_id: usuario.id,
-      course_id: curso.id,
-      cohort_id: opciones.cohortId ?? null,
-      source: opciones.origen,
-      expires_at: expiraEn,
-      status: 'active',
-    },
-    { onConflict: 'user_id,course_id' }
-  )
+  const { error: errorInscripcion } = curso
+    ? await supabase.from('enrollments').upsert(
+        {
+          user_id: usuario.id,
+          course_id: curso.id,
+          cohort_id: opciones.cohortId ?? null,
+          source: opciones.origen,
+          expires_at: expiraEn,
+          status: 'active',
+        },
+        { onConflict: 'user_id,course_id' }
+      )
+    : { error: null }
 
   if (errorInscripcion) {
     registrar('darDeAlta:inscripcionFallida', { email, error: errorInscripcion.message })
@@ -161,7 +198,8 @@ export async function darDeAlta(opciones: Opciones): Promise<ResultadoAlta> {
     invitado = await enviarAccesoInicial(
       email,
       opciones.urlRedireccion,
-      curso.title,
+      // Sin curso el correo habla del acceso a la academia, no de un curso.
+      curso?.title ?? 'la academia',
       opciones.nombre
     )
     if (!invitado) {
@@ -174,7 +212,8 @@ export async function darDeAlta(opciones: Opciones): Promise<ResultadoAlta> {
 
   registrar('darDeAlta:ok', {
     email,
-    curso: curso.title,
+    curso: curso?.title ?? null,
+    rol: opciones.rol ?? null,
     origen: opciones.origen,
     cuentaNueva: creado,
     correoEnviado: invitado,

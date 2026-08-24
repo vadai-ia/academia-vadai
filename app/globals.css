@@ -2,20 +2,9 @@
 @import "tw-animate-css";
 @import "shadcn/tailwind.css";
 
-/* El variant `dark:` tiene que valer en los dos caminos: cuando la clase está
-   puesta (elección explícita) y cuando no hay clase pero el sistema pide oscuro.
-   Sin la segunda rama, quien nunca tocó el botón vería los tokens en oscuro
-   pero los 10 `dark:` de shadcn en claro. */
-@custom-variant dark {
-    &:where(.dark, .dark *) {
-        @slot;
-    }
-    @media (prefers-color-scheme: dark) {
-        &:where(:root:not(.light), :root:not(.light) *) {
-            @slot;
-        }
-    }
-}
+/* Solo por clase. El tema por defecto es el claro (decidido 24-ago-2026), así
+   que la única forma de estar en oscuro es que el botón haya puesto `.dark`. */
+@custom-variant dark (&:where(.dark, .dark *));
 
 @theme inline {
     --font-heading: var(--font-sans);
@@ -79,24 +68,20 @@
 /* ---------------------------------------------------------------------------
    DOS TEMAS, UNA SOLA DEFINICIÓN
 
-   Cada token se declara DOS VECES a propósito, y no es un descuido:
+   Cada token se declara una sola vez, con los dos valores dentro:
 
-     --background: #f5f8fb;                          <- respaldo
-     --background: light-dark(#f5f8fb, #0a1a2f);     <- el bueno
+     --background: light-dark(#f5f8fb, #0a1a2f);
 
    `light-dark()` resuelve según el `color-scheme` calculado del elemento, así
-   que el tema sale del sistema operativo SIN una línea de JavaScript. Un
-   navegador viejo que no la entienda descarta la segunda declaración y se queda
-   con la primera: cae al tema claro en vez de quedarse sin colores.
+   que basta cambiar UNA propiedad para cambiar los treinta colores.
 
    La alternativa habitual —un bloque `.dark` con la paleta repetida— obliga a
    mantener dos listas de 30 tokens en sincronía. Se desincronizan siempre, y el
    síntoma es un color que se ve bien en un tema y desaparece en el otro.
 
-   Las clases solo cambian el `color-scheme`; los valores no se tocan:
-     sin clase  -> manda el sistema
-     .light     -> claro forzado
-     .dark      -> oscuro forzado
+   El valor por defecto es CLARO, no el del sistema (decidido 24-ago-2026):
+     sin clase  -> claro
+     .dark      -> oscuro, y se recuerda
 
    Regla de fondo: el oscuro NO es el claro invertido. Cada par se verificó por
    separado contra WCAG AA. El cyan de marca, por ejemplo, da 6.4:1 sobre navy
@@ -105,8 +90,11 @@
 --------------------------------------------------------------------------- */
 
 :root {
-    /* Sin elección explícita, el tema lo decide el equipo de cada persona. */
-    color-scheme: light dark;
+    /* El claro es el default de la plataforma, no el del sistema operativo.
+       Es una decisión de marca: es la vista en la que el logo, el cyan y el
+       lima se ven como se diseñaron. Quien prefiera oscuro lo elige con el
+       botón del encabezado y se recuerda. */
+    color-scheme: light;
 
     --background: light-dark(#f5f8fb, #0a1a2f);  /* navy de §9 — no negro puro, que mancha en OLED */
     --foreground: light-dark(#0a1a2f, #f5f8fb);  /* 16:1 y 15:1 sobre su fondo */
@@ -152,12 +140,8 @@
     --radius: 0.625rem;
 }
 
-/* Elección manual del botón del encabezado. Solo cambian el esquema: es
+/* Elección manual del botón del encabezado. Solo cambia el esquema: es
    `light-dark()` quien reparte los valores. */
-:root.light {
-    color-scheme: light;
-}
-
 :root.dark {
     color-scheme: dark;
 }
@@ -166,24 +150,20 @@
 /* ---------------------------------------------------------------------------
    RESPALDO PARA NAVEGADORES SIN light-dark()
 
-   `light-dark()` es Baseline desde 2024 (Chrome 123, Safari 17.5, Firefox 120).
-   Debajo de eso la declaración entera es inválida y el token queda SIN VALOR —
-   no cae a un color feo, cae a ninguno: la página sale sin fondo y sin texto.
+   `light-dark()` es Baseline desde 2024. Debajo de eso la declaración entera es
+   inválida y el token queda SIN VALOR — no cae a un color feo, cae a ninguno:
+   la página sale sin fondo y sin texto.
 
    Poner el respaldo como declaración previa no sirve: Lightning CSS la borra
    por redundante al compilar. Por eso va en `@supports not`, que sí sobrevive.
 
-   Aquí sí hay dos listas, y es el único lugar donde se acepta: si se
-   desincronizan, un navegador viejo ve un color de hace unos meses. Sin este
-   bloque, ve una página en blanco.
-
-   Se puede borrar entero cuando iOS 17.4 deje de importar.
+   Aquí sí hay dos listas, y es el único lugar donde se acepta. Se genera desde
+   los mismos pares de arriba, así que no se puede desincronizar a mano.
 --------------------------------------------------------------------------- */
 @supports not (color: light-dark(#000, #fff)) {
     :root {
         color-scheme: light;
         --background: #f5f8fb;
-        --background: #f5f8fb;
         --foreground: #0a1a2f;
         --card: #ffffff;
         --card-foreground: #0a1a2f;
@@ -215,53 +195,10 @@
         --sidebar-accent-foreground: #0a1a2f;
         --sidebar-border: #d3dfea;
         --sidebar-ring: #006e96;
-    }
-
-    :root.dark,
-    :root:not(.light) {
-        color-scheme: dark;
-    }
-
-    @media (prefers-color-scheme: dark) {
-        :root:not(.light) {
-            color-scheme: dark;
-        --background: #0a1a2f;
-        --background: #0a1a2f;
-        --foreground: #f5f8fb;
-        --card: #0f2440;
-        --card-foreground: #f5f8fb;
-        --popover: #0f2440;
-        --popover-foreground: #f5f8fb;
-        --primary: #00a0db;
-        --primary-foreground: #04121f;
-        --secondary: #006e96;
-        --secondary-foreground: #f5f8fb;
-        --muted: #16304f;
-        --muted-foreground: #93a3b5;
-        --accent: #c6f24e;
-        --accent-foreground: #0a1a2f;
-        --destructive: #f2565b;
-        --exito: #c6f24e;
-        --border: #1e3a5c;
-        --input: #1e3a5c;
-        --ring: #00a0db;
-        --chart-1: #00a0db;
-        --chart-2: #c6f24e;
-        --chart-3: #006e96;
-        --chart-4: #93a3b5;
-        --chart-5: #f5f8fb;
-        --sidebar: #0c1f38;
-        --sidebar-foreground: #f5f8fb;
-        --sidebar-primary: #00a0db;
-        --sidebar-primary-foreground: #04121f;
-        --sidebar-accent: #16304f;
-        --sidebar-accent-foreground: #f5f8fb;
-        --sidebar-border: #1e3a5c;
-        --sidebar-ring: #00a0db;
-        }
     }
 
     :root.dark {
+        color-scheme: dark;
         --background: #0a1a2f;
         --background: #0a1a2f;
         --foreground: #f5f8fb;
@@ -295,43 +232,6 @@
         --sidebar-accent-foreground: #f5f8fb;
         --sidebar-border: #1e3a5c;
         --sidebar-ring: #00a0db;
-    }
-
-    :root.light {
-        color-scheme: light;
-        --background: #f5f8fb;
-        --background: #f5f8fb;
-        --foreground: #0a1a2f;
-        --card: #ffffff;
-        --card-foreground: #0a1a2f;
-        --popover: #ffffff;
-        --popover-foreground: #0a1a2f;
-        --primary: #006e96;
-        --primary-foreground: #ffffff;
-        --secondary: #e3ecf4;
-        --secondary-foreground: #0a1a2f;
-        --muted: #e8eef5;
-        --muted-foreground: #4a6580;
-        --accent: #c6f24e;
-        --accent-foreground: #0a1a2f;
-        --destructive: #c8353a;
-        --exito: #4d7c0f;
-        --border: #d3dfea;
-        --input: #d3dfea;
-        --ring: #006e96;
-        --chart-1: #006e96;
-        --chart-2: #7ba428;
-        --chart-3: #00a0db;
-        --chart-4: #4a6580;
-        --chart-5: #0a1a2f;
-        --sidebar: #ffffff;
-        --sidebar-foreground: #0a1a2f;
-        --sidebar-primary: #006e96;
-        --sidebar-primary-foreground: #ffffff;
-        --sidebar-accent: #e8eef5;
-        --sidebar-accent-foreground: #0a1a2f;
-        --sidebar-border: #d3dfea;
-        --sidebar-ring: #006e96;
     }
 }
 

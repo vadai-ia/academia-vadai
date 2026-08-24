@@ -197,7 +197,12 @@ async function main() {
 
   afirmar(GT, 'el logo real está en la portada', true, portada.includes('vadai-wordmark'))
   afirmar(GT, 'con texto alternativo', true, /alt="VADAI[^"]*"/.test(portada))
-  afirmar(GT, 'y el texto de venta', true, portada.includes('Ponla a trabajar'))
+  afirmar(GT, 'y el texto de venta', true, portada.includes('cambió las reglas'))
+  // La portada habla de la ACADEMIA, no de un curso: es multi-curso desde el
+  // día uno (§1) y antes anunciaba los módulos de "Claude en tu Empresa" como
+  // si fueran los de la plataforma.
+  afirmar(GT, 'habla de la academia, no de un curso', true,
+    portada.includes('agencia #1 de inteligencia artificial'))
 
   const logo = await fetch(`${APP}/vadai-wordmark.png`)
   afirmar(GT, 'el archivo del logo se sirve', 200, logo.status)
@@ -215,17 +220,18 @@ async function main() {
   if (hojaRuta) {
     const css = await (await fetch(`${APP}${hojaRuta}`)).text()
 
-    // Sin esto el tema no seguiría al sistema cuando no hay JavaScript.
+    // Un solo valor por token, con los dos temas dentro.
     afirmar(GT, 'los tokens usan light-dark()', true, css.includes('light-dark('))
-    afirmar(GT, 'la raíz sigue al sistema', true, /:root\{[^}]*color-scheme:light dark/.test(css))
+
+    // El default es el CLARO, no el del sistema (decidido 24-ago-2026). Si
+    // alguien vuelve a poner `light dark` aquí, la plataforma se abriría en
+    // oscuro para media base de usuarios sin que nadie lo pidiera.
+    afirmar(GT, 'la raíz arranca en claro', true, /:root\{[^}]*color-scheme:light[;}]/.test(css))
+    afirmar(GT, 'y el oscuro solo por clase', true, /\.dark\{[^}]*color-scheme:dark/.test(css))
 
     // Sin esto un Safari viejo se queda sin ningún color.
     afirmar(GT, 'hay respaldo para navegadores viejos', true, css.includes('@supports not'))
     afirmar(GT, 'y el respaldo trae el navy', true, css.includes('--background:#0a1a2f'))
-
-    // Los dark: de shadcn tienen que valer también sin clase puesta.
-    afirmar(GT, 'el variant dark cubre el sistema', true,
-      css.includes(':root:not(.light)'))
   }
 
   // ======================================================================

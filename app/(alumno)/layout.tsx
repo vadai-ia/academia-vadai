@@ -1,6 +1,12 @@
 import type { ReactNode } from 'react'
 
 import { Encabezado } from '@/components/marca/encabezado'
+import {
+  IconoBlog,
+  IconoCursos,
+  IconoPanel,
+  IconoPerfil,
+} from '@/components/marca/navegacion'
 import { SaltarAlContenido } from '@/components/marca/saltar-al-contenido'
 import { exigirPerfil } from '@/lib/auth/sesion'
 
@@ -17,12 +23,17 @@ export default async function LayoutAlumno({ children }: { children: ReactNode }
       <Encabezado
         perfil={perfil}
         navegacion={[
-          { href: '/mis-cursos', etiqueta: 'Mis cursos' },
-          { href: '/blog', etiqueta: 'Blog' },
-          { href: '/perfil', etiqueta: 'Mi perfil' },
+          { href: '/mis-cursos', etiqueta: 'Inicio', icono: IconoCursos, exacto: true },
+          { href: '/blog', etiqueta: 'Blog', icono: IconoBlog },
+          { href: '/perfil', etiqueta: 'Mi perfil', icono: IconoPerfil },
+          // El acceso al panel solo para quien puede entrar: un enlace que
+          // rebota es peor que no tenerlo.
+          ...(perfil.role === 'admin' || perfil.role === 'superadmin'
+            ? [{ href: '/admin', etiqueta: 'Panel', icono: IconoPanel }]
+            : []),
         ]}
       />
-      <main id="contenido" className="mx-auto w-full max-w-5xl flex-1 px-5 py-8">
+      <main id="contenido" className="mx-auto w-full max-w-6xl flex-1 px-5 py-8 sm:py-10">
         {children}
       </main>
     </div>

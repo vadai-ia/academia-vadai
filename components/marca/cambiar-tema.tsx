@@ -8,10 +8,8 @@ import { cn } from '@/lib/utils'
 /**
  * Botón de tema, arriba a la derecha.
  *
- * Mientras nadie lo toque, el tema lo decide el sistema operativo — y eso lo
- * resuelve el CSS con `light-dark()`, no este componente. Al primer clic la
- * elección se guarda y manda sobre el sistema, que es lo que espera quien se
- * toma la molestia de cambiarlo.
+ * El tema por defecto es el claro, y lo fija el CSS. Este botón solo guarda y
+ * aplica la preferencia de quien quiera el oscuro.
  *
  * Tres detalles que parecen de adorno y no lo son:
  *
@@ -21,37 +19,12 @@ import { cn } from '@/lib/utils'
  *      el encabezado no salte cuando aparezca.
  *   2. `.cambiando-tema` habilita la transición de color SOLO durante el
  *      cambio. Dejarla siempre puesta volvería pastoso el hover de todo.
- *   3. Mientras no haya elección guardada, sigue al sistema en vivo: si el
- *      equipo cambia de modo a media tarde, la página cambia con él.
  */
 export function CambiarTema({ className }: { className?: string }) {
   const [oscuro, setOscuro] = useState<boolean | null>(null)
 
   useEffect(() => {
-    const raiz = document.documentElement
-
-    /** Lo que se está viendo ahora, venga de la clase o del sistema. */
-    const leerActual = () => {
-      if (raiz.classList.contains('dark')) return true
-      if (raiz.classList.contains('light')) return false
-      return window.matchMedia('(prefers-color-scheme: dark)').matches
-    }
-
-    setOscuro(leerActual())
-
-    const consulta = window.matchMedia('(prefers-color-scheme: dark)')
-    const alCambiarSistema = (evento: MediaQueryListEvent) => {
-      // Con elección guardada, el sistema ya no manda.
-      try {
-        if (localStorage.getItem(LLAVE_TEMA)) return
-      } catch {
-        return
-      }
-      setOscuro(evento.matches)
-    }
-
-    consulta.addEventListener('change', alCambiarSistema)
-    return () => consulta.removeEventListener('change', alCambiarSistema)
+    setOscuro(document.documentElement.classList.contains('dark'))
   }, [])
 
   function alternar() {
@@ -60,7 +33,6 @@ export function CambiarTema({ className }: { className?: string }) {
 
     raiz.classList.add('cambiando-tema')
     raiz.classList.toggle('dark', siguiente === 'oscuro')
-    raiz.classList.toggle('light', siguiente === 'claro')
 
     try {
       localStorage.setItem(LLAVE_TEMA, siguiente)

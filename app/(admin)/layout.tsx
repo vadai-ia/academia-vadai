@@ -1,6 +1,7 @@
 import type { ReactNode } from 'react'
 
 import { Encabezado } from '@/components/marca/encabezado'
+import { IconoCursos, IconoPanel, IconoPerfil } from '@/components/marca/navegacion'
 import { SaltarAlContenido } from '@/components/marca/saltar-al-contenido'
 import { exigirAdmin } from '@/lib/auth/sesion'
 
@@ -11,8 +12,16 @@ export default async function LayoutAdmin({ children }: { children: ReactNode })
   return (
     <div className="relative flex min-h-dvh flex-col">
       <SaltarAlContenido />
-      <Encabezado perfil={perfil} />
-      <main id="contenido" className="mx-auto w-full max-w-5xl flex-1 px-5 py-8">
+      <Encabezado
+        perfil={perfil}
+        navegacion={[
+          { href: '/admin', etiqueta: 'Panel', icono: IconoPanel, exacto: true },
+          { href: '/admin/cursos', etiqueta: 'Cursos', icono: IconoCursos },
+          { href: '/admin/alumnos', etiqueta: 'Alumnos', icono: IconoPerfil },
+          { href: '/mis-cursos', etiqueta: 'Vista de alumno', icono: IconoCursos },
+        ]}
+      />
+      <main id="contenido" className="mx-auto w-full max-w-6xl flex-1 px-5 py-8 sm:py-10">
         {children}
       </main>
     </div>
