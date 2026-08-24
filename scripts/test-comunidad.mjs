@@ -161,10 +161,23 @@ const MARCA_POST = 'QA publicacion de prueba'
 const MARCA_ANUNCIO = 'QA anuncio de prueba'
 const MARCA_BLOG = 'QA entrada de blog'
 
+/**
+ * Borra lo que ESTA suite crea, por título exacto.
+ *
+ * Antes borraba con `like 'QA %'`, y ese patrón también casaba el anuncio que
+ * siembra `seed.mjs` ("QA · Anuncio del curso"). Resultado: correr esta suite
+ * dejaba a test-rls sin el anuncio que afirma, y la falla aparecía en OTRA
+ * suite — de las más difíciles de rastrear.
+ *
+ * Una prueba solo debe llevarse lo suyo.
+ */
 async function purgar(bd) {
-  await bd.query(`delete from academia.lesson_comments where content like 'QA %'`)
-  await bd.query(`delete from academia.community_posts where title like 'QA %'`)
-  await bd.query(`delete from academia.posts where title like 'QA %'`)
+  const titulos = [MARCA_POST, MARCA_ANUNCIO, MARCA_BLOG, 'QA borrador sin publicar',
+    'QA anuncio de otro curso']
+
+  await bd.query(`delete from academia.lesson_comments where content = $1`, [MARCA_COMENTARIO])
+  await bd.query(`delete from academia.community_posts where title = any($1::text[])`, [titulos])
+  await bd.query(`delete from academia.posts where title = any($1::text[])`, [titulos])
 }
 
 async function main() {

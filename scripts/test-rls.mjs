@@ -15,7 +15,7 @@
  * Sale con código 1 si cualquier aserción falla.
  */
 
-import { cargarEnv, exigir } from './lib/entorno.mjs'
+import { cargarEnv, conectarPostgres, exigir } from './lib/entorno.mjs'
 import { CLAVE_QA, IDS, USUARIOS_QA } from './lib/qa.mjs'
 
 const vars = cargarEnv()
@@ -151,6 +151,8 @@ async function reponerPago(idAlumno, correoAlumno) {
 }
 
 // --- main ------------------------------------------------------------------
+
+const bd = await conectarPostgres(vars)
 
 async function main() {
   const correo = Object.fromEntries(USUARIOS_QA.map((u) => [u.llave, u.email]))
@@ -305,7 +307,17 @@ async function main() {
 
   afirmar(AD, 've los dos cursos', 2, await contar(t.admin, 'courses?select=id'))
   afirmar(AD, 've todas las lecciones (incl. borrador)', 6, await contar(t.admin, 'lessons?select=id'))
-  afirmar(AD, 've todos los perfiles', 4, await contar(t.admin, 'profiles?select=user_id'))
+  // Contra la base, no contra un número fijo. Estaba en 4 —los perfiles QA— y
+  // se rompió en cuanto se dio de alta la primera cuenta real. Lo que importa
+  // no es cuántos hay, es que el admin los vea TODOS: si mañana hay 40 alumnos
+  // esta aserción sigue valiendo, y sigue cazando una policy que filtre de más.
+  const { rows: totales } = await bd.query(`select count(*)::int n from academia.profiles`)
+  afirmar(
+    AD,
+    've todos los perfiles que existen',
+    totales[0].n,
+    await contar(t.admin, 'profiles?select=user_id')
+  )
   afirmar(AD, 've las dos inscripciones', 2, await contar(t.admin, 'enrollments?select=id'))
   afirmar(AD, 've la respuesta correcta del quiz', 1, await contar(t.admin, 'quiz_questions?select=correct_option_id'))
 
@@ -324,10 +336,12 @@ async function main() {
   // Se repone para que el script sea re-corrible.
   await reponerPago(idVigente, correo.alumnoVigente)
 
+  await bd.end().catch(() => {})
   process.exitCode = imprimir() ? 0 : 1
 }
 
-main().catch((error) => {
+main().catch(async (error) => {
+  await bd.end().catch(() => {})
   console.error('')
   console.error(`  ${error.message}`)
   console.error('')

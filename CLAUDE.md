@@ -69,6 +69,11 @@ En su lugar: `pnpm db:migrate` → `scripts/migrate.mjs`, que aplica los `.sql` 
 
 - Roles en `academia.profiles.role`: `superadmin`, `admin`, `alumno`.
 - Sign-up público DESHABILITADO. Cuentas solo server-side (invite manual o webhook Stripe) con service role.
+- **Entrar con Google solo funciona si el correo YA tiene cuenta.** Con el sign-up deshabilitado,
+  Supabase rechaza crear el usuario y el callback devuelve `signup_disabled`. Eso es correcto, no
+  un fallo — pero el mensaje tiene que decirlo (`?error=sinCuenta`), no "intenta de nuevo".
+- La primera cuenta real se crea con `pnpm cuenta:crear`. El panel de admin exige ya ser admin y
+  todo lo demás crea `alumno`: sin ese script la plataforma no puede dar de alta a su propio dueño.
 - Usuario autenticado SIN fila en `academia.profiles` → pantalla de sin-acceso + logout. Middleware lo aplica en TODAS las rutas.
 - RLS habilitado en TODAS las tablas, sin excepciones ni "temporalmente off".
 - `SUPABASE_SERVICE_ROLE_KEY` solo en server; jamás importar el client de service role en código de cliente.
@@ -122,6 +127,9 @@ En su lugar: `pnpm db:migrate` → `scripts/migrate.mjs`, que aplica los `.sql` 
 - Estados vacíos y de carga diseñados en cada vista (no pantallas en blanco)
 - Cada milestone cierra con su suite (`scripts/test-*.mjs`) probando el criterio **literal** de §10,
   contra la app corriendo y verificando en Postgres, no en la pantalla que acaba de escribir
+- Una suite solo borra **lo suyo**, por marca exacta y nunca por patrón amplio (`like 'QA %'`
+  también casa lo que siembra el seed). Y afirma **propiedades**, no números fijos: "el admin ve
+  todos los perfiles que existen", no "ve 4" — lo segundo se rompe al dar de alta a alguien
 
 ## MILESTONES — DISCIPLINA
 

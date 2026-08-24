@@ -190,7 +190,6 @@ async function main() {
 
   try {
     const alumnoId = await idDe(bd, correo.alumnoVigente)
-    const otroId = await idDe(bd, correo.alumnoVencido)
     if (!alumnoId) throw new Error('Falta el alumno QA. Corre pnpm db:seed.')
 
     await limpiar(bd, alumnoId)
@@ -412,7 +411,11 @@ async function main() {
     }
 
     await limpiar(bd, alumnoId)
-    if (otroId) await limpiar(bd, otroId)
+
+    // Al alumno vencido NO se le limpia nada: esta suite solo lo usa para
+    // comprobar que no puede descargar el certificado ajeno, y eso no escribe.
+    // Limpiarlo le borraba el progreso que siembra seed.mjs, y test-rls se caía
+    // afirmando "conserva su progreso" — una falla en otra suite, causada aquí.
   } finally {
     await bd.end().catch(() => {})
   }

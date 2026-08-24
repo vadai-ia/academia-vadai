@@ -13,6 +13,7 @@
     "db:migrate": "node scripts/migrate.mjs",
     "db:status": "node scripts/migrate.mjs --status",
     "db:seed": "node scripts/seed.mjs",
+    "cuenta:crear": "node scripts/crear-cuenta.mjs",
     "test:rls": "node scripts/test-rls.mjs",
     "db:purge": "node scripts/seed-purge.mjs",
     "storage:huerfanos": "node scripts/storage-huerfanos.mjs",

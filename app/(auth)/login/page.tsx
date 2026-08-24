@@ -4,7 +4,16 @@ import { FormularioLogin } from '@/components/auth/formulario-login'
 
 export const metadata: Metadata = { title: 'Entrar' }
 
+/**
+ * Un mensaje de error tiene que decir la causa Y la salida. "Intenta de nuevo"
+ * cuando reintentar no puede funcionar es peor que no decir nada: manda a la
+ * persona a repetir el mismo callejón.
+ */
 const ERRORES: Record<string, string> = {
+  sinCuenta:
+    'Ese correo de Google no tiene cuenta en la academia. El acceso se obtiene comprando ' +
+    'un curso o por invitación — si ya compraste, entra con el correo que usaste al pagar.',
+  cancelado: 'Cancelaste el acceso con Google. Puedes intentarlo otra vez o entrar con tu correo.',
   google: 'No se pudo completar el acceso con Google. Intenta de nuevo o entra con tu correo.',
   enlace: 'Ese enlace ya venció o se usó. Pide uno nuevo desde "¿La olvidaste?".',
 }

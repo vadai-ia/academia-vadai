@@ -67,6 +67,7 @@ pnpm dev
 | `pnpm db:status` | Qué migraciones están aplicadas y cuáles faltan |
 | `pnpm db:migrate` | Aplica las migraciones pendientes, cada una en su transacción |
 | `pnpm db:seed` | Siembra los datos QA (idempotente) |
+| `pnpm cuenta:crear` | Da de alta una cuenta real: `-- --correo=x@y.com --rol=superadmin` |
 | `pnpm test:rls` | Matriz de policies con cinco usuarios reales |
 | `pnpm test:auth` | Matriz de acceso contra la app corriendo (requiere `pnpm start`) |
 | `pnpm test:admin` | Ejecuta las server actions del admin de verdad (requiere `pnpm start`) |
