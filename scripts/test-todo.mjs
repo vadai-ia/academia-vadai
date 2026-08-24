@@ -20,6 +20,9 @@ import path from 'node:path'
 const AQUI = path.dirname(fileURLToPath(import.meta.url))
 
 const SUITES = [
+  // Va primera: es lógica pura, no necesita la app ni la base, y si el lector
+  // de padrones está roto conviene saberlo antes de gastar cinco minutos.
+  { llave: 'importar', archivo: 'test-importar.mjs', titulo: 'Lector de padrones', milestone: 'M3' },
   { llave: 'rls', archivo: 'test-rls.mjs', titulo: 'Policies de RLS', milestone: 'M1' },
   { llave: 'auth', archivo: 'test-auth.mjs', titulo: 'Sesión y roles', milestone: 'M2' },
   { llave: 'recuperacion', archivo: 'test-recuperacion.mjs', titulo: 'Recuperación y logout', milestone: 'M2' },

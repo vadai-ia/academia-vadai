@@ -21,6 +21,7 @@
     "test:auth": "node scripts/test-auth.mjs",
     "test:admin": "node scripts/test-admin.mjs",
     "test:recuperacion": "node scripts/test-recuperacion.mjs",
+    "test:importar": "node scripts/test-importar.mjs",
     "check:bunny": "node scripts/check-bunny.mjs",
     "test:alumno": "node scripts/test-alumno.mjs",
     "test:cohortes": "node scripts/test-cohortes.mjs",
