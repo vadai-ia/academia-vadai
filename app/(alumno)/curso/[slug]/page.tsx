@@ -3,10 +3,10 @@ import Link from 'next/link'
 import { notFound } from 'next/navigation'
 
 import { AccesoVencido } from '@/components/alumno/acceso-vencido'
-import { BarraProgreso } from '@/components/alumno/barra-progreso'
 import { CertificadoDelCurso } from '@/components/alumno/certificado-del-curso'
 import { IndiceCurso } from '@/components/alumno/indice-curso'
 import { SesionesEnVivo } from '@/components/alumno/sesiones-en-vivo'
+import { Seccion, Tarjeta } from '@/components/ui-vadai/superficie'
 import { Button } from '@/components/ui/button'
 import { cursoDelAlumno } from '@/lib/alumno/consultas'
 import { sesionesDelAlumno } from '@/lib/alumno/sesiones'
@@ -30,21 +30,12 @@ export default async function PaginaCurso({ params }: { params: Promise<{ slug: 
   const perfil = await exigirPerfil()
   const { slug } = await params
 
-  // Las dos dependen solo del slug, así que van juntas. La de sesiones no
-  // necesita esperar a que llegue el curso para empezar.
-  //
-  // La policy de cohort_sessions exige pertenecer a la cohorte Y tener acceso
-  // vigente: el alumno vencido recibe una lista vacía sin que haya que filtrar.
-  const [curso, sesiones] = await Promise.all([
-    cursoDelAlumno(slug),
-    sesionesDelAlumno(slug),
-  ])
-
+  // El layout ya lo pidió y `cache()` lo memoriza: esto no cuesta otro viaje.
+  const curso = await cursoDelAlumno(slug)
   if (!curso) notFound()
 
-  // El certificado sobrevive al vencimiento: lo ganó, es suyo (§6.3 dice que
-  // el progreso no se borra, y un certificado emitido menos todavía).
-  const [folio, elegibilidad] = await Promise.all([
+  const [sesiones, folio, elegibilidad] = await Promise.all([
+    sesionesDelAlumno(slug),
     certificadoDelCurso(curso.id),
     revisarElegibilidad(perfil.user_id, curso.id),
   ])
@@ -56,48 +47,24 @@ export default async function PaginaCurso({ params }: { params: Promise<{ slug: 
 
   return (
     <div className="flex flex-col gap-8">
-      <header className="flex flex-col gap-3">
-        <Link
-          href="/mis-cursos"
-          className="text-sm text-primary underline-offset-4 hover:underline"
-        >
-          ← Mis cursos
-        </Link>
-        <h1 className="text-2xl font-semibold tracking-tight text-balance">{curso.titulo}</h1>
-        {curso.descripcion ? (
-          <p className="max-w-2xl text-pretty text-sm text-muted-foreground">
-            {curso.descripcion}
-          </p>
-        ) : null}
-      </header>
-
-      <div className="flex max-w-md flex-col gap-3">
-        <BarraProgreso
-          porcentaje={curso.porcentaje}
-          etiqueta={
-            curso.totalLecciones === 0
-              ? 'Este curso todavía no tiene lecciones'
-              : `${curso.completadas} de ${curso.totalLecciones} lecciones · ${curso.porcentaje}%`
-          }
-        />
-
-        {curso.vigente && siguiente ? (
-          <div>
-            <Button asChild>
-              <Link href={`/curso/${curso.slug}/${siguiente.id}`}>
-                {curso.completadas === 0 ? 'Empezar el curso' : 'Continuar'}
-              </Link>
-            </Button>
+      {/* "Continuar" es la única acción primaria de la pantalla y por eso va
+          sola, arriba y grande: en un curso de 8 semanas, nueve de cada diez
+          visitas son para retomar donde se quedó. */}
+      {curso.vigente && siguiente ? (
+        <Tarjeta className="flex flex-wrap items-center justify-between gap-4 p-5">
+          <div className="flex min-w-0 flex-col gap-0.5">
+            <span className="text-xs tracking-wider text-muted-foreground uppercase">
+              {curso.completadas === 0 ? 'Empieza por aquí' : 'Continúa donde te quedaste'}
+            </span>
+            <span className="truncate font-medium">{siguiente.titulo}</span>
           </div>
-        ) : null}
-
-        {curso.vigente && curso.diasRestantes !== null ? (
-          <p className="text-xs text-muted-foreground">
-            Te quedan {curso.diasRestantes} día
-            {curso.diasRestantes === 1 ? '' : 's'} de acceso.
-          </p>
-        ) : null}
-      </div>
+          <Button asChild size="lg">
+            <Link href={`/curso/${curso.slug}/${siguiente.id}`}>
+              {curso.completadas === 0 ? 'Empezar el curso' : 'Continuar'}
+            </Link>
+          </Button>
+        </Tarjeta>
+      ) : null}
 
       {!curso.vigente ? <AccesoVencido curso={curso} /> : null}
 
@@ -111,31 +78,24 @@ export default async function PaginaCurso({ params }: { params: Promise<{ slug: 
 
       <SesionesEnVivo sesiones={sesiones} />
 
-      {curso.vigente ? (
-        <Link
-          href={`/curso/${curso.slug}/comunidad`}
-          className="flex items-center justify-between rounded-lg border border-border px-4 py-4 transition-colors hover:border-primary/60"
-        >
-          <span className="flex flex-col gap-0.5">
-            <span className="font-medium">Comunidad</span>
-            <span className="text-sm text-muted-foreground">
-              Preguntas y avances de tu grupo
-            </span>
-          </span>
-          <span className="text-primary">→</span>
-        </Link>
-      ) : null}
-
-      <section className="flex flex-col gap-4">
-        <h2 className="text-lg font-semibold">Contenido</h2>
+      <Seccion
+        titulo="Contenido del curso"
+        apoyo={
+          curso.totalLecciones > 0
+            ? `${curso.modulos.length} módulo${curso.modulos.length === 1 ? '' : 's'} · ${curso.totalLecciones} lecciones`
+            : undefined
+        }
+      >
         {curso.modulos.length === 0 ? (
-          <p className="rounded-lg border border-dashed border-border px-5 py-8 text-center text-sm text-muted-foreground">
-            El contenido de este curso se está preparando.
-          </p>
+          <Tarjeta className="border-dashed px-5 py-10 text-center">
+            <p className="text-sm text-muted-foreground">
+              El contenido de este curso se está preparando.
+            </p>
+          </Tarjeta>
         ) : (
           <IndiceCurso curso={curso} />
         )}
-      </section>
+      </Seccion>
     </div>
   )
 }

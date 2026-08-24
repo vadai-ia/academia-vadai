@@ -1,5 +1,7 @@
 import 'server-only'
 
+import { cache } from 'react'
+
 import { esEquipo, obtenerSesion } from '@/lib/auth/sesion'
 import { crearClienteServidor } from '@/lib/supabase/server'
 import type { Json, Tabla, Vista } from '@/lib/supabase/types'
@@ -161,8 +163,16 @@ export async function misCursos(): Promise<CursoDelAlumno[]> {
     .sort((a, b) => Number(b.vigente) - Number(a.vigente) || a.titulo.localeCompare(b.titulo))
 }
 
-/** Curso con su índice completo, para la vista de reproducción. */
-export async function cursoDelAlumno(slug: string): Promise<CursoDelAlumno | null> {
+/**
+ * Curso con su índice completo, para la vista de reproducción.
+ *
+ * Memorizado por petición: ahora lo piden el layout —que dibuja el encabezado
+ * y las pestañas— y la página. Sin `cache()` serían dos rondas completas de
+ * consultas para pintar una sola pantalla.
+ */
+export const cursoDelAlumno = cache(async function cursoDelAlumno(
+  slug: string
+): Promise<CursoDelAlumno | null> {
   const supabase = await crearClienteServidor()
 
   const { data: curso } = await supabase
@@ -229,7 +239,7 @@ export async function cursoDelAlumno(slug: string): Promise<CursoDelAlumno | nul
     linkRecompraMxn: curso.stripe_payment_link_mxn,
     linkRecompraUsd: curso.stripe_payment_link_usd,
   }
-}
+})
 
 export type ContenidoDeLeccion = {
   id: string

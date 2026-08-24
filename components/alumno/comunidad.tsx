@@ -5,6 +5,7 @@ import { useActionState } from 'react'
 import { useFormStatus } from 'react-dom'
 
 import { RenderRico } from '@/components/alumno/render-rico'
+import { Avatar } from '@/components/ui-vadai/superficie'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -153,24 +154,31 @@ function Publicacion({
   soyEquipo: boolean
 }) {
   return (
-    <li className="flex flex-col gap-3 rounded-lg border border-border p-4">
-      <div className="flex flex-wrap items-start justify-between gap-2">
-        <div className="flex min-w-0 flex-col gap-1">
-          <span className="flex flex-wrap items-center gap-2">
-            {post.fijado ? (
-              <Badge className="bg-vadai-lima text-vadai-navy">Fijado</Badge>
-            ) : null}
-            <span className="font-medium">{post.titulo}</span>
-          </span>
-          <span className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
-            {post.autor.nombre}
-            {post.autor.esEquipo ? (
-              <Badge variant="outline" className="text-[11px]">
-                Equipo VADAI
-              </Badge>
-            ) : null}
-            · {fechaCorta(post.creadoEn)}
-          </span>
+    <li className="flex flex-col gap-3 rounded-[10px] border border-border bg-card p-4 sm:p-5">
+      {/* Estructura del feed de Skool: avatar a la izquierda, y a la derecha
+          autor · fecha arriba con el título debajo. El avatar es lo que hace
+          que un hilo de veinte mensajes se escanee — sin él todos los posts
+          arrancan igual y hay que leer para saber quién habla. */}
+      <div className="flex flex-wrap items-start justify-between gap-3">
+        <div className="flex min-w-0 flex-1 items-start gap-3">
+          <Avatar nombre={post.autor.nombre} tamano={38} />
+
+          <div className="flex min-w-0 flex-col gap-0.5">
+            <span className="flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-muted-foreground">
+              <span className="font-medium text-foreground">{post.autor.nombre}</span>
+              {post.autor.esEquipo ? (
+                <Badge variant="outline" className="text-[11px]">
+                  Equipo VADAI
+                </Badge>
+              ) : null}
+              <span>· {fechaCorta(post.creadoEn)}</span>
+              {post.fijado ? (
+                <Badge className="bg-vadai-lima text-vadai-navy text-[11px]">Fijado</Badge>
+              ) : null}
+            </span>
+
+            <h3 className="font-medium text-pretty">{post.titulo}</h3>
+          </div>
         </div>
 
         <div className="flex shrink-0 items-center">

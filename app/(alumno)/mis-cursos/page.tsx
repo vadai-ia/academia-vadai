@@ -1,6 +1,7 @@
 import type { Metadata } from 'next'
 
 import { RenderRico } from '@/components/alumno/render-rico'
+import { Seccion, Tarjeta, Titulo } from '@/components/ui-vadai/superficie'
 import { TarjetaCurso } from '@/components/alumno/tarjeta-curso'
 import { misCursos } from '@/lib/alumno/consultas'
 import { exigirPerfil, nombreVisible } from '@/lib/auth/sesion'
@@ -21,31 +22,30 @@ export default async function PaginaMisCursos() {
 
   return (
     <div className="flex flex-col gap-8">
-      <header className="flex flex-col gap-1.5">
-        <h1 className="text-2xl font-semibold tracking-tight">
-          Hola, {nombreVisible(perfil)}
-        </h1>
-        <p className="text-sm text-muted-foreground">
-          {cursos.length === 0
+      <Titulo
+        apoyo={
+          cursos.length === 0
             ? 'Aquí aparecerán tus cursos.'
             : cursos.length === 1
               ? 'Tu curso y tu avance.'
-              : `Tus ${cursos.length} cursos y tu avance.`}
-        </p>
-      </header>
+              : `Tus ${cursos.length} cursos y tu avance.`
+        }
+      >
+        Hola, {nombreVisible(perfil)}
+      </Titulo>
 
       {anuncio ? (
-        <section className="flex flex-col gap-2 rounded-lg border border-primary/40 bg-primary/5 p-5">
-          <span className="text-xs font-semibold tracking-[0.15em] text-primary uppercase">
+        <Tarjeta className="flex flex-col gap-2 border-primary/40 bg-primary/5 p-5">
+          <span className="text-xs font-medium tracking-[0.15em] text-primary uppercase">
             Anuncio
           </span>
           <h2 className="font-medium text-balance">{anuncio.titulo}</h2>
           {anuncio.contenido ? <RenderRico contenido={anuncio.contenido} /> : null}
-        </section>
+        </Tarjeta>
       ) : null}
 
       {cursos.length === 0 ? (
-        <div className="rounded-lg border border-dashed border-border px-5 py-12 text-center">
+        <Tarjeta className="border-dashed px-5 py-12 text-center">
           <p className="text-sm text-muted-foreground">
             Todavía no tienes ningún curso asignado.
           </p>
@@ -55,15 +55,17 @@ export default async function PaginaMisCursos() {
           >
             Si compraste uno, escríbenos
           </a>
-        </div>
+        </Tarjeta>
       ) : (
-        <ul className="grid gap-4 sm:grid-cols-2">
-          {cursos.map((curso) => (
-            <li key={curso.id}>
-              <TarjetaCurso curso={curso} />
-            </li>
-          ))}
-        </ul>
+        <Seccion titulo={cursos.length === 1 ? 'Tu curso' : 'Tus cursos'}>
+          <ul className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
+            {cursos.map((curso) => (
+              <li key={curso.id} className="flex">
+                <TarjetaCurso curso={curso} />
+              </li>
+            ))}
+          </ul>
+        </Seccion>
       )}
     </div>
   )

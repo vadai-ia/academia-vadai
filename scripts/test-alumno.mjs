@@ -224,8 +224,12 @@ async function main() {
 
   const despues = porcentajeEn(await texto(rutaCurso, vigente))
   afirmar(G2, 'tras completar una de cuatro', 25, despues)
+  // Se afirma sobre el `aria-label`, no sobre el icono. Antes buscaba el glifo
+    // "✓" y se rompió al cambiarlo por un SVG — pero lo que la prueba quiere
+    // saber no es qué dibujo hay, es si la lección está anunciada como hecha.
+    // De paso comprueba que un lector de pantalla también lo sabe.
   afirmar(G2, 'el índice la marca hecha', true,
-    (await texto(rutaCurso, vigente)).includes('✓'))
+    (await texto(rutaCurso, vigente)).includes('aria-label="Completada"'))
   afirmar(G2, 'mis-cursos también avanzó', 25, porcentajeEn(await texto('/mis-cursos', vigente)))
 
   await fijarProgreso(tokenVigente, idVigente, IDS.leccionTexto, true)
@@ -240,7 +244,8 @@ async function main() {
   const cursoVencido = await texto(rutaCurso, vencido)
   afirmar(G3, 've el temario completo', true,
     cursoVencido.includes('Fundamentos') && cursoVencido.includes('Video de bienvenida'))
-  afirmar(G3, 'las lecciones salen con candado', true, cursoVencido.includes('🔒'))
+  afirmar(G3, 'las lecciones salen con candado', true,
+    cursoVencido.includes('aria-label="Bloqueada"'))
   afirmar(G3, 'aparece el CTA de recompra', true, cursoVencido.includes('venció'))
   afirmar(G3, 'conserva su avance', true, cursoVencido.includes('de 4 lecciones'))
   afirmar(G3, 'no ofrece continuar', false, cursoVencido.includes('Empezar el curso'))

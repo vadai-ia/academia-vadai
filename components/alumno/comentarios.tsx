@@ -3,6 +3,7 @@
 import { useActionState } from 'react'
 import { useFormStatus } from 'react-dom'
 
+import { Avatar } from '@/components/ui-vadai/superficie'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Textarea } from '@/components/ui/textarea'
@@ -116,18 +117,21 @@ function Fila({
 }) {
   return (
     <li className="flex flex-col gap-2">
-      <div className="flex flex-col gap-1.5 rounded-lg border border-border px-4 py-3">
-        <div className="flex flex-wrap items-baseline gap-2">
-          <span className="text-sm font-medium">{comentario.autor.nombre}</span>
-          {comentario.autor.esEquipo ? (
-            <Badge className="bg-vadai-lima text-vadai-navy">Equipo VADAI</Badge>
-          ) : null}
-          <span className="text-xs text-muted-foreground">
-            {fechaCorta(comentario.creadoEn)}
-          </span>
-        </div>
+      <div className="flex gap-3 rounded-[10px] border border-border bg-card px-4 py-3">
+        <Avatar nombre={comentario.autor.nombre} tamano={32} />
 
-        <p className="text-sm break-words whitespace-pre-wrap">{comentario.contenido}</p>
+        <div className="flex min-w-0 flex-1 flex-col gap-1.5">
+          <div className="flex flex-wrap items-baseline gap-x-2 gap-y-1">
+            <span className="text-sm font-medium">{comentario.autor.nombre}</span>
+            {comentario.autor.esEquipo ? (
+              <Badge className="bg-vadai-lima text-vadai-navy text-[11px]">Equipo VADAI</Badge>
+            ) : null}
+            <span className="text-xs text-muted-foreground">
+              {fechaCorta(comentario.creadoEn)}
+            </span>
+          </div>
+
+          <p className="text-sm break-words whitespace-pre-wrap">{comentario.contenido}</p>
 
         <div className="flex flex-wrap items-center gap-1">
           {comentario.editable ? (
@@ -164,7 +168,8 @@ function Fila({
                 Ocultar
               </Button>
             </form>
-          ) : null}
+            ) : null}
+          </div>
         </div>
       </div>
 

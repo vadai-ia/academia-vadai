@@ -1,5 +1,4 @@
 import type { Metadata } from 'next'
-import Link from 'next/link'
 import { notFound, redirect } from 'next/navigation'
 
 import { Comunidad } from '@/components/alumno/comunidad'
@@ -38,18 +37,12 @@ export default async function PaginaComunidad({
 
   return (
     <div className="flex flex-col gap-6">
-      <header className="flex flex-col gap-2">
-        <Link
-          href={`/curso/${slug}`}
-          className="text-sm text-primary underline-offset-4 hover:underline"
-        >
-          ← {curso.titulo}
-        </Link>
-        <h1 className="text-2xl font-semibold tracking-tight">Comunidad</h1>
-        <p className="text-sm text-muted-foreground">
-          Preguntas, avances y lo que quieras compartir con tu grupo.
-        </p>
-      </header>
+      {/* Sin encabezado propio ni migaja de regreso: el layout del curso ya pone
+          el título, el progreso y las pestañas, y la pestaña activa dice dónde
+          estás. Repetirlo aquí era ruido y empujaba el contenido hacia abajo. */}
+      <p className="text-sm text-muted-foreground">
+        Preguntas, avances y lo que quieras compartir con tu grupo.
+      </p>
 
       <Comunidad
         posts={posts}

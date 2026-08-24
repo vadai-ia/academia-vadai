@@ -144,7 +144,7 @@ export default async function PaginaLeccion({
       </div>
 
       <aside className="w-full shrink-0 border-t border-border pt-6 lg:w-72 lg:border-t-0 lg:pt-0">
-        <IndiceCurso curso={curso} leccionActiva={leccion.id} />
+        <IndiceCurso curso={curso} leccionActiva={leccion.id} compacto />
       </aside>
     </div>
   )

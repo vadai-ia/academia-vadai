@@ -177,6 +177,29 @@ Paleta base: fondo `#0A1A2F`, primario `#00A0DB`, azul profundo `#006E96`, acent
 lima `#C6F24E` (CTAs), texto `#F5F8FB`, secundario `#93A3B5`. Inter/sans sistema.
 Mobile-first en vistas de alumno. Estética Skool-limpia, no LMS corporativo.
 
+**Qué significa "Skool-limpia", medido de su CSS el 24-ago-2026** (no de memoria):
+
+| | Skool | Nosotros |
+|---|---|---|
+| Radio | `10px` en 33 de 51 declaraciones | `--radius: 10px` |
+| Borde | hairline 1px muy claro | `--border`, 1px |
+| Sombra | casi ninguna, y solo al levantar | igual |
+| Peso de letra | **500 en 40 de 41 declaraciones** | `font-medium`, casi cero negritas |
+| Escala | **18px dominante**, no 14 | base 16, títulos 1.75rem |
+| Color | blanco cálido + ámbar | navy + cyan de §9 |
+
+Se copia la **geometría y la densidad**, no la paleta: Skool es blanco cálido con
+ámbar y la marca es navy con cyan. Lo que hace que se vea limpio y no corporativo
+es que la jerarquía la carga el **espacio y el tamaño**, no el color ni las
+negritas — por eso casi todo va en peso 500 y las tarjetas se separan con un
+borde de 1px en vez de flotar con sombra.
+
+Estructura copiada de Skool: **pestañas por sección dentro del curso**
+(`components/ui-vadai/pestanas.tsx`), rejilla de cursos con portada 16:9 y barra
+de avance, y feed con avatar a la izquierda. Los primitivos viven en
+`components/ui-vadai/superficie.tsx`; una pantalla nueva se arma con esos, no con
+clases sueltas.
+
 - **Los colores van por token semántico, nunca a mano.** `text-primary`, no
   `text-vadai-cyan`: el cyan da 6.4:1 sobre navy pero 2.6:1 sobre el fondo claro,
   así que reprueba AA en cuanto alguien cambia de tema. Cada token se define una
