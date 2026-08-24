@@ -300,6 +300,12 @@ async function main() {
     afirmar(S, `${etiqueta}: cero filas`, 0, await contar(t.sinPerfil, consulta))
   }
 
+  /** Cuántas filas hay de verdad. Ver la nota del grupo ADMIN. */
+  const cuantas = async (tabla) => {
+    const { rows } = await bd.query(`select count(*)::int n from academia.${tabla}`)
+    return rows[0].n
+  }
+
   // ======================================================================
   // ADMIN
   // ======================================================================
@@ -315,11 +321,6 @@ async function main() {
   // pidiendo mantenimiento. Lo que importa es la PROPIEDAD: que el admin vea
   // todas las filas que existen. Así sigue cazando una policy que filtre de más
   // cuando haya 40 alumnos, y no molesta cuando entra el 41.
-  const cuantas = async (tabla) => {
-    const { rows } = await bd.query(`select count(*)::int n from academia.${tabla}`)
-    return rows[0].n
-  }
-
   afirmar(AD, 've todos los cursos', await cuantas('courses'), await contar(t.admin, 'courses?select=id'))
   afirmar(
     AD,
@@ -354,7 +355,12 @@ async function main() {
   // ======================================================================
   const SA = 'SUPERADMIN  (qa-superadmin)'
 
-  afirmar(SA, 've los dos cursos', 2, await contar(t.superadmin, 'courses?select=id'))
+  afirmar(
+    SA,
+    've todos los cursos',
+    await cuantas('courses'),
+    await contar(t.superadmin, 'courses?select=id')
+  )
   const borraSuper = await escribir('DELETE', t.superadmin, `payments?id=eq.${IDS.pago}`)
   afirmar(SA, 'SÍ puede borrar pagos', 1, borraSuper.afectadas)
 

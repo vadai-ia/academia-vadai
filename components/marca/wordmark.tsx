@@ -55,16 +55,15 @@ export function Wordmark({
 
 /**
  * Sello circular, para donde el wordmark horizontal no cabe.
- * Mismo tratamiento: placa blanca porque el arte también es negro.
+ *
+ * Este NO lleva `placa-logo`: a diferencia del wordmark, el archivo ya trae su
+ * disco blanco horneado, porque el mismo PNG se usa de favicon y ahí no hay CSS
+ * que valga. Poner la placa encima sería un blanco sobre otro blanco.
  */
 export function Sello({ className, tamano = 64 }: { className?: string; tamano?: number }) {
   return (
     <span
-      className={cn(
-        'placa-logo inline-flex shrink-0 items-center justify-center rounded-full',
-        className
-      )}
-      style={{ padding: Math.round(tamano * 0.08) }}
+      className={cn('inline-flex shrink-0 items-center justify-center', className)}
     >
       <Image
         src="/vadai-sello.png"

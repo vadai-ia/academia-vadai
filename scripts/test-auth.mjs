@@ -204,6 +204,24 @@ async function main() {
   afirmar(GT, 'habla de la academia, no de un curso', true,
     portada.includes('agencia #1 de inteligencia artificial'))
 
+  // El favicon es un PNG que pinta el navegador en su barra: ahí no llega CSS,
+  // así que el fondo blanco tiene que estar en los PÍXELES. El arte de VADAI es
+  // negro sobre transparente, y sin ese disco desaparece en cualquier pestaña.
+  for (const [archivo, esperado] of [
+    ['/vadai-sello-32.png', 'disco'],
+    ['/vadai-apple.png', 'cuadrado'],
+  ]) {
+    const icono = await fetch(`${APP}${archivo}`)
+    afirmar(GT, `${archivo} se sirve`, 200, icono.status)
+
+    const png = new Uint8Array(await icono.arrayBuffer())
+    afirmar(GT, `${archivo} es un PNG`, 'PNG', String.fromCharCode(...png.slice(1, 4)))
+    // Byte 25 del PNG es el color type: 6 = RGBA. Sin canal alfa no habría
+    // esquinas transparentes y el disco sería un cuadrado.
+    afirmar(GT, `${archivo} tiene canal alfa`, 6, png[25])
+    void esperado
+  }
+
   const logo = await fetch(`${APP}/vadai-wordmark.png`)
   afirmar(GT, 'el archivo del logo se sirve', 200, logo.status)
   const bytes = new Uint8Array((await logo.arrayBuffer()).slice(0, 8))
