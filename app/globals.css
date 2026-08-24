@@ -370,6 +370,29 @@
     cursor: not-allowed;
     }
 
+  /* Blancos táctiles.
+
+     El preset de shadcn es compacto: los botones miden entre 24 y 36 px de
+     alto. Con ratón está bien y se ve denso, pero el mínimo táctil son 44 px
+     (Apple HIG) / 48 dp (Material), y §9 pide mobile-first para el alumno —
+     que entra desde el celular.
+
+     `pointer: coarse` es la clave: solo crece en dispositivos donde se toca
+     con el dedo. En escritorio la densidad no cambia. Y se aplica a
+     `[data-slot='button']`, que es lo que marca nuestro componente <Button>,
+     y no a cualquier <button>: hay botones de texto dentro de un renglón —el
+     "ocultar" de la comunidad— a los que un min-height les rompería la línea. */
+  @media (pointer: coarse) {
+    [data-slot='button'],
+    [data-slot='select-trigger'],
+    summary,
+    input:not([type='checkbox']):not([type='radio']):not([type='hidden']),
+    textarea,
+    select {
+      min-height: 44px;
+      }
+  }
+
   /* Cruce suave al cambiar de tema.
 
      La transición NO vive permanentemente en `*`: eso pelearía con el hover de

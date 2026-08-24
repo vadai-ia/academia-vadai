@@ -106,6 +106,12 @@ En su lugar: `pnpm db:migrate` → `scripts/migrate.mjs`, que aplica los `.sql` 
   directa (`action={accion}`) y el reset de los campos se hace con `key`, con un valor del servidor
 - NO esconder un formulario detrás de `useState` + `onClick`: sin JS el botón no hace nada.
   Lo que se abre y se cierra va en `<details>`/`<summary>`
+- NO poner un `loading.tsx` en una ruta que controle acceso con `redirect()` o `notFound()`.
+  El límite de Suspense hace que Next transmita de inmediato, y a partir de ahí la respuesta
+  sale **200** con el esqueleto: sin JS el rebote nunca ocurre y el alumno vencido se queda
+  varado. Mover la guarda al `layout.tsx` no lo arregla. Ver `components/marca/esqueleto.tsx`
+- NO usar un color de marca a mano para texto (`text-vadai-cyan`). Va por token semántico
+  (`text-primary`): el cyan da 6.4:1 sobre navy pero 2.6:1 en tema claro, y reprueba AA
 
 ## PATTERNS — CÓMO LO HACEMOS
 

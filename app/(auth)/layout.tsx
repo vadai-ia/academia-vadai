@@ -1,6 +1,7 @@
 import type { ReactNode } from 'react'
 
 import { CambiarTema } from '@/components/marca/cambiar-tema'
+import { SaltarAlContenido } from '@/components/marca/saltar-al-contenido'
 import { EtiquetaAcademia, Wordmark } from '@/components/marca/wordmark'
 
 /**
@@ -33,6 +34,9 @@ const INCLUYE = [
 export default function LayoutAuth({ children }: { children: ReactNode }) {
   return (
     <div className="relative min-h-dvh lg:grid lg:grid-cols-[1.05fr_1fr]">
+      {/* En móvil el relato va antes que el formulario, así que quien navega
+          con teclado agradece saltárselo para ir directo a entrar. */}
+      <SaltarAlContenido destino="#acceso" />
       {/* Fijo y por encima de todo: se alcanza sin importar en qué mitad estés. */}
       <div className="absolute top-4 right-4 z-20 sm:top-5 sm:right-5">
         <CambiarTema />
@@ -96,7 +100,9 @@ export default function LayoutAuth({ children }: { children: ReactNode }) {
 
       {/* --- Acceso ------------------------------------------------------- */}
       <section className="flex flex-col justify-center px-6 py-12 sm:px-10 lg:px-14">
-        <main className="mx-auto flex w-full max-w-sm flex-col gap-6">{children}</main>
+        <main id="acceso" className="mx-auto flex w-full max-w-sm flex-col gap-6">
+          {children}
+        </main>
 
         <p className="mx-auto mt-10 max-w-sm text-center text-xs leading-relaxed text-muted-foreground">
           Plataforma privada de VADAI. El acceso se obtiene comprando un curso o por invitación.
