@@ -41,7 +41,9 @@ export default async function PaginaAlumnos({
   const huerfanos = pagos.filter((p) => !p.tieneCuenta && p.estado === 'paid')
 
   const conAcceso = alumnos.filter((a) => a.inscripciones.some((i) => i.vigente)).length
-  const equipo = alumnos.filter((a) => a.rol !== 'alumno').length
+  // Por rol explícito y no por descarte: con `!== 'alumno'` bastaba con que
+  // apareciera un rol nuevo —como `invitado`— para que se contara como equipo.
+  const equipo = alumnos.filter((a) => a.rol === 'admin' || a.rol === 'superadmin').length
 
   return (
     <div className="flex flex-col gap-8">

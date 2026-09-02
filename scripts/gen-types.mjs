@@ -135,8 +135,16 @@ async function main() {
         .map((c) => {
           const tipo = tipoDeColumna(tabla, c)
           const nulo = c.is_nullable === 'YES' ? ' | null' : ''
-          // Opcional si tiene default o admite null: la base la puede llenar.
-          const opcional = c.tiene_default || c.is_nullable === 'YES' ? '?' : ''
+          // Opcional si la base la puede llenar sola: tiene default, admite
+          // null, es una columna de identidad (`generated as identity`, que no
+          // reporta column_default) o es calculada (`generated always as`, que
+          // ni siquiera se puede escribir).
+          const laLlenaLaBase =
+            c.tiene_default ||
+            c.is_nullable === 'YES' ||
+            c.is_identity === 'YES' ||
+            c.is_generated === 'ALWAYS'
+          const opcional = laLlenaLaBase ? '?' : ''
           return `          ${clave(c.column_name)}${opcional}: ${tipo}${nulo}`
         })
         .join('\n')

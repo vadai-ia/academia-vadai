@@ -12,6 +12,7 @@ export const RUTAS = {
   nuevaContrasena: '/nueva-contrasena',
   sinAcceso: '/sin-acceso',
   misCursos: '/mis-cursos',
+  misEncuestas: '/mis-encuestas',
   admin: '/admin',
 } as const
 
@@ -23,8 +24,27 @@ const PUBLICAS = [
   RUTAS.nuevaContrasena,
 ]
 
-/** Prefijos públicos: callbacks de auth y verificación de certificados (§3.6). */
-const PREFIJOS_PUBLICOS = ['/auth/', '/certificado/', '/api/stripe/']
+/**
+ * Prefijos públicos: callbacks de auth, verificación de certificados (§3.6) y
+ * las tres superficies de las encuestas en vivo (M12).
+ *
+ * Las de encuestas NO se protegen con sesión, y es a propósito: quien escanea un
+ * QR en una sala puede no tener cuenta, y pedirle una sería el final de la
+ * dinámica. Se protegen con una llave pública no adivinable verificada en el
+ * servidor —el `join_code` para contestar, el `projection_token` para
+ * proyectar—, que es el mismo criterio que `/certificado/[folio]`.
+ *
+ * Si alguien las quita de aquí "por seguridad", la feature entera deja de
+ * funcionar: el middleware corre en TODAS las rutas.
+ */
+const PREFIJOS_PUBLICOS = [
+  '/auth/',
+  '/certificado/',
+  '/api/stripe/',
+  '/e/',
+  '/proyectar/',
+  '/api/encuestas/',
+]
 
 export function esPublica(ruta: string): boolean {
   if (PUBLICAS.includes(ruta as (typeof PUBLICAS)[number])) return true
@@ -40,7 +60,16 @@ export function esDeAdmin(ruta: string): boolean {
   return ruta === RUTAS.admin || ruta.startsWith(`${RUTAS.admin}/`)
 }
 
-/** A dónde mandar a alguien recién autenticado, según su rol. */
+/**
+ * A dónde mandar a alguien recién autenticado, según su rol.
+ *
+ * `invitado` no va a /mis-cursos. Nació contestando una encuesta en un evento y
+ * no ha comprado nada: ahí solo vería un estado vacío que le pide escribirnos
+ * porque "no aparece su curso", y nunca compró ninguno. Su lugar es la lista de
+ * las dinámicas en las que participó.
+ */
 export function rutaDeInicio(role: string | null | undefined): string {
-  return role === 'admin' || role === 'superadmin' ? RUTAS.admin : RUTAS.misCursos
+  if (role === 'admin' || role === 'superadmin') return RUTAS.admin
+  if (role === 'invitado') return RUTAS.misEncuestas
+  return RUTAS.misCursos
 }

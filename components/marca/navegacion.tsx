@@ -119,3 +119,13 @@ export const IconoPanel = marco(
     <rect x="3" y="16" width="7" height="5" rx="1" />
   </>
 )
+
+/** Barras de una gráfica en vivo: es lo que la sala ve crecer en la proyección. */
+export const IconoEncuestas = marco(
+  <>
+    <path d="M3 3v18h18" />
+    <rect x="7" y="12" width="3" height="6" rx="0.5" />
+    <rect x="12" y="8" width="3" height="10" rx="0.5" />
+    <rect x="17" y="5" width="3" height="13" rx="0.5" />
+  </>
+)

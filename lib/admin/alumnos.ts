@@ -56,6 +56,14 @@ export async function listarAlumnos(busqueda?: string): Promise<AlumnoEnLista[]>
       .select(
         'user_id, email, full_name, role, status, created_at, enrollments(course_id, expires_at, status, courses(title), cohorts(name))'
       )
+      // Los `invitado` NO son alumnos: son gente que contestó una encuesta en un
+      // evento y dejó su correo. Mezclarlos aquí llenaría el padrón de leads y
+      // haría inútil el buscador el día de un evento con cien asistentes. Viven
+      // en su encuesta, y salen en su exportación.
+      //
+      // En cuanto uno compra o se le da de alta en un curso deja de ser
+      // invitado y aparece aquí solo: lo asciende `darDeAlta()`.
+      .neq('role', 'invitado')
       .order('created_at', { ascending: false }),
     supabase.from('lesson_progress').select('user_id, lesson_id, completed'),
     supabase.from('lesson_outline').select('id, course_id'),

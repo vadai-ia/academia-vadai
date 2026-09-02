@@ -468,12 +468,26 @@ Hoy: 19-ago. 4.5 semanas efectivas. Cada milestone cierra con validación manual
 
 ---
 
+### Decisión de M12 (2-sep-2026)
+
+| Decisión | Por qué |
+|----------|---------|
+| La gamificación **en vivo** entra; la **de perfil** sigue fuera | §12 excluyó "gamificación tipo Skool (puntos, niveles, leaderboard)" y esa parte se mantiene: son mecánicas de retención para una comunidad grande y en un grupo de 40 solo agregan ruido. M12 agrega otra cosa: una dinámica en vivo con QR donde el juego es la anticipación de ver aparecer las respuestas de la sala en la pantalla, y que termina cuando termina la sesión. No deja marcador, no compara personas y no persiste nada que se pueda "subir de nivel". La prueba de que son distintas: quitarle los puntos a Skool no cambia nada de esto |
+| Encuestas en vivo: se instala `qrcode-generator` | Es la excepción que CLAUDE.md pide justificar. Leer un `.xlsx` a mano (`lib/admin/padron.ts`) era recorrer un ZIP y sacar dos columnas: código aburrido y verificable de un vistazo. Un QR lleva Reed–Solomon sobre GF(256), ocho máscaras con penalizaciones y bits de formato con BCH; un error sutil no lanza excepción, produce un código que **no escanea** frente a la sala y en vivo |
+| Tiempo real por sondeo, no por Supabase Realtime | `postgres_changes` exige `alter publication supabase_realtime`, un objeto **global** de la base, y los canales privados viven en el schema `realtime`. Las dos cosas caen del lado prohibido de la Regla Cero. Se sondea un route handler: la proyección cada segundo con los agregados, el celular cada tres y **solo** para saber qué pregunta está abierta. Además funciona detrás del wifi de un hotel, que es donde esto se va a usar |
+| Dos contadores de versión, no uno | `state_version` se mueve cuando el admin abre o cierra una pregunta; las respuestas **no** lo tocan. Con un solo contador, cada persona que contesta obligaría a las demás a volver a pedir: cien asistentes convertirían cada respuesta en cien peticiones |
+| Exportaciones armadas al vuelo, sin bucket | El certificado se guarda porque es inmutable: una vez emitido, dice lo mismo para siempre. Un reporte de encuesta cambia cada vez que alguien contesta, así que guardarlo solo serviría para repartir una versión vieja. Se genera en la petición y se manda en la respuesta |
+| El `.xlsx` se escribe a mano, sin `sharedStrings` y sin fórmulas | Espejo del lector de `padron.ts`. Lo de las fórmulas no es una simplificación sino una defensa: el texto va dentro de `<is><t>`, que Excel trata como literal, así que un `=...` escrito por alguien que escaneó el QR no se evalúa al abrir el archivo. En un CSV sí se evaluaría |
+| Las gráficas del PDF se redibujan en vector, no se capturan | No hay navegador sin cabeza en el stack. `@react-pdf/renderer` trae primitivas SVG, y el acomodo sale de los mismos módulos puros que usa la proyección (`acomodarNube`, `matrizQr`): así el reporte muestra el mismo dibujo que vio la sala. Si el PDF calculara por su cuenta, habría dos versiones del mismo evento |
+| Rol nuevo `invitado` en `profiles` | Quien se registra desde el QR obtiene cuenta real para volver a la siguiente encuesta, pero no compró nada. Con `alumno` acabaría en /mis-cursos viendo un vacío que no le explica nada, y ensuciaría el padrón |
+
 ## 12. FUERA DE ALCANCE (EXPLÍCITO)
 
 - Membresía/suscripciones activas (solo schema preparado)
 - Emisión de CFDI desde la plataforma
 - App móvil nativa (web responsive solamente)
-- Gamificación tipo Skool (puntos, niveles, leaderboard)
+- Gamificación **de perfil** tipo Skool (puntos acumulados, niveles, leaderboard permanente)
+  — *matizado el 2-sep-2026: la dinámica en vivo de M12 sí entra. Ver el registro de decisiones.*
 - Afiliados, cupones avanzados, upsells
 - Multi-idioma (solo español)
 - Notificaciones por email más allá de invite/reset de Supabase Auth

@@ -24,7 +24,11 @@ export type ResultadoAlta = {
   motivo?: string
 }
 
-export type RolDeAlta = 'alumno' | 'admin' | 'superadmin'
+/**
+ * `invitado` nace en una encuesta en vivo: tiene cuenta para volver a la
+ * siguiente, pero no compró nada y no ve cursos.
+ */
+export type RolDeAlta = 'alumno' | 'admin' | 'superadmin' | 'invitado'
 
 type Opciones = {
   email: string
@@ -50,6 +54,10 @@ function registrar(operacion: string, detalle: Record<string, unknown>) {
   console.log(JSON.stringify({ operacion, ...detalle }))
 }
 
+/** Tope de páginas del barrido de auth.users. 50 × 200 = 10 000 cuentas. */
+const PAGINAS_MAXIMAS = 50
+const POR_PAGINA = 200
+
 /**
  * Busca el usuario por correo en auth.users.
  *
@@ -57,19 +65,63 @@ function registrar(operacion: string, detalle: Record<string, unknown>) {
  * que se compara a mano y sin distinguir mayúsculas: "Alejandro@" y
  * "alejandro@" son la misma persona, y crear dos cuentas por eso sería un
  * ticket de soporte garantizado el día del lanzamiento.
+ *
+ * CORREGIDO 2-sep-2026. Esto pedía UNA página de 200 y se rendía. Mientras la
+ * academia tuvo menos de 200 cuentas funcionó por casualidad; con las encuestas
+ * en vivo entran decenas de participantes por evento, y en cuanto se pasara de
+ * 200 un correo que SÍ existe habría dejado de encontrarse. El síntoma no sería
+ * un error: sería `createUser` fallando por correo duplicado, o peor, una
+ * segunda cuenta para la misma persona.
+ *
+ * Dos caminos, y el primero resuelve casi siempre:
+ *
+ *   1. `academia.profiles` tiene el correo con `unique`. Quien ya pertenece a la
+ *      academia se encuentra en un solo viaje, sin importar cuántas cuentas
+ *      haya. Los correos se guardan siempre en minúsculas (ver el upsert de
+ *      abajo), así que la igualdad exacta basta y usa el índice.
+ *
+ *   2. Si no está ahí, puede existir en `auth.users` sin perfil —alguien que
+ *      entró con Google y fue rechazado, por ejemplo—. Ese caso sí obliga a
+ *      barrer, pero es el raro y ahora sí recorre todas las páginas.
  */
 async function buscarUsuario(email: string): Promise<{ id: string; email: string } | null> {
   const supabase = crearClienteServiceRole()
   const objetivo = email.trim().toLowerCase()
 
-  const { data, error } = await supabase.auth.admin.listUsers({ page: 1, perPage: 200 })
-  if (error) {
-    registrar('buscarUsuario:error', { email: objetivo, error: error.message })
-    return null
+  const { data: perfil } = await supabase
+    .from('profiles')
+    .select('user_id, email')
+    .eq('email', objetivo)
+    .maybeSingle()
+
+  if (perfil) return { id: perfil.user_id, email: perfil.email }
+
+  for (let pagina = 1; pagina <= PAGINAS_MAXIMAS; pagina += 1) {
+    const { data, error } = await supabase.auth.admin.listUsers({
+      page: pagina,
+      perPage: POR_PAGINA,
+    })
+
+    if (error) {
+      registrar('buscarUsuario:error', { email: objetivo, pagina, error: error.message })
+      return null
+    }
+
+    const encontrado = data.users.find((u) => u.email?.toLowerCase() === objetivo)
+    if (encontrado?.email) return { id: encontrado.id, email: encontrado.email }
+
+    // Página incompleta: era la última y no estaba.
+    if (data.users.length < POR_PAGINA) return null
   }
 
-  const encontrado = data.users.find((u) => u.email?.toLowerCase() === objetivo)
-  return encontrado?.email ? { id: encontrado.id, email: encontrado.email } : null
+  // Se agotó el tope sin encontrarlo. Devolver null haría que se intentara crear
+  // la cuenta y el correo duplicado fallaría con un mensaje incomprensible; es
+  // mejor decir aquí que el barrido se quedó corto.
+  registrar('buscarUsuario:barridoIncompleto', {
+    email: objetivo,
+    aviso: `se revisaron ${PAGINAS_MAXIMAS * POR_PAGINA} cuentas sin encontrarlo`,
+  })
+  return null
 }
 
 /**
@@ -150,12 +202,22 @@ export async function darDeAlta(opciones: Opciones): Promise<ResultadoAlta> {
     .eq('user_id', usuario.id)
     .maybeSingle()
 
+  // Un `invitado` que ahora SÍ entra a un curso deja de ser un lead.
+  //
+  // Sin esto, quien conoció VADAI contestando una encuesta en un evento y
+  // después compra se queda con rol `invitado`: tendría su inscripción, pero
+  // `rutaDeInicio()` seguiría mandándolo a /mis-encuestas en vez de a su curso.
+  // El ascenso es de una sola dirección y solo cuando hay curso de por medio:
+  // jamás toca a un admin ni degrada a nadie.
+  const rolPrevio = previo?.role ?? 'alumno'
+  const asciendeDeInvitado = curso !== null && rolPrevio === 'invitado'
+
   const { error: errorPerfil } = await supabase.from('profiles').upsert(
     {
       user_id: usuario.id,
       email,
       full_name: opciones.nombre?.trim() || previo?.full_name || '',
-      role: opciones.rol ?? previo?.role ?? 'alumno',
+      role: opciones.rol ?? (asciendeDeInvitado ? 'alumno' : rolPrevio),
     },
     { onConflict: 'user_id', ignoreDuplicates: false }
   )

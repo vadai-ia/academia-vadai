@@ -517,6 +517,39 @@ export type Database = {
         }
         Relationships: []
       }
+      participants: {
+        Row: {
+          id: string
+          user_id: string | null
+          first_name: string
+          last_name: string
+          email: string
+          phone: string | null
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          user_id?: string | null
+          first_name?: string
+          last_name?: string
+          email: string
+          phone?: string | null
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          user_id?: string | null
+          first_name?: string
+          last_name?: string
+          email?: string
+          phone?: string | null
+          created_at?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       payments: {
         Row: {
           id: string
@@ -554,6 +587,198 @@ export type Database = {
           amount?: number
           currency?: 'mxn' | 'usd'
           status?: 'paid' | 'refunded'
+          created_at?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      poll_answers: {
+        Row: {
+          id: string
+          question_id: string
+          poll_participant_id: string
+          ordinal: number
+          text_value: string | null
+          option_id: string | null
+          numeric_value: number | null
+          text_norm: string | null
+          hidden: boolean
+          created_at: string
+        }
+        Insert: {
+          id?: string
+          question_id: string
+          poll_participant_id: string
+          ordinal?: number
+          text_value?: string | null
+          option_id?: string | null
+          numeric_value?: number | null
+          text_norm?: string | null
+          hidden?: boolean
+          created_at?: string
+        }
+        Update: {
+          id?: string
+          question_id?: string
+          poll_participant_id?: string
+          ordinal?: number
+          text_value?: string | null
+          option_id?: string | null
+          numeric_value?: number | null
+          text_norm?: string | null
+          hidden?: boolean
+          created_at?: string
+        }
+        Relationships: []
+      }
+      poll_join_attempts: {
+        Row: {
+          id: number
+          poll_id: string
+          ip_hash: string
+          kind: 'join' | 'account' | 'answer'
+          created_at: string
+        }
+        Insert: {
+          id?: number
+          poll_id: string
+          ip_hash: string
+          kind: 'join' | 'account' | 'answer'
+          created_at?: string
+        }
+        Update: {
+          id?: number
+          poll_id?: string
+          ip_hash?: string
+          kind?: 'join' | 'account' | 'answer'
+          created_at?: string
+        }
+        Relationships: []
+      }
+      poll_participants: {
+        Row: {
+          id: string
+          poll_id: string
+          participant_id: string
+          session_token: string
+          display_name: string
+          joined_at: string
+        }
+        Insert: {
+          id?: string
+          poll_id: string
+          participant_id: string
+          session_token: string
+          display_name?: string
+          joined_at?: string
+        }
+        Update: {
+          id?: string
+          poll_id?: string
+          participant_id?: string
+          session_token?: string
+          display_name?: string
+          joined_at?: string
+        }
+        Relationships: []
+      }
+      poll_questions: {
+        Row: {
+          id: string
+          poll_id: string
+          position: number
+          prompt: string
+          question_type: 'nube' | 'opcion' | 'escala' | 'muro'
+          options: Json
+          settings: Json
+          status: 'pending' | 'open' | 'closed'
+          opened_at: string | null
+          closed_at: string | null
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          poll_id: string
+          position?: number
+          prompt: string
+          question_type: 'nube' | 'opcion' | 'escala' | 'muro'
+          options?: Json
+          settings?: Json
+          status?: 'pending' | 'open' | 'closed'
+          opened_at?: string | null
+          closed_at?: string | null
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          poll_id?: string
+          position?: number
+          prompt?: string
+          question_type?: 'nube' | 'opcion' | 'escala' | 'muro'
+          options?: Json
+          settings?: Json
+          status?: 'pending' | 'open' | 'closed'
+          opened_at?: string | null
+          closed_at?: string | null
+          created_at?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      polls: {
+        Row: {
+          id: string
+          course_id: string
+          cohort_id: string | null
+          title: string
+          description: string | null
+          join_code: string
+          projection_token: string
+          status: 'draft' | 'live' | 'closed'
+          allow_guests: boolean
+          show_names: boolean
+          state_version: number
+          created_by: string | null
+          opened_at: string | null
+          closed_at: string | null
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          course_id: string
+          cohort_id?: string | null
+          title: string
+          description?: string | null
+          join_code: string
+          projection_token: string
+          status?: 'draft' | 'live' | 'closed'
+          allow_guests?: boolean
+          show_names?: boolean
+          state_version?: number
+          created_by?: string | null
+          opened_at?: string | null
+          closed_at?: string | null
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          course_id?: string
+          cohort_id?: string | null
+          title?: string
+          description?: string | null
+          join_code?: string
+          projection_token?: string
+          status?: 'draft' | 'live' | 'closed'
+          allow_guests?: boolean
+          show_names?: boolean
+          state_version?: number
+          created_by?: string | null
+          opened_at?: string | null
+          closed_at?: string | null
           created_at?: string
           updated_at?: string
         }
@@ -604,7 +829,7 @@ export type Database = {
           email: string
           full_name: string
           avatar_url: string | null
-          role: 'superadmin' | 'admin' | 'alumno'
+          role: 'superadmin' | 'admin' | 'alumno' | 'invitado'
           status: 'active' | 'suspended'
           created_at: string
           updated_at: string
@@ -614,7 +839,7 @@ export type Database = {
           email: string
           full_name?: string
           avatar_url?: string | null
-          role?: 'superadmin' | 'admin' | 'alumno'
+          role?: 'superadmin' | 'admin' | 'alumno' | 'invitado'
           status?: 'active' | 'suspended'
           created_at?: string
           updated_at?: string
@@ -624,7 +849,7 @@ export type Database = {
           email?: string
           full_name?: string
           avatar_url?: string | null
-          role?: 'superadmin' | 'admin' | 'alumno'
+          role?: 'superadmin' | 'admin' | 'alumno' | 'invitado'
           status?: 'active' | 'suspended'
           created_at?: string
           updated_at?: string

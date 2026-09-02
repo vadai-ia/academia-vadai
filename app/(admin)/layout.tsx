@@ -1,7 +1,12 @@
 import type { ReactNode } from 'react'
 
 import { Encabezado } from '@/components/marca/encabezado'
-import { IconoCursos, IconoPanel, IconoPerfil } from '@/components/marca/navegacion'
+import {
+  IconoCursos,
+  IconoEncuestas,
+  IconoPanel,
+  IconoPerfil,
+} from '@/components/marca/navegacion'
 import { SaltarAlContenido } from '@/components/marca/saltar-al-contenido'
 import { exigirAdmin } from '@/lib/auth/sesion'
 
@@ -18,6 +23,7 @@ export default async function LayoutAdmin({ children }: { children: ReactNode })
           { href: '/admin', etiqueta: 'Panel', icono: IconoPanel, exacto: true },
           { href: '/admin/cursos', etiqueta: 'Cursos', icono: IconoCursos },
           { href: '/admin/alumnos', etiqueta: 'Alumnos', icono: IconoPerfil },
+          { href: '/admin/encuestas', etiqueta: 'Encuestas', icono: IconoEncuestas },
           { href: '/mis-cursos', etiqueta: 'Vista de alumno', icono: IconoCursos },
         ]}
       />

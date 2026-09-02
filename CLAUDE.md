@@ -51,11 +51,15 @@ En su lugar: `pnpm db:migrate` → `scripts/migrate.mjs`, que aplica los `.sql` 
 /app
   /(auth)        login, reset
   /(alumno)      mis-cursos, curso/[slug], comunidad, blog, perfil
-  /(admin)       admin/* (cursos, alumnos, entregas, cohortes, posts)
+  /(admin)       admin/* (cursos, alumnos, entregas, cohortes, posts, encuestas)
   /api/stripe/webhook
   /api/certificados/[folio]
   /certificado/[folio]      # verificación pública
+  /e/[codigo]               # encuesta en vivo, sin sesión (QR)
+  /proyectar/[token]        # pantalla que se proyecta, sin sesión
+  /api/encuestas/*          # sondeo de estado y de resultados
 /lib             lógica de negocio (NUNCA en componentes)
+  /encuestas     encuestas en vivo: códigos, consultas y acciones
   /supabase      clients (browser, server, service-role)
   /bunny         firma de tokens, upload
   /stripe        webhook handlers
@@ -67,8 +71,16 @@ En su lugar: `pnpm db:migrate` → `scripts/migrate.mjs`, que aplica los `.sql` 
 
 ## ROLES Y ACCESO
 
-- Roles en `academia.profiles.role`: `superadmin`, `admin`, `alumno`.
-- Sign-up público DESHABILITADO. Cuentas solo server-side (invite manual o webhook Stripe) con service role.
+- Roles en `academia.profiles.role`: `superadmin`, `admin`, `alumno`, `invitado`.
+  `invitado` nació contestando una encuesta en vivo: tiene cuenta para volver a la
+  siguiente, pero no compró nada. `rutaDeInicio()` lo manda a `/mis-encuestas`, no a
+  `/mis-cursos`, donde solo vería un vacío que le pide escribirnos por un curso que
+  nunca compró.
+- Sign-up público DESHABILITADO. Cuentas solo server-side con service role, por **tres**
+  caminos: invite manual, webhook de Stripe, y —desde M12— registro desde una encuesta en
+  vivo, que nace con rol `invitado`. El tercero es el único expuesto a internet sin
+  autenticación previa, así que lleva cuota por IP en `academia.poll_join_attempts`.
+  Sigue sin haber sign-up público: la ruta de Supabase continúa cerrada.
 - **Entrar con Google solo funciona si el correo YA tiene cuenta.** Con el sign-up deshabilitado,
   Supabase rechaza crear el usuario y el callback devuelve `signup_disabled`. Eso es correcto, no
   un fallo — pero el mensaje tiene que decirlo (`?error=sinCuenta`), no "intenta de nuevo".
@@ -165,6 +177,11 @@ BUNNY_STREAM_CDN_HOSTNAME=
 RESEND_API_KEY=
 CORREO_REMITENTE=noreply@automail.vadai.com.mx
 CORREO_REMITENTE_NOMBRE=VADAI Academia
+
+# Sal del hash de IP de la cuota de encuestas en vivo. Solo servidor.
+# Si falta, se deriva de la service role key y todo sigue funcionando; se
+# define aparte para poder rotarla sin tocar la llave de Supabase.
+ENCUESTAS_IP_SALT=
 ```
 
 ## VOZ
