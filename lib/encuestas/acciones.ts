@@ -255,6 +255,138 @@ export async function crearPreguntaEncuesta(
   return { aviso: 'Pregunta agregada.' }
 }
 
+/**
+ * Edita una pregunta que ya existe.
+ *
+ * QUÉ SE PUEDE CAMBIAR DEPENDE DE SI YA CONTESTÓ ALGUIEN, y no es una
+ * precaución teórica:
+ *
+ *   - El ENUNCIADO siempre se puede corregir. Un error de dedo tiene que poder
+ *     arreglarse aunque la pregunta ya haya corrido; el texto no cambia el
+ *     significado de ninguna respuesta guardada.
+ *
+ *   - El TIPO se congela en cuanto hay una respuesta. Pasar de "opción múltiple"
+ *     a "escala" dejaría filas con `option_id` en una pregunta que se lee por
+ *     `numeric_value`: la exportación mostraría celdas vacías y la gráfica
+ *     contaría cero, sin un solo error en el camino. Es el peor tipo de fallo,
+ *     el que no avisa.
+ *
+ *   - El TEXTO de una opción sí se puede corregir siempre, porque los votos
+ *     cuelgan del `id` de la opción, no de su texto. Lo que no se puede es
+ *     BORRAR una opción que ya tiene votos: esos votos quedarían apuntando a
+ *     algo que no existe y desaparecerían del conteo.
+ */
+export async function actualizarPregunta(
+  _previo: EstadoAccion,
+  datos: FormData
+): Promise<EstadoAccion> {
+  await exigirAdmin()
+
+  const id = String(datos.get('id') ?? '')
+  const encuestaId = String(datos.get('poll_id') ?? '')
+  if (!id || !encuestaId) return { error: 'Falta la pregunta.' }
+
+  const resultado = esquemaPregunta.safeParse({
+    prompt: datos.get('prompt'),
+    question_type: datos.get('question_type'),
+  })
+  if (!resultado.success) return { error: primerError(resultado) }
+
+  const supabase = await crearClienteServidor()
+
+  const { data: actual } = await supabase
+    .from('poll_questions')
+    .select('id, question_type, options, settings, poll_answers(option_id)')
+    .eq('id', id)
+    .maybeSingle()
+
+  if (!actual) return { error: 'Esa pregunta ya no existe.' }
+
+  const fila = actual as unknown as {
+    question_type: string
+    options: unknown
+    settings: unknown
+    poll_answers: Array<{ option_id: string | null }>
+  }
+
+  const respuestas = fila.poll_answers ?? []
+  const yaContestaron = respuestas.length > 0
+  const tipoActual = fila.question_type as TipoPregunta
+  const tipo: TipoPregunta = resultado.data.question_type
+
+  if (yaContestaron && tipo !== tipoActual) {
+    return {
+      error:
+        'No se puede cambiar el tipo: esta pregunta ya tiene respuestas y dejarían de poder leerse. Duplícala si necesitas otro formato.',
+    }
+  }
+
+  const ajustes = ajustesPorDefecto(tipo)
+
+  const opciones =
+    tipo === 'opcion'
+      ? LETRAS.map((letra) => ({
+          id: letra,
+          text: String(datos.get(`opcion_${letra}`) ?? '').trim(),
+        })).filter((o) => o.text !== '')
+      : []
+
+  if (tipo === 'opcion') {
+    if (opciones.length < 2) {
+      return { error: 'Una pregunta de opción múltiple necesita al menos dos opciones.' }
+    }
+
+    // Ninguna opción con votos puede desaparecer.
+    const conVotos = new Set(respuestas.map((r) => r.option_id).filter(Boolean) as string[])
+    const quedan = new Set<string>(opciones.map((o) => o.id))
+    const perdidas = [...conVotos].filter((idOpcion) => !quedan.has(idOpcion))
+
+    if (perdidas.length > 0) {
+      return {
+        error: `No puedes borrar una opción que ya tiene votos (${perdidas
+          .join(', ')
+          .toUpperCase()}). Cámbiale el texto si te equivocaste al escribirla.`,
+      }
+    }
+  }
+
+  if (tipo === 'escala') {
+    const min = Number(datos.get('escala_min') ?? 1)
+    const max = Number(datos.get('escala_max') ?? 10)
+    if (!Number.isInteger(min) || !Number.isInteger(max) || max <= min) {
+      return { error: 'La escala necesita un mínimo y un máximo, y el máximo debe ser mayor.' }
+    }
+    ajustes.min = min
+    ajustes.max = max
+    ajustes.etiquetaMin = String(datos.get('escala_etiqueta_min') ?? '').trim()
+    ajustes.etiquetaMax = String(datos.get('escala_etiqueta_max') ?? '').trim()
+  }
+
+  if (tipo === 'nube') {
+    const palabras = Number(datos.get('nube_palabras') ?? 1)
+    ajustes.maxPalabras = Number.isInteger(palabras) && palabras > 0 ? Math.min(palabras, 3) : 1
+    ajustes.maxCaracteres = TOPE_PALABRA
+  }
+
+  const { error } = await supabase
+    .from('poll_questions')
+    .update({
+      prompt: resultado.data.prompt,
+      question_type: tipo,
+      options: opciones,
+      settings: ajustes,
+    })
+    .eq('id', id)
+
+  if (error) {
+    registrarFallo('actualizarPregunta', { id }, error.message)
+    return { error: 'No se pudo guardar la pregunta.' }
+  }
+
+  revalidatePath(`/admin/encuestas/${encuestaId}`)
+  return { aviso: 'Pregunta actualizada.' }
+}
+
 export async function eliminarPreguntaEncuesta(datos: FormData): Promise<void> {
   await exigirAdmin()
 

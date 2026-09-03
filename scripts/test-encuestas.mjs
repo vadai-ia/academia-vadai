@@ -1180,6 +1180,169 @@ async function main() {
     afirmar(G15, 'solo quedó marcada como oculta', true, sigueAhi[0]?.hidden ?? null)
 
     // ====================================================================
+    const G15B = 'EDITAR UNA PREGUNTA YA GUARDADA'
+
+    const paginaPreguntas = await texto(rutaEncuesta, admin)
+    // Ojo: los botones de mover y de eliminar también llevan `id` y `poll_id`.
+    // Lo que distingue al de edición es su <textarea name="prompt">, que
+    // `leerFormularios` no recoge como campo —solo mira inputs y selects—, así
+    // que se busca en el HTML del propio formulario.
+    const formEditar = (idPregunta) =>
+      leerFormularios(paginaPreguntas).find(
+        (f) =>
+          f.campos.id === idPregunta &&
+          f.campos.poll_id === encuesta.id &&
+          f.html.includes('name="prompt"')
+      )
+
+    const promptDe = async (idPregunta) =>
+      (await bd.query('select prompt from academia.poll_questions where id = $1', [idPregunta]))
+        .rows[0]?.prompt ?? null
+    const tipoDe = async (idPregunta) =>
+      (
+        await bd.query('select question_type from academia.poll_questions where id = $1', [
+          idPregunta,
+        ])
+      ).rows[0]?.question_type ?? null
+
+    // --- sin respuestas: se puede cambiar todo -------------------------
+    const libre = preguntas[0]
+    const edicionLibre = formEditar(libre.id)
+    afirmar(G15B, 'cada pregunta trae su formulario de edición', true, Boolean(edicionLibre))
+
+    if (edicionLibre) {
+      await enviar(rutaEncuesta, edicionLibre, admin, {
+        id: libre.id,
+        poll_id: encuesta.id,
+        prompt: 'QA nube corregida',
+        question_type: 'nube',
+        nube_palabras: '3',
+      })
+    }
+    afirmar(G15B, 'el enunciado se corrige', 'QA nube corregida', await promptDe(libre.id))
+
+    if (edicionLibre) {
+      await enviar(rutaEncuesta, edicionLibre, admin, {
+        id: libre.id,
+        poll_id: encuesta.id,
+        prompt: 'QA nube corregida',
+        question_type: 'muro',
+      })
+    }
+    afirmar(G15B, 'y sin respuestas también el tipo', 'muro', await tipoDe(libre.id))
+
+    // --- con respuestas: el tipo se congela ----------------------------
+    //
+    // Es la guarda que de verdad importa: pasar de "opción múltiple" a "escala"
+    // dejaría filas con option_id en una pregunta que se lee por numeric_value.
+    // No daría error en ningún lado; simplemente contaría cero.
+    const edicionMuro = formEditar(muro.id)
+    if (edicionMuro) {
+      const r = await enviar(rutaEncuesta, edicionMuro, admin, {
+        id: muro.id,
+        poll_id: encuesta.id,
+        prompt: 'QA muro con otro nombre',
+        question_type: 'escala',
+        escala_min: '1',
+        escala_max: '10',
+      })
+      afirmar(G15B, 'el rechazo es un mensaje, no un 500', true, r.status < 500)
+    }
+    afirmar(G15B, 'una pregunta contestada NO cambia de tipo', 'muro', await tipoDe(muro.id))
+
+    // El rechazo descarta la edición COMPLETA, no solo la parte inválida. Es lo
+    // correcto: guardar el enunciado y desechar el tipo dejaría al admin
+    // creyendo que se guardó todo. En la interfaz este caso no se puede
+    // provocar —a una pregunta contestada se le muestra el tipo fijo, no un
+    // <select>—, así que solo llega aquí quien reenvía el formulario a mano.
+    afirmar(G15B, 'y el rechazo no guarda nada a medias', 'QA muro', await promptDe(muro.id))
+
+    // Con el tipo correcto, el enunciado sí se corrige aunque ya haya respuestas.
+    if (edicionMuro) {
+      await enviar(rutaEncuesta, edicionMuro, admin, {
+        id: muro.id,
+        poll_id: encuesta.id,
+        prompt: 'QA muro con otro nombre',
+        question_type: 'muro',
+      })
+    }
+    afirmar(
+      G15B,
+      'el enunciado sí se corrige con respuestas',
+      'QA muro con otro nombre',
+      await promptDe(muro.id)
+    )
+
+    // --- opciones con votos --------------------------------------------
+    const opcional = preguntas[1]
+    await bd.query(
+      `insert into academia.poll_answers (question_id, poll_participant_id, ordinal, option_id)
+       values ($1, $2, 1, 'a')`,
+      [opcional.id, asistencia.rows[0].id]
+    )
+
+    const edicionOpcion = formEditar(opcional.id)
+    if (edicionOpcion) {
+      // Corregir el TEXTO de una opción sí se puede: los votos cuelgan de la
+      // letra, no del texto.
+      await enviar(rutaEncuesta, edicionOpcion, admin, {
+        id: opcional.id,
+        poll_id: encuesta.id,
+        prompt: opcional.prompt,
+        question_type: 'opcion',
+        opcion_a: 'Sí, ya la usamos',
+        opcion_b: 'No',
+      })
+    }
+
+    const { rows: trasTexto } = await bd.query(
+      'select options from academia.poll_questions where id = $1',
+      [opcional.id]
+    )
+    afirmar(
+      G15B,
+      'el texto de una opción se corrige',
+      'Sí, ya la usamos',
+      trasTexto[0].options?.[0]?.text ?? null
+    )
+    afirmar(
+      G15B,
+      'y el voto sigue colgado de su letra',
+      1,
+      (
+        await bd.query(
+          "select count(*)::int n from academia.poll_answers where question_id = $1 and option_id = 'a'",
+          [opcional.id]
+        )
+      ).rows[0].n
+    )
+
+    // Pero borrarla, no: el voto quedaría apuntando a algo que no existe.
+    if (edicionOpcion) {
+      const r = await enviar(rutaEncuesta, edicionOpcion, admin, {
+        id: opcional.id,
+        poll_id: encuesta.id,
+        prompt: opcional.prompt,
+        question_type: 'opcion',
+        opcion_a: '',
+        opcion_b: 'No',
+        opcion_c: 'Otra',
+      })
+      afirmar(G15B, 'quitar una opción votada no revienta', true, r.status < 500)
+    }
+
+    const { rows: trasBorrado } = await bd.query(
+      'select options from academia.poll_questions where id = $1',
+      [opcional.id]
+    )
+    afirmar(
+      G15B,
+      'la opción con votos sigue ahí',
+      true,
+      (trasBorrado[0].options ?? []).some((o) => o.id === 'a')
+    )
+
+    // ====================================================================
     // ETAPA 3 — exportaciones
     // ====================================================================
     const G16 = 'EXPORTACIÓN A EXCEL'
