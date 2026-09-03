@@ -1,6 +1,6 @@
 import type { Metadata } from 'next'
 import Link from 'next/link'
-import { notFound } from 'next/navigation'
+import { notFound, redirect } from 'next/navigation'
 
 import { CodigoQr } from '@/components/encuestas/codigo-qr'
 import { PantallaEnVivo } from '@/components/encuestas/pantalla-en-vivo'
@@ -62,8 +62,19 @@ export default async function PaginaProyectar({
   const dentro = await cuantosEntraron(encuesta.id)
   const hayAvance = abiertas.length > 0 || dentro > 0
 
-  if (hayAvance && continuar !== '1') {
+  if (continuar !== '1') {
+    // Sin nada que decidir no se pregunta: se entra. Pero se entra CON el
+    // parámetro puesto, y eso es lo que arregla el bug de verdad.
+    //
+    // Sin este redirect, la decisión no era pegajosa: bastaba con que se
+    // abriera la primera pregunta —lo hace la cuenta regresiva— para que la
+    // siguiente vuelta al servidor viera "avance" y volviera a preguntar, justo
+    // después de que quien presenta ya había decidido. Con el parámetro en la
+    // URL, ninguna recarga posterior vuelve a preguntar.
+    if (!hayAvance) redirect(`/proyectar/${token}?continuar=1`)
+
     const cerradas = encuesta.preguntas.filter((p) => p.status === 'closed').length
+    const abiertaAhora = encuesta.preguntas.find((p) => p.status === 'open')
 
     return (
       <main className="mx-auto flex min-h-dvh w-full max-w-2xl flex-col justify-center gap-8 px-6 py-12">
@@ -79,8 +90,12 @@ export default async function PaginaProyectar({
             {encuesta.title}
           </h1>
           <p className="text-sm text-muted-foreground">
-            Esta corrida ya empezó: {cerradas} de {encuesta.preguntas.length} pregunta(s)
-            cerrada(s) y {dentro} persona(s) dentro.
+            {abiertaAhora
+              ? `Se quedó en la pregunta ${abiertaAhora.position}, abierta.`
+              : `${cerradas} de ${encuesta.preguntas.length} pregunta(s) cerrada(s).`}{' '}
+            {dentro === 0
+              ? 'Todavía no ha entrado nadie.'
+              : `${dentro} persona(s) dentro.`}
           </p>
         </div>
 

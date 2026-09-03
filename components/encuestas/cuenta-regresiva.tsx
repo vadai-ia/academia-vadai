@@ -34,6 +34,17 @@ import { useEffect, useRef, useState } from 'react'
 const NAVY = '#0A1A2F'
 const TONOS = ['#00A0DB', '#C6F24E', '#F5F8FB'] as const
 
+/**
+ * Los números, a nivel de módulo y NO como literal en los parámetros.
+ *
+ * Un `= ['3','2','1']` por defecto crea un arreglo NUEVO en cada render. El
+ * motor de partículas dependía de él, así que cada vez que el reloj repintaba
+ * —una vez por segundo— el efecto se desmontaba, se volvía a montar y `inicio`
+ * arrancaba de cero: el índice era siempre 0 y la pantalla dibujaba un 3, otro
+ * 3 y otro 3. Se veía como si contara, y no contaba.
+ */
+const NUMEROS_POR_DEFECTO: readonly string[] = ['3', '2', '1']
+
 /** Cuánto dura cada número, y qué parte de ese tiempo tarda en formarse. */
 const DURACION_NUMERO_MS = 1000
 const TIEMPO_DE_FORMARSE_MS = 320
@@ -97,15 +108,20 @@ function barajar<T>(lista: T[]): T[] {
 }
 
 export function CuentaRegresiva({
-  numeros = ['3', '2', '1'],
+  numeros = NUMEROS_POR_DEFECTO,
   alTerminar,
 }: {
-  numeros?: string[]
+  numeros?: readonly string[]
   /** Se llama UNA vez: al acabar o al saltar. */
   alTerminar: () => void
 }) {
   const lienzoRef = useRef<HTMLCanvasElement>(null)
   const terminado = useRef(false)
+
+  // En una ref para que los efectos no dependan de la IDENTIDAD del arreglo.
+  // Aunque quien lo use pase una lista en línea, el motor no se reinicia.
+  const numerosRef = useRef(numeros)
+  numerosRef.current = numeros
   const [numeroVisible, setNumeroVisible] = useState(numeros[0] ?? '')
   const [saliendo, setSaliendo] = useState(false)
   const [sinMovimiento, setSinMovimiento] = useState(false)
@@ -137,10 +153,11 @@ export function CuentaRegresiva({
   // El reloj de los números. Va aparte del motor de partículas para que con
   // movimiento reducido siga existiendo y el ritmo sea el mismo.
   useEffect(() => {
-    const relojes = numeros.map((n, i) =>
+    const lista = numerosRef.current
+    const relojes = lista.map((n, i) =>
       window.setTimeout(() => setNumeroVisible(n), i * DURACION_NUMERO_MS)
     )
-    const fin = window.setTimeout(terminar, numeros.length * DURACION_NUMERO_MS)
+    const fin = window.setTimeout(terminar, lista.length * DURACION_NUMERO_MS)
     return () => {
       for (const r of relojes) window.clearTimeout(r)
       window.clearTimeout(fin)
@@ -179,7 +196,7 @@ export function CuentaRegresiva({
       const lado = Math.round(Math.min(ancho, alto) * 0.75)
       const dx = (ancho - lado) / 2
       const dy = (alto - lado) / 2
-      objetivos = numeros.map((n) =>
+      objetivos = numerosRef.current.map((n) =>
         puntosDelNumero(n, lado, lado).map(([x, y]) => [x + dx, y + dy] as [number, number])
       )
 
@@ -235,7 +252,8 @@ export function CuentaRegresiva({
 
     function pintar(ahora: number) {
       const t = ahora - inicio
-      const indice = Math.min(Math.floor(t / DURACION_NUMERO_MS), numeros.length - 1)
+      const total = numerosRef.current.length
+      const indice = Math.min(Math.floor(t / DURACION_NUMERO_MS), total - 1)
       const dentro = t - indice * DURACION_NUMERO_MS
 
       if (indice !== numeroActual) {
@@ -245,7 +263,7 @@ export function CuentaRegresiva({
       // Al final de cada número, se sueltan para volver a formarse en el
       // siguiente. En el último no: se quedan formadas hasta el fundido.
       if (
-        indice < numeros.length - 1 &&
+        indice < total - 1 &&
         dentro > DURACION_NUMERO_MS - TIEMPO_DE_SOLTARSE_MS &&
         particulas.some((p) => p.formando)
       ) {
@@ -321,7 +339,7 @@ export function CuentaRegresiva({
       window.cancelAnimationFrame(cuadro)
       window.removeEventListener('resize', medir)
     }
-  }, [sinMovimiento, numeros])
+  }, [sinMovimiento])
 
   return (
     <div

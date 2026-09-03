@@ -1764,10 +1764,31 @@ async function main() {
     afirmar(G21, 'y marca a qué corrida pertenece cada fila', true,
       hojasCorridas.includes('Corrida'))
 
-    // Ya sin avance, la proyección entra directo: no hay nada que decidir.
-    const sinDecidir = await texto(rutaProyeccion, admin)
-    afirmar(G21, 'una corrida limpia entra sin preguntar', false,
-      sinDecidir.includes('Continuar donde iba'))
+    // Ya sin avance, la proyección entra directo — y entra CON el parámetro
+    // puesto. Eso último es lo que arregla el bug de que volviera a preguntar
+    // justo después de que la cuenta regresiva abriera la primera pregunta:
+    // sin el parámetro en la URL, la siguiente vuelta al servidor veía "avance"
+    // y preguntaba otra vez, encima de una decisión ya tomada.
+    const sinDecidir = await pedir(rutaProyeccion, admin)
+    afirmar(G21, 'una corrida limpia no pregunta: redirige', 307, sinDecidir.status)
+    afirmar(
+      G21,
+      'y deja la decisión pegada en la URL',
+      true,
+      (sinDecidir.headers.get('location') ?? '').includes('continuar=1')
+    )
+
+    // Y con una pregunta ya abierta, el parámetro sigue mandando: se ve la
+    // pantalla, no el selector. Es exactamente el estado en el que el bug
+    // aparecía.
+    await bd.query("update academia.poll_questions set status = 'open' where id = $1", [
+      primeraDeNuevo,
+    ])
+    const conPreguntaAbierta = sinComentarios(await texto(rutaPantalla, admin))
+    afirmar(G21, 'con la pregunta abierta ya no vuelve a preguntar', false,
+      conPreguntaAbierta.includes('Continuar donde iba'))
+    afirmar(G21, 'sigue siendo la pantalla en vivo', true,
+      conPreguntaAbierta.includes('control de presentaciones'))
 
     // ====================================================================
     const G8 = 'LIMPIEZA'
