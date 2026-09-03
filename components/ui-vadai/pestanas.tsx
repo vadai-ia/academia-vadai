@@ -40,12 +40,19 @@ export type Pestana = {
   insignia?: string | number
 }
 
-export function Pestanas({ pestanas }: { pestanas: Pestana[] }) {
+export function Pestanas({
+  pestanas,
+  etiqueta = 'Secciones del curso',
+}: {
+  pestanas: Pestana[]
+  /** Para el lector de pantalla. Estas pestañas ya no son solo de un curso. */
+  etiqueta?: string
+}) {
   const ruta = usePathname()
 
   return (
     <nav
-      aria-label="Secciones del curso"
+      aria-label={etiqueta}
       className="-mx-5 overflow-x-auto px-5 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
     >
       <ul className="flex min-w-max items-center gap-1 border-b border-border">

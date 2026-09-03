@@ -337,4 +337,32 @@
   .placa-logo {
     background-color: #ffffff;
     }
+
+  /* ---------------------------------------------------------------------
+     Campos que solo aplican a un tipo de pregunta de encuesta.
+
+     Se muestran y se ocultan con CSS puro, siguiendo el `<select>`, y NO con
+     estado de React. Con `useState` el formulario dejaría de poder cambiar de
+     tipo sin JavaScript, que es justo lo que CLAUDE.md prohíbe: la plataforma
+     tiene que funcionar sin JS.
+
+     `:has()` con `option:checked` sigue la selección de forma nativa. Es
+     Baseline desde 2023; si un navegador viejo no lo soporta, la primera regla
+     tampoco aplica y se ven TODOS los campos —que es exactamente el
+     comportamiento anterior, y es usable—. Degrada hacia lo seguro.
+  --------------------------------------------------------------------- */
+  [data-tipo-pregunta] {
+    display: none;
+  }
+
+  form:has(select[name='question_type'] option[value='nube']:checked)
+    [data-tipo-pregunta='nube'],
+  form:has(select[name='question_type'] option[value='opcion']:checked)
+    [data-tipo-pregunta='opcion'],
+  form:has(select[name='question_type'] option[value='escala']:checked)
+    [data-tipo-pregunta='escala'],
+  form:has(select[name='question_type'] option[value='muro']:checked)
+    [data-tipo-pregunta='muro'] {
+    display: flex;
+  }
 }

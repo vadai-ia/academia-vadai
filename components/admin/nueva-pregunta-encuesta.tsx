@@ -9,25 +9,18 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
 import { SIN_ESTADO } from '@/lib/admin/tipos'
-import { LETRAS } from '@/lib/quiz/comun'
 import { crearPreguntaEncuesta } from '@/lib/encuestas/acciones'
 import { AYUDA_TIPO_PREGUNTA, ETIQUETA_TIPO_PREGUNTA, TIPOS_PREGUNTA } from '@/lib/encuestas/comun'
-import { cn } from '@/lib/utils'
+import { LETRAS } from '@/lib/quiz/comun'
 
 const claseSelect =
   'h-11 w-full rounded-md border border-input bg-transparent px-3 text-sm shadow-xs ' +
   'outline-none focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50'
 
-const claseResumen =
-  'inline-flex w-fit cursor-pointer list-none items-center gap-2 rounded-lg px-3 py-2 ' +
-  'text-sm font-medium transition-colors select-none hover:bg-muted ' +
-  'focus-visible:ring-3 focus-visible:ring-ring/50 focus-visible:outline-none ' +
-  '[&::-webkit-details-marker]:hidden'
-
 function Enviar() {
   const { pending } = useFormStatus()
   return (
-    <Button type="submit" variant="outline" disabled={pending}>
+    <Button type="submit" disabled={pending}>
       {pending ? 'Agregando…' : 'Agregar pregunta'}
     </Button>
   )
@@ -36,13 +29,19 @@ function Enviar() {
 /**
  * Alta de una pregunta.
  *
- * Los ajustes que dependen del tipo NO se muestran y ocultan con estado de
- * cliente: van en `<details>` cerrados, cada uno diciendo a qué tipo aplica.
+ * SOLO SE VEN LOS CAMPOS DEL TIPO ELEGIDO, y eso lo hace CSS, no React.
  *
- * La razón es la de siempre en este repo —un `<select>` que revela campos exige
- * JavaScript— pero aquí además sale más honesto: el admin ve de un vistazo que
- * una escala se puede reetiquetar, cosa que un campo escondido no le enseña
- * nunca. La acción ignora los ajustes que no correspondan al tipo elegido.
+ * La versión anterior mostraba los tres bloques a la vez dentro de `<details>`
+ * rotulados "solo para opción múltiple", "solo para escala"… Funcionaba, pero
+ * obligaba a leer cuatro rótulos para decidir cuál abrir, y en la práctica se
+ * llenaba el equivocado.
+ *
+ * Con estado de React sería trivial, pero el `<select>` dejaría de cambiar nada
+ * sin JavaScript y el formulario solo podría crear preguntas del tipo por
+ * defecto. La regla del repo es que la plataforma funciona sin JS, así que la
+ * selección la sigue `:has()` sobre `option:checked` desde `globals.css`. En un
+ * navegador sin `:has()` se ven todos los campos, que es el comportamiento
+ * anterior: degrada hacia lo usable.
  */
 export function NuevaPreguntaEncuesta({
   encuestaId,
@@ -57,7 +56,7 @@ export function NuevaPreguntaEncuesta({
     <form
       key={reinicio}
       action={accion}
-      className="flex flex-col gap-4 rounded-[10px] border border-dashed border-border p-4"
+      className="flex flex-col gap-5 rounded-[10px] border border-dashed border-border p-4 sm:p-5"
     >
       <input type="hidden" name="poll_id" value={encuestaId} />
 
@@ -69,6 +68,7 @@ export function NuevaPreguntaEncuesta({
           required
           minLength={3}
           maxLength={300}
+          rows={2}
           placeholder="¿Cuál es tu mayor cuello de botella hoy?"
         />
       </div>
@@ -82,54 +82,65 @@ export function NuevaPreguntaEncuesta({
             </option>
           ))}
         </select>
-        <ul className="flex flex-col gap-0.5 text-xs text-muted-foreground">
-          {TIPOS_PREGUNTA.map((tipo) => (
-            <li key={tipo}>
-              <span className="font-medium text-foreground">{ETIQUETA_TIPO_PREGUNTA[tipo]}:</span>{' '}
-              {AYUDA_TIPO_PREGUNTA[tipo]}
-            </li>
-          ))}
-        </ul>
+
+        {/* Solo la explicación del tipo elegido. Antes se listaban las cuatro y
+            había que buscar la que aplicaba. */}
+        {TIPOS_PREGUNTA.map((tipo) => (
+          <p
+            key={tipo}
+            data-tipo-pregunta={tipo}
+            className="text-xs text-muted-foreground"
+          >
+            {AYUDA_TIPO_PREGUNTA[tipo]}
+          </p>
+        ))}
       </div>
 
-      <details className="border-t border-border pt-2">
-        <summary className={claseResumen}>
-          <Flecha /> Opciones · solo para opción múltiple
-        </summary>
-        <div className="flex flex-col gap-2 px-1 pt-3 pb-1">
-          {LETRAS.map((letra) => (
-            <div key={letra} className="flex items-center gap-2">
-              <span className="w-5 shrink-0 text-sm text-muted-foreground uppercase">{letra}</span>
-              <Input
-                name={`opcion_${letra}`}
-                maxLength={120}
-                placeholder={letra === 'a' ? 'Primera opción' : 'Opcional'}
-              />
-            </div>
-          ))}
-          <p className="text-xs text-muted-foreground">
-            Deja vacías las que no uses. Con dos basta. Aquí no hay respuesta correcta: una
-            encuesta no se califica.
-          </p>
-        </div>
-      </details>
+      {/* --- opción múltiple ------------------------------------------- */}
+      <div data-tipo-pregunta="opcion" className="flex-col gap-2">
+        <Label className="mb-1">Opciones de respuesta</Label>
+        {LETRAS.map((letra, i) => (
+          <div key={letra} className="flex items-center gap-2">
+            <span className="w-5 shrink-0 text-sm text-muted-foreground uppercase">{letra}</span>
+            <Input
+              name={`opcion_${letra}`}
+              maxLength={120}
+              placeholder={i < 2 ? 'Escribe una opción' : 'Opcional'}
+            />
+          </div>
+        ))}
+        <p className="mt-1 text-xs text-muted-foreground">
+          Con dos basta; deja vacías las que no uses. Aquí no hay respuesta correcta: una
+          encuesta no se califica.
+        </p>
+      </div>
 
-      <details className="border-t border-border pt-2">
-        <summary className={claseResumen}>
-          <Flecha /> Escala · solo para escala
-        </summary>
-        <div className="grid gap-3 px-1 pt-3 pb-1 sm:grid-cols-2">
+      {/* --- escala ----------------------------------------------------- */}
+      <div data-tipo-pregunta="escala" className="flex-col gap-3">
+        <div className="grid gap-3 sm:grid-cols-2">
           <div className="flex flex-col gap-1.5">
             <Label htmlFor="preg-min">Del</Label>
             <Input id="preg-min" name="escala_min" type="number" defaultValue={1} min={0} max={9} />
           </div>
           <div className="flex flex-col gap-1.5">
             <Label htmlFor="preg-max">Al</Label>
-            <Input id="preg-max" name="escala_max" type="number" defaultValue={10} min={2} max={10} />
+            <Input
+              id="preg-max"
+              name="escala_max"
+              type="number"
+              defaultValue={10}
+              min={2}
+              max={10}
+            />
           </div>
           <div className="flex flex-col gap-1.5">
             <Label htmlFor="preg-etq-min">Qué significa el mínimo</Label>
-            <Input id="preg-etq-min" name="escala_etiqueta_min" maxLength={40} placeholder="Nada" />
+            <Input
+              id="preg-etq-min"
+              name="escala_etiqueta_min"
+              maxLength={40}
+              placeholder="Nada preparada"
+            />
           </div>
           <div className="flex flex-col gap-1.5">
             <Label htmlFor="preg-etq-max">Qué significa el máximo</Label>
@@ -137,33 +148,40 @@ export function NuevaPreguntaEncuesta({
               id="preg-etq-max"
               name="escala_etiqueta_max"
               maxLength={40}
-              placeholder="Muchísimo"
+              placeholder="Totalmente lista"
             />
           </div>
         </div>
-      </details>
+        <p className="text-xs text-muted-foreground">
+          Las etiquetas son opcionales, pero ayudan: un 7 solo no dice de qué.
+        </p>
+      </div>
 
-      <details className="border-t border-border pt-2">
-        <summary className={claseResumen}>
-          <Flecha /> Palabras por persona · solo para nube
-        </summary>
-        <div className="flex flex-col gap-1.5 px-1 pt-3 pb-1">
-          <Label htmlFor="preg-palabras">Cuántas puede escribir cada quien</Label>
-          <Input
-            id="preg-palabras"
-            name="nube_palabras"
-            type="number"
-            defaultValue={1}
-            min={1}
-            max={3}
-            className="sm:max-w-32"
-          />
-          <p className="text-xs text-muted-foreground">
-            Máximo tres. Con más, la nube deja de retratar a la sala y retrata a quien escribe
-            más rápido.
-          </p>
-        </div>
-      </details>
+      {/* --- nube ------------------------------------------------------- */}
+      <div data-tipo-pregunta="nube" className="flex-col gap-1.5">
+        <Label htmlFor="preg-palabras">Palabras por persona</Label>
+        <Input
+          id="preg-palabras"
+          name="nube_palabras"
+          type="number"
+          defaultValue={1}
+          min={1}
+          max={3}
+          className="sm:max-w-32"
+        />
+        <p className="text-xs text-muted-foreground">
+          Máximo tres. Con más, la nube deja de retratar a la sala y retrata a quien escribe más
+          rápido.
+        </p>
+      </div>
+
+      {/* --- muro ------------------------------------------------------- */}
+      <div data-tipo-pregunta="muro" className="flex-col gap-1.5">
+        <p className="text-xs text-muted-foreground">
+          No hay nada que configurar. Cada quien escribe hasta 280 caracteres y las respuestas
+          caen como tarjetas en la pantalla, las más recientes arriba.
+        </p>
+      </div>
 
       <AvisoAccion estado={estado} />
 
@@ -171,22 +189,5 @@ export function NuevaPreguntaEncuesta({
         <Enviar />
       </div>
     </form>
-  )
-}
-
-function Flecha() {
-  return (
-    <svg
-      aria-hidden
-      viewBox="0 0 24 24"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="2"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-      className={cn('size-3.5 transition-transform', '[details[open]>summary>&]:rotate-90')}
-    >
-      <path d="m9 18 6-6-6-6" />
-    </svg>
   )
 }

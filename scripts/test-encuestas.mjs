@@ -566,6 +566,77 @@ async function main() {
     afirmar(G3, 'una opción múltiple con una sola opción se rechaza', antesDeRechazo, trasRechazo.length)
 
     // ====================================================================
+    const G3B = 'SECCIONES DE LA ENCUESTA'
+
+    const rutaResultados = `${rutaEncuesta}/resultados`
+    const rutaConfig = `${rutaEncuesta}/configuracion`
+
+    afirmar(G3B, 'la sección de resultados abre', 200, (await pedir(rutaResultados, admin)).status)
+    afirmar(G3B, 'la de configuración abre', 200, (await pedir(rutaConfig, admin)).status)
+    afirmar(G3B, 'un alumno no entra a resultados', 307, (await pedir(rutaResultados, alumno)).status)
+    afirmar(G3B, 'ni a configuración', 307, (await pedir(rutaConfig, alumno)).status)
+
+    const editorConPreguntas = await texto(rutaEncuesta, admin)
+    const pagResultados = await texto(rutaResultados, admin)
+    const pagConfig = await texto(rutaConfig, admin)
+
+    for (const [nombre, html] of [
+      ['preguntas', editorConPreguntas],
+      ['resultados', pagResultados],
+      ['configuración', pagConfig],
+    ]) {
+      // El QR y el código viven en el layout: tienen que estar en TODAS las
+      // secciones, porque son lo que hay que tener a la mano en cualquier
+      // momento de un evento.
+      afirmar(G3B, `${nombre} muestra el QR`, true, /<path d="M[^"]+"/.test(html))
+      afirmar(G3B, `${nombre} muestra el código`, true, html.includes(encuesta.join_code))
+      afirmar(G3B, `${nombre} trae las pestañas`, true, html.includes(`${rutaEncuesta}/resultados`))
+    }
+
+    afirmar(
+      G3B,
+      'la configuración es la única que trae el borrado',
+      true,
+      pagConfig.includes('Eliminar esta encuesta') &&
+        !editorConPreguntas.includes('Eliminar esta encuesta')
+    )
+    afirmar(
+      G3B,
+      'los resultados son los únicos que ofrecen las descargas',
+      true,
+      pagResultados.includes(`/api/reportes/${encuesta.id}/excel`) &&
+        !pagConfig.includes(`/api/reportes/${encuesta.id}/excel`)
+    )
+
+    // ====================================================================
+    // Los campos que dependen del tipo se muestran con CSS, no con estado de
+    // React: así el <select> sigue funcionando sin JavaScript. Lo que se puede
+    // afirmar desde aquí es que el mecanismo está cableado en el HTML.
+    const G3C = 'CAMPOS SEGÚN EL TIPO DE PREGUNTA'
+
+    for (const tipo of ['nube', 'opcion', 'escala', 'muro']) {
+      afirmar(
+        G3C,
+        `los campos de ${tipo} están marcados`,
+        true,
+        editorConPreguntas.includes(`data-tipo-pregunta="${tipo}"`)
+      )
+    }
+    afirmar(
+      G3C,
+      'ya no se esconden tras un desplegable',
+      false,
+      editorConPreguntas.includes('solo para opción múltiple')
+    )
+    // Sin JavaScript el <select> sigue siendo un <select> de verdad.
+    afirmar(
+      G3C,
+      'el tipo se elige con un select nativo',
+      true,
+      editorConPreguntas.includes('name="question_type"')
+    )
+
+    // ====================================================================
     // El corazón del milestone. Lo garantiza la base, no la aplicación.
     const G4 = 'NADIE SE ADELANTA (garantías de la base)'
 

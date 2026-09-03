@@ -1,5 +1,7 @@
 import 'server-only'
 
+import { cache } from 'react'
+
 import { leerOpciones, type Opcion } from '@/lib/quiz/comun'
 import { crearClienteServidor } from '@/lib/supabase/server'
 import type { Tabla } from '@/lib/supabase/types'
@@ -74,13 +76,6 @@ export async function listarEncuestas(): Promise<EncuestaEnLista[]> {
   })
 }
 
-/**
- * Una encuesta con sus preguntas, ya ordenadas por `position`.
- *
- * El conteo de respuestas por pregunta viene del anidado y no de un count() por
- * separado: son cuatro o cinco preguntas, y un viaje de red extra por cada una
- * es justo lo que M11 quitó de las vistas del alumno.
- */
 export type MiEncuesta = {
   id: string
   titulo: string
@@ -193,7 +188,20 @@ export async function respuestasDePregunta(
   }))
 }
 
-export async function obtenerEncuesta(id: string): Promise<EncuestaCompleta | null> {
+/**
+ * Una encuesta con sus preguntas, ya ordenadas por `position`.
+ *
+ * El conteo de respuestas por pregunta viene del anidado y no de un count() por
+ * separado: son cuatro o cinco preguntas, y un viaje de red extra por cada una
+ * es justo lo que M11 quitó de las vistas del alumno.
+ *
+ * Va envuelta en `cache()` de React, que memoriza POR PETICIÓN: el layout de la
+ * encuesta la pide para pintar el encabezado y la página la vuelve a pedir para
+ * su sección. Sin esto serían dos viajes idénticos a Supabase en cada carga.
+ */
+export const obtenerEncuesta = cache(async function obtenerEncuesta(
+  id: string
+): Promise<EncuestaCompleta | null> {
   const supabase = await crearClienteServidor()
 
   const { data, error } = await supabase
@@ -238,4 +246,4 @@ export async function obtenerEncuesta(id: string): Promise<EncuestaCompleta | nu
         }
       }),
   }
-}
+})
