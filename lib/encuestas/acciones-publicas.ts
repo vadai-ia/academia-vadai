@@ -12,6 +12,7 @@ import {
   entrar,
   participanteActual,
   responder,
+  tieneCuenta,
   type DatosDeEntrada,
 } from './publico'
 
@@ -58,12 +59,6 @@ export async function entrarAEncuesta(
   const encuesta = await encuestaPorCodigo(codigo)
   if (!encuesta) return { error: 'Ese código no existe.' }
 
-  const quiereCuenta = datos.get('crear_cuenta') !== null
-
-  if (!encuesta.allowGuests && !quiereCuenta) {
-    return { error: 'Esta encuesta es solo para quien ya tiene cuenta en la academia.' }
-  }
-
   const resultado = esquemaEntrada.safeParse({
     nombre: datos.get('nombre'),
     apellido: datos.get('apellido'),
@@ -74,8 +69,25 @@ export async function entrarAEncuesta(
     return { error: resultado.error.issues[0]?.message ?? 'Revisa tus datos.' }
   }
 
+  // UN SOLO CAMINO (decidido 3-sep-2026). Antes había dos botones —"crear mi
+  // cuenta" y "continuar como invitado"— y los dos pedían exactamente los mismos
+  // datos, así que la elección no cambiaba nada para quien la hacía: solo lo
+  // detenía a decidir, de pie, con el celular en la mano y la pared esperándolo.
+  //
+  // Ahora se entra y punto, y la cuenta se crea sola. Es lo que pedía el
+  // encargo original: "eso les crea una cuenta para siguientes encuestas".
+  //
+  // `allow_guests` sigue significando algo: apagado, solo entra quien YA tiene
+  // cuenta en la academia, que es el caso de una sesión interna.
+  if (!encuesta.allowGuests) {
+    const yaEsDeLaCasa = await tieneCuenta(resultado.data.email)
+    if (!yaEsDeLaCasa) {
+      return { error: 'Esta encuesta es solo para quien ya tiene cuenta en la academia.' }
+    }
+  }
+
   const entrada = await entrar(encuesta, resultado.data as DatosDeEntrada, {
-    crearCuenta: quiereCuenta,
+    crearCuenta: true,
     darDeAlta: async (email, nombre) => {
       const alta = await darDeAlta({
         email,

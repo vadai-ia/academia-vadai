@@ -675,21 +675,25 @@ async function main() {
     }
     afirmar(G4, 'una pregunta cerrada no se reabre', true, reabrir)
 
-    let retroceder = false
+    // Una pregunta SIN respuestas sí puede volver a "sin abrir": es lo que hace
+    // posible reiniciar la encuesta. Lo que de verdad protegía la regla no era
+    // el estado, eran las respuestas — ver academia_0022.
+    let retrocedeSinRespuestas = true
     try {
       await bd.query("update academia.poll_questions set status = 'pending' where id = $1", [
         segunda.id,
       ])
-      await bd.query("update academia.poll_questions set status = 'open' where id = $1", [
-        segunda.id,
-      ])
-      await bd.query("update academia.poll_questions set status = 'pending' where id = $1", [
-        segunda.id,
-      ])
     } catch {
-      retroceder = true
+      retrocedeSinRespuestas = false
     }
-    afirmar(G4, 'una abierta no puede volver a "sin abrir"', true, retroceder)
+    afirmar(G4, 'una pregunta sin respuestas sí puede reiniciarse', true, retrocedeSinRespuestas)
+    afirmar(
+      G4,
+      'y al reiniciarse pierde su hora de apertura',
+      null,
+      (await bd.query('select opened_at from academia.poll_questions where id = $1', [segunda.id]))
+        .rows[0].opened_at
+    )
 
     afirmar(
       G4,
@@ -837,13 +841,32 @@ async function main() {
     const rutaProyeccion = `/proyectar/${encuesta.projection_token}`
 
     afirmar(G9, 'el QR abre sin sesión', 200, (await pedir(rutaPublica, null)).status)
-    afirmar(G9, 'la proyección abre sin sesión', 200, (await pedir(rutaProyeccion, null)).status)
     afirmar(G9, 'un código inventado da 404', 404, (await pedir('/e/ZZZZZZ', null)).status)
+
+    // La proyección NO es pública: quien presenta suele hacerlo en una ventana
+    // con la barra de direcciones a la vista, y con el token a la mano
+    // cualquiera en la sala vería los nombres del muro y podría manejar la
+    // dinámica desde su lugar.
+    afirmar(G9, 'la proyección exige sesión', 307, (await pedir(rutaProyeccion, null)).status)
+    afirmar(G9, 'un alumno tampoco proyecta', 307, (await pedir(rutaProyeccion, alumno)).status)
+    afirmar(G9, 'el admin sí proyecta', 200, (await pedir(rutaProyeccion, admin)).status)
     afirmar(
       G9,
       'un token de proyección inventado da 404',
       404,
-      (await pedir(`/proyectar/${'f'.repeat(64)}`, null)).status
+      (await pedir(`/proyectar/${'f'.repeat(64)}`, admin)).status
+    )
+    afirmar(
+      G9,
+      'el endpoint de la proyección también exige sesión',
+      401,
+      (await pedir(`/api/encuestas/proyeccion/${encuesta.projection_token}`, null)).status
+    )
+    afirmar(
+      G9,
+      'y no se lo da a un alumno',
+      404,
+      (await pedir(`/api/encuestas/proyeccion/${encuesta.projection_token}`, alumno)).status
     )
 
     // Se puede registrar ANTES de que el instructor abra nada. La pared dice
@@ -887,7 +910,7 @@ async function main() {
     // ====================================================================
     const G10 = 'EL CÓDIGO QR'
 
-    const proyeccion1 = await texto(rutaProyeccion, null)
+    const proyeccion1 = await texto(rutaProyeccion, admin)
     const rutaSvg = (html) => html.match(/<path d="(M[^"]+)"/)?.[1] ?? null
     const dibujo1 = rutaSvg(proyeccion1)
 
@@ -905,7 +928,7 @@ async function main() {
       proyeccion1.includes('fill="#ffffff"')
     )
 
-    const dibujo2 = rutaSvg(await texto(rutaProyeccion, null))
+    const dibujo2 = rutaSvg(await texto(rutaProyeccion, admin))
     afirmar(G10, 'el mismo texto produce el mismo símbolo', dibujo1, dibujo2)
 
     // Un símbolo distinto para un texto distinto. Es lo que descarta que se esté
@@ -960,7 +983,7 @@ async function main() {
 
     const formEntrada = (html) => leerFormularios(html).find((f) => f.html.includes('name="nombre"'))
 
-    // (c) invitado: deja sus datos pero NO se le crea cuenta.
+    // Un solo camino: se llenan los datos, se entra, y la cuenta se crea sola.
     const celInvitado = crearFrasco()
     const formInvitado = formEntrada(await texto(rutaPublica, celInvitado))
     afirmar(G12, 'el formulario de entrada está', true, Boolean(formInvitado))
@@ -981,14 +1004,14 @@ async function main() {
       [correoInvitado]
     )
     afirmar(G12, 'se guardó a la persona', 1, invitado.length)
-    afirmar(G12, 'con su teléfono, aunque sea invitado', '5512345678', invitado[0]?.phone ?? null)
-    afirmar(G12, 'y SIN cuenta de auth', null, invitado[0]?.user_id ?? null)
+    afirmar(G12, 'con su teléfono', '5512345678', invitado[0]?.phone ?? null)
+    afirmar(G12, 'y con su cuenta ya ligada', true, Boolean(invitado[0]?.user_id))
 
     const { rows: perfilInvitado } = await bd.query(
-      'select count(*)::int n from academia.profiles where email = $1',
+      'select role from academia.profiles where email = $1',
       [correoInvitado]
     )
-    afirmar(G12, 'no se creó ningún perfil para el invitado', 0, perfilInvitado[0].n)
+    afirmar(G12, 'la cuenta nace como invitado', 'invitado', perfilInvitado[0]?.role ?? null)
 
     afirmar(
       G12,
@@ -997,8 +1020,9 @@ async function main() {
       (await texto(rutaPublica, celInvitado)).includes('QA')
     )
 
-    // (b) cuenta nueva. El correo cae dentro del corte de resend.ts, así que la
-    // cuenta se crea y NO sale ningún envío hacia un dominio sin MX.
+    // Otra persona, otro teléfono. Los correos caen dentro del corte de
+    // resend.ts, así que las cuentas se crean y NO sale ningún envío hacia un
+    // dominio sin MX.
     const celNuevo = crearFrasco()
     const formNuevo = formEntrada(await texto(rutaPublica, celNuevo))
     if (formNuevo) {
@@ -1008,7 +1032,6 @@ async function main() {
         apellido: 'Cuenta',
         email: correoNuevo,
         telefono: '',
-        crear_cuenta: 'si',
       })
     }
 
@@ -1133,7 +1156,7 @@ async function main() {
     const G14 = 'LO QUE VE LA PROYECCIÓN'
 
     const payload = async () =>
-      await (await pedir(`/api/encuestas/proyeccion/${encuesta.projection_token}`, null)).json()
+      await (await pedir(`/api/encuestas/proyeccion/${encuesta.projection_token}`, admin)).json()
 
     const proy = await payload()
     afirmar(G14, 'la proyección sabe qué pregunta está abierta', muro.id, proy.pregunta?.id ?? null)
@@ -1456,6 +1479,145 @@ async function main() {
 
     afirmar(G17, 'sin sesión, 401', 401, (await pedir(rutaPdf, null)).status)
     afirmar(G17, 'un alumno, 404', 404, (await pedir(rutaPdf, alumno)).status)
+
+    // ====================================================================
+    const G18 = 'CONTROLES EN LA PROYECCIÓN'
+
+    const pantalla = await texto(rutaProyeccion, admin)
+    const formAvanzar = leerFormularios(pantalla).find(
+      (f) => f.campos.poll_id === encuesta.id && !f.campos.id
+    )
+    afirmar(G18, 'la proyección trae el botón de avanzar', true, Boolean(formAvanzar))
+    afirmar(G18, 'y dice cómo avanzar con el clicker', true, pantalla.includes('control de presentaciones'))
+
+    // En este punto ya no quedan preguntas por abrir, así que avanzar es
+    // terminar: un botón que no hiciera nada sería peor que no tenerlo.
+    const { rows: pendientesAntes } = await bd.query(
+      "select count(*)::int n from academia.poll_questions where poll_id = $1 and status = 'pending'",
+      [encuesta.id]
+    )
+    afirmar(G18, 'no quedan preguntas por abrir', 0, pendientesAntes[0].n)
+
+    if (formAvanzar) await enviar(rutaProyeccion, formAvanzar, admin, { poll_id: encuesta.id })
+
+    const { rows: trasAvanzar } = await bd.query(
+      'select status from academia.polls where id = $1',
+      [encuesta.id]
+    )
+    afirmar(G18, 'avanzar sin pendientes termina la dinámica', 'closed', trasAvanzar[0].status)
+
+    const { rows: abiertasAlCerrar } = await bd.query(
+      "select count(*)::int n from academia.poll_questions where poll_id = $1 and status = 'open'",
+      [encuesta.id]
+    )
+    afirmar(G18, 'y no deja ninguna pregunta aceptando respuestas', 0, abiertasAlCerrar[0].n)
+
+    // ====================================================================
+    const G19 = 'REINICIAR LA ENCUESTA'
+
+    const contarRespuestas = async () =>
+      (
+        await bd.query(
+          `select count(*)::int n from academia.poll_answers r
+             join academia.poll_questions q on q.id = r.question_id
+            where q.poll_id = $1`,
+          [encuesta.id]
+        )
+      ).rows[0].n
+    const contarParticipantes = async () =>
+      (
+        await bd.query(
+          'select count(*)::int n from academia.poll_participants where poll_id = $1',
+          [encuesta.id]
+        )
+      ).rows[0].n
+
+    afirmar(G19, 'antes de reiniciar hay respuestas', true, (await contarRespuestas()) > 0)
+
+    // Con respuestas guardadas, retroceder sigue prohibido: es lo que impide
+    // que las respuestas nuevas contradigan lo que la sala ya vio proyectado.
+    const { rows: conRespuestas } = await bd.query(
+      `select q.id from academia.poll_questions q
+         join academia.poll_answers r on r.question_id = q.id
+        where q.poll_id = $1 limit 1`,
+      [encuesta.id]
+    )
+    let bloqueadaPorRespuestas = false
+    if (conRespuestas[0]) {
+      try {
+        await bd.query("update academia.poll_questions set status = 'pending' where id = $1", [
+          conRespuestas[0].id,
+        ])
+      } catch {
+        bloqueadaPorRespuestas = true
+      }
+    }
+    afirmar(G19, 'una pregunta CON respuestas no retrocede sola', true, bloqueadaPorRespuestas)
+    const participantesAntes = await contarParticipantes()
+
+    const pagConfiguracion = await texto(rutaConfig, admin)
+    const formReinicio = leerFormularios(pagConfiguracion).find((f) =>
+      f.html.includes('name="borrar_participantes"')
+    )
+    afirmar(G19, 'el botón de reinicio está en configuración', true, Boolean(formReinicio))
+
+    // Sin marcar la casilla: se borran las respuestas, NO la gente.
+    //
+    // `leerFormularios` copia TODOS los inputs, incluidas las casillas. Un
+    // navegador no manda una casilla sin marcar, así que hay que quitarla a
+    // mano para reproducir el envío real; si no, la prueba estaría marcando la
+    // casilla sin querer y afirmando lo contrario de lo que cree.
+    const sinCasilla = formReinicio && {
+      ...formReinicio,
+      campos: Object.fromEntries(
+        Object.entries(formReinicio.campos).filter(([n]) => n !== 'borrar_participantes')
+      ),
+    }
+    if (sinCasilla) await enviar(rutaConfig, sinCasilla, admin, { id: encuesta.id })
+
+    afirmar(G19, 'se borraron todas las respuestas', 0, await contarRespuestas())
+    afirmar(
+      G19,
+      'pero los participantes siguen ahí',
+      participantesAntes,
+      await contarParticipantes()
+    )
+
+    const { rows: trasReinicio } = await bd.query(
+      'select status, opened_at, closed_at from academia.polls where id = $1',
+      [encuesta.id]
+    )
+    afirmar(G19, 'la encuesta vuelve a borrador', 'draft', trasReinicio[0].status)
+    afirmar(G19, 'sin hora de apertura', null, trasReinicio[0].opened_at)
+
+    const { rows: estadosTrasReinicio } = await bd.query(
+      'select status from academia.poll_questions where poll_id = $1',
+      [encuesta.id]
+    )
+    afirmar(
+      G19,
+      'y todas las preguntas quedan sin abrir',
+      true,
+      estadosTrasReinicio.every((e) => e.status === 'pending')
+    )
+    afirmar(G19, 'sin perder ninguna pregunta', preguntas.length, estadosTrasReinicio.length)
+
+    // Con la casilla marcada sí se van los participantes. Es el caso del ensayo.
+    if (formReinicio) {
+      await enviar(rutaConfig, formReinicio, admin, {
+        id: encuesta.id,
+        borrar_participantes: 'on',
+      })
+    }
+    afirmar(G19, 'marcando la casilla sí se borran', 0, await contarParticipantes())
+
+    // La persona NO desaparece: solo su asistencia a ESTA encuesta. Si vino a
+    // otra dinámica, su historial sigue intacto.
+    const { rows: personaSigue } = await bd.query(
+      'select count(*)::int n from academia.participants where email = $1',
+      [correoInvitado]
+    )
+    afirmar(G19, 'pero la persona sigue existiendo', 1, personaSigue[0].n)
 
     // ====================================================================
     const G8 = 'LIMPIEZA'

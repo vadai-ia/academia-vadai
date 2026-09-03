@@ -26,15 +26,21 @@ const PUBLICAS = [
 
 /**
  * Prefijos públicos: callbacks de auth, verificación de certificados (§3.6) y
- * las tres superficies de las encuestas en vivo (M12).
+ * las superficies de encuestas que MIRA LA SALA.
  *
- * Las de encuestas NO se protegen con sesión, y es a propósito: quien escanea un
- * QR en una sala puede no tener cuenta, y pedirle una sería el final de la
- * dinámica. Se protegen con una llave pública no adivinable verificada en el
- * servidor —el `join_code` para contestar, el `projection_token` para
- * proyectar—, que es el mismo criterio que `/certificado/[folio]`.
+ * `/e/` no se protege con sesión, y es a propósito: quien escanea un QR en un
+ * salón puede no tener cuenta, y pedirle una sería el final de la dinámica. Se
+ * protege con el `join_code`, una llave no adivinable verificada en el servidor,
+ * que es el mismo criterio que `/certificado/[folio]`.
  *
- * Si alguien las quita de aquí "por seguridad", la feature entera deja de
+ * `/proyectar/` NO está aquí (decidido 3-sep-2026). Se protegió un tiempo solo
+ * con su token, para poder mandar la pantalla a otra máquina sin iniciar sesión.
+ * El problema es que quien proyecta suele hacerlo en una ventana con barra de
+ * direcciones a la vista: cualquiera en la sala podía fotografiar el token y,
+ * desde su lugar, ver los nombres del muro o —ahora que la pantalla trae
+ * controles— manejar la dinámica. Exige sesión de admin.
+ *
+ * Si alguien quita `/e/` de aquí "por seguridad", la feature entera deja de
  * funcionar: el middleware corre en TODAS las rutas.
  */
 const PREFIJOS_PUBLICOS = [
@@ -42,7 +48,6 @@ const PREFIJOS_PUBLICOS = [
   '/certificado/',
   '/api/stripe/',
   '/e/',
-  '/proyectar/',
   '/api/encuestas/',
 ]
 

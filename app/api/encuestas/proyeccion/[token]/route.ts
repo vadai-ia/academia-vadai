@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server'
 
+import { esEquipo, obtenerSesion } from '@/lib/auth/sesion'
 import { encuestaPorToken, payloadDeProyeccion } from '@/lib/encuestas/publico'
 
 export const dynamic = 'force-dynamic'
@@ -22,6 +23,21 @@ export const dynamic = 'force-dynamic'
  * diferir.
  */
 export async function GET(_peticion: Request, { params }: { params: Promise<{ token: string }> }) {
+  // Exige admin, igual que la página que lo consume. Vive bajo el prefijo
+  // público `/api/encuestas/` —que existe para que el celular de la sala pueda
+  // sondear sin sesión—, así que el middleware no corta aquí y la comprobación
+  // tiene que estar en el handler.
+  //
+  // No es paranoia: este endpoint devuelve el muro con los NOMBRES de quienes
+  // contestaron. Dejarlo abierto al token haría inútil haber cerrado la página.
+  const sesion = await obtenerSesion()
+  if (sesion.tipo !== 'activo') {
+    return NextResponse.json({ error: 'Necesitas iniciar sesión.' }, { status: 401 })
+  }
+  if (!esEquipo(sesion.perfil)) {
+    return NextResponse.json({ error: 'Proyección no encontrada.' }, { status: 404 })
+  }
+
   const { token } = await params
   const encuesta = await encuestaPorToken(token)
 

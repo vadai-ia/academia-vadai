@@ -542,6 +542,68 @@ export async function abrirPregunta(datos: FormData): Promise<void> {
   refrescar(encuestaId)
 }
 
+/**
+ * Un solo botón que siempre hace lo siguiente que toca.
+ *
+ * Existe para la pantalla de proyección: quien presenta está de pie frente a la
+ * sala y no puede ponerse a decidir entre "abrir la 3" y "cerrar la 2". Aquí la
+ * decisión la toma el servidor —cierra la abierta y abre la siguiente pendiente,
+ * por posición— y quien presenta solo avanza.
+ *
+ * Si ya no quedan pendientes, cierra la dinámica: es lo único que queda por
+ * hacer, y dejar el botón sin efecto sería peor que quitarlo.
+ */
+export async function avanzarEncuesta(datos: FormData): Promise<void> {
+  await exigirAdmin()
+
+  const encuestaId = String(datos.get('poll_id') ?? '')
+  if (!encuestaId) return
+
+  const supabase = await crearClienteServidor()
+
+  const { data: siguiente } = await supabase
+    .from('poll_questions')
+    .select('id')
+    .eq('poll_id', encuestaId)
+    .eq('status', 'pending')
+    .order('position', { ascending: true })
+    .limit(1)
+    .maybeSingle()
+
+  // Siempre se cierra la que estaba abierta, haya o no siguiente: el índice
+  // único parcial no deja dos abiertas, y al terminar no debe quedar ninguna
+  // aceptando respuestas tardías.
+  await supabase
+    .from('poll_questions')
+    .update({ status: 'closed' })
+    .eq('poll_id', encuestaId)
+    .eq('status', 'open')
+
+  if (siguiente) {
+    const { error } = await supabase
+      .from('poll_questions')
+      .update({ status: 'open' })
+      .eq('id', siguiente.id)
+      .eq('status', 'pending')
+
+    if (error) registrarFallo('avanzarEncuesta', { encuestaId }, error.message)
+
+    await supabase
+      .from('polls')
+      .update({ status: 'live', opened_at: new Date().toISOString() })
+      .eq('id', encuestaId)
+      .eq('status', 'draft')
+  } else {
+    await supabase
+      .from('polls')
+      .update({ status: 'closed', closed_at: new Date().toISOString() })
+      .eq('id', encuestaId)
+      .neq('status', 'closed')
+  }
+
+  refrescar(encuestaId)
+}
+
 export async function cerrarPregunta(datos: FormData): Promise<void> {
   await exigirAdmin()
 
@@ -558,6 +620,82 @@ export async function cerrarPregunta(datos: FormData): Promise<void> {
 
   if (error) registrarFallo('cerrarPregunta', { id }, error.message)
   refrescar(encuestaId)
+}
+
+/**
+ * Reinicia la encuesta: la deja como si nunca se hubiera corrido.
+ *
+ * Borra las respuestas, devuelve todas las preguntas a "sin abrir" y la encuesta
+ * a borrador. Sirve para el ensayo antes del evento y para volver a correr el
+ * mismo juego con otro grupo.
+ *
+ * EL ORDEN NO ES CASUAL: primero se borran las respuestas y después se
+ * retroceden las preguntas. El trigger de `academia_0022` solo deja volver a
+ * `pending` una pregunta que ya no tenga ninguna respuesta, así que al revés
+ * fallaría — y falla a propósito, porque retroceder con respuestas guardadas es
+ * justo lo que no se debe poder hacer.
+ *
+ * A LOS PARTICIPANTES NO LOS TOCA por defecto, y esa es la decisión importante:
+ * los correos y teléfonos que dejó la sala son lo más valioso que produce esta
+ * feature, y un botón de "reiniciar" que los borra en silencio sería una forma
+ * elegante de perder el padrón de un evento. Se borran solo si se pide
+ * explícitamente, que es lo que quiere un ensayo.
+ */
+export async function reiniciarEncuesta(datos: FormData): Promise<void> {
+  await exigirAdmin()
+
+  const id = String(datos.get('id') ?? '')
+  if (!id) return
+
+  const tambienParticipantes = datos.get('borrar_participantes') !== null
+  const supabase = await crearClienteServidor()
+
+  const { data: preguntas } = await supabase
+    .from('poll_questions')
+    .select('id')
+    .eq('poll_id', id)
+
+  const ids = (preguntas ?? []).map((p) => p.id)
+
+  if (ids.length > 0) {
+    const { error: errorRespuestas } = await supabase
+      .from('poll_answers')
+      .delete()
+      .in('question_id', ids)
+
+    if (errorRespuestas) {
+      registrarFallo('reiniciarEncuesta:respuestas', { id }, errorRespuestas.message)
+      return
+    }
+
+    const { error: errorPreguntas } = await supabase
+      .from('poll_questions')
+      .update({ status: 'pending' })
+      .eq('poll_id', id)
+      .neq('status', 'pending')
+
+    if (errorPreguntas) {
+      registrarFallo('reiniciarEncuesta:preguntas', { id }, errorPreguntas.message)
+      return
+    }
+  }
+
+  if (tambienParticipantes) {
+    // Borra la ASISTENCIA a esta encuesta, no a la persona: alguien que vino a
+    // otra dinámica sigue existiendo, con su historial intacto.
+    const { error } = await supabase.from('poll_participants').delete().eq('poll_id', id)
+    if (error) registrarFallo('reiniciarEncuesta:participantes', { id }, error.message)
+  }
+
+  const { error } = await supabase
+    .from('polls')
+    .update({ status: 'draft', opened_at: null, closed_at: null })
+    .eq('id', id)
+
+  if (error) registrarFallo('reiniciarEncuesta', { id }, error.message)
+
+  refrescar(id)
+  revalidatePath(`/admin/encuestas/${id}/resultados`)
 }
 
 /**

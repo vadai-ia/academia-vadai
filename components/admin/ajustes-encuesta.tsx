@@ -10,7 +10,11 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
 import { SIN_ESTADO } from '@/lib/admin/tipos'
-import { actualizarEncuesta, eliminarEncuesta } from '@/lib/encuestas/acciones'
+import {
+  actualizarEncuesta,
+  eliminarEncuesta,
+  reiniciarEncuesta,
+} from '@/lib/encuestas/acciones'
 import type { EncuestaCompleta } from '@/lib/encuestas/consultas'
 
 const claseSelect =
@@ -142,6 +146,52 @@ export function AjustesEncuesta({
           <Guardar />
         </div>
       </form>
+
+      <details>
+        <summary className="inline-flex w-fit cursor-pointer list-none items-center gap-2 rounded-lg px-3 py-2 text-sm text-muted-foreground transition-colors select-none hover:bg-muted hover:text-foreground focus-visible:ring-3 focus-visible:ring-ring/50 focus-visible:outline-none [&::-webkit-details-marker]:hidden">
+          Reiniciar esta encuesta
+        </summary>
+        <form
+          action={reiniciarEncuesta}
+          className="mt-3 flex flex-col gap-3 rounded-[10px] border border-border p-4"
+        >
+          <input type="hidden" name="id" value={encuesta.id} />
+
+          <p className="text-sm text-muted-foreground">
+            Borra todas las respuestas y deja las {encuesta.preguntas.length} pregunta(s) sin
+            abrir, como si nunca se hubiera corrido. Las preguntas y su orden se quedan tal cual.
+            Sirve para ensayar antes del evento, o para volver a correr el mismo juego con otro
+            grupo.
+          </p>
+
+          {/*
+            Los participantes NO se borran por defecto, y no es una omisión: los
+            correos y teléfonos que dejó la sala son lo más valioso que produce
+            esta dinámica. Un "reiniciar" que se los lleva en silencio sería una
+            forma elegante de perder el padrón de un evento.
+          */}
+          <label className="flex items-start gap-2.5 text-sm">
+            <input
+              type="checkbox"
+              name="borrar_participantes"
+              className="mt-0.5 size-4 accent-vadai-cyan"
+            />
+            <span>
+              Borrar también a los {encuesta.totalParticipantes} participante(s)
+              <span className="block text-xs text-muted-foreground">
+                Solo si esto fue un ensayo. Si el evento fue real, deja esto apagado: perderías
+                los correos y teléfonos que capturaste, y son irrecuperables.
+              </span>
+            </span>
+          </label>
+
+          <div>
+            <Button type="submit" variant="outline">
+              Reiniciar desde la pregunta 1
+            </Button>
+          </div>
+        </form>
+      </details>
 
       <details>
         <summary className="inline-flex w-fit cursor-pointer list-none items-center gap-2 rounded-lg px-3 py-2 text-sm text-muted-foreground transition-colors select-none hover:bg-muted hover:text-foreground focus-visible:ring-3 focus-visible:ring-ring/50 focus-visible:outline-none [&::-webkit-details-marker]:hidden">

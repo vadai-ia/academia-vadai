@@ -68,8 +68,22 @@ async function huellaDeIp(): Promise<string> {
   return createHash('sha256').update(`${cruda}|${sal()}`).digest('hex').slice(0, 32)
 }
 
-/** Cuántos intentos de cada clase se toleran por IP y por encuesta en una hora. */
-const CUOTA = { join: 12, account: 3, answer: 120 } as const
+/**
+ * Cuántos intentos de cada clase se toleran por IP y por encuesta en una hora.
+ *
+ * CORREGIDO 3-sep-2026. Estaban en 12 entradas y 3 cuentas, y eso habría
+ * reventado el primer evento real: **una sala entera comparte una sola IP
+ * pública**. Con cien personas detrás del wifi del salón, la número 13 se
+ * habría topado con "demasiados intentos desde esta red" sin que nadie
+ * entendiera por qué.
+ *
+ * Los números de ahora están dimensionados para una sala grande, no para un
+ * usuario. Lo que de verdad protege esto no es la cuota: es que hay que traer
+ * un `join_code` válido de una encuesta que esté viva, y ese código solo lo
+ * tiene quien está en el cuarto viendo la pared. La cuota queda para frenar un
+ * script que sí lo consiguiera, no para racionar a los asistentes.
+ */
+const CUOTA = { join: 400, account: 400, answer: 4000 } as const
 
 type ClaseDeIntento = keyof typeof CUOTA
 
@@ -270,6 +284,25 @@ export async function participanteActual(encuesta: EncuestaPublica): Promise<Par
     nombre: fila.display_name,
     tieneCuenta: Boolean(fila.participants?.user_id),
   }
+}
+
+/**
+ * ¿Este correo ya pertenece a la academia?
+ *
+ * Solo lo consulta el camino de `allow_guests` apagado, para no crear cuentas
+ * nuevas en una sesión interna. Va por service role porque quien pregunta puede
+ * no tener sesión, y no revela nada: contesta sí o no sobre un correo que la
+ * propia persona acaba de escribir.
+ */
+export async function tieneCuenta(email: string): Promise<boolean> {
+  const supabase = crearClienteServiceRole()
+  const { data } = await supabase
+    .from('profiles')
+    .select('user_id')
+    .eq('email', email.trim().toLowerCase())
+    .maybeSingle()
+
+  return Boolean(data)
 }
 
 export type DatosDeEntrada = {
@@ -587,6 +620,7 @@ export async function payloadDeProyeccion(encuesta: EncuestaPublica): Promise<Pa
         }
       : null,
     total: encuesta.preguntas.length,
+    pendientes: encuesta.preguntas.filter((p) => p.status === 'pending').length,
     agregado: resultado?.agregado ?? null,
   }
 }

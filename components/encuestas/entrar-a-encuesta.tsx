@@ -11,41 +11,22 @@ import { SIN_ESTADO_PUBLICO } from '@/lib/encuestas/tipos-publicos'
 import { cn } from '@/lib/utils'
 
 /**
- * Los tres caminos para entrar a una encuesta.
+ * Entrar a una encuesta.
  *
- * Están en UN SOLO formulario con DOS botones de envío, y eso no es un ahorro de
- * código: un `<button name="crear_cuenta">` solo manda su valor si fue el que se
- * pulsó, así que el servidor sabe cuál eligió la persona **sin una línea de
- * JavaScript**. La alternativa —un botón que cambia un campo oculto con
- * onClick— dejaría a quien tenga JS bloqueado sin poder participar, de pie en
- * una sala.
+ * UN SOLO BOTÓN (decidido 3-sep-2026). Antes había dos —"crear mi cuenta" y
+ * "continuar como invitado"— y pedían exactamente los mismos datos, así que la
+ * elección no cambiaba nada para quien la hacía: solo lo detenía a decidir, de
+ * pie, con el celular en la mano y la pared esperándolo. Ahora se entra y la
+ * cuenta se crea sola, que es lo que pedía el encargo original.
  *
- * Los datos se piden igual en los dos caminos. Es la decisión de Alejandro y es
- * la que sostiene el negocio: quien "continúa como invitado" también deja su
- * nombre, correo y teléfono; lo único que no se le crea es la cuenta.
+ * Y si la cookie ya reconoce a la persona, esta pantalla ni se muestra: pasa
+ * directo a contestar. Ver `app/e/[codigo]/page.tsx`.
  */
 
-function Boton({
-  children,
-  variant = 'default',
-  name,
-  value,
-}: {
-  children: string
-  variant?: 'default' | 'outline'
-  name?: string
-  value?: string
-}) {
+function Boton({ children }: { children: string }) {
   const { pending } = useFormStatus()
   return (
-    <Button
-      type="submit"
-      variant={variant}
-      name={name}
-      value={value}
-      disabled={pending}
-      className="w-full"
-    >
+    <Button type="submit" disabled={pending} className="w-full">
       {pending ? 'Un momento…' : children}
     </Button>
   )
@@ -147,24 +128,12 @@ export function EntrarAEncuesta({
           </div>
 
           <div className="flex flex-col gap-3">
-            <Boton name="crear_cuenta" value="si">
-              Crear mi cuenta y entrar
-            </Boton>
+            <Boton>Entrar</Boton>
             <p className="text-xs text-muted-foreground">
-              Te mandamos un correo para que pongas tu contraseña. Así vuelves a entrar en la
-              siguiente dinámica sin llenar nada.
+              {permiteInvitados
+                ? 'Te mandamos un correo para que pongas tu contraseña y vuelvas a entrar en la siguiente dinámica sin llenar nada.'
+                : 'Esta dinámica es solo para quien ya tiene cuenta en la academia.'}
             </p>
-
-            {permiteInvitados ? (
-              <>
-                <div className="flex items-center gap-3" aria-hidden>
-                  <span className="h-px flex-1 bg-border" />
-                  <span className="text-xs text-muted-foreground">o</span>
-                  <span className="h-px flex-1 bg-border" />
-                </div>
-                <Boton variant="outline">Continuar como invitado</Boton>
-              </>
-            ) : null}
           </div>
         </>
       )}

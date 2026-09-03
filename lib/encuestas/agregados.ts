@@ -77,6 +77,8 @@ export type PayloadProyeccion = {
     posicion: number
   } | null
   total: number
+  /** Cuántas quedan sin abrir. Decide si el botón dice "Siguiente" o "Terminar". */
+  pendientes: number
   agregado: Agregado | null
 }
 
