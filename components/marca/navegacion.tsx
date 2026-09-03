@@ -20,6 +20,19 @@ import { cn } from '@/lib/utils'
  *
  * Cada pastilla lleva icono Y texto. Un icono solo ahorra espacio y cuesta
  * comprensión: nadie adivina qué sección es un cuadrito.
+ *
+ * SOBRE EL DESBORDE — la queja que motivó la fila propia en el encabezado:
+ *
+ * En escritorio (`md` en adelante) las pastillas ENVUELVEN a un segundo
+ * renglón si no caben. Nunca se recortan y nunca se desplazan: un menú que se
+ * esconde es peor que uno que no existe, porque nadie sabe que le falta algo.
+ *
+ * En móvil sí se desplazan en horizontal —apilar seis pastillas a 375 px
+ * ocuparía media pantalla— pero el contenedor lleva un DEGRADADO en el borde
+ * derecho mientras hay más contenido. Es la pista que faltaba: la barra de
+ * scroll iba oculta y el recorte parecía un error de diseño. El degradado se
+ * hace con `mask-image`, así que las pastillas se desvanecen hacia el borde en
+ * vez de cortarse en seco.
  */
 
 export type Destino = {
@@ -36,7 +49,16 @@ export function NavegacionPrincipal({ destinos }: { destinos: Destino[] }) {
   return (
     <nav
       aria-label="Secciones"
-      className="-mx-1 flex min-w-0 items-center gap-1 overflow-x-auto px-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
+      className={cn(
+        // Móvil: una fila que se desplaza, con el borde derecho desvanecido
+        // mientras haya más. El padding derecho extra deja que la última
+        // pastilla se lea completa al llegar al final del desplazamiento.
+        '-mx-5 flex items-center gap-1 overflow-x-auto px-5 pr-10',
+        '[scrollbar-width:none] [&::-webkit-scrollbar]:hidden',
+        '[mask-image:linear-gradient(to_right,black_calc(100%-2.5rem),transparent)]',
+        // Escritorio: sin desplazamiento y sin máscara. Si no caben, envuelven.
+        'md:mx-0 md:flex-wrap md:overflow-visible md:px-0 md:pr-0 md:[mask-image:none]'
+      )}
     >
       {destinos.map((d) => {
         const activa = d.exacto ? ruta === d.href : ruta === d.href || ruta.startsWith(`${d.href}/`)

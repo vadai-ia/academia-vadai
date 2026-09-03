@@ -82,8 +82,19 @@ const destino = (respuesta) => {
 const texto = async (ruta, frasco) => await (await pedir(ruta, frasco)).text()
 
 /** Lee el porcentaje que la página está mostrando. */
+/**
+ * El porcentaje de avance, leído del valor semántico y no de cualquier "%".
+ *
+ * Antes tomaba el PRIMER `N%` del HTML entero. Se rompió cuando el encabezado
+ * ganó una clase con `calc(100% - 2.5rem)` para desvanecer el menú en móvil:
+ * ese "100%" iba literal en el atributo `class`, antes de la barra, y la prueba
+ * decía que el alumno llevaba 100% sin haber empezado.
+ *
+ * `aria-valuenow` es lo que un lector de pantalla anuncia. Si eso está mal, la
+ * barra está mal — y ninguna clase de CSS puede colarse ahí.
+ */
 function porcentajeEn(html) {
-  const m = html.match(/(\d+)\s*(?:%|&#x25;)/)
+  const m = html.match(/role="progressbar"[^>]*aria-valuenow="(\d+)"/)
   return m ? Number(m[1]) : null
 }
 

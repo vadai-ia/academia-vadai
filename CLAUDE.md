@@ -224,6 +224,14 @@ es que la jerarquía la carga el **espacio y el tamaño**, no el color ni las
 negritas — por eso casi todo va en peso 500 y las tarjetas se separan con un
 borde de 1px en vez de flotar con sombra.
 
+**El encabezado va en dos filas, nunca en una** (decidido 24-ago-2026). Arriba
+marca y cuenta —la cuenta es UN avatar con menú `<details>` que guarda nombre, rol,
+tema y salir—; abajo las secciones solas a todo el ancho. Con seis secciones en
+una sola fila, "Vista de alumno" se recortaba y la barra de scroll oculta no
+avisaba: un menú que se esconde es peor que uno que no existe. En escritorio las
+pastillas **envuelven** si no caben; en móvil se desplazan con un degradado en el
+borde (`mask-image`) que dice "hay más". No es un sidebar a propósito.
+
 Estructura copiada de Skool: **pestañas por sección dentro del curso**
 (`components/ui-vadai/pestanas.tsx`), rejilla de cursos con portada 16:9 y barra
 de avance, y feed con avatar a la izquierda. Los primitivos viven en
