@@ -584,6 +584,32 @@ export async function cuantosEntraron(encuestaId: string): Promise<number> {
   return count ?? 0
 }
 
+/** Tope de nombres que la sala de espera pinta a la vez. Más ya no se leen. */
+const TOPE_RECIEN_LLEGADOS = 40
+
+/**
+ * Los últimos en entrar, para la sala de espera.
+ *
+ * Solo el nombre que la persona dio al entrar —ni correo ni teléfono—: se
+ * proyecta en una pared. Y solo si la encuesta muestra nombres; si el admin
+ * apagó `show_names` por privacidad, aquí también se respeta.
+ */
+export async function recienLlegados(
+  encuesta: EncuestaPublica
+): Promise<Array<{ id: string; nombre: string }>> {
+  if (!encuesta.showNames) return []
+
+  const supabase = crearClienteServiceRole()
+  const { data } = await supabase
+    .from('poll_participants')
+    .select('id, display_name')
+    .eq('poll_id', encuesta.id)
+    .order('joined_at', { ascending: false })
+    .limit(TOPE_RECIEN_LLEGADOS)
+
+  return (data ?? []).map((f) => ({ id: f.id, nombre: f.display_name }))
+}
+
 /**
  * Todo lo que la pantalla proyectada necesita, de una vez.
  *
@@ -601,8 +627,12 @@ export async function payloadDeProyeccion(encuesta: EncuestaPublica): Promise<Pa
   const aMostrar =
     abierta ?? [...encuesta.preguntas].reverse().find((p) => p.status === 'closed') ?? null
 
-  const [participantes, resultado] = await Promise.all([
+  const [participantes, llegados, resultado] = await Promise.all([
     cuantosEntraron(encuesta.id),
+    // Solo mientras no hay pregunta en pantalla: es cuando la sala de espera
+    // se ve. Durante una pregunta ese espacio lo ocupa la gráfica, y pedir la
+    // lista cada segundo sería un viaje que nadie mira.
+    aMostrar ? Promise.resolve([]) : recienLlegados(encuesta),
     aMostrar ? resultadosDePregunta(encuesta, aMostrar) : Promise.resolve(null),
   ])
 
@@ -621,6 +651,7 @@ export async function payloadDeProyeccion(encuesta: EncuestaPublica): Promise<Pa
       : null,
     total: encuesta.preguntas.length,
     pendientes: encuesta.preguntas.filter((p) => p.status === 'pending').length,
+    recienLlegados: llegados,
     agregado: resultado?.agregado ?? null,
   }
 }

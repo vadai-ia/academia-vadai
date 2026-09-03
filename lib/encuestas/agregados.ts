@@ -79,6 +79,12 @@ export type PayloadProyeccion = {
   total: number
   /** Cuántas quedan sin abrir. Decide si el botón dice "Siguiente" o "Terminar". */
   pendientes: number
+  /**
+   * Los últimos en entrar, más reciente primero. Es lo que la sala de espera va
+   * pintando mientras el instructor presenta. Vacío si la encuesta no muestra
+   * nombres.
+   */
+  recienLlegados: Array<{ id: string; nombre: string }>
   agregado: Agregado | null
 }
 

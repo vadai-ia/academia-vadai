@@ -1602,6 +1602,44 @@ async function main() {
     )
     afirmar(G19, 'sin perder ninguna pregunta', preguntas.length, estadosTrasReinicio.length)
 
+    // ====================================================================
+    // Recién reiniciada y con gente dentro, la proyección es la sala de espera:
+    // tiene que pintar a quien ya entró, y "Empezar" en vez de "Siguiente".
+    const G20 = 'LA SALA DE ESPERA'
+
+    const enEspera = await payload()
+    afirmar(G20, 'sin pregunta en pantalla', null, enEspera.pregunta)
+    afirmar(G20, 'el payload trae a los recién llegados', true, Array.isArray(enEspera.recienLlegados))
+    afirmar(
+      G20,
+      'y entre ellos está quien entró por el QR',
+      true,
+      (enEspera.recienLlegados ?? []).some((r) => r.nombre === 'QA Invitado')
+    )
+    afirmar(
+      G20,
+      'solo el nombre que dio, nunca su correo',
+      false,
+      JSON.stringify(enEspera.recienLlegados ?? []).includes('@')
+    )
+
+    const paredEnEspera = await texto(rutaProyeccion, admin)
+    afirmar(G20, 'la pared pinta el nombre', true, paredEnEspera.includes('QA Invitado'))
+    afirmar(G20, 'y ofrece Empezar, no Siguiente', true, paredEnEspera.includes('>Empezar<'))
+    afirmar(
+      G20,
+      'que lanza la cuenta regresiva, no un envío directo',
+      false,
+      leerFormularios(paredEnEspera).some((f) => f.campos.poll_id === encuesta.id && !f.campos.id)
+    )
+
+    // Con nombres apagados, la sala de espera no dice quién entró.
+    await bd.query('update academia.polls set show_names = false where id = $1', [encuesta.id])
+    const sinNombres = await payload()
+    afirmar(G20, 'con show_names apagado no se pinta a nadie', 0, (sinNombres.recienLlegados ?? []).length)
+    afirmar(G20, 'pero el conteo sigue', true, (sinNombres.participantes ?? 0) > 0)
+    await bd.query('update academia.polls set show_names = true where id = $1', [encuesta.id])
+
     // Con la casilla marcada sí se van los participantes. Es el caso del ensayo.
     if (formReinicio) {
       await enviar(rutaConfig, formReinicio, admin, {

@@ -1,8 +1,10 @@
 'use client'
 
-import { useEffect, useRef, useState, type ReactNode } from 'react'
+import { startTransition, useEffect, useRef, useState, type ReactNode } from 'react'
 import { useFormStatus } from 'react-dom'
 
+import { CuentaRegresiva } from '@/components/encuestas/cuenta-regresiva'
+import { SalaDeEspera } from '@/components/encuestas/sala-de-espera'
 import { Visualizacion } from '@/components/encuestas/visualizaciones'
 import { Button } from '@/components/ui/button'
 import type { PayloadProyeccion } from '@/lib/encuestas/agregados'
@@ -22,6 +24,11 @@ import { avanzarEncuesta, cerrarPregunta } from '@/lib/encuestas/acciones'
  * mirando la pared, no su laptop. La página exige sesión de admin, así que
  * llegar hasta acá ya es prueba suficiente para mostrarlos; el servidor los
  * valida otra vez de todos modos.
+ *
+ * LA PRIMERA VEZ ES DISTINTA. "Empezar" no abre la pregunta: lanza la cuenta
+ * regresiva, y la pregunta se abre cuando termina (o cuando se salta). Es la
+ * señal para que la sala deje de platicar y mire la pared. Las siguientes
+ * preguntas avanzan directo, sin ceremonia: ahí lo que importa es el resultado.
  */
 
 const CADENCIA_MS = 1000
@@ -61,6 +68,7 @@ export function PantallaEnVivo({
 }) {
   const [datos, setDatos] = useState<PayloadProyeccion>(inicial)
   const [enLinea, setEnLinea] = useState(true)
+  const [contando, setContando] = useState(false)
 
   // En una ref y no en el estado: cambiarlo no debe repintar la pantalla, solo
   // sirve para decidir si el intervalo sigue vivo.
@@ -94,41 +102,56 @@ export function PantallaEnVivo({
     }
   }, [token])
 
+  const esperando = !datos.pregunta
+  const terminada = datos.estado === 'closed'
+  const hayPendientes = datos.pendientes > 0
+
+  /** Abre la primera pregunta. Lo dispara el final de la cuenta regresiva. */
+  function abrirLaPrimera() {
+    setContando(false)
+    const formulario = new FormData()
+    formulario.set('poll_id', encuestaId)
+    startTransition(() => {
+      void avanzarEncuesta(formulario)
+    })
+  }
+
   /**
    * Avanzar con el control remoto de presentaciones.
    *
    * Un clicker manda flecha derecha o AvPág, exactamente como para pasar una
    * diapositiva. Sin esto, quien presenta tendría que volver a la laptop para
    * abrir cada pregunta, que es justo lo que esta pantalla vino a evitar.
+   *
+   * Mientras corre la cuenta regresiva no hace nada: ella tiene su propio
+   * atajo (Escape para saltarla) y un clic accidental no debe abrir dos veces.
    */
   useEffect(() => {
     function alTeclado(evento: KeyboardEvent) {
       const objetivo = evento.target as HTMLElement | null
       if (objetivo && ['INPUT', 'TEXTAREA', 'SELECT'].includes(objetivo.tagName)) return
       if (evento.key !== 'ArrowRight' && evento.key !== 'PageDown' && evento.key !== ' ') return
+      if (contando || terminada) return
 
       evento.preventDefault()
-      formAvanzar.current?.requestSubmit()
+      if (esperando) setContando(true)
+      else formAvanzar.current?.requestSubmit()
     }
 
     window.addEventListener('keydown', alTeclado)
     return () => window.removeEventListener('keydown', alTeclado)
-  }, [])
-
-  const esperando = !datos.pregunta
-  const terminada = datos.estado === 'closed'
-  const hayPendientes = datos.pendientes > 0
+  }, [contando, esperando, terminada])
 
   // Un solo botón que siempre hace lo que toca. Quien está de pie frente a una
   // sala no puede ponerse a decidir entre "abrir la 3" y "cerrar la 2".
-  const textoAvanzar = esperando
-    ? 'Empezar'
-    : hayPendientes
-      ? `Siguiente pregunta (${datos.pendientes} más)`
-      : 'Terminar la dinámica'
+  const textoAvanzar = hayPendientes
+    ? `Siguiente pregunta (${datos.pendientes} más)`
+    : 'Terminar la dinámica'
 
   return (
     <div className="flex min-h-dvh flex-col gap-6 p-8 lg:p-12">
+      {contando ? <CuentaRegresiva alTerminar={abrirLaPrimera} /> : null}
+
       {/* El QR vive aquí SIEMPRE, no solo al principio: la gente llega tarde, se
           le bloquea el teléfono, o se anima a participar hasta la tercera
           pregunta. Un QR que desaparece deja fuera a todos ellos. */}
@@ -168,12 +191,7 @@ export function PantallaEnVivo({
 
       <main className="flex flex-1 flex-col">
         {esperando ? (
-          <div className="flex flex-1 flex-col items-center justify-center gap-4 rounded-xl border border-dashed border-border">
-            <p className="text-3xl text-balance">Ya puedes entrar desde tu celular.</p>
-            <p className="text-xl text-muted-foreground text-balance">
-              En cuanto abramos la primera pregunta aparecerá aquí.
-            </p>
-          </div>
+          <SalaDeEspera llegados={datos.recienLlegados} total={datos.participantes} />
         ) : datos.agregado ? (
           <Visualizacion datos={datos.agregado} />
         ) : null}
@@ -185,6 +203,12 @@ export function PantallaEnVivo({
             <p className="text-lg text-muted-foreground">
               Dinámica terminada. Los resultados están en el panel.
             </p>
+          ) : esperando ? (
+            // La primera vez no es un envío: es el botón que lanza la cuenta
+            // regresiva. La pregunta se abre cuando ella termina.
+            <Button type="button" size="lg" onClick={() => setContando(true)} disabled={contando}>
+              {contando ? 'Empezando…' : 'Empezar'}
+            </Button>
           ) : (
             <>
               <form action={avanzarEncuesta} ref={formAvanzar}>
