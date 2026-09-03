@@ -28,6 +28,7 @@ export type RespuestaExportada = {
   valor: string
   oculta: boolean
   creadaEn: string
+  corrida: number
 }
 
 export type PreguntaExportada = {
@@ -49,6 +50,7 @@ export type ParticipanteExportado = {
   tieneCuenta: boolean
   entroEn: string
   respondio: number
+  corrida: number
 }
 
 export type DatosExportacion = {
@@ -58,6 +60,8 @@ export type DatosExportacion = {
   curso: string
   cohorte: string | null
   estado: string
+  /** La corrida en curso. Los agregados —y el PDF— son de esta. */
+  corrida: number
   preguntas: PreguntaExportada[]
   participantes: ParticipanteExportado[]
 }
@@ -99,7 +103,7 @@ export async function datosParaExportar(encuestaId: string): Promise<DatosExport
   const { data: encuesta } = await supabase
     .from('polls')
     .select(
-      'id, title, join_code, status, courses(title), cohorts(name), poll_questions(id, prompt, question_type, options, settings, position)'
+      'id, title, join_code, status, corrida, courses(title), cohorts(name), poll_questions(id, prompt, question_type, options, settings, position)'
     )
     .eq('id', encuestaId)
     .maybeSingle()
@@ -111,6 +115,7 @@ export async function datosParaExportar(encuestaId: string): Promise<DatosExport
     title: string
     join_code: string
     status: string
+    corrida: number
     courses: { title: string } | null
     cohorts: { name: string } | null
     poll_questions: Array<{
@@ -134,14 +139,16 @@ export async function datosParaExportar(encuestaId: string): Promise<DatosExport
       ? supabase
           .from('poll_answers')
           .select(
-            'id, question_id, text_value, text_norm, option_id, numeric_value, hidden, created_at, poll_participants(display_name, participants(email))'
+            'id, question_id, poll_participant_id, text_value, text_norm, option_id, numeric_value, hidden, created_at, corrida, poll_participants(display_name, participants(email))'
           )
           .in('question_id', ids)
           .order('created_at', { ascending: true })
       : Promise.resolve({ data: [] }),
     supabase
       .from('poll_participants')
-      .select('id, display_name, joined_at, participants(email, first_name, last_name, phone, user_id)')
+      .select(
+        'id, display_name, joined_at, corrida, participants(email, first_name, last_name, phone, user_id)'
+      )
       .eq('poll_id', encuestaId)
       .order('joined_at', { ascending: true }),
   ])
@@ -149,12 +156,14 @@ export async function datosParaExportar(encuestaId: string): Promise<DatosExport
   type FilaRespuesta = {
     id: string
     question_id: string
+    poll_participant_id: string
     text_value: string | null
     text_norm: string | null
     option_id: string | null
     numeric_value: number | null
     hidden: boolean
     created_at: string
+    corrida: number
     poll_participants: { display_name: string; participants: { email: string } | null } | null
   }
 
@@ -162,6 +171,7 @@ export async function datosParaExportar(encuestaId: string): Promise<DatosExport
     id: string
     display_name: string
     joined_at: string
+    corrida: number
     participants: {
       email: string
       first_name: string
@@ -180,7 +190,12 @@ export async function datosParaExportar(encuestaId: string): Promise<DatosExport
     const ajustes = leerAjustes(p.settings, tipo)
     const suyas = todas.filter((r) => r.question_id === p.id)
 
-    const crudas: RespuestaCruda[] = suyas.map((r) => ({
+    // El AGREGADO es de la corrida en curso: es lo que la sala vio proyectado y
+    // lo que va al PDF. El listado de abajo, en cambio, se lleva todas las
+    // corridas — el Excel es el archivo histórico de la encuesta.
+    const deLaCorrida = suyas.filter((r) => r.corrida === fila.corrida)
+
+    const crudas: RespuestaCruda[] = deLaCorrida.map((r) => ({
       id: r.id,
       textValue: r.text_value,
       textNorm: r.text_norm,
@@ -208,13 +223,17 @@ export async function datosParaExportar(encuestaId: string): Promise<DatosExport
         // saber que ocurrió, no que desapareciera sin rastro.
         oculta: r.hidden,
         creadaEn: r.created_at,
+        corrida: r.corrida,
       })),
     }
   })
 
+  // Por ASISTENCIA, no por nombre. Con varias corridas la misma persona aparece
+  // más de una vez con el mismo `display_name`, y agrupar por ahí fusionaba los
+  // conteos de sus dos visitas en uno solo.
   const respuestasPorAsistente = new Map<string, number>()
   for (const r of todas) {
-    const clave = r.poll_participants?.display_name ?? ''
+    const clave = r.poll_participant_id
     respuestasPorAsistente.set(clave, (respuestasPorAsistente.get(clave) ?? 0) + 1)
   }
 
@@ -225,6 +244,7 @@ export async function datosParaExportar(encuestaId: string): Promise<DatosExport
     curso: fila.courses?.title ?? 'Curso eliminado',
     cohorte: fila.cohorts?.name ?? null,
     estado: fila.status,
+    corrida: fila.corrida,
     preguntas,
     participantes: asistentes.map((a) => ({
       nombre: a.participants?.first_name ?? '',
@@ -233,7 +253,8 @@ export async function datosParaExportar(encuestaId: string): Promise<DatosExport
       telefono: a.participants?.phone ?? '',
       tieneCuenta: Boolean(a.participants?.user_id),
       entroEn: a.joined_at,
-      respondio: respuestasPorAsistente.get(a.display_name) ?? 0,
+      respondio: respuestasPorAsistente.get(a.id) ?? 0,
+      corrida: a.corrida,
     })),
   }
 }
@@ -266,10 +287,13 @@ export function libroDeEncuesta(datos: DatosExportacion, fecha = new Date()): Bu
     ['Código', datos.codigo],
     ['Curso', datos.curso],
     ['Cohorte', datos.cohorte ?? 'Todo el curso'],
-    ['Participantes', datos.participantes.length],
+    ['Corridas', datos.corrida],
+    ['Participantes (todas las corridas)', datos.participantes.length],
     ['Exportado', fechaLegible(fecha.toISOString())],
     [],
-    ['#', 'Pregunta', 'Tipo', 'Respuestas', 'Resultado'],
+    // El "Resultado" resume la corrida EN CURSO, que es la que se proyectó.
+    // "Respuestas" cuenta todas las corridas, que es lo que traen las hojas.
+    [`#`, 'Pregunta', 'Tipo', 'Respuestas (todas)', `Resultado (corrida ${datos.corrida})`],
     ...datos.preguntas.map((p, i): Celda[] => [
       i + 1,
       p.prompt,
@@ -280,8 +304,9 @@ export function libroDeEncuesta(datos: DatosExportacion, fecha = new Date()): Bu
   ]
 
   const participantes: Celda[][] = [
-    ['Nombre', 'Apellido', 'Correo', 'Teléfono', 'Tiene cuenta', 'Entró', 'Respondió'],
+    ['Corrida', 'Nombre', 'Apellido', 'Correo', 'Teléfono', 'Tiene cuenta', 'Entró', 'Respondió'],
     ...datos.participantes.map((p): Celda[] => [
+      p.corrida,
       p.nombre,
       p.apellido,
       p.email,
@@ -302,8 +327,9 @@ export function libroDeEncuesta(datos: DatosExportacion, fecha = new Date()): Bu
       filas: [
         [pregunta.prompt],
         [],
-        ['Autor', 'Correo', 'Respuesta', 'Oculta', 'Cuándo'],
+        ['Corrida', 'Autor', 'Correo', 'Respuesta', 'Oculta', 'Cuándo'],
         ...pregunta.respuestas.map((r): Celda[] => [
+          r.corrida,
           r.autor,
           r.email,
           r.valor,

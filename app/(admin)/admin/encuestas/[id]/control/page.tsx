@@ -42,7 +42,7 @@ export default async function PaginaControl({ params }: { params: Promise<{ id: 
   if (!encuesta) notFound()
 
   const abierta = encuesta.preguntas.find((p) => p.status === 'open')
-  const respuestas = abierta ? await respuestasDePregunta(abierta.id) : []
+  const respuestas = abierta ? await respuestasDePregunta(abierta.id, encuesta.corrida) : []
   const siguiente = encuesta.preguntas.find((p) => p.status === 'pending')
 
   if (encuesta.preguntas.length === 0) {

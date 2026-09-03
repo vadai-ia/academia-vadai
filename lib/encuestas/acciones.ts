@@ -689,10 +689,68 @@ export async function reiniciarEncuesta(datos: FormData): Promise<void> {
 
   const { error } = await supabase
     .from('polls')
-    .update({ status: 'draft', opened_at: null, closed_at: null })
+    // Vuelve también a la corrida 1: "como si nunca se hubiera corrido" incluye
+    // el historial. Para conservarlo está `nuevaCorrida`, que es lo contrario.
+    .update({ status: 'draft', corrida: 1, opened_at: null, closed_at: null })
     .eq('id', id)
 
   if (error) registrarFallo('reiniciarEncuesta', { id }, error.message)
+
+  refrescar(id)
+  revalidatePath(`/admin/encuestas/${id}/resultados`)
+}
+
+/**
+ * Arranca una corrida nueva: desde la pregunta 1, sin borrar nada.
+ *
+ * Es lo que permite usar el mismo juego de preguntas en tres eventos y quedarse
+ * con los datos de los tres. Lo que se proyecta y se agrega es siempre la
+ * corrida en curso; las anteriores siguen en la base y salen en el Excel con su
+ * número de corrida.
+ *
+ * EL ORDEN IMPORTA, y es al revés que en `reiniciarEncuesta`: primero sube el
+ * contador y después retroceden las preguntas. El trigger de `academia_0023`
+ * solo deja volver a `pending` una pregunta sin respuestas EN LA CORRIDA
+ * ACTUAL; al subir el contador primero, la corrida nueva está vacía y el
+ * retroceso pasa por la puerta de enfrente. Al revés fallaría, porque las
+ * respuestas de la corrida anterior todavía serían las de la actual.
+ */
+export async function nuevaCorrida(datos: FormData): Promise<void> {
+  await exigirAdmin()
+
+  const id = String(datos.get('id') ?? '')
+  if (!id) return
+
+  const supabase = await crearClienteServidor()
+
+  const { data: actual } = await supabase
+    .from('polls')
+    .select('corrida')
+    .eq('id', id)
+    .maybeSingle()
+
+  const { error } = await supabase
+    .from('polls')
+    .update({
+      corrida: Number(actual?.corrida ?? 1) + 1,
+      status: 'draft',
+      opened_at: null,
+      closed_at: null,
+    })
+    .eq('id', id)
+
+  if (error) {
+    registrarFallo('nuevaCorrida', { id }, error.message)
+    return
+  }
+
+  const { error: errorPreguntas } = await supabase
+    .from('poll_questions')
+    .update({ status: 'pending' })
+    .eq('poll_id', id)
+    .neq('status', 'pending')
+
+  if (errorPreguntas) registrarFallo('nuevaCorrida:preguntas', { id }, errorPreguntas.message)
 
   refrescar(id)
   revalidatePath(`/admin/encuestas/${id}/resultados`)

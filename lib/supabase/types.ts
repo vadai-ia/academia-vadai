@@ -604,6 +604,7 @@ export type Database = {
           text_norm: string | null
           hidden: boolean
           created_at: string
+          corrida: number
         }
         Insert: {
           id?: string
@@ -616,6 +617,7 @@ export type Database = {
           text_norm?: string | null
           hidden?: boolean
           created_at?: string
+          corrida: number
         }
         Update: {
           id?: string
@@ -628,6 +630,7 @@ export type Database = {
           text_norm?: string | null
           hidden?: boolean
           created_at?: string
+          corrida?: number
         }
         Relationships: []
       }
@@ -663,6 +666,7 @@ export type Database = {
           session_token: string
           display_name: string
           joined_at: string
+          corrida: number
         }
         Insert: {
           id?: string
@@ -671,6 +675,7 @@ export type Database = {
           session_token: string
           display_name?: string
           joined_at?: string
+          corrida: number
         }
         Update: {
           id?: string
@@ -679,6 +684,7 @@ export type Database = {
           session_token?: string
           display_name?: string
           joined_at?: string
+          corrida?: number
         }
         Relationships: []
       }
@@ -745,6 +751,7 @@ export type Database = {
           closed_at: string | null
           created_at: string
           updated_at: string
+          corrida: number
         }
         Insert: {
           id?: string
@@ -763,6 +770,7 @@ export type Database = {
           closed_at?: string | null
           created_at?: string
           updated_at?: string
+          corrida?: number
         }
         Update: {
           id?: string
@@ -781,6 +789,7 @@ export type Database = {
           closed_at?: string | null
           created_at?: string
           updated_at?: string
+          corrida?: number
         }
         Relationships: []
       }

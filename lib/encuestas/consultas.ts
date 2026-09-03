@@ -37,7 +37,10 @@ export type EncuestaCompleta = Encuesta & {
   curso: string
   cohorte: string | null
   preguntas: PreguntaCompleta[]
+  /** De la corrida en curso. Las anteriores solo salen en la exportación. */
   totalParticipantes: number
+  /** Cuántas corridas lleva, contando la actual. */
+  totalCorridas: number
 }
 
 function registrarFallo(operacion: string, detalle: Record<string, unknown>, error: string) {
@@ -149,6 +152,7 @@ export type RespuestaEnLista = {
  */
 export async function respuestasDePregunta(
   preguntaId: string,
+  corrida: number,
   limite = 40
 ): Promise<RespuestaEnLista[]> {
   const supabase = await crearClienteServidor()
@@ -159,6 +163,9 @@ export async function respuestasDePregunta(
       'id, text_value, option_id, numeric_value, hidden, created_at, poll_participants(display_name)'
     )
     .eq('question_id', preguntaId)
+    // Solo la corrida en curso: moderar es una acción sobre lo que está en la
+    // pared ahora, no sobre lo que dijo un grupo de hace tres meses.
+    .eq('corrida', corrida)
     .order('created_at', { ascending: false })
     .limit(limite)
 
@@ -207,7 +214,7 @@ export const obtenerEncuesta = cache(async function obtenerEncuesta(
   const { data, error } = await supabase
     .from('polls')
     .select(
-      '*, courses(title), cohorts(name), poll_participants(id), poll_questions(*, poll_answers(id))'
+      '*, courses(title), cohorts(name), poll_participants(id, corrida), poll_questions(*, poll_answers(id, corrida))'
     )
     .eq('id', id)
     .maybeSingle()
@@ -221,8 +228,10 @@ export const obtenerEncuesta = cache(async function obtenerEncuesta(
   type Anidado = Encuesta & {
     courses: { title: string } | null
     cohorts: { name: string } | null
-    poll_participants: Array<{ id: string }>
-    poll_questions: Array<PreguntaEncuesta & { poll_answers: Array<{ id: string }> }>
+    poll_participants: Array<{ id: string; corrida: number }>
+    poll_questions: Array<
+      PreguntaEncuesta & { poll_answers: Array<{ id: string; corrida: number }> }
+    >
   }
 
   const fila = data as unknown as Anidado
@@ -232,7 +241,11 @@ export const obtenerEncuesta = cache(async function obtenerEncuesta(
     ...resto,
     curso: courses?.title ?? 'Curso eliminado',
     cohorte: cohorts?.name ?? null,
-    totalParticipantes: poll_participants?.length ?? 0,
+    totalParticipantes: (poll_participants ?? []).filter((a) => a.corrida === resto.corrida)
+      .length,
+    // Cuántas corridas lleva: la actual es la más alta, así que el número ES la
+    // cuenta. Un entero, no un `count` sobre las respuestas.
+    totalCorridas: resto.corrida,
     preguntas: [...(poll_questions ?? [])]
       .sort((a, b) => a.position - b.position)
       .map((p) => {
@@ -242,7 +255,9 @@ export const obtenerEncuesta = cache(async function obtenerEncuesta(
           tipo,
           opciones: leerOpciones(p.options),
           ajustes: leerAjustes(p.settings, tipo),
-          totalRespuestas: p.poll_answers?.length ?? 0,
+          // Solo las de la corrida en curso: es lo que se está proyectando.
+          totalRespuestas: (p.poll_answers ?? []).filter((r) => r.corrida === resto.corrida)
+            .length,
         }
       }),
   }

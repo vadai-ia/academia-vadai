@@ -153,8 +153,18 @@ function Cuerpo({ agregado }: { agregado: Agregado }) {
   }
 }
 
-function Pregunta({ pregunta, indice }: { pregunta: PreguntaExportada; indice: number }) {
-  const ocultas = pregunta.respuestas.filter((r) => r.oculta).length
+function Pregunta({
+  pregunta,
+  indice,
+  corrida,
+}: {
+  pregunta: PreguntaExportada
+  indice: number
+  corrida: number
+}) {
+  // De la corrida que se está viendo: `respuestas` trae todas las corridas
+  // porque alimenta al Excel, pero el agregado de arriba es solo de esta.
+  const ocultas = pregunta.respuestas.filter((r) => r.oculta && r.corrida === corrida).length
 
   return (
     <li className="flex flex-col gap-3 rounded-[10px] border border-border p-4 sm:p-5">
@@ -188,7 +198,9 @@ export function ResultadosEncuesta({ datos }: { datos: DatosExportacion }) {
         apoyo={
           datos.preguntas.length === 0
             ? 'Esta encuesta todavía no tiene preguntas.'
-            : 'Lo mismo que vio la sala, en tamaño de lectura.'
+            : datos.corrida > 1
+              ? `Lo mismo que vio la sala, en tamaño de lectura. Es la corrida ${datos.corrida}; las anteriores están en el Excel.`
+              : 'Lo mismo que vio la sala, en tamaño de lectura.'
         }
       >
         {datos.preguntas.length === 0 ? (
@@ -196,7 +208,7 @@ export function ResultadosEncuesta({ datos }: { datos: DatosExportacion }) {
         ) : (
           <ul className="flex flex-col gap-4">
             {datos.preguntas.map((pregunta, i) => (
-              <Pregunta key={pregunta.id} pregunta={pregunta} indice={i} />
+              <Pregunta key={pregunta.id} pregunta={pregunta} indice={i} corrida={datos.corrida} />
             ))}
           </ul>
         )}
@@ -204,7 +216,11 @@ export function ResultadosEncuesta({ datos }: { datos: DatosExportacion }) {
 
       <Seccion
         titulo="Quién participó"
-        apoyo="Cada persona que entró por el QR, con lo que dejó. Es el padrón que te llevas del evento."
+        apoyo={
+          datos.corrida > 1
+            ? 'Cada persona que ha entrado por el QR, de todas las corridas. Es el padrón que te llevas.'
+            : 'Cada persona que entró por el QR, con lo que dejó. Es el padrón que te llevas del evento.'
+        }
       >
         {datos.participantes.length === 0 ? (
           <Vacio>Todavía no ha entrado nadie.</Vacio>
@@ -212,7 +228,7 @@ export function ResultadosEncuesta({ datos }: { datos: DatosExportacion }) {
           <ul className="flex flex-col gap-2">
             {datos.participantes.map((persona) => (
               <li
-                key={persona.email}
+                key={`${persona.corrida}-${persona.email}`}
                 className="flex flex-wrap items-center justify-between gap-x-4 gap-y-1 rounded-[10px] border border-border px-4 py-2.5"
               >
                 <div className="flex min-w-0 flex-col">
@@ -233,6 +249,7 @@ export function ResultadosEncuesta({ datos }: { datos: DatosExportacion }) {
                 </div>
 
                 <div className="flex shrink-0 gap-4 text-xs text-muted-foreground tabular-nums">
+                  {datos.corrida > 1 ? <span>Corrida {persona.corrida}</span> : null}
                   <span>{persona.respondio} respuesta(s)</span>
                   <span>{fechaCorta(persona.entroEn)}</span>
                 </div>

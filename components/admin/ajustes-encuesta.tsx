@@ -13,6 +13,7 @@ import { SIN_ESTADO } from '@/lib/admin/tipos'
 import {
   actualizarEncuesta,
   eliminarEncuesta,
+  nuevaCorrida,
   reiniciarEncuesta,
 } from '@/lib/encuestas/acciones'
 import type { EncuestaCompleta } from '@/lib/encuestas/consultas'
@@ -149,6 +150,35 @@ export function AjustesEncuesta({
 
       <details>
         <summary className="inline-flex w-fit cursor-pointer list-none items-center gap-2 rounded-lg px-3 py-2 text-sm text-muted-foreground transition-colors select-none hover:bg-muted hover:text-foreground focus-visible:ring-3 focus-visible:ring-ring/50 focus-visible:outline-none [&::-webkit-details-marker]:hidden">
+          Correrla otra vez con otro grupo
+        </summary>
+        <form
+          action={nuevaCorrida}
+          className="mt-3 flex flex-col gap-3 rounded-[10px] border border-border p-4"
+        >
+          <input type="hidden" name="id" value={encuesta.id} />
+
+          <p className="text-sm text-muted-foreground">
+            Arranca la <span className="font-medium text-foreground">corrida{' '}
+            {encuesta.totalCorridas + 1}</span> desde la pregunta 1, con la sala vacía.{' '}
+            <span className="font-medium text-foreground">No borra nada</span>: lo que contestaron
+            las {encuesta.totalCorridas} corrida(s) anteriores se queda guardado y sale en el
+            Excel con su número.
+          </p>
+          <p className="text-xs text-muted-foreground">
+            Lo que se proyecta y lo que ves en Resultados es siempre la corrida en curso.
+          </p>
+
+          <div>
+            <Button type="submit" variant="outline">
+              Empezar la corrida {encuesta.totalCorridas + 1}
+            </Button>
+          </div>
+        </form>
+      </details>
+
+      <details>
+        <summary className="inline-flex w-fit cursor-pointer list-none items-center gap-2 rounded-lg px-3 py-2 text-sm text-muted-foreground transition-colors select-none hover:bg-muted hover:text-foreground focus-visible:ring-3 focus-visible:ring-ring/50 focus-visible:outline-none [&::-webkit-details-marker]:hidden">
           Reiniciar esta encuesta
         </summary>
         <form
@@ -158,10 +188,11 @@ export function AjustesEncuesta({
           <input type="hidden" name="id" value={encuesta.id} />
 
           <p className="text-sm text-muted-foreground">
-            Borra todas las respuestas y deja las {encuesta.preguntas.length} pregunta(s) sin
-            abrir, como si nunca se hubiera corrido. Las preguntas y su orden se quedan tal cual.
-            Sirve para ensayar antes del evento, o para volver a correr el mismo juego con otro
-            grupo.
+            Borra <span className="font-medium text-foreground">todas</span> las respuestas —de
+            las {encuesta.totalCorridas} corrida(s)— y deja las {encuesta.preguntas.length}{' '}
+            pregunta(s) sin abrir, como si nunca se hubiera corrido. Las preguntas y su orden se
+            quedan tal cual. Sirve para borrar un ensayo; para conservar el historial, usa
+            &ldquo;correrla otra vez&rdquo; de arriba.
           </p>
 
           {/*

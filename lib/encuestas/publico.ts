@@ -147,6 +147,8 @@ export type EncuestaPublica = {
   allowGuests: boolean
   showNames: boolean
   stateVersion: number
+  /** La corrida en curso. Todo lo que se proyecta se filtra por ella. */
+  corrida: number
   preguntas: PreguntaPublica[]
 }
 
@@ -186,7 +188,7 @@ export async function encuestaPorCodigo(codigo: string): Promise<EncuestaPublica
   const { data } = await supabase
     .from('polls')
     .select(
-      'id, title, description, join_code, status, allow_guests, show_names, state_version, poll_questions(id, prompt, question_type, options, settings, status, position)'
+      'id, title, description, join_code, status, allow_guests, show_names, state_version, corrida, poll_questions(id, prompt, question_type, options, settings, status, position)'
     )
     .eq('join_code', limpio)
     .maybeSingle()
@@ -202,6 +204,7 @@ export async function encuestaPorCodigo(codigo: string): Promise<EncuestaPublica
     allow_guests: boolean
     show_names: boolean
     state_version: number
+    corrida: number
     poll_questions: FilaPregunta[]
   }
 
@@ -214,6 +217,7 @@ export async function encuestaPorCodigo(codigo: string): Promise<EncuestaPublica
     allowGuests: fila.allow_guests,
     showNames: fila.show_names,
     stateVersion: Number(fila.state_version),
+    corrida: Number(fila.corrida),
     preguntas: armarPreguntas(fila.poll_questions ?? []),
   }
 }
@@ -263,7 +267,7 @@ export async function participanteActual(encuesta: EncuestaPublica): Promise<Par
   const supabase = crearClienteServiceRole()
   const { data } = await supabase
     .from('poll_participants')
-    .select('id, participant_id, display_name, participants(user_id)')
+    .select('id, participant_id, display_name, corrida, participants(user_id)')
     .eq('session_token', token)
     // Que el token exista no basta: tiene que ser de ESTA encuesta.
     .eq('poll_id', encuesta.id)
@@ -275,7 +279,47 @@ export async function participanteActual(encuesta: EncuestaPublica): Promise<Par
     id: string
     participant_id: string
     display_name: string
+    corrida: number
     participants: { user_id: string | null } | null
+  }
+
+  // La cookie es de una corrida anterior: la misma sala volvió a empezar.
+  //
+  // Se le crea su asistencia en la corrida nueva en vez de mandarlo otra vez al
+  // formulario. Ya dio sus datos; volver a pedírselos sería castigarlo por algo
+  // que hizo el instructor. Sus respuestas de la corrida pasada se quedan donde
+  // están, colgando de su asistencia anterior.
+  if (fila.corrida !== encuesta.corrida) {
+    const tokenNuevo = generarSessionToken()
+    const { data: renovado } = await supabase
+      .from('poll_participants')
+      .insert({
+        poll_id: encuesta.id,
+        participant_id: fila.participant_id,
+        session_token: tokenNuevo,
+        display_name: fila.display_name,
+        corrida: encuesta.corrida,
+      })
+      .select('id')
+      .maybeSingle()
+
+    if (!renovado) return null
+
+    const almacenNuevo = await cookies()
+    almacenNuevo.set(nombreDeCookie(encuesta.joinCode), tokenNuevo, {
+      httpOnly: true,
+      sameSite: 'lax',
+      secure: process.env.NODE_ENV === 'production',
+      path: '/',
+      maxAge: 60 * 60 * 24 * 365,
+    })
+
+    return {
+      pollParticipantId: renovado.id,
+      participantId: fila.participant_id,
+      nombre: fila.display_name,
+      tieneCuenta: Boolean(fila.participants?.user_id),
+    }
   }
 
   return {
@@ -411,6 +455,7 @@ export async function entrar(
     .select('session_token')
     .eq('poll_id', encuesta.id)
     .eq('participant_id', participantId)
+    .eq('corrida', encuesta.corrida)
     .maybeSingle()
 
   let token = yaEntro?.session_token ?? null
@@ -422,6 +467,11 @@ export async function entrar(
       participant_id: participantId,
       session_token: token,
       display_name: nombreCompleto || email.split('@')[0] || 'Invitado',
+      // Se manda por claridad, pero quien manda es el trigger
+      // `poll_participants_sella_corrida`: lo sobrescribe con la corrida real
+      // de la encuesta. Así un camino nuevo que lo olvidara tampoco podría
+      // meter una asistencia en la corrida equivocada.
+      corrida: encuesta.corrida,
     })
     if (error) {
       console.error(JSON.stringify({ operacion: 'entrar:asistencia', error: error.message }))
@@ -499,6 +549,9 @@ export async function responder(
     text_value: valor.texto ?? null,
     option_id: valor.opcion ?? null,
     numeric_value: valor.numero ?? null,
+    // Igual que arriba: el trigger `poll_answers_sella_corrida` lo reescribe
+    // desde la encuesta. Aquí va solo para que se lea qué se espera.
+    corrida: encuesta.corrida,
   })
 
   if (error) {
@@ -544,6 +597,10 @@ export async function resultadosDePregunta(
       'id, text_value, text_norm, option_id, numeric_value, hidden, created_at, poll_participants(display_name)'
     )
     .eq('question_id', pregunta.id)
+    // Solo la corrida en curso. Las anteriores siguen guardadas y salen en la
+    // exportación, pero mezclarlas aquí haría que la primera gráfica de una
+    // corrida nueva arrancara con los números de la anterior.
+    .eq('corrida', encuesta.corrida)
 
   type Fila = {
     id: string
@@ -580,8 +637,16 @@ export async function cuantosEntraron(encuestaId: string): Promise<number> {
     .from('poll_participants')
     .select('id', { count: 'exact', head: true })
     .eq('poll_id', encuestaId)
+    .eq('corrida', await corridaDe(encuestaId))
 
   return count ?? 0
+}
+
+/** La corrida en curso de una encuesta, cuando solo se tiene su id. */
+async function corridaDe(encuestaId: string): Promise<number> {
+  const supabase = crearClienteServiceRole()
+  const { data } = await supabase.from('polls').select('corrida').eq('id', encuestaId).maybeSingle()
+  return Number(data?.corrida ?? 1)
 }
 
 /** Tope de nombres que la sala de espera pinta a la vez. Más ya no se leen. */
@@ -604,6 +669,7 @@ export async function recienLlegados(
     .from('poll_participants')
     .select('id, display_name')
     .eq('poll_id', encuesta.id)
+    .eq('corrida', encuesta.corrida)
     .order('joined_at', { ascending: false })
     .limit(TOPE_RECIEN_LLEGADOS)
 

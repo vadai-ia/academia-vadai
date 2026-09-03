@@ -839,6 +839,10 @@ async function main() {
 
     const rutaPublica = `/e/${encuesta.join_code}`
     const rutaProyeccion = `/proyectar/${encuesta.projection_token}`
+    // Con la dinámica a medias, la proyección pregunta si continuar o arrancar
+    // una corrida nueva. Para ver la pantalla en sí hay que responder que se
+    // continúa; lo que hace el selector se prueba en su propio grupo.
+    const rutaPantalla = `${rutaProyeccion}?continuar=1`
 
     afirmar(G9, 'el QR abre sin sesión', 200, (await pedir(rutaPublica, null)).status)
     afirmar(G9, 'un código inventado da 404', 404, (await pedir('/e/ZZZZZZ', null)).status)
@@ -910,7 +914,7 @@ async function main() {
     // ====================================================================
     const G10 = 'EL CÓDIGO QR'
 
-    const proyeccion1 = await texto(rutaProyeccion, admin)
+    const proyeccion1 = await texto(rutaPantalla, admin)
     const rutaSvg = (html) => html.match(/<path d="(M[^"]+)"/)?.[1] ?? null
     const dibujo1 = rutaSvg(proyeccion1)
 
@@ -928,7 +932,7 @@ async function main() {
       proyeccion1.includes('fill="#ffffff"')
     )
 
-    const dibujo2 = rutaSvg(await texto(rutaProyeccion, admin))
+    const dibujo2 = rutaSvg(await texto(rutaPantalla, admin))
     afirmar(G10, 'el mismo texto produce el mismo símbolo', dibujo1, dibujo2)
 
     // Un símbolo distinto para un texto distinto. Es lo que descarta que se esté
@@ -1483,7 +1487,7 @@ async function main() {
     // ====================================================================
     const G18 = 'CONTROLES EN LA PROYECCIÓN'
 
-    const pantalla = await texto(rutaProyeccion, admin)
+    const pantalla = await texto(rutaPantalla, admin)
     const formAvanzar = leerFormularios(pantalla).find(
       (f) => f.campos.poll_id === encuesta.id && !f.campos.id
     )
@@ -1498,7 +1502,7 @@ async function main() {
     )
     afirmar(G18, 'no quedan preguntas por abrir', 0, pendientesAntes[0].n)
 
-    if (formAvanzar) await enviar(rutaProyeccion, formAvanzar, admin, { poll_id: encuesta.id })
+    if (formAvanzar) await enviar(rutaPantalla, formAvanzar, admin, { poll_id: encuesta.id })
 
     const { rows: trasAvanzar } = await bd.query(
       'select status from academia.polls where id = $1',
@@ -1623,7 +1627,7 @@ async function main() {
       JSON.stringify(enEspera.recienLlegados ?? []).includes('@')
     )
 
-    const paredEnEspera = await texto(rutaProyeccion, admin)
+    const paredEnEspera = await texto(rutaPantalla, admin)
     afirmar(G20, 'la pared pinta el nombre', true, paredEnEspera.includes('QA Invitado'))
     afirmar(G20, 'y ofrece Empezar, no Siguiente', true, paredEnEspera.includes('>Empezar<'))
     afirmar(
@@ -1656,6 +1660,114 @@ async function main() {
       [correoInvitado]
     )
     afirmar(G19, 'pero la persona sigue existiendo', 1, personaSigue[0].n)
+
+    // ====================================================================
+    const G21 = 'CORRIDAS: LA MISMA ENCUESTA, OTRO GRUPO'
+
+    // Se deja algo contestado para poder afirmar que NO se pierde.
+    const { rows: preguntasAhora } = await bd.query(
+      'select id from academia.poll_questions where poll_id = $1 order by position limit 1',
+      [encuesta.id]
+    )
+    const primeraDeNuevo = preguntasAhora[0].id
+    await bd.query("update academia.poll_questions set status = 'open' where id = $1", [
+      primeraDeNuevo,
+    ])
+
+    const { rows: asistenciaNueva } = await bd.query(
+      `insert into academia.poll_participants (poll_id, participant_id, session_token, display_name)
+       select $1, id, 'qa-token-corrida-1', 'QA Corrida'
+         from academia.participants where email = $2 returning id`,
+      [encuesta.id, correoInvitado]
+    )
+    await bd.query(
+      `insert into academia.poll_answers (question_id, poll_participant_id, text_value)
+       values ($1, $2, 'antes de la corrida nueva')`,
+      [primeraDeNuevo, asistenciaNueva[0].id]
+    )
+
+    const { rows: selloCorrida } = await bd.query(
+      'select corrida from academia.poll_answers where poll_participant_id = $1',
+      [asistenciaNueva[0].id]
+    )
+    afirmar(G21, 'la base sella la corrida de la respuesta', 1, selloCorrida[0].corrida)
+
+    // Abrir la proyección con la dinámica a medias no reanuda ni reinicia sola:
+    // pregunta. Nadie puede adivinar cuál de las dos quería quien acaba de abrir.
+    // React separa el texto de una interpolación con un comentario HTML, así que
+    // "Empezar la corrida {n}" no aparece como una sola cadena. Se quitan los
+    // comentarios antes de buscar; si no, la prueba fallaría por la
+    // serialización y no por el contenido.
+    const sinComentarios = (html) => html.replace(/<!--.*?-->/g, '')
+
+    const selector = sinComentarios(await texto(rutaProyeccion, admin))
+    afirmar(G21, 'la proyección pregunta qué hacer', true, selector.includes('Continuar donde iba'))
+    afirmar(G21, 'y ofrece arrancar la siguiente corrida', true, selector.includes('Empezar la corrida 2'))
+    afirmar(
+      G21,
+      'no se pinta la pantalla en vivo sin decidir',
+      false,
+      selector.includes('control de presentaciones')
+    )
+
+    const formCorrida = leerFormularios(selector).find((f) => f.campos.id === encuesta.id)
+    afirmar(G21, 'el selector trae el botón de corrida nueva', true, Boolean(formCorrida))
+    if (formCorrida) await enviar(rutaProyeccion, formCorrida, admin, { id: encuesta.id })
+
+    const { rows: trasCorrida } = await bd.query(
+      'select corrida, status from academia.polls where id = $1',
+      [encuesta.id]
+    )
+    afirmar(G21, 'la encuesta pasa a la corrida 2', 2, trasCorrida[0].corrida)
+    afirmar(G21, 'y vuelve a borrador', 'draft', trasCorrida[0].status)
+
+    const { rows: estadosCorrida2 } = await bd.query(
+      'select status from academia.poll_questions where poll_id = $1',
+      [encuesta.id]
+    )
+    afirmar(
+      G21,
+      'todas las preguntas vuelven a "sin abrir"',
+      true,
+      estadosCorrida2.every((e) => e.status === 'pending')
+    )
+
+    // LO QUE IMPORTA: no se borró nada.
+    const { rows: sigueLaVieja } = await bd.query(
+      "select count(*)::int n from academia.poll_answers where poll_participant_id = $1",
+      [asistenciaNueva[0].id]
+    )
+    afirmar(G21, 'la respuesta de la corrida 1 sigue guardada', 1, sigueLaVieja[0].n)
+
+    // Pero la proyección ya no la cuenta: arranca de cero.
+    const payloadCorrida2 = await payload()
+    afirmar(G21, 'la corrida nueva arranca sin participantes', 0, payloadCorrida2.participantes)
+    afirmar(G21, 'y sin pregunta abierta', null, payloadCorrida2.pregunta)
+
+    const { rows: preguntaLimpia } = await bd.query(
+      `select count(*)::int n from academia.poll_answers a
+         join academia.polls p on p.id = $2
+        where a.question_id = $1 and a.corrida = p.corrida`,
+      [primeraDeNuevo, encuesta.id]
+    )
+    afirmar(G21, 'la pregunta 1 arranca en cero para la corrida 2', 0, preguntaLimpia[0].n)
+
+    // El Excel se lleva TODAS las corridas: es el archivo histórico.
+    const excelCorridas = await pedir(`/api/reportes/${encuesta.id}/excel`, admin)
+    const libroCorridas = leerZip(Buffer.from(await excelCorridas.arrayBuffer()))
+    const hojasCorridas = [...libroCorridas.entradas.entries()]
+      .filter(([n]) => n.startsWith('xl/worksheets/sheet'))
+      .map(([, b]) => b.toString('utf8'))
+      .join('')
+    afirmar(G21, 'el Excel conserva la respuesta de la corrida 1', true,
+      hojasCorridas.includes('antes de la corrida nueva'))
+    afirmar(G21, 'y marca a qué corrida pertenece cada fila', true,
+      hojasCorridas.includes('Corrida'))
+
+    // Ya sin avance, la proyección entra directo: no hay nada que decidir.
+    const sinDecidir = await texto(rutaProyeccion, admin)
+    afirmar(G21, 'una corrida limpia entra sin preguntar', false,
+      sinDecidir.includes('Continuar donde iba'))
 
     // ====================================================================
     const G8 = 'LIMPIEZA'
