@@ -52,6 +52,10 @@ export default async function PaginaEncuestaPublica({
   ])
 
   const abierta = encuesta.preguntas.find((p) => p.status === 'open')
+
+  // "La siguiente pregunta" solo tiene sentido si ya hubo una. Quien se registró
+  // mientras el instructor todavía presentaba el tema no ha visto ninguna.
+  const yaHuboAlguna = encuesta.preguntas.some((p) => p.status === 'closed')
   const contestadas = participante ? await preguntasContestadas(participante) : new Set<string>()
   const yaContesto = abierta ? contestadas.has(abierta.id) : false
 
@@ -66,12 +70,7 @@ export default async function PaginaEncuestaPublica({
       </header>
 
       <div className="flex flex-1 flex-col justify-center gap-6">
-        {encuesta.status === 'draft' ? (
-          <Espera
-            titulo="Todavía no empezamos"
-            detalle="Deja esta pantalla abierta. En cuanto arranque la dinámica, aparece aquí."
-          />
-        ) : encuesta.status === 'closed' ? (
+        {encuesta.status === 'closed' ? (
           <Espera
             titulo="Esta dinámica ya terminó"
             detalle="Gracias por participar. Los resultados se quedaron en la pantalla de adelante."
@@ -104,7 +103,11 @@ export default async function PaginaEncuestaPublica({
         ) : (
           <Espera
             titulo={`Ya estás dentro, ${participante.nombre.split(' ')[0]}`}
-            detalle="Espera a que abramos la siguiente pregunta. Esta pantalla se actualiza sola."
+            detalle={
+              yaHuboAlguna
+                ? 'Espera a que abramos la siguiente pregunta. Esta pantalla se actualiza sola.'
+                : 'En cuanto abramos la primera pregunta aparece aquí. Esta pantalla se actualiza sola.'
+            }
           />
         )}
       </div>

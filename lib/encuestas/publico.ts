@@ -298,8 +298,17 @@ export async function entrar(
   datos: DatosDeEntrada,
   opciones: { crearCuenta: boolean; darDeAlta?: (email: string, nombre: string) => Promise<string | null> }
 ): Promise<ResultadoEntrada> {
-  if (encuesta.status !== 'live') {
-    return { ok: false, motivo: 'Esta encuesta todavía no está abierta.' }
+  // Se puede entrar en BORRADOR, no solo en vivo. Solo una encuesta cerrada
+  // rechaza gente.
+  //
+  // El QR se proyecta desde que arranca la sesión, mientras el instructor
+  // todavía está presentando el tema y no ha abierto ninguna pregunta. Si
+  // registrarse exigiera que la encuesta estuviera "en vivo", la pared diría
+  // "ya puedes entrar" y el celular contestaría "todavía no empezamos" —y quien
+  // escaneó con ganas al minuto uno no lo vuelve a intentar—. Registrarse antes
+  // no cuesta nada: la sala de espera ya explica que falta abrir la pregunta.
+  if (encuesta.status === 'closed') {
+    return { ok: false, motivo: 'Esta dinámica ya terminó.' }
   }
 
   if (await excedeCuota(encuesta.id, 'join')) {

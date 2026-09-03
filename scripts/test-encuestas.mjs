@@ -775,6 +775,22 @@ async function main() {
       (await pedir(`/proyectar/${'f'.repeat(64)}`, null)).status
     )
 
+    // Se puede registrar ANTES de que el instructor abra nada. La pared dice
+    // "ya puedes entrar" desde que se proyecta; si el celular contestara
+    // "todavía no empezamos", quien escaneó con ganas al minuto uno no lo
+    // vuelve a intentar, y ahí se pierde justo la captura de datos.
+    const { rows: enBorrador } = await bd.query(
+      'select status from academia.polls where id = $1',
+      [encuesta.id]
+    )
+    afirmar(G9, 'la encuesta todavía está en borrador', 'draft', enBorrador[0].status)
+    afirmar(
+      G9,
+      'y aun así el QR ya deja registrarse',
+      true,
+      (await texto(rutaPublica, null)).includes('name="nombre"')
+    )
+
     const estado1 = await pedir(`/api/encuestas/${encuesta.join_code}/estado`, null)
     const etag = estado1.headers.get('etag')
     afirmar(G9, 'el endpoint de estado contesta', 200, estado1.status)
