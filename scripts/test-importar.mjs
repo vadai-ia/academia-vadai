@@ -154,4 +154,45 @@ afirmar(G3, 'un archivo vacío no revienta', 0, vacio.personas.length)
 const sinCorreos = interpretar(filasDeCsv('Producto,Precio\nSilla,100\n'))
 afirmar(G3, 'un archivo sin correos avisa', 1, sinCorreos.descartadas.length)
 
+// --- La columna de nombre no es "la primera que se le parezca" ---------------
+//
+// El padrón real del lanzamiento traía `Número de alumno, Empresa, Nombre, Mail`.
+// El lector tomaba como nombre el primer encabezado que CONTUVIERA "alumno", que
+// era el número: a cada persona se le guardaba "17" como nombre, que es lo que
+// saluda el correo de bienvenida y lo que se imprime en el certificado.
+
+const G4 = 'CUÁL COLUMNA ES EL NOMBRE'
+
+const padronReal = interpretar(
+  filasDeCsv('Número de alumno,Empresa,Nombre,Mail\n17,Acme SA,Ana Pérez,ana@acme.com\n')
+)
+afirmar(G4, 'el padrón real: toma "Nombre", no "Número de alumno"', 'Ana Pérez',
+  padronReal.personas[0]?.nombre)
+afirmar(G4, 'y el correo sale de "Mail"', 'ana@acme.com', padronReal.personas[0]?.email)
+
+const nombreDeEmpresa = interpretar(
+  filasDeCsv('Nombre de la empresa,Nombre completo,Correo\nAcme SA,Ana Pérez,ana@acme.com\n')
+)
+afirmar(G4, '"Nombre de la empresa" no es el nombre de la persona', 'Ana Pérez',
+  nombreDeEmpresa.personas[0]?.nombre)
+
+const soloIdentificador = interpretar(
+  filasDeCsv('No. de participante,Correo\n17,ana@acme.com\n')
+)
+afirmar(G4, 'si solo hay un identificador, el nombre queda vacío', '',
+  soloIdentificador.personas[0]?.nombre)
+
+const conGato = interpretar(filasDeCsv('# de alumno,Correo\n17,ana@acme.com\n'))
+afirmar(G4, 'tampoco "# de alumno"', '', conGato.personas[0]?.nombre)
+
+const conApellido = interpretar(
+  filasDeCsv('Nombre y apellido,Correo\nAna Pérez,ana@acme.com\n')
+)
+afirmar(G4, '"apellido" contiene "id" y aun así es nombre', 'Ana Pérez',
+  conApellido.personas[0]?.nombre)
+
+const alumnoComoNombre = interpretar(filasDeCsv('Alumno,Correo\nAna Pérez,ana@acme.com\n'))
+afirmar(G4, 'sigue aceptando "Alumno" como encabezado de nombre', 'Ana Pérez',
+  alumnoComoNombre.personas[0]?.nombre)
+
 process.exitCode = imprimir() ? 0 : 1

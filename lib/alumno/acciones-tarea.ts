@@ -49,9 +49,13 @@ export async function entregarTarea(
 
   if (!tarea) return { ok: false, error: 'No tienes acceso a esta tarea.' }
 
+  // "Lo mío" lo dice la consulta, no RLS: a alguien del equipo RLS le devuelve
+  // las filas de TODA la academia (`user_id = auth.uid() OR is_admin()`). Ver
+  // `miUserId` en lib/alumno/consultas.ts.
   const { data: previa } = await supabase
     .from('assignment_submissions')
     .select('id, status, files, text_content')
+    .eq('user_id', perfil.user_id)
     .eq('assignment_id', tareaId)
     .maybeSingle()
 

@@ -1,6 +1,7 @@
 import 'server-only'
 
 import { leerArchivos, type ArchivoEntregado } from '@/lib/admin/tareas'
+import { obtenerSesion } from '@/lib/auth/sesion'
 import { crearClienteServidor } from '@/lib/supabase/server'
 import type { Json } from '@/lib/supabase/types'
 
@@ -38,9 +39,16 @@ export async function tareaParaAlumno(leccionId: string): Promise<TareaParaAlumn
 
   if (!tarea) return null
 
+  const sesion = await obtenerSesion()
+  if (sesion.tipo !== 'activo') return null
+
+  // "Lo mío" lo dice la consulta, no RLS: a alguien del equipo RLS le devuelve
+  // las filas de TODA la academia (`user_id = auth.uid() OR is_admin()`). Ver
+  // `miUserId` en lib/alumno/consultas.ts.
   const { data: entrega } = await supabase
     .from('assignment_submissions')
     .select('id, status, text_content, files, feedback, reviewed_at')
+    .eq('user_id', sesion.perfil.user_id)
     .eq('assignment_id', tarea.id)
     .maybeSingle()
 

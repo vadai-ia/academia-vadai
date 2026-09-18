@@ -7,6 +7,7 @@ import { exigirAdmin } from '@/lib/auth/sesion'
 import { darDeAlta, enviarAccesoInicial } from '@/lib/stripe/provisioning'
 import { crearClienteServidor } from '@/lib/supabase/server'
 
+import { PAR, enLista, leerPares, revisarSeleccion } from './seleccion-de-cursos'
 import type { EstadoAccion } from './tipos'
 
 /**
@@ -16,33 +17,6 @@ import type { EstadoAccion } from './tipos'
  * §11: si el webhook falla en una compra real, el admin da de alta a mano y el
  * resultado es idéntico, no una versión aproximada.
  */
-
-/** Un par `cursoId|cohorteId`; la cohorte va vacía para "sin grupo". */
-const PAR = /^[0-9a-f-]{36}\|([0-9a-f-]{36})?$/i
-
-/**
- * De los pares del formulario a "un grupo por curso".
- *
- * Sin JavaScript la lista deja marcar dos grupos del mismo curso, y una
- * inscripción solo puede pertenecer a uno: eso se rechaza aquí.
- */
-function leerPares(pares: string[]): Map<string, string | null> | { error: string } {
-  const grupoPorCurso = new Map<string, string | null>()
-  for (const par of pares) {
-    const [cursoId = '', cohorteId = ''] = par.split('|')
-    const grupo = cohorteId || null
-    if (grupoPorCurso.has(cursoId) && grupoPorCurso.get(cursoId) !== grupo) {
-      return { error: 'Marcaste dos grupos del mismo curso. Deja solo uno por curso.' }
-    }
-    grupoPorCurso.set(cursoId, grupo)
-  }
-  return grupoPorCurso
-}
-
-/** "A", "A y B", "A, B y C" — con las reglas del español (y/e). */
-function enLista(valores: string[]): string {
-  return new Intl.ListFormat('es', { style: 'long', type: 'conjunction' }).format(valores)
-}
 
 const esquema = z.object({
   email: z
@@ -77,46 +51,12 @@ export async function altaManual(_previo: EstadoAccion, datos: FormData): Promis
 
   const { email, nombre, accesos, course_id: cursoFijo, cohort_id: grupoFijo } = resultado.data
 
-  const grupoPorCurso = leerPares(
+  const seleccion = await revisarSeleccion(
     accesos.length > 0 ? accesos : cursoFijo ? [`${cursoFijo}|${grupoFijo}`] : []
   )
-  if ('error' in grupoPorCurso) return { error: grupoPorCurso.error }
-  if (grupoPorCurso.size === 0) return { error: 'Elige al menos un curso.' }
+  if (!seleccion.ok) return { error: seleccion.error }
 
-  // Se revisa TODO antes de crear nada: con tres cursos marcados, descubrir en
-  // el tercero que el grupo no existe dejaría un alta a medias.
-  const cursoIds = [...grupoPorCurso.keys()]
-  const cohorteIds = [...grupoPorCurso.values()].filter((v): v is string => v !== null)
-  const supabase = await crearClienteServidor()
-
-  const [cursos, cohortes] = await Promise.all([
-    supabase.from('courses').select('id, title, status').in('id', cursoIds),
-    cohorteIds.length > 0
-      ? supabase.from('cohorts').select('id, course_id').in('id', cohorteIds)
-      : Promise.resolve({ data: [], error: null }),
-  ])
-
-  const fallo = cursos.error ?? cohortes.error
-  if (fallo) {
-    console.error(JSON.stringify({ operacion: 'altaManual:lectura', email, error: fallo.message }))
-    return { error: 'No se pudo revisar la selección. Intenta de nuevo.' }
-  }
-
-  const cursoPorId = new Map((cursos.data ?? []).map((c) => [c.id, c]))
-  const cursoDeCohorte = new Map((cohortes.data ?? []).map((c) => [c.id, c.course_id]))
-
-  for (const [cursoId, grupo] of grupoPorCurso) {
-    const curso = cursoPorId.get(cursoId)
-    if (!curso) return { error: 'Uno de los cursos ya no existe.' }
-    if (curso.status === 'archived') {
-      return { error: `"${curso.title}" está archivado. Restáuralo antes de dar de alta a alguien.` }
-    }
-    if (grupo !== null && cursoDeCohorte.get(grupo) !== cursoId) {
-      return { error: 'Uno de los grupos no pertenece a su curso.' }
-    }
-  }
-
-  const titulos = cursoIds.map((id) => cursoPorId.get(id)?.title ?? 'Curso')
+  const titulos = seleccion.cursos.map((c) => c.titulo)
 
   // Una llamada a `darDeAlta` por curso. La primera crea la cuenta y manda el
   // ÚNICO correo —que por eso nombra todos los cursos—; las demás encuentran la
@@ -125,12 +65,12 @@ export async function altaManual(_previo: EstadoAccion, datos: FormData): Promis
   let invitado = false
   const listos: string[] = []
 
-  for (const [i, cursoId] of cursoIds.entries()) {
+  for (const [i, curso] of seleccion.cursos.entries()) {
     const alta = await darDeAlta({
       email,
       nombre: nombre || null,
-      courseId: cursoId,
-      cohortId: grupoPorCurso.get(cursoId) ?? null,
+      courseId: curso.id,
+      cohortId: curso.cohorteId,
       origen: 'manual',
       urlRedireccion: `${process.env.NEXT_PUBLIC_APP_URL ?? ''}/nueva-contrasena`,
       titulosParaCorreo: titulos,
@@ -157,7 +97,7 @@ export async function altaManual(_previo: EstadoAccion, datos: FormData): Promis
   revalidatePath('/admin/alumnos')
   revalidatePath('/admin/cursos')
   // También se da de alta desde la página del curso, que lista a sus inscritos.
-  for (const id of cursoIds) revalidatePath(`/admin/cursos/${id}`)
+  for (const curso of seleccion.cursos) revalidatePath(`/admin/cursos/${curso.id}`)
 
   if (!creado) {
     return { aviso: `${email} ya tenía cuenta; se le agregó ${enLista(listos)}.` }

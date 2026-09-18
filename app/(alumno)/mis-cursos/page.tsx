@@ -135,9 +135,14 @@ export default async function PaginaInicio() {
             {saludo()}, {nombreVisible(perfil)}
           </h1>
           <p className="text-[0.95rem] text-muted-foreground">
+            {/* Sin lección que retomar hay tres motivos distintos, y felicitar
+                por "completarlo todo" a quien no ha visto nada —porque su curso
+                todavía no tiene lecciones— es el peor de los tres mensajes. */}
             {cursos.length === 0
               ? 'Aquí aparecerán tus cursos.'
-              : 'Ya completaste todo lo disponible. Bien hecho.'}
+              : resumen.leccionesTotales === 0
+                ? 'Tu curso todavía no tiene lecciones publicadas. En cuanto se abran, aparecen aquí.'
+                : 'Ya completaste todo lo disponible. Bien hecho.'}
           </p>
         </section>
       )}

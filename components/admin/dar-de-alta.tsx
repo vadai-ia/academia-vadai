@@ -47,48 +47,6 @@ function Enviar({ children }: { children: string }) {
   )
 }
 
-/**
- * Curso + cohorte del alta masiva: un archivo entero va a UN curso.
- *
- * El alta individual ya no usa esto. Ahí se eligen varios cursos con
- * `ListaSeleccionable`, donde cada grupo aparece bajo su curso — este par de
- * selects solo puede listar los grupos del primer curso, porque sin JavaScript
- * el segundo no tiene forma de enterarse de qué se eligió en el primero.
- */
-function CamposDeCurso({ cursos, prefijo }: { cursos: CursoOpcion[]; prefijo: string }) {
-  const primero = cursos[0]
-
-  return (
-    <div className="grid gap-4 sm:grid-cols-2">
-      <div className="flex flex-col gap-1.5">
-        <Label htmlFor={`${prefijo}-curso`}>Curso</Label>
-        <select id={`${prefijo}-curso`} name="course_id" required className={claseSelect}>
-          {cursos.map((c) => (
-            <option key={c.id} value={c.id}>
-              {c.titulo}
-            </option>
-          ))}
-        </select>
-      </div>
-
-      <div className="flex flex-col gap-1.5">
-        <Label htmlFor={`${prefijo}-cohorte`}>Cohorte</Label>
-        <select id={`${prefijo}-cohorte`} name="cohort_id" className={claseSelect}>
-          <option value="">Sin cohorte</option>
-          {(primero?.cohortes ?? []).map((c) => (
-            <option key={c.id} value={c.id}>
-              {c.nombre}
-            </option>
-          ))}
-        </select>
-        <p className="text-xs text-muted-foreground">
-          Grupo con su propio calendario de sesiones en vivo. Se crean desde el curso.
-        </p>
-      </div>
-    </div>
-  )
-}
-
 function AltaIndividual({ cursos, reinicio }: { cursos: CursoOpcion[]; reinicio: number }) {
   const [estado, accion] = useActionState(altaManual, SIN_ESTADO)
 
@@ -158,12 +116,17 @@ function AltaPorArchivo({ cursos, reinicio }: { cursos: CursoOpcion[]; reinicio:
         </p>
       </div>
 
-      <CamposDeCurso cursos={cursos} prefijo="mas" />
+      <ListaSeleccionable
+        nombre="accesos"
+        leyenda="Cursos a los que entra todo el archivo"
+        grupos={gruposDesdeCursos(cursos)}
+      />
 
       <AvisoAccion estado={estado} />
 
       <p className="text-xs text-muted-foreground">
-        Cada fila crea su cuenta y le manda su correo. Una fila con el correo mal escrito se
+        Toca los cursos que quieras; toca otra vez para quitar. Cada fila crea su cuenta y le
+        manda un solo correo, que nombra todos los cursos. Una fila con el correo mal escrito se
         reporta y no detiene a las demás.
       </p>
 

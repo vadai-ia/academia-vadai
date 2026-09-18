@@ -59,6 +59,25 @@ export type CursoDelAlumno = {
  * aparte si pintar candado.
  */
 
+/**
+ * El id de quien pide la página, para filtrar "lo mío" de forma EXPLÍCITA.
+ *
+ * CORREGIDO 18-sep-2026. Estas consultas pedían `enrollments` y
+ * `lesson_progress` sin filtro de usuario, confiando en que RLS devolviera solo
+ * lo propio. Para un alumno es cierto. Para alguien del EQUIPO no: su policy es
+ * `user_id = auth.uid() OR is_admin()`, así que RLS le devuelve las filas de
+ * TODA la academia. En cuanto hubo 98 alumnos, un superadmin en "Vista de
+ * alumno" vio 193 tarjetas de curso y "2 de 198 lecciones": la suma de las
+ * inscripciones y el progreso de todos, presentada como suya.
+ *
+ * RLS decide qué se PUEDE leer; qué es "mío" lo tiene que decir la consulta.
+ * `obtenerSesion` está memorizada por petición, así que esto no cuesta un viaje.
+ */
+async function miUserId(): Promise<string | null> {
+  const sesion = await obtenerSesion()
+  return sesion.tipo === 'activo' ? sesion.perfil.user_id : null
+}
+
 function diasHasta(fecha: string | null): number | null {
   if (!fecha) return null
   const ms = new Date(fecha).getTime() - Date.now()
@@ -68,7 +87,14 @@ function diasHasta(fecha: string | null): number | null {
 function armarModulos(
   filas: FilaOutline[],
   titulosDeModulo: Map<string, { titulo: string; posicion: number }>,
-  completadas: Set<string>
+  completadas: Set<string>,
+  /**
+   * Para el equipo. La vista calcula `desbloqueada` con `has_active_access`, o
+   * sea por inscripción, y alguien del equipo entra sin estar inscrito: sin esto
+   * vería con candado lecciones que sí puede abrir, y su inicio nunca le
+   * propondría con cuál seguir.
+   */
+  todoAbierto = false
 ): ModuloEnIndice[] {
   const porModulo = new Map<string, LeccionEnIndice[]>()
 
@@ -84,7 +110,7 @@ function armarModulos(
       obligatoria: fila.is_required ?? true,
       duracionSeg: fila.video_duration_sec,
       tieneVideo: fila.tiene_video ?? false,
-      desbloqueada: fila.desbloqueada ?? false,
+      desbloqueada: todoAbierto || (fila.desbloqueada ?? false),
       completada: completadas.has(fila.id),
     })
     porModulo.set(fila.module_id, lista)
@@ -103,13 +129,27 @@ function armarModulos(
     .sort((a, b) => a.posicion - b.posicion)
 }
 
-/** Todo lo que el alumno necesita para /mis-cursos. */
+/**
+ * Todo lo que el alumno necesita para /mis-cursos.
+ *
+ * A alguien del EQUIPO se le listan además los cursos activos en los que no está
+ * inscrito, una vez cada uno. El equipo entra a cualquier curso sin inscripción
+ * (ver `cursoDelAlumno`), y sin esto su "Vista de alumno" quedaría vacía, con un
+ * "si compraste uno, escríbenos" que a un admin no le dice nada.
+ */
 export async function misCursos(): Promise<CursoDelAlumno[]> {
+  const sesion = await obtenerSesion()
+  if (sesion.tipo !== 'activo') return []
+
+  const userId = sesion.perfil.user_id
+  const equipo = esEquipo(sesion.perfil)
   const supabase = await crearClienteServidor()
 
+  // Filtrada por usuario a propósito. Ver `miUserId`.
   const { data: inscripciones, error } = await supabase
     .from('enrollments')
     .select('course_id, expires_at, status, courses(*)')
+    .eq('user_id', userId)
     .eq('status', 'active')
 
   if (error) {
@@ -123,25 +163,38 @@ export async function misCursos(): Promise<CursoDelAlumno[]> {
     courses: Tabla<'courses'> | null
   }
 
-  const filas = (inscripciones ?? []) as unknown as Inscripcion[]
+  const propias = ((inscripciones ?? []) as unknown as Inscripcion[])
+    .filter((fila) => fila.courses !== null)
+    .map((fila) => ({ curso: fila.courses as Tabla<'courses'>, expiraEn: fila.expires_at }))
+
+  // Solo el equipo: el resto de los cursos activos, sin vencimiento.
+  let ajenos: Array<{ curso: Tabla<'courses'>; expiraEn: string | null }> = []
+  if (equipo) {
+    const yaListados = new Set(propias.map((p) => p.curso.id))
+    const { data: todos } = await supabase.from('courses').select('*').neq('status', 'archived')
+    ajenos = (todos ?? [])
+      .filter((curso) => !yaListados.has(curso.id))
+      .map((curso) => ({ curso, expiraEn: null }))
+  }
+
+  const filas = [...propias, ...ajenos]
   if (filas.length === 0) return []
 
   const { data: outline } = await supabase.from('lesson_outline').select('*')
   const { data: progreso } = await supabase
     .from('lesson_progress')
     .select('lesson_id, completed')
+    .eq('user_id', userId)
 
   const completadas = new Set(
     (progreso ?? []).filter((p) => p.completed).map((p) => p.lesson_id)
   )
 
   return filas
-    .filter((fila) => fila.courses !== null)
-    .map((fila) => {
-      const curso = fila.courses as Tabla<'courses'>
+    .map(({ curso, expiraEn }) => {
       const suyas = (outline ?? []).filter((l) => l.course_id === curso.id)
       const hechas = suyas.filter((l) => l.id && completadas.has(l.id)).length
-      const vigente = !fila.expires_at || new Date(fila.expires_at).getTime() > Date.now()
+      const vigente = !expiraEn || new Date(expiraEn).getTime() > Date.now()
 
       return {
         id: curso.id,
@@ -150,8 +203,8 @@ export async function misCursos(): Promise<CursoDelAlumno[]> {
         descripcion: curso.description,
         portada: curso.cover_url,
         vigente,
-        expiraEn: fila.expires_at,
-        diasRestantes: diasHasta(fila.expires_at),
+        expiraEn,
+        diasRestantes: diasHasta(expiraEn),
         totalLecciones: suyas.length,
         completadas: hechas,
         porcentaje: suyas.length === 0 ? 0 : Math.round((hechas / suyas.length) * 100),
@@ -183,9 +236,16 @@ export const cursoDelAlumno = cache(async function cursoDelAlumno(
 
   if (!curso) return null
 
+  const sesion = await obtenerSesion()
+  if (sesion.tipo !== 'activo') return null
+  const userId = sesion.perfil.user_id
+
+  // Filtrada por usuario: sin eso, a alguien del equipo RLS le devuelve las
+  // inscripciones de todos y `maybeSingle` revienta por traer más de una fila.
   const { data: inscripcion } = await supabase
     .from('enrollments')
     .select('expires_at, status')
+    .eq('user_id', userId)
     .eq('course_id', curso.id)
     .eq('status', 'active')
     .maybeSingle()
@@ -194,8 +254,7 @@ export const cursoDelAlumno = cache(async function cursoDelAlumno(
   // sin ella un admin no puede abrir una lección para moderar su hilo (§6.4) ni
   // revisar el curso como lo ve el alumno. RLS ya se lo permite (`is_admin() or
   // has_active_access()`); lo que faltaba era que la consulta no lo cortara.
-  const sesion = await obtenerSesion()
-  const equipo = sesion.tipo === 'activo' && esEquipo(sesion.perfil)
+  const equipo = esEquipo(sesion.perfil)
 
   // Sin inscripción activa el curso no existe para este alumno. RLS ya lo
   // habría escondido, pero el chequeo explícito evita depender de eso.
@@ -207,7 +266,7 @@ export const cursoDelAlumno = cache(async function cursoDelAlumno(
   const [{ data: modulos }, { data: outline }, { data: progreso }] = await Promise.all([
     supabase.from('modules').select('id, title, position').eq('course_id', curso.id),
     supabase.from('lesson_outline').select('*').eq('course_id', curso.id),
-    supabase.from('lesson_progress').select('lesson_id, completed'),
+    supabase.from('lesson_progress').select('lesson_id, completed').eq('user_id', userId),
   ])
 
   const completadas = new Set(
@@ -235,7 +294,7 @@ export const cursoDelAlumno = cache(async function cursoDelAlumno(
     totalLecciones: filas.length,
     completadas: hechas,
     porcentaje: filas.length === 0 ? 0 : Math.round((hechas / filas.length) * 100),
-    modulos: armarModulos(filas, titulos, completadas),
+    modulos: armarModulos(filas, titulos, completadas, equipo),
     linkRecompraMxn: curso.stripe_payment_link_mxn,
     linkRecompraUsd: curso.stripe_payment_link_usd,
   }
@@ -271,11 +330,15 @@ export async function contenidoDeLeccion(leccionId: string): Promise<ContenidoDe
 
   if (!leccion) return null
 
-  const { data: progreso } = await supabase
-    .from('lesson_progress')
-    .select('completed, seconds_watched')
-    .eq('lesson_id', leccionId)
-    .maybeSingle()
+  const userId = await miUserId()
+  const { data: progreso } = userId
+    ? await supabase
+        .from('lesson_progress')
+        .select('completed, seconds_watched')
+        .eq('user_id', userId)
+        .eq('lesson_id', leccionId)
+        .maybeSingle()
+    : { data: null }
 
   type Anidado = Tabla<'lessons'> & {
     lesson_attachments: Array<{

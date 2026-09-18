@@ -274,11 +274,53 @@ export function interpretar(filas: string[][]): Interpretacion {
 
   const primera = filas[0] ?? []
   const cabecera = primera.map(normaliza)
-  const buscaColumna = (claves: string[]) =>
-    cabecera.findIndex((c) => claves.some((k) => c.includes(k)))
+
+  /**
+   * Busca una columna por su encabezado.
+   *
+   * CORREGIDO 18-sep-2026. Antes era "el primer encabezado, de izquierda a
+   * derecha, que CONTENGA cualquiera de las claves". Con un padrón real —
+   * `Número de alumno, Empresa, Nombre, Mail`— la columna de nombre resultaba
+   * ser "número de alumno", porque contiene "alumno" y va primero: a cada
+   * persona se le guardaba su número como nombre, que es lo que saluda el correo
+   * y lo que se imprime en el certificado.
+   *
+   * Ahora manda la CLAVE, no la posición: primero un encabezado que sea
+   * exactamente la clave, luego uno que la contenga, y siempre en el orden de
+   * prioridad de `claves`. Y una columna que por sus palabras es un
+   * identificador o una empresa nunca se toma como nombre, aunque diga "nombre
+   * de la empresa" o "no. de participante".
+   */
+  const buscaColumna = (claves: string[], palabrasVetadas: string[] = []) => {
+    const candidatas = cabecera
+      .map((texto, indice) => ({ texto, indice, palabras: texto.split(/[^a-z0-9]+/) }))
+      .filter(
+        (c) =>
+          !c.palabras.some((p) => palabrasVetadas.includes(p)) &&
+          // "# de alumno": el signo se pierde al partir en palabras.
+          !(palabrasVetadas.length > 0 && c.texto.includes('#'))
+      )
+
+    for (const clave of claves) {
+      const exacta = candidatas.find((c) => c.texto === clave)
+      if (exacta) return exacta.indice
+    }
+    for (const clave of claves) {
+      const parcial = candidatas.find((c) => c.texto.includes(clave))
+      if (parcial) return parcial.indice
+    }
+    return -1
+  }
 
   let iCorreo = buscaColumna(['correo', 'email', 'e-mail', 'mail'])
-  let iNombre = buscaColumna(['nombre', 'name', 'alumno', 'participante'])
+  let iNombre = buscaColumna(
+    ['nombre', 'name', 'alumno', 'participante'],
+    // Por palabra completa, no por fragmento: "apellido" contiene "id".
+    [
+      'numero', 'num', 'no', 'nro', 'id', 'matricula', 'folio', 'clave', 'codigo',
+      'empresa', 'compania', 'company', 'organizacion', 'razon',
+    ]
+  )
 
   // Sin encabezado: se deduce de la primera fila con datos.
   const conCabecera = iCorreo !== -1
