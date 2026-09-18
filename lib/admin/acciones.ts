@@ -7,7 +7,13 @@ import { exigirAdmin } from '@/lib/auth/sesion'
 import { crearClienteServidor } from '@/lib/supabase/server'
 
 import { slugOcupado } from './consultas'
-import { esquemaCurso, esquemaLeccion, esquemaModulo, generarSlug } from './esquemas'
+import {
+  esquemaCurso,
+  esquemaIdDeCurso,
+  esquemaLeccion,
+  esquemaModulo,
+  generarSlug,
+} from './esquemas'
 import type { EstadoAccion } from './tipos'
 
 /**
@@ -112,19 +118,62 @@ export async function actualizarCurso(_previo: EstadoAccion, datos: FormData): P
 }
 
 /**
- * Archiva en vez de borrar. Un curso con pagos registrados no se puede eliminar
- * (payments.course_id es on delete restrict), y archivarlo conserva el historial
- * de quienes lo compraron.
+ * Archiva en vez de borrar, y así se queda: un curso no se elimina nunca.
+ *
+ * `payments.course_id` es on delete restrict —un curso con pagos ni siquiera se
+ * puede borrar— y la cascada se llevaría inscripciones, progreso y certificados
+ * con folio público. Archivarlo conserva todo eso.
+ *
+ * Lo que archivar SÍ hace: el curso sale de la lista de activos del admin y deja
+ * de ofrecerse al dar de alta (`opcionesDeAlta`). Lo que NO hace: quitárselo a
+ * quien ya está inscrito, ni apagar su Payment Link en Stripe.
  */
-export async function archivarCurso(datos: FormData): Promise<void> {
+export async function archivarCurso(_previo: EstadoAccion, datos: FormData): Promise<EstadoAccion> {
   await exigirAdmin()
-  const id = String(datos.get('id') ?? '')
-  if (!id) return
+
+  const resultado = esquemaIdDeCurso.safeParse({ id: datos.get('id') })
+  if (!resultado.success) return { error: primerError(resultado) }
+  const { id } = resultado.data
+
+  // `.select('id')` para saber si de verdad cambió: un update que RLS filtra no
+  // da error, solo devuelve cero filas.
+  const supabase = await crearClienteServidor()
+  const { data, error } = await supabase
+    .from('courses')
+    .update({ status: 'archived' })
+    .eq('id', id)
+    .select('id')
+
+  if (error || !data || data.length === 0) {
+    registrarFallo('archivarCurso', { id }, error?.message ?? 'el update no afectó ninguna fila')
+    return { error: 'No se pudo archivar el curso.' }
+  }
+
+  revalidatePath('/admin/cursos')
+  revalidatePath(`/admin/cursos/${id}`)
+  return { aviso: 'Curso archivado.' }
+}
+
+/**
+ * Saca un curso del archivo. Vuelve como BORRADOR, no como publicado: el estado
+ * anterior no se guarda, y que un curso reaparezca solo ante los alumnos sería
+ * el peor default. Publicarlo es un paso consciente, desde su formulario.
+ */
+export async function restaurarCurso(datos: FormData): Promise<void> {
+  await exigirAdmin()
+
+  const resultado = esquemaIdDeCurso.safeParse({ id: datos.get('id') })
+  if (!resultado.success) return
+  const { id } = resultado.data
 
   const supabase = await crearClienteServidor()
-  const { error } = await supabase.from('courses').update({ status: 'archived' }).eq('id', id)
+  const { error } = await supabase
+    .from('courses')
+    .update({ status: 'draft' })
+    .eq('id', id)
+    .eq('status', 'archived')
 
-  if (error) registrarFallo('archivarCurso', { id }, error.message)
+  if (error) registrarFallo('restaurarCurso', { id }, error.message)
 
   revalidatePath('/admin/cursos')
   revalidatePath(`/admin/cursos/${id}`)

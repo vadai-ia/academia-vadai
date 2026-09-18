@@ -4,6 +4,7 @@ import { useActionState } from 'react'
 import { useFormStatus } from 'react-dom'
 
 import { AvisoAccion } from '@/components/admin/aviso-accion'
+import { ListaSeleccionable, gruposDesdeCursos } from '@/components/admin/lista-seleccionable'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
@@ -46,7 +47,14 @@ function Enviar({ children }: { children: string }) {
   )
 }
 
-/** Curso + cohorte, que comparten el alta individual y la masiva. */
+/**
+ * Curso + cohorte del alta masiva: un archivo entero va a UN curso.
+ *
+ * El alta individual ya no usa esto. Ahí se eligen varios cursos con
+ * `ListaSeleccionable`, donde cada grupo aparece bajo su curso — este par de
+ * selects solo puede listar los grupos del primer curso, porque sin JavaScript
+ * el segundo no tiene forma de enterarse de qué se eligió en el primero.
+ */
 function CamposDeCurso({ cursos, prefijo }: { cursos: CursoOpcion[]; prefijo: string }) {
   const primero = cursos[0]
 
@@ -105,13 +113,18 @@ function AltaIndividual({ cursos, reinicio }: { cursos: CursoOpcion[]; reinicio:
         </div>
       </div>
 
-      <CamposDeCurso cursos={cursos} prefijo="ind" />
+      <ListaSeleccionable
+        nombre="accesos"
+        leyenda="Cursos a los que entra"
+        grupos={gruposDesdeCursos(cursos)}
+      />
 
       <AvisoAccion estado={estado} />
 
       <p className="text-xs text-muted-foreground">
-        Se le manda un correo para que defina su contraseña. Si ya tiene cuenta, solo se le
-        agrega la inscripción.
+        Toca los cursos que quieras; toca otra vez para quitar. Se le manda un solo correo para
+        que defina su contraseña, y nombra todos los cursos. Si ya tiene cuenta, solo se le
+        agregan las inscripciones.
       </p>
 
       <div>

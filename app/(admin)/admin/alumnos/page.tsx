@@ -2,6 +2,7 @@ import type { Metadata } from 'next'
 
 import { DarDeAlta } from '@/components/admin/dar-de-alta'
 import { FilaAlumno } from '@/components/admin/fila-alumno'
+import { Pestanas } from '@/components/ui-vadai/pestanas'
 import { Cifra, Tarjeta, Titulo } from '@/components/ui-vadai/superficie'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -24,11 +25,12 @@ function fecha(iso: string): string {
 export default async function PaginaAlumnos({
   searchParams,
 }: {
-  searchParams: Promise<{ q?: string }>
+  searchParams: Promise<{ q?: string; ver?: string }>
 }) {
   const perfil = await exigirAdmin()
-  const { q } = await searchParams
+  const { q, ver } = await searchParams
   const busqueda = (q ?? '').trim()
+  const verSuspendidos = ver === 'suspendidos'
 
   const [alumnos, pagos, cursos] = await Promise.all([
     listarAlumnos(busqueda),
@@ -44,6 +46,23 @@ export default async function PaginaAlumnos({
   // Por rol explícito y no por descarte: con `!== 'alumno'` bastaba con que
   // apareciera un rol nuevo —como `invitado`— para que se contara como equipo.
   const equipo = alumnos.filter((a) => a.rol === 'admin' || a.rol === 'superadmin').length
+
+  // Suspender es el "eliminar" de esta pantalla: la persona sale de la lista
+  // principal pero no se borra. Las cifras de arriba siguen contando a todos.
+  const suspendidos = alumnos.filter((a) => a.estado === 'suspended')
+  const activos = alumnos.filter((a) => a.estado !== 'suspended')
+  const visibles = verSuspendidos ? suspendidos : activos
+
+  // Las pestañas conservan la búsqueda, y la búsqueda conserva la pestaña.
+  const hrefDe = (deSuspendidos: boolean) => {
+    const parametros = new URLSearchParams()
+    if (busqueda) parametros.set('q', busqueda)
+    if (deSuspendidos) parametros.set('ver', 'suspendidos')
+    const cadena = parametros.toString()
+    return cadena ? `/admin/alumnos?${cadena}` : '/admin/alumnos'
+  }
+
+  const soySuperadmin = perfil.role === 'superadmin'
 
   return (
     <div className="flex flex-col gap-8">
@@ -100,7 +119,7 @@ export default async function PaginaAlumnos({
       <DarDeAlta
         cursos={cursos}
         reinicio={alumnos.length}
-        soySuperadmin={perfil.role === 'superadmin'}
+        soySuperadmin={soySuperadmin}
       />
 
       {/*
@@ -112,6 +131,7 @@ export default async function PaginaAlumnos({
         obligaría a mandar los 40 alumnos completos al navegador.
       */}
       <form method="get" className="flex flex-wrap items-end gap-2">
+        {verSuspendidos ? <input type="hidden" name="ver" value="suspendidos" /> : null}
         <label className="flex min-w-56 flex-1 flex-col gap-1.5">
           <span className="text-sm font-medium">Buscar</span>
           <Input
@@ -127,25 +147,54 @@ export default async function PaginaAlumnos({
         </Button>
         {busqueda ? (
           <Button asChild variant="ghost">
-            <a href="/admin/alumnos">Limpiar</a>
+            <a href={verSuspendidos ? '/admin/alumnos?ver=suspendidos' : '/admin/alumnos'}>Limpiar</a>
           </Button>
         ) : null}
       </form>
 
-      {alumnos.length === 0 ? (
+      <Pestanas
+        etiqueta="Filtro de cuentas"
+        pestanas={[
+          {
+            href: hrefDe(false),
+            etiqueta: 'Activos',
+            activa: !verSuspendidos,
+            insignia: activos.length,
+          },
+          {
+            href: hrefDe(true),
+            etiqueta: 'Suspendidos',
+            activa: verSuspendidos,
+            insignia: suspendidos.length,
+          },
+        ]}
+      />
+
+      {visibles.length === 0 ? (
         <Tarjeta className="border-dashed px-5 py-10 text-center">
           <p className="text-sm text-muted-foreground">
             {busqueda
-              ? `Nadie coincide con "${busqueda}".`
-              : 'Todavía no hay nadie dado de alta.'}
+              ? `Nadie coincide con "${busqueda}"${verSuspendidos ? ' entre los suspendidos' : ''}.`
+              : verSuspendidos
+                ? 'Nadie está suspendido. Suspender una cuenta le corta el acceso sin borrar nada.'
+                : 'Todavía no hay nadie dado de alta.'}
           </p>
         </Tarjeta>
       ) : (
         <Tarjeta className="overflow-hidden">
           <ul>
-            {alumnos.map((alumno) => (
+            {visibles.map((alumno) => (
               <li key={alumno.userId}>
-                <FilaAlumno alumno={alumno} />
+                <FilaAlumno
+                  alumno={alumno}
+                  cursos={cursos}
+                  // Nadie se suspende a sí mismo, y al equipo solo lo toca un
+                  // superadmin. La acción vuelve a comprobar las dos cosas.
+                  puedeSuspender={
+                    alumno.userId !== perfil.user_id &&
+                    (soySuperadmin || (alumno.rol !== 'admin' && alumno.rol !== 'superadmin'))
+                  }
+                />
               </li>
             ))}
           </ul>

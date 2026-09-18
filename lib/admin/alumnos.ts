@@ -216,6 +216,84 @@ export async function listarPagos(): Promise<PagoEnLista[]> {
   }))
 }
 
+export type InscritoEnCurso = {
+  userId: string
+  nombre: string
+  email: string
+  grupo: string | null
+  /** Lo mismo que se ve en la fila del alumno: vigente, vencido o revocado. */
+  acceso: 'vigente' | 'vencido' | 'revocado'
+}
+
+export type CandidatoAlCurso = { userId: string; nombre: string; email: string }
+
+/**
+ * Las dos mitades del padrón vistas desde un curso: quién ya está inscrito y a
+ * quién se le puede dar acceso.
+ *
+ * Son dos consultas planas que se cruzan aquí, en vez de un select anidado: los
+ * tipos generados no traen las relaciones, y así no hace falta ningún cast.
+ *
+ * De los candidatos quedan fuera los `invitado` —son leads de una encuesta, no
+ * alumnos; ver `listarAlumnos`— y las cuentas suspendidas, que en esta pantalla
+ * equivalen a eliminadas.
+ */
+export async function alumnosDelCurso(
+  cursoId: string
+): Promise<{ inscritos: InscritoEnCurso[]; candidatos: CandidatoAlCurso[] }> {
+  const supabase = await crearClienteServidor()
+
+  const [inscripciones, perfiles, grupos] = await Promise.all([
+    supabase
+      .from('enrollments')
+      .select('user_id, status, expires_at, cohort_id')
+      .eq('course_id', cursoId),
+    supabase
+      .from('profiles')
+      .select('user_id, full_name, email, role, status')
+      .neq('role', 'invitado')
+      .order('full_name'),
+    supabase.from('cohorts').select('id, name').eq('course_id', cursoId),
+  ])
+
+  const fallo = inscripciones.error ?? perfiles.error ?? grupos.error
+  if (fallo) {
+    console.error(JSON.stringify({ operacion: 'alumnosDelCurso', cursoId, error: fallo.message }))
+    return { inscritos: [], candidatos: [] }
+  }
+
+  const nombreDeGrupo = new Map((grupos.data ?? []).map((g) => [g.id, g.name]))
+  const inscripcionDe = new Map((inscripciones.data ?? []).map((e) => [e.user_id, e]))
+
+  const inscritos: InscritoEnCurso[] = []
+  const candidatos: CandidatoAlCurso[] = []
+
+  for (const p of perfiles.data ?? []) {
+    const inscripcion = inscripcionDe.get(p.user_id)
+
+    if (!inscripcion) {
+      if (p.status === 'active') {
+        candidatos.push({ userId: p.user_id, nombre: p.full_name.trim(), email: p.email })
+      }
+      continue
+    }
+
+    const vigente =
+      inscripcion.status === 'active' &&
+      (!inscripcion.expires_at || new Date(inscripcion.expires_at).getTime() > Date.now())
+
+    inscritos.push({
+      userId: p.user_id,
+      nombre: p.full_name.trim(),
+      email: p.email,
+      grupo: inscripcion.cohort_id ? (nombreDeGrupo.get(inscripcion.cohort_id) ?? null) : null,
+      acceso: inscripcion.status === 'revoked' ? 'revocado' : vigente ? 'vigente' : 'vencido',
+    })
+  }
+
+  return { inscritos, candidatos }
+}
+
 /** Cursos y cohortes publicados, para el formulario de alta manual. */
 export async function opcionesDeAlta(): Promise<
   Array<{ id: string; titulo: string; cohortes: Array<{ id: string; nombre: string }> }>

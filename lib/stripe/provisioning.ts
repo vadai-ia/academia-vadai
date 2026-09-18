@@ -48,6 +48,13 @@ type Opciones = {
   rol?: RolDeAlta
   /** URL a la que apunta el correo de invitación. */
   urlRedireccion?: string
+  /**
+   * Los cursos que nombra el correo de bienvenida. Solo lo usa el alta manual
+   * con varios cursos: la cuenta se crea en la primera llamada —que es la única
+   * que manda correo— y ese correo debe nombrarlos todos, no solo el primero.
+   * Sin esto se usa el título del curso de esta llamada, como siempre.
+   */
+  titulosParaCorreo?: string[]
 }
 
 function registrar(operacion: string, detalle: Record<string, unknown>) {
@@ -260,8 +267,8 @@ export async function darDeAlta(opciones: Opciones): Promise<ResultadoAlta> {
     invitado = await enviarAccesoInicial(
       email,
       opciones.urlRedireccion,
-      // Sin curso el correo habla del acceso a la academia, no de un curso.
-      curso?.title ?? 'la academia',
+      // Sin curso la lista va vacía y el correo habla de la plataforma.
+      opciones.titulosParaCorreo ?? (curso ? [curso.title] : []),
       opciones.nombre
     )
     if (!invitado) {
@@ -327,13 +334,18 @@ export async function generarEnlaceDeAcceso(
 export async function enviarAccesoInicial(
   email: string,
   _urlRedireccion?: string,
-  curso = 'tu curso',
+  cursos: string[] = [],
   nombre?: string | null
 ): Promise<boolean> {
   const enlace = await generarEnlaceDeAcceso(email)
   if (!enlace) return false
 
-  const plantilla = plantillaBienvenida(enlace, curso, nombre)
+  const plantilla = plantillaBienvenida({
+    url: enlace,
+    cursos,
+    nombre,
+    base: process.env.NEXT_PUBLIC_APP_URL,
+  })
   const resultado = await enviarCorreo({
     para: email.trim().toLowerCase(),
     asunto: plantilla.asunto,

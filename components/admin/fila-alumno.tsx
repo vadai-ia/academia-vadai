@@ -3,10 +3,20 @@
 import { useActionState } from 'react'
 
 import { AvisoAccion } from '@/components/admin/aviso-accion'
+import { ConfirmarConModal } from '@/components/admin/confirmar-con-modal'
+import type { CursoOpcion } from '@/components/admin/dar-de-alta'
+import { ListaSeleccionable, gruposDesdeCursos } from '@/components/admin/lista-seleccionable'
 import { Avatar, Progreso } from '@/components/ui-vadai/superficie'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
-import { cambiarAcceso, extenderAcceso, reenviarAcceso } from '@/lib/admin/acciones-alumnos'
+import {
+  cambiarAcceso,
+  darAccesoACursos,
+  extenderAcceso,
+  reactivarCuenta,
+  reenviarAcceso,
+  suspenderCuenta,
+} from '@/lib/admin/acciones-alumnos'
 import { enlaceDeAcceso } from '@/lib/admin/acciones-equipo'
 import { SIN_ESTADO } from '@/lib/admin/tipos'
 import type { AlumnoEnLista } from '@/lib/admin/alumnos'
@@ -78,7 +88,78 @@ function EnlaceDeAcceso({ email }: { email: string }) {
   )
 }
 
-export function FilaAlumno({ alumno }: { alumno: AlumnoEnLista }) {
+/**
+ * Da acceso a más cursos a alguien que ya tiene cuenta.
+ *
+ * Los cursos se eligen en una lista de casillas: un toque marca, otro desmarca,
+ * igual con ratón que con dedo. Un curso sin grupos es un renglón suelto; uno
+ * con grupos es un bloque donde cada grupo es un renglón, así un solo control
+ * resuelve curso Y grupo sin depender de JavaScript.
+ *
+ * Solo lista lo que la persona NO tiene. Lo que ya tiene se maneja arriba, con
+ * "Restaurar acceso" y "Extender días".
+ *
+ * El estado de la acción NO vive aquí sino en la fila. Cuando a alguien se le
+ * da el último curso que le faltaba, este formulario deja de pintarse; si el
+ * aviso viviera aquí dentro, desaparecería justo al confirmar.
+ */
+function DarAcceso({
+  userId,
+  disponibles,
+  reinicio,
+  accion,
+}: {
+  userId: string
+  disponibles: CursoOpcion[]
+  reinicio: number
+  accion: (datos: FormData) => void
+}) {
+  return (
+    <details className="rounded-[10px] border border-dashed border-border">
+      <summary className="inline-flex cursor-pointer list-none items-center gap-2 rounded-[10px] px-3 py-2 text-sm font-medium text-primary select-none hover:bg-muted focus-visible:ring-3 focus-visible:ring-ring/50 focus-visible:outline-none [&::-webkit-details-marker]:hidden">
+        + Dar acceso a otro curso
+      </summary>
+
+      {/* `key` con un valor del servidor: al agregarse inscripciones el
+          formulario se remonta limpio, sin envolver la acción en un closure. */}
+      <form key={reinicio} action={accion} className="flex flex-col gap-3 px-3 pt-1 pb-3">
+        <input type="hidden" name="user_id" value={userId} />
+
+        <ListaSeleccionable
+          nombre="accesos"
+          leyenda="Cursos"
+          grupos={gruposDesdeCursos(disponibles)}
+        />
+
+        <p className="text-xs text-muted-foreground">
+          Toca los que quieras; toca otra vez para quitar. No se manda correo: al entrar,
+          encuentra el curso nuevo en su lista.
+        </p>
+
+        <div>
+          <Button type="submit" size="sm">
+            Dar acceso
+          </Button>
+        </div>
+      </form>
+    </details>
+  )
+}
+
+export function FilaAlumno({
+  alumno,
+  cursos,
+  puedeSuspender,
+}: {
+  alumno: AlumnoEnLista
+  /** Todos los cursos no archivados; la fila descarta los que ya tiene. */
+  cursos: CursoOpcion[]
+  /** Lo decide la página: nadie a sí mismo, y al equipo solo un superadmin. */
+  puedeSuspender: boolean
+}) {
+  const [estadoAcceso, darAcceso] = useActionState(darAccesoACursos, SIN_ESTADO)
+  const suspendida = alumno.estado === 'suspended'
+  const disponibles = cursos.filter((c) => !alumno.inscripciones.some((i) => i.cursoId === c.id))
   const vigentes = alumno.inscripciones.filter((i) => i.vigente)
   const equipo = alumno.rol === 'admin' || alumno.rol === 'superadmin'
 
@@ -99,7 +180,7 @@ export function FilaAlumno({ alumno }: { alumno: AlumnoEnLista }) {
             ) : null}
             {alumno.estado !== 'active' ? (
               <Badge variant="outline" className="text-[11px]">
-                {alumno.estado}
+                {suspendida ? 'Suspendida' : alumno.estado}
               </Badge>
             ) : null}
           </span>
@@ -206,6 +287,19 @@ export function FilaAlumno({ alumno }: { alumno: AlumnoEnLista }) {
               ))}
             </ul>
           )}
+
+          {disponibles.length > 0 ? (
+            <DarAcceso
+              userId={alumno.userId}
+              disponibles={disponibles}
+              reinicio={alumno.inscripciones.length}
+              accion={darAcceso}
+            />
+          ) : cursos.length > 0 ? (
+            <p className="text-xs text-muted-foreground">Ya tiene todos los cursos activos.</p>
+          ) : null}
+
+          <AvisoAccion estado={estadoAcceso} />
         </section>
 
         {/* --- Pagos --- */}
@@ -250,6 +344,62 @@ export function FilaAlumno({ alumno }: { alumno: AlumnoEnLista }) {
             Dado de alta el {fecha(alumno.creadoEn)}.
           </p>
         </section>
+
+        {/* --- Cuenta ---
+            Suspender es el "eliminar" de un alumno: le corta la entrada y no
+            borra nada. Ver `suspenderCuenta`. */}
+        {suspendida || puedeSuspender ? (
+          <section className="flex flex-col gap-2">
+            <h3 className="text-xs font-medium tracking-[0.12em] text-muted-foreground uppercase">
+              Cuenta
+            </h3>
+
+            {suspendida ? (
+              <div className="flex flex-wrap items-center gap-3">
+                <p className="text-sm text-muted-foreground">
+                  Suspendida: no puede entrar. Sus cursos, progreso y pagos siguen guardados.
+                </p>
+                {puedeSuspender ? (
+                  <form action={reactivarCuenta}>
+                    <input type="hidden" name="user_id" value={alumno.userId} />
+                    <Button type="submit" variant="outline" size="sm">
+                      Reactivar cuenta
+                    </Button>
+                  </form>
+                ) : null}
+              </div>
+            ) : (
+              <div>
+                <ConfirmarConModal
+                  idModal={`suspender-cuenta-${alumno.userId}`}
+                  accion={suspenderCuenta}
+                  campos={{ user_id: alumno.userId }}
+                  boton={{
+                    texto: 'Suspender cuenta',
+                    etiquetaAccesible: `Suspender la cuenta de ${alumno.nombre || alumno.email}`,
+                    tono: 'destructivo',
+                  }}
+                  titulo={`¿Suspender a ${alumno.nombre || alumno.email}?`}
+                  confirmar={{
+                    texto: 'Sí, suspender',
+                    enCurso: 'Suspendiendo…',
+                    tono: 'destructivo',
+                  }}
+                >
+                  <p>
+                    Deja de poder entrar desde este momento, aunque tenga la sesión abierta. Al
+                    intentarlo verá que su cuenta está suspendida.
+                  </p>
+                  <p>
+                    <span className="font-medium text-foreground">No se borra nada</span>: sus
+                    inscripciones, progreso, entregas, certificados y pagos se quedan como están.
+                    La encuentras en Suspendidos y la reactivas cuando quieras.
+                  </p>
+                </ConfirmarConModal>
+              </div>
+            )}
+          </section>
+        ) : null}
       </div>
     </details>
   )

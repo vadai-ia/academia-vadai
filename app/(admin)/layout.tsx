@@ -6,7 +6,7 @@ import {
   IconoEncuestas,
   IconoPanel,
   IconoPerfil,
-} from '@/components/marca/navegacion'
+} from '@/components/marca/iconos-navegacion'
 import { SaltarAlContenido } from '@/components/marca/saltar-al-contenido'
 import { exigirAdmin } from '@/lib/auth/sesion'
 
