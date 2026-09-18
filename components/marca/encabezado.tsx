@@ -69,37 +69,52 @@ export function Encabezado({
 /**
  * Cuenta: un avatar que abre un menú.
  *
- * Es `<details>`, no un popover de React. Sin JavaScript un botón con onClick
- * no abre nada, y "cerrar sesión" quedaría inalcanzable — justo el control que
- * la pantalla de sin-acceso necesita para que alguien ajeno pueda irse.
+ * Es un `popover` nativo abierto con `popovertarget`, no un popover de React. Sin
+ * JavaScript un botón con onClick no abre nada, y "cerrar sesión" quedaría
+ * inalcanzable — justo el control que la pantalla de sin-acceso necesita para
+ * que alguien ajeno pueda irse.
  *
- * El panel va posicionado en absoluto bajo el avatar y se cierra al hacer clic
- * fuera gracias al `<summary>` de pantalla completa que hay detrás cuando está
- * abierto: un truco de CSS puro que no necesita un manejador de eventos.
+ * CORREGIDO 18-sep-2026. Antes era un `<details>` con DOS `<summary>`: el
+ * segundo era una capa invisible a pantalla completa que "cerraba al hacer clic
+ * fuera". No cerraba nada: en HTML solo el PRIMER `<summary>` de un `<details>`
+ * lo abre y lo cierra, el resto es contenido. Y como esa capa quedaba encima del
+ * avatar, el clic para cerrarlo tampoco llegaba. Una vez abierto, el menú ya no
+ * se podía cerrar ni con el avatar, ni con un clic fuera, ni con Esc.
+ *
+ * El popover trae de fábrica lo que aquel truco intentaba: se cierra con otro
+ * clic en el botón, con un clic en cualquier otro lado y con Esc, devuelve el
+ * foco al botón y vive en la capa superior, así que no pelea con ningún z-index.
+ *
+ * Posición: un popover vive en la capa superior y no puede anclarse con
+ * `absolute` a su botón. Se fija bajo la primera fila del encabezado —que es
+ * pegajoso y mide 56 px— y a la derecha del contenedor de 72rem, que es donde
+ * está el avatar. `100%` y no `100vw`: el segundo cuenta la barra de scroll.
  */
 function MenuDeCuenta({ perfil }: { perfil: Perfil }) {
   const nombre = nombreVisible(perfil)
   const equipo = perfil.role === 'admin' || perfil.role === 'superadmin'
+  const idMenu = 'menu-de-cuenta'
 
   return (
-    <details className="group/cuenta relative">
-      <summary
-        className="flex cursor-pointer list-none items-center gap-2 rounded-full py-0.5 pr-2.5 pl-0.5 transition-colors select-none hover:bg-muted focus-visible:ring-3 focus-visible:ring-ring/50 focus-visible:outline-none [&::-webkit-details-marker]:hidden"
+    <div className="group/cuenta">
+      <button
+        type="button"
+        popoverTarget={idMenu}
+        className="flex cursor-pointer items-center gap-2 rounded-full py-0.5 pr-2.5 pl-0.5 transition-colors select-none hover:bg-muted focus-visible:ring-3 focus-visible:ring-ring/50 focus-visible:outline-none"
         aria-label={`Cuenta de ${nombre}`}
       >
         <Avatar nombre={nombre} tamano={32} />
         <span className="hidden max-w-40 truncate text-sm font-medium md:inline">{nombre}</span>
         <ChevronAbajo />
-      </summary>
+      </button>
 
-      {/* Capa invisible que cierra el menú al hacer clic en cualquier otro
-          lado. Solo existe mientras está abierto. */}
-      <summary
-        aria-hidden
-        className="fixed inset-0 z-10 hidden cursor-default list-none group-open/cuenta:block [&::-webkit-details-marker]:hidden"
-      />
-
-      <div className="absolute top-[calc(100%+8px)] right-0 z-20 w-64 overflow-hidden rounded-[12px] border border-border bg-card shadow-[0_4px_16px_rgba(0,0,0,0.08),0_1px_3px_rgba(0,0,0,0.06)]">
+      {/* Sin clase de `display`: pisaría el `display: none` con el que el
+          navegador esconde un popover cerrado. */}
+      <div
+        id={idMenu}
+        popover="auto"
+        className="inset-auto top-[3.75rem] right-[max(1.25rem,calc((100%-72rem)/2+1.25rem))] m-0 w-64 overflow-hidden rounded-[12px] border border-border bg-card p-0 text-foreground shadow-[0_4px_16px_rgba(0,0,0,0.08),0_1px_3px_rgba(0,0,0,0.06)]"
+      >
         <div className="flex items-center gap-3 border-b border-border px-4 py-3">
           <Avatar nombre={nombre} tamano={36} />
           <div className="flex min-w-0 flex-col">
@@ -130,7 +145,7 @@ function MenuDeCuenta({ perfil }: { perfil: Perfil }) {
           <BotonSalir variante="menu" />
         </div>
       </div>
-    </details>
+    </div>
   )
 }
 
@@ -143,7 +158,7 @@ function ChevronAbajo() {
       strokeWidth="2"
       strokeLinecap="round"
       strokeLinejoin="round"
-      className="size-3.5 text-muted-foreground transition-transform group-open/cuenta:rotate-180"
+      className="size-3.5 text-muted-foreground transition-transform group-has-[:popover-open]/cuenta:rotate-180"
       aria-hidden
     >
       <path d="m6 9 6 6 6-6" />
