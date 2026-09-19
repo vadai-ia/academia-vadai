@@ -1,4 +1,5 @@
 import Link from 'next/link'
+import type { ReactNode } from 'react'
 
 import { BotonSalir } from '@/components/auth/boton-salir'
 import { CambiarTema } from '@/components/marca/cambiar-tema'
@@ -35,9 +36,15 @@ import { nombreVisible, type Perfil } from '@/lib/auth/sesion'
 export function Encabezado({
   perfil,
   navegacion = [],
+  accion,
 }: {
   perfil: Perfil
   navegacion?: Destino[]
+  /**
+   * Un control a la izquierda del avatar, en la fila pegajosa: siempre a la
+   * vista. Lo usa el área de alumno para que el equipo vuelva a su panel.
+   */
+  accion?: ReactNode
 }) {
   return (
     <header className="sticky top-0 z-30 border-b border-border bg-background/85 backdrop-blur-md">
@@ -52,7 +59,10 @@ export function Encabezado({
             <EtiquetaAcademia className="hidden text-[0.6rem] tracking-[0.28em] sm:inline" />
           </Link>
 
-          <MenuDeCuenta perfil={perfil} />
+          <div className="flex min-w-0 items-center gap-2">
+            {accion}
+            <MenuDeCuenta perfil={perfil} />
+          </div>
         </div>
 
         {/* --- Fila 2: secciones ----------------------------------------- */}
