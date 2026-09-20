@@ -258,6 +258,26 @@ async function sembrarDatos(cliente, usuarios) {
       [usuarios.alumnoVencido.id, IDS.curso, IDS.cohorte, ayer]
     )
 
+    // Punto de partida LIMPIO para los alumnos QA. Sin esto, una suite que
+    // abortó a medias deja progreso, intentos y entregas, y la siguiente
+    // corrida arranca con "el alumno lleva 25%" sin haber hecho nada — que
+    // fue exactamente lo que pasó la víspera del lanzamiento. El seed es el
+    // único punto por el que pasan todas las corridas, así que el reset vive
+    // aquí y no en cada suite. Los certificados no: esa suite borra también
+    // el PDF de Storage y sabe hacerlo bien.
+    await cliente.query(
+      `delete from academia.assignment_submissions where user_id = any($1::uuid[])`,
+      [[usuarios.alumnoVigente.id, usuarios.alumnoVencido.id]]
+    )
+    await cliente.query(
+      `delete from academia.quiz_attempts where user_id = any($1::uuid[])`,
+      [[usuarios.alumnoVigente.id, usuarios.alumnoVencido.id]]
+    )
+    await cliente.query(
+      `delete from academia.lesson_progress where user_id = any($1::uuid[])`,
+      [[usuarios.alumnoVigente.id, usuarios.alumnoVencido.id]]
+    )
+
     // Progreso previo del alumno vencido: debe sobrevivir al vencimiento (§6.3).
     await cliente.query(
       `insert into academia.lesson_progress (user_id, lesson_id, completed, seconds_watched, completed_at)

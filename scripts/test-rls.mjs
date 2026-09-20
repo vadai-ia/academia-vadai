@@ -367,6 +367,15 @@ async function main() {
   // Se repone para que el script sea re-corrible.
   await reponerPago(idVigente, correo.alumnoVigente)
 
+  // Y se borra el progreso que ESTA suite escribió para probar la policy. Es
+  // suyo, así que le toca a ella: sin esto, M4 —que corre después— encontraba
+  // al alumno vigente con una lección hecha y "arranca en 0%" fallaba. Fue lo
+  // que dejó el checklist sin firma la víspera del lanzamiento.
+  await bd.query(
+    `delete from academia.lesson_progress where user_id = $1 and lesson_id = $2`,
+    [idVigente, IDS.leccionVideo]
+  )
+
   await bd.end().catch(() => {})
   process.exitCode = imprimir() ? 0 : 1
 }
