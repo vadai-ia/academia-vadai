@@ -4,9 +4,9 @@
 
 | | |
 |---|---|
-| Fecha | 20 de septiembre de 2026 a las 12:12 p.m. (CDMX) |
-| Commit | `22c830e` en `curso/claude-en-tu-empresa` |
-| Árbol | **con cambios sin commitear** |
+| Fecha | 20 de septiembre de 2026 a las 12:17 p.m. (CDMX) |
+| Commit | `ec1c38d` en `curso/claude-en-tu-empresa` |
+| Árbol | limpio |
 
 Se regenera con `pnpm qa`, que corre cada paso de verdad. Un checklist que
 se palomea a mano se palomea igual esté verde o roja la cosa; este firma con
