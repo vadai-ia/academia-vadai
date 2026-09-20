@@ -41,11 +41,11 @@ function dinero(monto: number, moneda: string): string {
 }
 
 /**
- * El enlace de acceso de un solo uso.
+ * El enlace de acceso de 30 días.
  *
  * Es el respaldo de §11: cuando el correo no llega, en vez de decirle al alumno
- * "revisa tu spam" se le pasa el enlace por WhatsApp. Aparece en pantalla y no
- * se guarda en ningún lado — es de un solo uso y caduca solo.
+ * "revisa tu spam" se le pasa el enlace por WhatsApp. Aparece en pantalla; en
+ * la base queda solo su hash (lib/auth/enlace-durable.ts).
  */
 function EnlaceDeAcceso({ email }: { email: string }) {
   const [estado, accion] = useActionState(enlaceDeAcceso, SIN_ESTADO)
@@ -62,7 +62,7 @@ function EnlaceDeAcceso({ email }: { email: string }) {
       {estado.aviso ? (
         <label className="flex flex-col gap-1">
           <span className="text-xs text-muted-foreground">
-            De un solo uso. Cópialo y mándaselo:
+            Vale 30 días. Cópialo y mándaselo por WhatsApp:
           </span>
           <input
             readOnly
@@ -102,8 +102,21 @@ export function FilaAlumno({ alumno }: { alumno: AlumnoEnLista }) {
                 {alumno.estado}
               </Badge>
             ) : null}
+            {/*
+              Lo que se busca la mañana del lanzamiento: ¿ya entró? Se dice en
+              la fila cerrada, porque abrir cien filas para averiguarlo no es
+              una opción. El equipo no lo lleva: entra por su rol.
+            */}
+            {!equipo && !alumno.ultimoAcceso ? (
+              <Badge variant="outline" className="border-destructive/40 text-[11px] text-destructive">
+                Nunca ha entrado
+              </Badge>
+            ) : null}
           </span>
-          <span className="truncate text-xs text-muted-foreground">{alumno.email}</span>
+          <span className="truncate text-xs text-muted-foreground">
+            {alumno.email}
+            {alumno.ultimoAcceso ? ` · entró el ${fecha(alumno.ultimoAcceso)}` : ''}
+          </span>
         </span>
 
         {/* En pantalla angosta esto estorba más de lo que informa. */}
@@ -247,7 +260,19 @@ export function FilaAlumno({ alumno }: { alumno: AlumnoEnLista }) {
             <EnlaceDeAcceso email={alumno.email} />
           </div>
           <p className="text-xs text-muted-foreground">
-            Dado de alta el {fecha(alumno.creadoEn)}.
+            Dado de alta el {fecha(alumno.creadoEn)}.{' '}
+            {alumno.ultimoAcceso
+              ? `Última vez que entró: ${fecha(alumno.ultimoAcceso)}.`
+              : 'No ha entrado ni una vez.'}{' '}
+            {alumno.enlace
+              ? `Último enlace enviado el ${fecha(alumno.enlace.enviadoEn)}, ` +
+                (alumno.enlace.vigente
+                  ? `vale hasta el ${fecha(alumno.enlace.venceEn)}`
+                  : 'ya vencido') +
+                (alumno.enlace.usos > 0
+                  ? `, abierto ${alumno.enlace.usos} ${alumno.enlace.usos === 1 ? 'vez' : 'veces'}.`
+                  : ', sin abrir.')
+              : 'Sin enlace de 30 días todavía: los correos anteriores al 20-sep llevaban una liga de una hora.'}
           </p>
         </section>
       </div>

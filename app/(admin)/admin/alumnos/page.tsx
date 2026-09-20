@@ -2,15 +2,29 @@ import type { Metadata } from 'next'
 
 import { DarDeAlta } from '@/components/admin/dar-de-alta'
 import { FilaAlumno } from '@/components/admin/fila-alumno'
+import { ReenviarPendientes } from '@/components/admin/reenviar-pendientes'
 import { Cifra, Tarjeta, Titulo } from '@/components/ui-vadai/superficie'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
+import { alumnosPendientesDeEntrar } from '@/lib/admin/accesos'
 import { listarAlumnos, listarPagos, opcionesDeAlta } from '@/lib/admin/alumnos'
 import { exigirAdmin } from '@/lib/auth/sesion'
 import { stripeConfigurado, stripeEnVivo } from '@/lib/stripe/cliente'
+import { cn } from '@/lib/utils'
 
 export const metadata: Metadata = { title: 'Alumnos' }
 export const dynamic = 'force-dynamic'
+
+/**
+ * Los tres cortes del listado. Van en la URL (`?ver=nunca`) y no en estado de
+ * React: funcionan sin JavaScript, se comparten y se vuelve con "atrás".
+ */
+const VISTAS = {
+  todos: 'Todos',
+  nunca: 'Nunca han entrado',
+  entraron: 'Ya entraron',
+} as const
+type Vista = keyof typeof VISTAS
 
 function fecha(iso: string): string {
   return new Intl.DateTimeFormat('es-MX', {
@@ -24,38 +38,44 @@ function fecha(iso: string): string {
 export default async function PaginaAlumnos({
   searchParams,
 }: {
-  searchParams: Promise<{ q?: string }>
+  searchParams: Promise<{ q?: string; ver?: string }>
 }) {
   const perfil = await exigirAdmin()
-  const { q } = await searchParams
+  const { q, ver } = await searchParams
   const busqueda = (q ?? '').trim()
+  const vista: Vista = ver === 'nunca' || ver === 'entraron' ? ver : 'todos'
 
-  const [alumnos, pagos, cursos] = await Promise.all([
+  const [todos, pagos, cursos, pendientes] = await Promise.all([
     listarAlumnos(busqueda),
     listarPagos(),
     opcionesDeAlta(),
+    alumnosPendientesDeEntrar(),
   ])
 
   // Un pago sin cuenta es el caso que §11 manda resolver a mano: el dinero
   // entró pero el alta no se completó.
   const huerfanos = pagos.filter((p) => !p.tieneCuenta && p.estado === 'paid')
 
-  const conAcceso = alumnos.filter((a) => a.inscripciones.some((i) => i.vigente)).length
-  // Por rol explícito y no por descarte: con `!== 'alumno'` bastaba con que
-  // apareciera un rol nuevo —como `invitado`— para que se contara como equipo.
-  const equipo = alumnos.filter((a) => a.rol === 'admin' || a.rol === 'superadmin').length
+  const conAcceso = todos.filter((a) => a.inscripciones.some((i) => i.vigente)).length
+  const entraron = todos.filter((a) => a.ultimoAcceso).length
+  const nunca = todos.length - entraron
+
+  const alumnos =
+    vista === 'nunca'
+      ? todos.filter((a) => !a.ultimoAcceso)
+      : vista === 'entraron'
+        ? todos.filter((a) => a.ultimoAcceso)
+        : todos
+
+  const apoyo = busqueda
+    ? `${alumnos.length} resultado${alumnos.length === 1 ? '' : 's'} para "${busqueda}"`
+    : vista !== 'todos'
+      ? `${alumnos.length} de ${todos.length}`
+      : undefined
 
   return (
     <div className="flex flex-col gap-8">
-      <Titulo
-        apoyo={
-          busqueda
-            ? `${alumnos.length} resultado${alumnos.length === 1 ? '' : 's'} para "${busqueda}"`
-            : undefined
-        }
-      >
-        Alumnos
-      </Titulo>
+      <Titulo apoyo={apoyo}>Alumnos</Titulo>
 
       {stripeConfigurado() && stripeEnVivo() ? (
         <p className="rounded-[10px] border border-destructive/40 bg-destructive/10 px-4 py-2.5 text-sm text-destructive">
@@ -87,13 +107,20 @@ export default async function PaginaAlumnos({
       ) : null}
 
       {!busqueda ? (
-        <Tarjeta className="p-5">
-          <div className="grid grid-cols-2 gap-6 sm:grid-cols-4">
-            <Cifra valor={alumnos.length} etiqueta="personas con perfil" />
-            <Cifra valor={conAcceso} etiqueta="con acceso vigente" destacada />
-            <Cifra valor={equipo} etiqueta="del equipo" />
+        <Tarjeta className="flex flex-col gap-5 p-5">
+          <div className="grid grid-cols-2 gap-6 sm:grid-cols-5">
+            <Cifra valor={todos.length} etiqueta="personas con perfil" />
+            <Cifra valor={conAcceso} etiqueta="con acceso vigente" />
+            <Cifra valor={entraron} etiqueta="ya entraron" destacada />
+            <Cifra valor={nunca} etiqueta="nunca han entrado" />
             <Cifra valor={pagos.length} etiqueta="pagos registrados" />
           </div>
+
+          {/*
+            Lo que se hace con el número de arriba. "Nunca han entrado" sin un
+            botón al lado es una cifra que da ansiedad y no resuelve nada.
+          */}
+          <ReenviarPendientes pendientes={pendientes.length} />
         </Tarjeta>
       ) : null}
 
@@ -112,6 +139,7 @@ export default async function PaginaAlumnos({
         obligaría a mandar los 40 alumnos completos al navegador.
       */}
       <form method="get" className="flex flex-wrap items-end gap-2">
+        {vista !== 'todos' ? <input type="hidden" name="ver" value={vista} /> : null}
         <label className="flex min-w-56 flex-1 flex-col gap-1.5">
           <span className="text-sm font-medium">Buscar</span>
           <Input
@@ -127,17 +155,49 @@ export default async function PaginaAlumnos({
         </Button>
         {busqueda ? (
           <Button asChild variant="ghost">
-            <a href="/admin/alumnos">Limpiar</a>
+            <a href={vista === 'todos' ? '/admin/alumnos' : `/admin/alumnos?ver=${vista}`}>
+              Limpiar
+            </a>
           </Button>
         ) : null}
       </form>
+
+      <nav aria-label="Filtrar por acceso" className="flex flex-wrap gap-2">
+        {(Object.keys(VISTAS) as Vista[]).map((v) => {
+          const activa = v === vista
+          const href =
+            (v === 'todos' ? '/admin/alumnos' : `/admin/alumnos?ver=${v}`) +
+            (busqueda ? `${v === 'todos' ? '?' : '&'}q=${encodeURIComponent(busqueda)}` : '')
+          const cuenta = v === 'todos' ? todos.length : v === 'nunca' ? nunca : entraron
+          return (
+            <a
+              key={v}
+              href={href}
+              aria-current={activa ? 'page' : undefined}
+              className={cn(
+                'inline-flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-sm font-medium transition-colors',
+                activa
+                  ? 'border-primary bg-primary/10 text-foreground'
+                  : 'border-border text-muted-foreground hover:border-primary/50 hover:text-foreground'
+              )}
+            >
+              {VISTAS[v]}
+              <span className="text-xs tabular-nums opacity-70">{cuenta}</span>
+            </a>
+          )
+        })}
+      </nav>
 
       {alumnos.length === 0 ? (
         <Tarjeta className="border-dashed px-5 py-10 text-center">
           <p className="text-sm text-muted-foreground">
             {busqueda
               ? `Nadie coincide con "${busqueda}".`
-              : 'Todavía no hay nadie dado de alta.'}
+              : vista === 'nunca'
+                ? 'Todos han entrado al menos una vez.'
+                : vista === 'entraron'
+                  ? 'Nadie ha entrado todavía.'
+                  : 'Todavía no hay nadie dado de alta.'}
           </p>
         </Tarjeta>
       ) : (

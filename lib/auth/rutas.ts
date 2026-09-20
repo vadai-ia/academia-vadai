@@ -49,6 +49,9 @@ const PREFIJOS_PUBLICOS = [
   '/api/stripe/',
   '/e/',
   '/api/encuestas/',
+  // La liga del correo de bienvenida (lib/auth/enlace-durable.ts). Quien la
+  // abre todavía no tiene sesión: es justo lo que viene a conseguir.
+  '/acceso/',
 ]
 
 export function esPublica(ruta: string): boolean {

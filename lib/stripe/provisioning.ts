@@ -1,5 +1,6 @@
 import 'server-only'
 
+import { crearEnlaceDurable } from '@/lib/auth/enlace-durable'
 import { plantillaBienvenida } from '@/lib/correo/plantillas'
 import { enviarCorreo } from '@/lib/correo/resend'
 import { crearClienteServiceRole } from '@/lib/supabase/service-role'
@@ -328,9 +329,14 @@ export async function enviarAccesoInicial(
   email: string,
   _urlRedireccion?: string,
   curso = 'tu curso',
-  nombre?: string | null
+  nombre?: string | null,
+  creadoPor?: string | null
 ): Promise<boolean> {
-  const enlace = await generarEnlaceDeAcceso(email)
+  // La liga del correo vale 30 días y no se gasta con un GET (ver
+  // lib/auth/enlace-durable.ts). Antes iba un recovery de Supabase de una
+  // hora y un solo uso: la víspera del lanzamiento 75 alumnos tenían en el
+  // buzón una liga muerta.
+  const enlace = await crearEnlaceDurable({ email, creadoPor })
   if (!enlace) return false
 
   const plantilla = plantillaBienvenida(enlace, curso, nombre)

@@ -4,12 +4,9 @@ import { revalidatePath } from 'next/cache'
 import { z } from 'zod'
 
 import { filasDeArchivo, interpretar } from '@/lib/admin/importar'
+import { crearEnlaceDurable } from '@/lib/auth/enlace-durable'
 import { exigirAdmin } from '@/lib/auth/sesion'
-import {
-  darDeAlta,
-  generarEnlaceDeAcceso,
-  type RolDeAlta,
-} from '@/lib/stripe/provisioning'
+import { darDeAlta, type RolDeAlta } from '@/lib/stripe/provisioning'
 
 import type { EstadoAccion } from './tipos'
 
@@ -224,7 +221,9 @@ export async function enlaceDeAcceso(
   const email = String(datos.get('email') ?? '').trim().toLowerCase()
   if (!email) return { error: 'Falta el correo.' }
 
-  const enlace = await generarEnlaceDeAcceso(email)
+  // Vale 30 días y sobrevive a que se abra dos veces: es lo que se necesita
+  // cuando la liga viaja por WhatsApp y la persona la abre cuando puede.
+  const enlace = await crearEnlaceDurable({ email, creadoPor: perfil.user_id })
   if (!enlace) return { error: 'No se pudo generar el enlace. ¿Existe esa cuenta?' }
 
   console.log(JSON.stringify({ operacion: 'enlaceDeAcceso', porQuien: perfil.email, email }))

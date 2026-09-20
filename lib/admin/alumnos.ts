@@ -1,5 +1,6 @@
 import 'server-only'
 
+import { ultimosEnlaces, ultimosInicios, type UltimoEnlace } from '@/lib/admin/accesos'
 import { crearClienteServidor } from '@/lib/supabase/server'
 
 export type AlumnoEnLista = {
@@ -9,6 +10,10 @@ export type AlumnoEnLista = {
   rol: string
   estado: string
   creadoEn: string | null
+  /** Último inicio de sesión según Auth. null = nunca ha entrado. */
+  ultimoAcceso: string | null
+  /** El último enlace de 30 días que se le mandó, si alguno. */
+  enlace: UltimoEnlace | null
   inscripciones: Array<{
     cursoId: string
     cursoTitulo: string
@@ -50,7 +55,7 @@ export async function listarAlumnos(busqueda?: string): Promise<AlumnoEnLista[]>
   // El progreso se pide COMPLETO y se agrupa aquí, en vez de una consulta por
   // persona. Con 40 alumnos eso serían 40 viajes de red para pintar una tabla;
   // así es uno. `lesson_outline` da el total de lecciones por curso.
-  const [perfiles, progreso, outline, pagos] = await Promise.all([
+  const [perfiles, progreso, outline, pagos, inicios, enlaces] = await Promise.all([
     supabase
       .from('profiles')
       .select(
@@ -68,6 +73,10 @@ export async function listarAlumnos(busqueda?: string): Promise<AlumnoEnLista[]>
     supabase.from('lesson_progress').select('user_id, lesson_id, completed'),
     supabase.from('lesson_outline').select('id, course_id'),
     supabase.from('payments').select('email, amount, currency, created_at, courses(title)'),
+    // "¿Ya entró?" y "¿cuándo se le mandó acceso?": lo que se busca la mañana
+    // de un lanzamiento. Ver lib/admin/accesos.ts.
+    ultimosInicios(),
+    ultimosEnlaces(),
   ])
 
   if (perfiles.error) {
@@ -150,6 +159,8 @@ export async function listarAlumnos(busqueda?: string): Promise<AlumnoEnLista[]>
       rol: p.role,
       estado: p.status,
       creadoEn: p.created_at,
+      ultimoAcceso: inicios.get(p.user_id) ?? null,
+      enlace: enlaces.get(p.user_id) ?? null,
       pagos: pagosPor.get((p.email ?? '').toLowerCase()) ?? [],
       inscripciones: (p.enrollments ?? []).map((e) => {
         const total = totalPorCurso.get(e.course_id) ?? 0

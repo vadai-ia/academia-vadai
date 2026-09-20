@@ -3,6 +3,7 @@
 import { revalidatePath } from 'next/cache'
 import { z } from 'zod'
 
+import { alumnosPendientesDeEntrar } from '@/lib/admin/accesos'
 import { exigirAdmin } from '@/lib/auth/sesion'
 import { darDeAlta, enviarAccesoInicial } from '@/lib/stripe/provisioning'
 import { crearClienteServidor } from '@/lib/supabase/server'
@@ -76,18 +77,71 @@ export async function altaManual(_previo: EstadoAccion, datos: FormData): Promis
 
 /** Reintenta el correo de acceso para alguien ya dado de alta. */
 export async function reenviarAcceso(datos: FormData): Promise<void> {
-  await exigirAdmin()
+  const admin = await exigirAdmin()
 
   const email = String(datos.get('email') ?? '').trim().toLowerCase()
   if (!email) return
 
   const enviado = await enviarAccesoInicial(
     email,
-    `${process.env.NEXT_PUBLIC_APP_URL ?? ''}/nueva-contrasena`
+    `${process.env.NEXT_PUBLIC_APP_URL ?? ''}/nueva-contrasena`,
+    undefined,
+    undefined,
+    admin.user_id
   )
 
   console.log(JSON.stringify({ operacion: 'reenviarAcceso', email, enviado }))
   revalidatePath('/admin/alumnos')
+}
+
+/**
+ * Cuántos correos manda cada clic de "reenviar a quien falta".
+ *
+ * Resend admite dos peticiones por segundo y una server action en Vercel tiene
+ * segundos, no minutos. Diez correos con medio segundo entre cada uno caben
+ * holgados; setenta y cinco no. El botón dice cuántos quedan y se vuelve a
+ * dar clic: la ventana de 24 h de `alumnosPendientesDeEntrar()` garantiza
+ * que el segundo clic no repita a nadie del primero.
+ */
+const LOTE = 10
+
+/** Manda el acceso a los alumnos que nunca han entrado, de diez en diez. */
+export async function reenviarAccesoPendientes(
+  _previo: EstadoAccion,
+  _datos: FormData
+): Promise<EstadoAccion> {
+  const admin = await exigirAdmin()
+
+  const pendientes = await alumnosPendientesDeEntrar()
+  if (pendientes.length === 0) {
+    return { aviso: 'Nadie está pendiente: todos los alumnos ya entraron o recibieron su liga hoy.' }
+  }
+
+  const lote = pendientes.slice(0, LOTE)
+  let enviados = 0
+
+  for (const [i, p] of lote.entries()) {
+    const ok = await enviarAccesoInicial(p.email, undefined, p.curso, p.nombre, admin.user_id)
+    if (ok) enviados++
+    if (i < lote.length - 1) await new Promise((r) => setTimeout(r, 600))
+  }
+
+  console.log(
+    JSON.stringify({
+      operacion: 'reenviarAccesoPendientes',
+      porQuien: admin.email,
+      intentados: lote.length,
+      enviados,
+      quedan: pendientes.length - lote.length,
+    })
+  )
+  revalidatePath('/admin/alumnos')
+
+  const restan = pendientes.length - lote.length
+  const cola = restan > 0 ? ` Quedan ${restan}: vuelve a dar clic.` : ' No queda nadie pendiente.'
+  return enviados === lote.length
+    ? { aviso: `Se mandó el acceso a ${enviados}.${cola}` }
+    : { error: `Salieron ${enviados} de ${lote.length} correos; revisa el log de Resend.${cola}` }
 }
 
 /**

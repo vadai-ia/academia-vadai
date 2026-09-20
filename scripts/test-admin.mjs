@@ -232,6 +232,24 @@ async function main() {
   afirmar(G2, 'la lección abre su editor', true, leccion.includes('GUID de Bunny'))
   afirmar(G2, 'muestra su adjunto', true, leccion.includes('guia-qa.pdf'))
 
+  // Quién ya entró (20-sep-2026). El admin acaba de entrar con su liga, así que
+  // Auth ya tiene su `last_sign_in_at`: sale en "ya entraron" y no en "nunca".
+  // Es una propiedad de la sesión que esta misma suite abrió, no un número.
+  const alumnos = await (await pedir('/admin/alumnos', admin)).text()
+  afirmar(G2, 'el listado de alumnos cuenta quién ya entró', true,
+    alumnos.includes('ya entraron') && alumnos.includes('nunca han entrado'))
+  // Se busca la FILA, no el correo suelto: el encabezado también imprime el
+  // correo de quien está dentro, y eso haría verdadera cualquier búsqueda.
+  // La fila lleva el formulario de reenviar con el correo en un input oculto.
+  const fila = `value="${correo.admin}"`
+  const nunca = await (await pedir('/admin/alumnos?ver=nunca', admin)).text()
+  afirmar(G2, 'el filtro "nunca han entrado" no trae al admin', false, nunca.includes(fila))
+  const entraron = await (await pedir('/admin/alumnos?ver=entraron', admin)).text()
+  afirmar(G2, 'el filtro "ya entraron" sí lo trae', true, entraron.includes(fila))
+  // Todos los de esa vista entraron: la insignia roja no puede aparecer ahí.
+  afirmar(G2, 'y en esa vista nadie lleva "Nunca ha entrado"', false,
+    entraron.includes('Nunca ha entrado'))
+
   // ======================================================================
   // Lo más delicado que escribí en M3: el intercambio de posiciones.
   const G3 = 'REORDENAR (server action real, sin JavaScript)'

@@ -56,7 +56,8 @@ En su lugar: `pnpm db:migrate` → `scripts/migrate.mjs`, que aplica los `.sql` 
   /api/certificados/[folio]
   /certificado/[folio]      # verificación pública
   /e/[codigo]               # encuesta en vivo, sin sesión (QR)
-  /proyectar/[token]        # pantalla que se proyecta, sin sesión
+  /proyectar/[token]        # pantalla que se proyecta; exige sesión de admin (3-sep-2026)
+  /acceso/[token]           # liga del correo de bienvenida, 30 días, sin sesión
   /api/encuestas/*          # sondeo de estado y de resultados
 /lib             lógica de negocio (NUNCA en componentes)
   /encuestas     encuestas en vivo: códigos, consultas y acciones
@@ -102,6 +103,11 @@ En su lugar: `pnpm db:migrate` → `scripts/migrate.mjs`, que aplica los `.sql` 
 - Archivos: descargas SIEMPRE por signed URL generada server-side; buckets privados.
 - Los correos de la academia (bienvenida y recuperación) los manda **nuestro código por la API de Resend**, no el SMTP de Supabase. Plantillas en `/lib/correo`, en español y con marca. El SMTP queda como respaldo.
 - Un fallo de correo **nunca** debe abortar un alta: la cuenta y la inscripción se crean primero, el correo se intenta después y su fallo solo se reporta.
+- **La liga del correo de bienvenida vale 30 días y un GET no la gasta** (decidido 20-sep-2026,
+  víspera del lanzamiento, con 75 alumnos que tenían en el buzón una liga muerta). Es
+  `/acceso/<token>`, con el hash en `academia.access_links`; lo que abre sesión es el POST del
+  botón, que pide a Supabase un recovery fresco en ese momento. Los escáneres de enlaces de
+  Outlook y Gmail hacen GET, nunca POST. `/recuperar` sigue con el recovery corto de Supabase.
 - **Jamás se manda correo a una dirección `qa-*@academia.vadai.com.mx`.** Ese dominio no tiene MX,
   así que cada intento es un rebote duro, y la cuenta de Resend es compartida con los demás dominios
   de VADAI: la tasa de rebote de nuestras pruebas se cobra sobre la reputación de envío de todos.

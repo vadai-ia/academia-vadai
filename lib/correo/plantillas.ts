@@ -76,6 +76,7 @@ export function plantillaBienvenida(url: string, curso: string, nombre?: string 
     </p>
     <p style="margin:0;font-size:15px;color:${TEXTO};line-height:1.65;">
       Para entrar solo falta que elijas una contraseña. Toma menos de un minuto.
+      Esta liga te sirve durante 30 días, las veces que la necesites.
     </p>
     ${boton(url, 'Crear mi contraseña')}
     ${urlEnTexto(url)}
@@ -85,7 +86,8 @@ export function plantillaBienvenida(url: string, curso: string, nombre?: string 
 
 Ya tienes acceso a ${curso}.
 
-Para entrar solo falta que elijas una contraseña:
+Para entrar solo falta que elijas una contraseña. Esta liga te sirve
+durante 30 días, las veces que la necesites:
 ${url}
 
 Si no esperabas este correo, puedes ignorarlo.

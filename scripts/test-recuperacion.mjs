@@ -20,6 +20,8 @@
  *   node scripts/test-recuperacion.mjs
  */
 
+import { createHash, randomBytes } from 'node:crypto'
+
 import { cargarEnv, conectarPostgres, exigir } from './lib/entorno.mjs'
 import { CLAVE_QA, USUARIOS_QA } from './lib/qa.mjs'
 
@@ -336,18 +338,97 @@ async function main() {
     afirmar(G7, 'y la guarda las reconoce', true,
       correo.alumnoVigente.startsWith('qa-') &&
         correo.alumnoVigente.endsWith('@academia.vadai.com.mx'))
+
+    // ================================================================
+    const G8 = 'ENLACE DE ACCESO DE 30 DÍAS'
+
+    // Es la liga que va en el correo de bienvenida desde el 20-sep-2026. Lo
+    // que se prueba es la promesa que la hizo necesaria: un GET no gasta nada
+    // (los escáneres de Outlook y Gmail lo hacen antes que la persona), el
+    // POST del botón sí abre sesión, y abrirla dos veces funciona dos veces.
+    const { rows: [perfilVigente] } = await bd.query(
+      `select user_id from academia.profiles where email = $1`, [correo.alumnoVigente]
+    )
+    const tokenBueno = randomBytes(32).toString('base64url')
+    const tokenViejo = randomBytes(32).toString('base64url')
+    const hashDe = (t) => createHash('sha256').update(t).digest('hex')
+
+    await bd.query(
+      `insert into academia.access_links (user_id, token_hash, expires_at) values
+         ($1, $2, now() + interval '30 days'),
+         ($1, $3, now() - interval '1 day')`,
+      [perfilVigente.user_id, hashDe(tokenBueno), hashDe(tokenViejo)]
+    )
+
+    try {
+      const frascoGet = crearFrasco()
+      const pagina = await pedir(`/acceso/${tokenBueno}`, null)
+      frascoGet.guardar(pagina)
+      const html = await pagina.text()
+      afirmar(G8, 'la página abre sin sesión', 200, pagina.status)
+      afirmar(G8, 'saluda por su nombre', true, html.includes('Hola, '))
+      afirmar(G8, 'trae el botón como formulario (sin JS)', true, html.includes('name="token"'))
+      afirmar(G8, 'el GET NO abre sesión ni gasta nada', 0, frascoGet.tamano)
+
+      const formulario = leerFormulario(html, 'name="token"')
+      const frascoPost = crearFrasco()
+      const post = await enviar(`/acceso/${tokenBueno}`, formulario, frascoPost)
+      const destino = post.headers.get('location') ?? ''
+      afirmar(G8, 'el POST manda a /auth/confirmar con un token fresco', true,
+        destino.includes('/auth/confirmar?token_hash='))
+      afirmar(G8, 'por ruta relativa, no a producción', true, destino.startsWith('/'))
+
+      const confirma = await pedir(destino, null)
+      frascoPost.guardar(confirma)
+      afirmar(G8, 'y ese token abre sesión', true, frascoPost.tamano > 0)
+      afirmar(G8, 'que aterriza en poner contraseña', true,
+        (confirma.headers.get('location') ?? '').includes('/nueva-contrasena'))
+
+      // Segunda vez: la misma liga vuelve a servir. Esto es lo que NO daba el
+      // recovery de Supabase.
+      const segundo = await enviar(`/acceso/${tokenBueno}`, formulario, crearFrasco())
+      afirmar(G8, 'la misma liga sirve una segunda vez', true,
+        (segundo.headers.get('location') ?? '').includes('/auth/confirmar?token_hash='))
+
+      const { rows: [usos] } = await bd.query(
+        `select used_count from academia.access_links where token_hash = $1`, [hashDe(tokenBueno)]
+      )
+      afirmar(G8, 'y se contaron los dos usos', 2, usos.used_count)
+
+      // Vencida: dice cuánto duran y ofrece pedir otra, sin formulario.
+      const vencida = await texto(`/acceso/${tokenViejo}`, null)
+      afirmar(G8, 'una liga vencida lo dice', true, vencida.includes('ya venció'))
+      afirmar(G8, 'ofrece pedir una nueva', true, vencida.includes('/recuperar'))
+      afirmar(G8, 'y no trae botón', false, vencida.includes('name="token"'))
+
+      const formVencida = leerFormulario(html, 'name="token"')
+      const postVencida = await enviar(`/acceso/${tokenViejo}`, { campos: { ...formVencida.campos, token: tokenViejo } }, crearFrasco())
+      afirmar(G8, 'ni el POST con ella abre sesión', true,
+        (postVencida.headers.get('location') ?? '').includes('error=enlace'))
+
+      const inventada = await texto(`/acceso/${'x'.repeat(43)}`, null)
+      afirmar(G8, 'una liga inventada se trata como vencida', true, inventada.includes('ya venció'))
+    } finally {
+      await bd.query(`delete from academia.access_links where token_hash = any($1::text[])`,
+        [[hashDe(tokenBueno), hashDe(tokenViejo)]])
+    }
   } finally {
     // Se deja la contraseña QA como estaba, o las demás suites no entran.
-    await fetch(`${SUPABASE}/auth/v1/admin/users`, {
-      headers: { apikey: SERVICE, Authorization: `Bearer ${SERVICE}` },
-    })
-      .then((r) => r.json())
-      .then(async (cuerpo) => {
-        const usuario = (cuerpo.users ?? []).find(
-          (u) => u.email?.toLowerCase() === correo.alumnoVigente
-        )
-        if (!usuario) return
-        await fetch(`${SUPABASE}/auth/v1/admin/users/${usuario.id}`, {
+    //
+    // CORREGIDO 20-sep-2026. Esto pedía `/admin/users` sin paginar —50 por
+    // página— y buscaba al alumno en esa primera página. Funcionó mientras la
+    // academia tuvo menos de 50 cuentas; con los 106 alumnos reales del 18-sep
+    // el QA dejó de aparecer, el `find` daba undefined, el `return` se lo
+    // tragaba y la contraseña se quedaba en la nueva. M4, que entra por
+    // contraseña, encontraba "Invalid login credentials" y su avance daba 0%
+    // sin que nada dijera por qué. Misma familia del barrido de
+    // `buscarUsuario()` en provisioning. El id sale del perfil, que es exacto.
+    await bd
+      .query(`select user_id from academia.profiles where email = $1`, [correo.alumnoVigente])
+      .then(async ({ rows }) => {
+        const usuario = rows[0]
+        if (!usuario) throw new Error(`no hay perfil para ${correo.alumnoVigente}`)
+        const r = await fetch(`${SUPABASE}/auth/v1/admin/users/${usuario.user_id}`, {
           method: 'PUT',
           headers: {
             apikey: SERVICE,
@@ -356,8 +437,13 @@ async function main() {
           },
           body: JSON.stringify({ password: CLAVE_QA }),
         })
+        if (!r.ok) throw new Error(`Auth respondió ${r.status}`)
       })
-      .catch(() => {})
+      .catch((e) => {
+        // Se DICE: un reset que falla en silencio es lo que dejó a M4 en rojo.
+        console.error(`\n  ✗  No se pudo restablecer la contraseña QA: ${e.message}\n`)
+        process.exitCode = 1
+      })
 
     await bd.end().catch(() => {})
   }
