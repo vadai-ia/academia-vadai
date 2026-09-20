@@ -46,3 +46,7 @@ next-env.d.ts
 # sistema
 Thumbs.db
 *.log
+
+# Salidas generadas de presentaciones (se publican como adjuntos, no en git)
+presentacion/salida/
+**/node_modules/
