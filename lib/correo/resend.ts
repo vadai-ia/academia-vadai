@@ -56,6 +56,16 @@ function remitente(): string {
   return `${nombre} <${direccion}>`
 }
 
+/**
+ * A dónde llegan las respuestas.
+ *
+ * El remitente es un `noreply@` sin buzón, y la bienvenida dice "responde este
+ * correo y te ayudamos": sin esta cabecera esa respuesta se perdería.
+ */
+function responderA(): string {
+  return process.env.CORREO_RESPONDER_A ?? 'hola@vadai.com.mx'
+}
+
 export function correoConfigurado(): boolean {
   return Boolean(process.env.RESEND_API_KEY)
 }
@@ -91,6 +101,7 @@ export async function enviarCorreo(opciones: {
       },
       body: JSON.stringify({
         from: remitente(),
+        reply_to: responderA(),
         to: [opciones.para],
         subject: opciones.asunto,
         html: opciones.html,

@@ -1062,10 +1062,12 @@ async function main() {
     // Y en cuanto se le da de alta en un curso deja de ser lead: si siguiera
     // como `invitado`, tendría su inscripción pero rutaDeInicio() lo mandaría a
     // /mis-encuestas en vez de a su curso.
+    // Desde el 18-sep el alta manual elige los cursos con casillas `accesos`
+    // (pares curso|grupo), no con un <select name="course_id">.
     const formAlta = leerFormularios(padron).find(
       (f) =>
         f.html.includes('name="email"') &&
-        f.html.includes('name="course_id"') &&
+        f.html.includes('name="accesos"') &&
         !f.html.includes('name="archivo"') &&
         !f.html.includes('name="rol"')
     )
@@ -1075,8 +1077,7 @@ async function main() {
       await enviar('/admin/alumnos', formAlta, admin, {
         email: correoNuevo,
         nombre: 'QA Cuenta',
-        course_id: IDS.curso,
-        cohort_id: '',
+        accesos: `${IDS.curso}|`,
       })
     }
 

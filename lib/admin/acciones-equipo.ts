@@ -8,6 +8,7 @@ import { crearEnlaceDurable } from '@/lib/auth/enlace-durable'
 import { exigirAdmin } from '@/lib/auth/sesion'
 import { darDeAlta, type RolDeAlta } from '@/lib/stripe/provisioning'
 
+import { enLista, revisarSeleccion } from './seleccion-de-cursos'
 import type { EstadoAccion } from './tipos'
 
 /**
@@ -116,6 +117,10 @@ function plural(n: number, singular: string, plural_: string) {
  * Una fila que falla NO detiene a las demás. Un padrón de 40 con un correo mal
  * escrito tiene que dar de alta a los 39 buenos y reportar el malo, no abortar
  * y dejar el trabajo a medias sin decir por dónde iba.
+ *
+ * Todo el archivo entra a los MISMOS cursos, uno o varios. Por persona se llama
+ * a `darDeAlta` una vez por curso: la primera crea la cuenta y manda el único
+ * correo —que nombra todos los cursos—, las demás solo agregan su inscripción.
  */
 export async function altaMasiva(
   _previo: EstadoAccion,
@@ -124,13 +129,18 @@ export async function altaMasiva(
   await exigirAdmin()
 
   const archivo = datos.get('archivo')
-  const cursoId = String(datos.get('course_id') ?? '')
-  const cohorteId = String(datos.get('cohort_id') ?? '')
 
   if (!(archivo instanceof File) || archivo.size === 0) {
     return { error: 'Elige un archivo CSV o Excel.' }
   }
-  if (!cursoId) return { error: 'Elige el curso al que se van a inscribir.' }
+
+  // Los cursos se revisan ANTES de leer el archivo y de crear a nadie: un grupo
+  // que no existe se descubre aquí, no en la persona veintitrés.
+  const seleccion = await revisarSeleccion(
+    datos.getAll('accesos').filter((v): v is string => typeof v === 'string')
+  )
+  if (!seleccion.ok) return { error: seleccion.error }
+  const titulos = seleccion.cursos.map((c) => c.titulo)
 
   const lectura = await filasDeArchivo(archivo)
   if (!lectura.ok) return { error: lectura.motivo }
@@ -156,35 +166,54 @@ export async function altaMasiva(
   let existentes = 0
   let sinCorreo = 0
   const fallidas: string[] = []
+  /** Entraron a la academia, pero no a todos los cursos marcados. */
+  const aMedias: string[] = []
 
   for (const persona of personas) {
-    const alta = await darDeAlta({
-      email: persona.email,
-      nombre: persona.nombre || null,
-      courseId: cursoId,
-      cohortId: cohorteId || null,
-      origen: 'manual',
-      urlRedireccion: urlNuevaContrasena(),
-    })
+    let completa = true
 
-    if (!alta.ok) {
-      fallidas.push(persona.email)
-      continue
+    for (const [i, curso] of seleccion.cursos.entries()) {
+      const alta = await darDeAlta({
+        email: persona.email,
+        nombre: persona.nombre || null,
+        courseId: curso.id,
+        cohortId: curso.cohorteId,
+        origen: 'manual',
+        urlRedireccion: urlNuevaContrasena(),
+        titulosParaCorreo: titulos,
+      })
+
+      if (!alta.ok) {
+        completa = false
+        // Si falló el primero no hay cuenta: es una fallida. Si falló uno
+        // posterior, la persona ya existe y le falta un curso.
+        if (i === 0) fallidas.push(persona.email)
+        else aMedias.push(persona.email)
+        break
+      }
+
+      // Solo la primera llamada dice si la cuenta es nueva y si salió su correo.
+      if (i === 0) {
+        if (alta.creado) {
+          nuevas += 1
+          if (!alta.invitado) sinCorreo += 1
+        } else {
+          existentes += 1
+        }
+      }
     }
 
-    if (alta.creado) {
-      nuevas += 1
-      if (!alta.invitado) sinCorreo += 1
-    } else {
-      existentes += 1
-    }
+    if (!completa) continue
   }
 
   revalidatePath('/admin/alumnos')
+  revalidatePath('/admin/cursos')
+  for (const curso of seleccion.cursos) revalidatePath(`/admin/cursos/${curso.id}`)
 
   const partes = [
     plural(nuevas, 'cuenta nueva', 'cuentas nuevas'),
     existentes > 0 ? `${plural(existentes, 'ya existía', 'ya existían')} y se les agregó la inscripción` : null,
+    aMedias.length > 0 ? `${aMedias.length} sin todos los cursos` : null,
     descartadas.length > 0 ? `${plural(descartadas.length, 'fila descartada', 'filas descartadas')}` : null,
     sinCorreo > 0 ? `${sinCorreo} sin correo enviado` : null,
   ].filter(Boolean)
@@ -192,13 +221,21 @@ export async function altaMasiva(
   // Una fila DESCARTADA nunca llegó a intentarse —no traía correo válido—; una
   // FALLIDA sí se intentó y algo salió mal. Son cosas distintas y se reportan
   // por separado, porque piden acciones distintas.
-  if (fallidas.length > 0) {
-    const muestra = fallidas.slice(0, 5).join(', ')
-    const resto = fallidas.length > 5 ? ` y ${fallidas.length - 5} más` : ''
-    return { error: `${partes.join(', ')}. No se pudo dar de alta a: ${muestra}${resto}.` }
+  const muestra = (lista: string[]) =>
+    lista.slice(0, 5).join(', ') + (lista.length > 5 ? ` y ${lista.length - 5} más` : '')
+
+  if (fallidas.length > 0 || aMedias.length > 0) {
+    return {
+      error:
+        `${partes.join(', ')}.` +
+        (fallidas.length > 0 ? ` No se pudo dar de alta a: ${muestra(fallidas)}.` : '') +
+        (aMedias.length > 0
+          ? ` Les faltó algún curso a: ${muestra(aMedias)}. Vuelve a subir el archivo: no duplica nada.`
+          : ''),
+    }
   }
 
-  return { aviso: `Listo: ${partes.join(', ')}.` }
+  return { aviso: `Listo, en ${enLista(titulos)}: ${partes.join(', ')}.` }
 }
 
 // ---------------------------------------------------------------------------

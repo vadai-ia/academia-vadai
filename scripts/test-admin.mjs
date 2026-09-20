@@ -242,9 +242,9 @@ async function main() {
   // correo de quien está dentro, y eso haría verdadera cualquier búsqueda.
   // La fila lleva el formulario de reenviar con el correo en un input oculto.
   const fila = `value="${correo.admin}"`
-  const nunca = await (await pedir('/admin/alumnos?ver=nunca', admin)).text()
+  const nunca = await (await pedir('/admin/alumnos?acceso=nunca', admin)).text()
   afirmar(G2, 'el filtro "nunca han entrado" no trae al admin', false, nunca.includes(fila))
-  const entraron = await (await pedir('/admin/alumnos?ver=entraron', admin)).text()
+  const entraron = await (await pedir('/admin/alumnos?acceso=entraron', admin)).text()
   afirmar(G2, 'el filtro "ya entraron" sí lo trae', true, entraron.includes(fila))
   // Todos los de esa vista entraron: la insignia roja no puede aparecer ahí.
   afirmar(G2, 'y en esa vista nadie lleva "Nunca ha entrado"', false,

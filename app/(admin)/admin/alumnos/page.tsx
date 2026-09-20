@@ -3,6 +3,7 @@ import type { Metadata } from 'next'
 import { DarDeAlta } from '@/components/admin/dar-de-alta'
 import { FilaAlumno } from '@/components/admin/fila-alumno'
 import { ReenviarPendientes } from '@/components/admin/reenviar-pendientes'
+import { Pestanas } from '@/components/ui-vadai/pestanas'
 import { Cifra, Tarjeta, Titulo } from '@/components/ui-vadai/superficie'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -16,15 +17,20 @@ export const metadata: Metadata = { title: 'Alumnos' }
 export const dynamic = 'force-dynamic'
 
 /**
- * Los tres cortes del listado. Van en la URL (`?ver=nunca`) y no en estado de
- * React: funcionan sin JavaScript, se comparten y se vuelve con "atrás".
+ * Dos filtros que se combinan, los dos en la URL —funcionan sin JavaScript,
+ * se comparten y se vuelve con "atrás"—:
+ *
+ *   `?ver=suspendidos`  la pestaña de cuentas: activas o suspendidas.
+ *   `?acceso=nunca`     el corte por acceso dentro de esa pestaña: quién ya
+ *                       entró y quién no. Es la pregunta de la mañana de un
+ *                       lanzamiento.
  */
-const VISTAS = {
+const ACCESOS = {
   todos: 'Todos',
   nunca: 'Nunca han entrado',
   entraron: 'Ya entraron',
 } as const
-type Vista = keyof typeof VISTAS
+type Acceso = keyof typeof ACCESOS
 
 function fecha(iso: string): string {
   return new Intl.DateTimeFormat('es-MX', {
@@ -38,14 +44,15 @@ function fecha(iso: string): string {
 export default async function PaginaAlumnos({
   searchParams,
 }: {
-  searchParams: Promise<{ q?: string; ver?: string }>
+  searchParams: Promise<{ q?: string; ver?: string; acceso?: string }>
 }) {
   const perfil = await exigirAdmin()
-  const { q, ver } = await searchParams
+  const { q, ver, acceso } = await searchParams
   const busqueda = (q ?? '').trim()
-  const vista: Vista = ver === 'nunca' || ver === 'entraron' ? ver : 'todos'
+  const verSuspendidos = ver === 'suspendidos'
+  const corte: Acceso = acceso === 'nunca' || acceso === 'entraron' ? acceso : 'todos'
 
-  const [todos, pagos, cursos, pendientes] = await Promise.all([
+  const [alumnos, pagos, cursos, pendientes] = await Promise.all([
     listarAlumnos(busqueda),
     listarPagos(),
     opcionesDeAlta(),
@@ -56,22 +63,44 @@ export default async function PaginaAlumnos({
   // entró pero el alta no se completó.
   const huerfanos = pagos.filter((p) => !p.tieneCuenta && p.estado === 'paid')
 
-  const conAcceso = todos.filter((a) => a.inscripciones.some((i) => i.vigente)).length
-  const entraron = todos.filter((a) => a.ultimoAcceso).length
-  const nunca = todos.length - entraron
+  const conAcceso = alumnos.filter((a) => a.inscripciones.some((i) => i.vigente)).length
 
-  const alumnos =
-    vista === 'nunca'
-      ? todos.filter((a) => !a.ultimoAcceso)
-      : vista === 'entraron'
-        ? todos.filter((a) => a.ultimoAcceso)
-        : todos
+  // Suspender es el "eliminar" de esta pantalla: la persona sale de la lista
+  // principal pero no se borra. Las cifras de arriba siguen contando a todos.
+  const suspendidos = alumnos.filter((a) => a.estado === 'suspended')
+  const activos = alumnos.filter((a) => a.estado !== 'suspended')
+  const pestana = verSuspendidos ? suspendidos : activos
+
+  // "¿Ya entró?" se cuenta sobre las cuentas activas: una suspendida no puede
+  // entrar, y contarla como pendiente mandaría un correo a quien se cortó.
+  const entraron = activos.filter((a) => a.ultimoAcceso).length
+  const nunca = activos.length - entraron
+
+  const visibles =
+    corte === 'nunca'
+      ? pestana.filter((a) => !a.ultimoAcceso)
+      : corte === 'entraron'
+        ? pestana.filter((a) => a.ultimoAcceso)
+        : pestana
+
+  // Los filtros se conservan entre sí: cambiar de pestaña no pierde la
+  // búsqueda, y buscar no pierde la pestaña ni el corte.
+  const hrefDe = (opciones: { suspendidos?: boolean; acceso?: Acceso; q?: string }) => {
+    const parametros = new URLSearchParams()
+    if (opciones.q) parametros.set('q', opciones.q)
+    if (opciones.suspendidos) parametros.set('ver', 'suspendidos')
+    if (opciones.acceso && opciones.acceso !== 'todos') parametros.set('acceso', opciones.acceso)
+    const cadena = parametros.toString()
+    return cadena ? `/admin/alumnos?${cadena}` : '/admin/alumnos'
+  }
 
   const apoyo = busqueda
-    ? `${alumnos.length} resultado${alumnos.length === 1 ? '' : 's'} para "${busqueda}"`
-    : vista !== 'todos'
-      ? `${alumnos.length} de ${todos.length}`
+    ? `${visibles.length} resultado${visibles.length === 1 ? '' : 's'} para "${busqueda}"`
+    : corte !== 'todos'
+      ? `${visibles.length} de ${pestana.length}`
       : undefined
+
+  const soySuperadmin = perfil.role === 'superadmin'
 
   return (
     <div className="flex flex-col gap-8">
@@ -109,7 +138,7 @@ export default async function PaginaAlumnos({
       {!busqueda ? (
         <Tarjeta className="flex flex-col gap-5 p-5">
           <div className="grid grid-cols-2 gap-6 sm:grid-cols-5">
-            <Cifra valor={todos.length} etiqueta="personas con perfil" />
+            <Cifra valor={alumnos.length} etiqueta="personas con perfil" />
             <Cifra valor={conAcceso} etiqueta="con acceso vigente" />
             <Cifra valor={entraron} etiqueta="ya entraron" destacada />
             <Cifra valor={nunca} etiqueta="nunca han entrado" />
@@ -124,11 +153,7 @@ export default async function PaginaAlumnos({
         </Tarjeta>
       ) : null}
 
-      <DarDeAlta
-        cursos={cursos}
-        reinicio={alumnos.length}
-        soySuperadmin={perfil.role === 'superadmin'}
-      />
+      <DarDeAlta cursos={cursos} reinicio={alumnos.length} soySuperadmin={soySuperadmin} />
 
       {/*
         El buscador es un <form> GET, no un filtro en el cliente.
@@ -139,7 +164,8 @@ export default async function PaginaAlumnos({
         obligaría a mandar los 40 alumnos completos al navegador.
       */}
       <form method="get" className="flex flex-wrap items-end gap-2">
-        {vista !== 'todos' ? <input type="hidden" name="ver" value={vista} /> : null}
+        {verSuspendidos ? <input type="hidden" name="ver" value="suspendidos" /> : null}
+        {corte !== 'todos' ? <input type="hidden" name="acceso" value={corte} /> : null}
         <label className="flex min-w-56 flex-1 flex-col gap-1.5">
           <span className="text-sm font-medium">Buscar</span>
           <Input
@@ -155,24 +181,42 @@ export default async function PaginaAlumnos({
         </Button>
         {busqueda ? (
           <Button asChild variant="ghost">
-            <a href={vista === 'todos' ? '/admin/alumnos' : `/admin/alumnos?ver=${vista}`}>
-              Limpiar
-            </a>
+            <a href={hrefDe({ suspendidos: verSuspendidos, acceso: corte })}>Limpiar</a>
           </Button>
         ) : null}
       </form>
 
+      <Pestanas
+        etiqueta="Filtro de cuentas"
+        pestanas={[
+          {
+            href: hrefDe({ suspendidos: false, acceso: corte, q: busqueda }),
+            etiqueta: 'Activos',
+            activa: !verSuspendidos,
+            insignia: activos.length,
+          },
+          {
+            href: hrefDe({ suspendidos: true, acceso: corte, q: busqueda }),
+            etiqueta: 'Suspendidos',
+            activa: verSuspendidos,
+            insignia: suspendidos.length,
+          },
+        ]}
+      />
+
       <nav aria-label="Filtrar por acceso" className="flex flex-wrap gap-2">
-        {(Object.keys(VISTAS) as Vista[]).map((v) => {
-          const activa = v === vista
-          const href =
-            (v === 'todos' ? '/admin/alumnos' : `/admin/alumnos?ver=${v}`) +
-            (busqueda ? `${v === 'todos' ? '?' : '&'}q=${encodeURIComponent(busqueda)}` : '')
-          const cuenta = v === 'todos' ? todos.length : v === 'nunca' ? nunca : entraron
+        {(Object.keys(ACCESOS) as Acceso[]).map((v) => {
+          const activa = v === corte
+          const cuenta =
+            v === 'todos'
+              ? pestana.length
+              : v === 'nunca'
+                ? pestana.filter((a) => !a.ultimoAcceso).length
+                : pestana.filter((a) => a.ultimoAcceso).length
           return (
             <a
               key={v}
-              href={href}
+              href={hrefDe({ suspendidos: verSuspendidos, acceso: v, q: busqueda })}
               aria-current={activa ? 'page' : undefined}
               className={cn(
                 'inline-flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-sm font-medium transition-colors',
@@ -181,31 +225,42 @@ export default async function PaginaAlumnos({
                   : 'border-border text-muted-foreground hover:border-primary/50 hover:text-foreground'
               )}
             >
-              {VISTAS[v]}
+              {ACCESOS[v]}
               <span className="text-xs tabular-nums opacity-70">{cuenta}</span>
             </a>
           )
         })}
       </nav>
 
-      {alumnos.length === 0 ? (
+      {visibles.length === 0 ? (
         <Tarjeta className="border-dashed px-5 py-10 text-center">
           <p className="text-sm text-muted-foreground">
             {busqueda
-              ? `Nadie coincide con "${busqueda}".`
-              : vista === 'nunca'
-                ? 'Todos han entrado al menos una vez.'
-                : vista === 'entraron'
-                  ? 'Nadie ha entrado todavía.'
-                  : 'Todavía no hay nadie dado de alta.'}
+              ? `Nadie coincide con "${busqueda}"${verSuspendidos ? ' entre los suspendidos' : ''}.`
+              : verSuspendidos
+                ? 'Nadie está suspendido. Suspender una cuenta le corta el acceso sin borrar nada.'
+                : corte === 'nunca'
+                  ? 'Todos han entrado al menos una vez.'
+                  : corte === 'entraron'
+                    ? 'Nadie ha entrado todavía.'
+                    : 'Todavía no hay nadie dado de alta.'}
           </p>
         </Tarjeta>
       ) : (
         <Tarjeta className="overflow-hidden">
           <ul>
-            {alumnos.map((alumno) => (
+            {visibles.map((alumno) => (
               <li key={alumno.userId}>
-                <FilaAlumno alumno={alumno} />
+                <FilaAlumno
+                  alumno={alumno}
+                  cursos={cursos}
+                  // Nadie se suspende a sí mismo, y al equipo solo lo toca un
+                  // superadmin. La acción vuelve a comprobar las dos cosas.
+                  puedeSuspender={
+                    alumno.userId !== perfil.user_id &&
+                    (soySuperadmin || (alumno.rol !== 'admin' && alumno.rol !== 'superadmin'))
+                  }
+                />
               </li>
             ))}
           </ul>

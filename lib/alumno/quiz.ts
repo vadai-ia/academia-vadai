@@ -1,5 +1,6 @@
 import 'server-only'
 
+import { obtenerSesion } from '@/lib/auth/sesion'
 import { leerOpciones, type Opcion } from '@/lib/quiz/comun'
 import { crearClienteServidor } from '@/lib/supabase/server'
 
@@ -49,6 +50,12 @@ export async function quizParaAlumno(leccionId: string): Promise<QuizParaAlumno 
 
   if (!quiz) return null
 
+  const sesion = await obtenerSesion()
+  if (sesion.tipo !== 'activo') return null
+
+  // "Lo mío" lo dice la consulta, no RLS: a alguien del equipo RLS le devuelve
+  // las filas de TODA la academia (`user_id = auth.uid() OR is_admin()`). Ver
+  // `miUserId` en lib/alumno/consultas.ts.
   // Las preguntas y los intentos solo necesitan el id del quiz, que ya está:
   // en serie eran dos viajes de red donde cabe uno.
   const [{ data: preguntas }, { data: intentos }] = await Promise.all([
@@ -56,6 +63,7 @@ export async function quizParaAlumno(leccionId: string): Promise<QuizParaAlumno 
     supabase
       .from('quiz_attempts')
       .select('score, passed, answers, created_at')
+      .eq('user_id', sesion.perfil.user_id)
       .eq('quiz_id', quiz.id)
       .order('created_at', { ascending: false }),
   ])

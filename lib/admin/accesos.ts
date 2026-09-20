@@ -74,7 +74,7 @@ export async function ultimosEnlaces(): Promise<Map<string, UltimoEnlace>> {
   return mapa
 }
 
-export type Pendiente = { userId: string; email: string; nombre: string | null; curso: string }
+export type Pendiente = { userId: string; email: string; nombre: string | null; cursos: string[] }
 
 /**
  * Alumnos activos que nunca han entrado y a los que no se les mandó un enlace
@@ -117,16 +117,18 @@ export async function alumnosPendientesDeEntrar(): Promise<Pendiente[]> {
       return true
     })
     .map((p) => {
-      // El curso más reciente con inscripción activa, para que el correo diga
-      // "tu acceso a Claude en tu Empresa" y no "a la academia".
-      const activa = (p.enrollments ?? [])
+      // Los cursos con inscripción activa, para que el correo los nombre igual
+      // que la bienvenida original y no hable de "la plataforma" a secas.
+      const cursos = (p.enrollments ?? [])
         .filter((e) => e.status === 'active' && e.courses?.title)
-        .sort((a, b) => b.created_at.localeCompare(a.created_at))[0]
+        .sort((a, b) => a.created_at.localeCompare(b.created_at))
+        .map((e) => e.courses?.title ?? '')
+        .filter(Boolean)
       return {
         userId: p.user_id,
         email: p.email,
         nombre: p.full_name?.trim() || null,
-        curso: activa?.courses?.title ?? 'la academia',
+        cursos: [...new Set(cursos)],
       }
     })
 }

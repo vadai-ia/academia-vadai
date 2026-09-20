@@ -78,6 +78,10 @@ export const esquemaCurso = z.object({
   certificate_enabled: z.coerce.boolean(),
 })
 
+export const esquemaIdDeCurso = z.object({
+  id: z.uuid('Curso inválido.'),
+})
+
 export const esquemaModulo = z.object({
   course_id: z.uuid('Curso inválido.'),
   title: z.string().trim().min(2, 'El título necesita al menos 2 caracteres.').max(160),

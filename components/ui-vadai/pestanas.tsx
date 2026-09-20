@@ -35,6 +35,12 @@ export type Pestana = {
   etiqueta: string
   /** Exacto para la raíz de la sección; por prefijo para las hijas. */
   exacto?: boolean
+  /**
+   * Manda sobre la detección por ruta. Es para pestañas que filtran con
+   * `?ver=…`: todas comparten la misma ruta, así que solo el servidor —que sí
+   * lee los parámetros— sabe cuál está activa.
+   */
+  activa?: boolean
   deshabilitada?: boolean
   motivo?: string
   insignia?: string | number
@@ -57,7 +63,9 @@ export function Pestanas({
     >
       <ul className="flex min-w-max items-center gap-1 border-b border-border">
         {pestanas.map((p) => {
-          const activa = p.exacto ? ruta === p.href : ruta === p.href || ruta.startsWith(`${p.href}/`)
+          const activa =
+            p.activa ??
+            (p.exacto ? ruta === p.href : ruta === p.href || ruta.startsWith(`${p.href}/`))
 
           const clases = cn(
             'relative -mb-px inline-flex items-center gap-2 border-b-2 px-3.5 py-3',

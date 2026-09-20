@@ -4,9 +4,9 @@
 
 | | |
 |---|---|
-| Fecha | 20 de septiembre de 2026 a las 12:17 p.m. (CDMX) |
-| Commit | `ec1c38d` en `curso/claude-en-tu-empresa` |
-| Árbol | limpio |
+| Fecha | 20 de septiembre de 2026 a las 12:34 p.m. (CDMX) |
+| Commit | `b7204e1` en `main` |
+| Árbol | **con cambios sin commitear** |
 
 Se regenera con `pnpm qa`, que corre cada paso de verdad. Un checklist que
 se palomea a mano se palomea igual esté verde o roja la cosa; este firma con
@@ -35,7 +35,7 @@ el commit, así que dice qué versión exacta pasó.
 | | Paso | Resultado |
 |---|---|---|
 | ✅ | Datos QA sembrados | ok |
-| ✅ | Las once suites de milestone | 13 suites, 593 aserciones |
+| ✅ | Las once suites de milestone | 13 suites, 600 aserciones |
 
 ## Higiene
 

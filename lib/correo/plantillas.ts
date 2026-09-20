@@ -8,7 +8,9 @@ import 'server-only'
  *
  *   - Español, sin una sola palabra técnica. Nada de "token", "enlace de
  *     verificación" ni "restablecer credenciales".
- *   - Una sola acción visible. El botón dice qué pasa al tocarlo.
+ *   - Una acción principal, en lima. El botón dice qué pasa al tocarlo. La
+ *     bienvenida lleva además una secundaria, en contorno, que no compite: es el
+ *     paso 2 y solo sirve después de hacer el 1.
  *   - La URL también en texto plano: los clientes de correo corporativos a veces
  *     rompen los botones, y quedarse sin forma de entrar sería absurdo.
  *   - HTML con estilos en línea y tabla: es lo único que Outlook y Gmail
@@ -23,11 +25,30 @@ const GRIS = '#93A3B5'
 
 export type Plantilla = { asunto: string; html: string; texto: string }
 
-function envoltura(contenido: string): string {
+/** Nombres y títulos vienen de un formulario o de Stripe: nunca van crudos al HTML. */
+function escapar(texto: string): string {
+  return texto
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+}
+
+/**
+ * `preheader` es la línea gris que la bandeja muestra junto al asunto. Va
+ * escondida al inicio del cuerpo; el relleno de espacios invisibles evita que el
+ * cliente de correo la complete con lo primero que encuentre del contenido.
+ */
+function envoltura(contenido: string, preheader?: string): string {
+  const avance = preheader
+    ? `<div style="display:none;max-height:0;max-width:0;overflow:hidden;opacity:0;color:transparent;mso-hide:all;">${escapar(preheader)}${'&#847;&zwnj;&nbsp;'.repeat(60)}</div>`
+    : ''
+
   return `<!doctype html>
 <html lang="es-MX">
 <head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"></head>
 <body style="margin:0;padding:0;background-color:${NAVY};">
+  ${avance}
   <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background-color:${NAVY};padding:32px 16px;">
     <tr><td align="center">
       <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="max-width:480px;">
@@ -58,6 +79,15 @@ function boton(url: string, etiqueta: string): string {
   </table>`
 }
 
+/** Contorno en vez de relleno: es la acción que sigue, no la que urge. */
+function botonSecundario(url: string, etiqueta: string): string {
+  return `<table role="presentation" cellpadding="0" cellspacing="0" style="margin:6px 0 24px;">
+    <tr><td style="border:1px solid ${CYAN};border-radius:8px;">
+      <a href="${url}" style="display:inline-block;padding:12px 24px;font-family:Inter,Arial,sans-serif;font-size:15px;font-weight:600;color:${TEXTO};text-decoration:none;">${etiqueta}</a>
+    </td></tr>
+  </table>`
+}
+
 function urlEnTexto(url: string): string {
   return `<p style="margin:0;font-size:13px;color:${GRIS};line-height:1.6;word-break:break-all;">
     Si el botón no funciona, copia esta dirección en tu navegador:<br>
@@ -65,35 +95,111 @@ function urlEnTexto(url: string): string {
   </p>`
 }
 
-/** Primer correo tras una compra o un alta manual. */
-export function plantillaBienvenida(url: string, curso: string, nombre?: string | null): Plantilla {
-  const saludo = nombre?.trim() ? `Hola, ${nombre.trim()}` : 'Hola'
+/**
+ * El curso de inducción: el paso 2 de la bienvenida manda ahí a ver el video que
+ * explica la plataforma. Si cambia de nombre o de slug, se cambia aquí.
+ *
+ * OJO: el enlace solo le sirve a quien esté INSCRITO en ese curso. El alta no lo
+ * agrega sola; hay que marcarlo junto con el curso que la persona compró.
+ */
+const CURSO_DE_INDUCCION = { titulo: 'Academia VADAI', ruta: '/curso/academia-vadai' }
 
-  const html = envoltura(`
-    <h1 style="margin:0 0 14px;font-size:21px;font-weight:600;color:${TEXTO};">${saludo}</h1>
-    <p style="margin:0 0 14px;font-size:15px;color:${TEXTO};line-height:1.65;">
-      Ya tienes acceso a <strong>${curso}</strong>.
+/** "A", "A y B", "A, B y C" — con las reglas del español (y/e). */
+function enLista(valores: string[]): string {
+  return new Intl.ListFormat('es', { style: 'long', type: 'conjunction' }).format(valores)
+}
+
+/**
+ * Primer correo tras una compra o un alta manual.
+ *
+ * `cursos` son los títulos a los que la persona acaba de recibir acceso. Puede
+ * venir vacío —el alta de alguien del equipo, o un reenvío a quien no tiene
+ * inscripciones— y entonces el correo habla de la plataforma sin nombrar curso.
+ *
+ * `base` es la URL pública de la app, para armar el botón secundario. Sin ella
+ * ese botón no se pinta: un enlace sin dominio en un correo no lleva a nada.
+ */
+export function plantillaBienvenida(opciones: {
+  url: string
+  cursos: string[]
+  nombre?: string | null
+  base?: string | null
+}): Plantilla {
+  const { url, cursos } = opciones
+  const nombre = opciones.nombre?.trim() ?? ''
+  const base = (opciones.base ?? '').replace(/\/+$/, '')
+  const urlInduccion = base ? `${base}${CURSO_DE_INDUCCION.ruta}` : null
+
+  const saludo = nombre ? `Hola ${nombre},` : 'Hola,'
+
+  // Tres redacciones, no una con relleno: "tu curso la academia" no es español.
+  const dondeVive =
+    cursos.length === 0
+      ? { antes: 'la plataforma donde viven tus cursos', titulos: '' }
+      : cursos.length === 1
+        ? { antes: 'la plataforma donde vivirá tu curso ', titulos: enLista(cursos) }
+        : { antes: 'la plataforma donde vivirán tus cursos ', titulos: enLista(cursos) }
+
+  const parrafo = `margin:0 0 14px;font-size:15px;color:${TEXTO};line-height:1.65;`
+  const paso = `margin:22px 0 6px;font-size:16px;font-weight:600;color:${TEXTO};line-height:1.4;`
+
+  const html = envoltura(
+    `
+    <p style="${parrafo}">${escapar(saludo)}</p>
+    <p style="${parrafo}">
+      Bienvenido a VADAI Academy, ${dondeVive.antes}${
+        dondeVive.titulos ? `<strong>${escapar(dondeVive.titulos)}</strong>` : ''
+      }.
     </p>
-    <p style="margin:0;font-size:15px;color:${TEXTO};line-height:1.65;">
-      Para entrar solo falta que elijas una contraseña. Toma menos de un minuto.
-      Esta liga te sirve durante 30 días, las veces que la necesites.
+    <p style="${parrafo}">Para empezar, solo necesitas dos pasos:</p>
+
+    <p style="${paso}">1. Crea tu contraseña</p>
+    <p style="${parrafo}">
+      Tu usuario es este correo. Define tu contraseña para activar tu acceso. Esta liga te
+      sirve durante 30 días, las veces que la necesites.
     </p>
     ${boton(url, 'Crear mi contraseña')}
     ${urlEnTexto(url)}
-  `)
 
-  const texto = `${saludo},
+    <p style="${paso}">2. Aprende a usar la plataforma</p>
+    <p style="${parrafo}">
+      Una vez dentro, entra al curso <strong>${escapar(CURSO_DE_INDUCCION.titulo)}</strong> y mira
+      el video de bienvenida. Ahí verás cómo navegar los módulos, unirte a las sesiones en vivo y
+      descargar los recursos.
+    </p>
+    ${urlInduccion ? botonSecundario(urlInduccion, `Ir a ${CURSO_DE_INDUCCION.titulo}`) : ''}
 
-Ya tienes acceso a ${curso}.
+    <p style="${parrafo}">
+      Si tienes algún problema para entrar, responde este correo y te ayudamos.
+    </p>
+    <p style="${parrafo}">Nos vemos dentro.</p>
+    <p style="margin:0;font-size:15px;color:${TEXTO};line-height:1.65;">Equipo VADAI</p>
+  `,
+    'Crea tu contraseña y da el primer paso.'
+  )
 
-Para entrar solo falta que elijas una contraseña. Esta liga te sirve
-durante 30 días, las veces que la necesites:
+  const texto = `${saludo}
+
+Bienvenido a VADAI Academy, ${dondeVive.antes}${dondeVive.titulos}.
+
+Para empezar, solo necesitas dos pasos:
+
+1. Crea tu contraseña
+Tu usuario es este correo. Define tu contraseña para activar tu acceso. Esta liga te sirve durante 30 días, las veces que la necesites:
 ${url}
 
-Si no esperabas este correo, puedes ignorarlo.
-¿Necesitas ayuda? hola@vadai.com.mx`
+2. Aprende a usar la plataforma
+Una vez dentro, entra al curso ${CURSO_DE_INDUCCION.titulo} y mira el video de bienvenida. Ahí verás cómo navegar los módulos, unirte a las sesiones en vivo y descargar los recursos.${
+    urlInduccion ? `\n${urlInduccion}` : ''
+  }
 
-  return { asunto: `Tu acceso a ${curso}`, html, texto }
+Si tienes algún problema para entrar, responde este correo y te ayudamos.
+
+Nos vemos dentro.
+
+Equipo VADAI`
+
+  return { asunto: 'Tu acceso a VADAI Academy está listo', html, texto }
 }
 
 /** "Olvidé mi contraseña". */

@@ -365,4 +365,21 @@
     [data-tipo-pregunta='muro'] {
     display: flex;
   }
+
+  /* ---------------------------------------------------------------------
+     Un popover abierto y un iframe debajo.
+
+     El menú de la cuenta y los modales de confirmación son popovers nativos:
+     se cierran solos al hacer clic fuera. Pero un clic DENTRO de un iframe —el
+     reproductor de Bunny— nunca llega a esta página, así que el navegador no
+     se entera de que se hizo clic "fuera" y el menú se quedaba abierto sobre
+     la lección.
+
+     Mientras haya un popover abierto, los iframes dejan pasar el clic: el
+     primero cierra el menú y el siguiente ya es del video, que es como se
+     comporta cualquier menú. CSS puro, sin un manejador de eventos.
+  --------------------------------------------------------------------- */
+  html:has([popover]:popover-open) iframe {
+    pointer-events: none;
+  }
 }
