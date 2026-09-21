@@ -1,16 +1,23 @@
 import Link from 'next/link'
 import type { ReactNode } from 'react'
 
-import type { CursoDelAlumno, LeccionEnIndice } from '@/lib/alumno/consultas'
+import type { CursoDelAlumno, LeccionEnIndice, ModuloEnIndice } from '@/lib/alumno/consultas'
 import { cn } from '@/lib/utils'
 
 /**
  * Índice del curso, con el tratamiento de módulos de Skool.
  *
- * Cada módulo es una tarjeta con su propio contador de avance, y las lecciones
- * son renglones altos con estado a la izquierda. La diferencia con la lista
- * plana anterior es de orientación: en un curso de cinco módulos, saber que vas
- * 3 de 4 en el segundo es la información que hace decidir si seguir hoy o no.
+ * **Los módulos se abren y se cierran** (21-sep-2026). Antes todos estaban
+ * abiertos: con los ocho módulos de sesión más los ocho de contenido, la barra
+ * de la derecha era una lista plana de cuarenta renglones donde no se
+ * distinguía dónde empezaba uno y terminaba otro. Alejandro lo dijo así: "hace
+ * que la gente se maree y no pueda navegar fácilmente entre cada sesión y
+ * dentro de cada sesión sus respectivos submódulos".
+ *
+ * Cerrados, el curso entero cabe de un vistazo y cada módulo dice cuánto llevas
+ * de él. Abierto viene SOLO el que estás viendo, y `<details>` lo resuelve sin
+ * una línea de JavaScript: funciona igual con el JS apagado y el navegador se
+ * encarga del teclado.
  *
  * Los iconos son SVG. Antes eran glifos de texto —▶ ¶ ? ✎ 🔒— y eso tiene el
  * mismo problema que un emoji: cada sistema los dibuja con otro grosor y otra
@@ -26,6 +33,18 @@ function duracionLegible(segundos: number | null): string {
   return `${Math.round(segundos / 60)} min`
 }
 
+/** Cuál módulo se abre solo: el de la lección que estás viendo, o donde te quedaste. */
+function moduloParaAbrir(curso: CursoDelAlumno, leccionActiva?: string): string | null {
+  if (leccionActiva) {
+    const conActiva = curso.modulos.find((m) => m.lecciones.some((l) => l.id === leccionActiva))
+    if (conActiva) return conActiva.id
+  }
+  const pendiente = curso.modulos.find((m) =>
+    m.lecciones.some((l) => l.desbloqueada && !l.completada)
+  )
+  return pendiente?.id ?? curso.modulos[0]?.id ?? null
+}
+
 export function IndiceCurso({
   curso,
   leccionActiva,
@@ -33,72 +52,140 @@ export function IndiceCurso({
 }: {
   curso: CursoDelAlumno
   leccionActiva?: string
-  /** Para la barra lateral de la lección: sin tarjeta ni contadores. */
+  /** Para la barra lateral de la lección: más apretado y sin tarjetas. */
   compacto?: boolean
 }) {
+  const abierto = moduloParaAbrir(curso, leccionActiva)
+
   return (
-    <nav aria-label="Contenido del curso" className={cn('flex flex-col', compacto ? 'gap-5' : 'gap-3')}>
-      {curso.modulos.map((modulo, i) => {
-        const hechas = modulo.lecciones.filter((l) => l.completada).length
-        const total = modulo.lecciones.length
-
-        return (
-          <div
-            key={modulo.id}
-            className={cn(
-              'flex flex-col',
-              compacto ? 'gap-1.5' : 'overflow-hidden rounded-[10px] border border-border bg-card'
-            )}
-          >
-            <div
-              className={cn(
-                'flex items-baseline justify-between gap-3',
-                compacto ? 'px-2' : 'border-b border-border px-4 py-3'
-              )}
-            >
-              <h3 className="flex min-w-0 items-baseline gap-2.5">
-                <span className="shrink-0 text-xs font-medium tabular-nums text-muted-foreground">
-                  {String(i + 1).padStart(2, '0')}
-                </span>
-                <span className={cn('truncate font-medium', compacto && 'text-sm')}>
-                  {modulo.titulo}
-                </span>
-              </h3>
-
-              {total > 0 && !compacto ? (
-                <span
-                  className={cn(
-                    'shrink-0 text-xs tabular-nums',
-                    hechas === total ? 'font-medium text-exito' : 'text-muted-foreground'
-                  )}
-                >
-                  {hechas}/{total}
-                </span>
-              ) : null}
-            </div>
-
-            {total === 0 ? (
-              <p className={cn('text-xs text-muted-foreground', compacto ? 'px-2' : 'px-4 py-4')}>
-                Este módulo todavía no tiene lecciones.
-              </p>
-            ) : (
-              <ul className={cn('flex flex-col', !compacto && 'divide-y divide-border')}>
-                {modulo.lecciones.map((leccion) => (
-                  <li key={leccion.id}>
-                    <Renglon
-                      leccion={leccion}
-                      cursoSlug={curso.slug}
-                      activa={leccion.id === leccionActiva}
-                      compacto={compacto}
-                    />
-                  </li>
-                ))}
-              </ul>
-            )}
-          </div>
-        )
-      })}
+    <nav aria-label="Contenido del curso" className="flex flex-col gap-2">
+      {curso.modulos.map((modulo, i) => (
+        <Modulo
+          key={modulo.id}
+          modulo={modulo}
+          numero={i + 1}
+          cursoSlug={curso.slug}
+          leccionActiva={leccionActiva}
+          abierto={modulo.id === abierto}
+          compacto={compacto}
+        />
+      ))}
     </nav>
+  )
+}
+
+function Modulo({
+  modulo,
+  numero,
+  cursoSlug,
+  leccionActiva,
+  abierto,
+  compacto,
+}: {
+  modulo: ModuloEnIndice
+  numero: number
+  cursoSlug: string
+  leccionActiva?: string
+  abierto: boolean
+  compacto: boolean
+}) {
+  const total = modulo.lecciones.length
+  const hechas = modulo.lecciones.filter((l) => l.completada).length
+  const completo = total > 0 && hechas === total
+  const tieneActiva = modulo.lecciones.some((l) => l.id === leccionActiva)
+
+  return (
+    <details
+      open={abierto || undefined}
+      className={cn(
+        'group/modulo overflow-hidden rounded-[10px] border border-border bg-card',
+        tieneActiva && 'border-primary/50'
+      )}
+    >
+      {/* El summary ES el botón: alto de 44 px para el dedo, y toda la fila
+          es el blanco, no solo el triangulito. */}
+      <summary
+        className={cn(
+          'flex cursor-pointer list-none items-center gap-2.5 select-none',
+          'transition-colors hover:bg-muted/60',
+          'focus-visible:ring-3 focus-visible:ring-ring/50 focus-visible:outline-none',
+          '[&::-webkit-details-marker]:hidden',
+          compacto ? 'px-3 py-2.5' : 'px-4 py-3'
+        )}
+      >
+        <EstadoModulo numero={numero} completo={completo} />
+
+        <span className="flex min-w-0 flex-1 flex-col">
+          <span className={cn('truncate font-medium', compacto && 'text-sm')}>{modulo.titulo}</span>
+          <span className="text-xs text-muted-foreground tabular-nums">
+            {total === 0
+              ? 'Sin lecciones todavía'
+              : `${hechas} de ${total} ${total === 1 ? 'lección' : 'lecciones'}`}
+          </span>
+        </span>
+
+        <Chevron />
+      </summary>
+
+      {total === 0 ? (
+        <p className="border-t border-border px-4 py-3 text-xs text-muted-foreground">
+          Este módulo todavía no tiene lecciones.
+        </p>
+      ) : (
+        <ul className="flex flex-col border-t border-border">
+          {modulo.lecciones.map((leccion) => (
+            <li key={leccion.id}>
+              <Renglon
+                leccion={leccion}
+                cursoSlug={cursoSlug}
+                activa={leccion.id === leccionActiva}
+                compacto={compacto}
+              />
+            </li>
+          ))}
+        </ul>
+      )}
+    </details>
+  )
+}
+
+/** El número del módulo, o una palomita cuando ya está completo. */
+function EstadoModulo({ numero, completo }: { numero: number; completo: boolean }) {
+  if (completo) {
+    return (
+      <span
+        className="flex size-6 shrink-0 items-center justify-center rounded-full bg-exito/15 text-exito"
+        aria-label="Módulo completo"
+      >
+        <Palomita />
+      </span>
+    )
+  }
+  return (
+    <span
+      className="flex size-6 shrink-0 items-center justify-center rounded-full border border-border text-xs font-medium tabular-nums text-muted-foreground"
+      aria-hidden
+    >
+      {numero}
+    </span>
+  )
+}
+
+/** Gira al abrir: es lo que dice que la fila se puede abrir. */
+function Chevron() {
+  return (
+    <svg
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      className="size-4 shrink-0 text-muted-foreground transition-transform group-open/modulo:rotate-180"
+      aria-hidden
+    >
+      <path d="m6 9 6 6 6-6" />
+    </svg>
   )
 }
 
@@ -114,9 +201,9 @@ function Renglon({
   compacto: boolean
 }) {
   const clases = cn(
-    'flex w-full items-center gap-3 text-left transition-colors',
-    compacto ? 'rounded-md px-2 py-2 text-sm' : 'px-4 py-3',
-    activa && 'bg-primary/10 text-foreground',
+    'flex w-full items-center gap-3 border-l-2 text-left transition-colors',
+    compacto ? 'py-2.5 pr-3 pl-3 text-sm' : 'px-4 py-3',
+    activa ? 'border-l-primary bg-primary/10 text-foreground' : 'border-l-transparent',
     !leccion.desbloqueada && 'cursor-not-allowed opacity-60'
   )
 
@@ -126,13 +213,11 @@ function Renglon({
 
       <span className="flex min-w-0 flex-1 flex-col">
         <span className={cn('truncate', activa && 'font-medium')}>{leccion.titulo}</span>
-        {!compacto && !leccion.obligatoria ? (
-          <span className="text-xs text-muted-foreground">Opcional</span>
-        ) : null}
+        {!leccion.obligatoria ? <span className="text-xs text-muted-foreground">Opcional</span> : null}
       </span>
 
       {leccion.desbloqueada ? (
-        <span className="shrink-0 text-xs tabular-nums text-muted-foreground">
+        <span className="shrink-0 text-xs text-muted-foreground tabular-nums">
           {duracionLegible(leccion.duracionSeg)}
         </span>
       ) : (
@@ -175,9 +260,7 @@ function Estado({ leccion }: { leccion: LeccionEnIndice }) {
         className="flex size-6 shrink-0 items-center justify-center rounded-full bg-exito/15 text-exito"
         aria-label="Completada"
       >
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" className="size-3.5" aria-hidden>
-          <path d="m5 13 4 4L19 7" />
-        </svg>
+        <Palomita />
       </span>
     )
   }
@@ -189,6 +272,23 @@ function Estado({ leccion }: { leccion: LeccionEnIndice }) {
     >
       <IconoTipo tipo={leccion.tipo} />
     </span>
+  )
+}
+
+function Palomita() {
+  return (
+    <svg
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="3"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      className="size-3.5"
+      aria-hidden
+    >
+      <path d="m5 13 4 4L19 7" />
+    </svg>
   )
 }
 

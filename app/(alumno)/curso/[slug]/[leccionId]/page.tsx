@@ -59,6 +59,11 @@ export default async function PaginaLeccion({
 
   const { anterior, siguiente, indice, total } = vecinas(curso, leccionId)
 
+  // En qué módulo estás. Con dieciséis módulos, "Lección 12 de 40" no ubica a
+  // nadie; "Sesión 3 · lección 2 de 4" sí (21-sep-2026).
+  const modulo = curso.modulos.find((m) => m.lecciones.some((l) => l.id === leccionId))
+  const enModulo = modulo ? modulo.lecciones.findIndex((l) => l.id === leccionId) + 1 : 0
+
   // Estas sí necesitan saber de qué tipo es la lección, y son excluyentes.
   const quiz = leccion.tipo === 'quiz' ? await quizParaAlumno(leccion.id) : null
   const tarea = leccion.tipo === 'assignment' ? await tareaParaAlumno(leccion.id) : null
@@ -81,10 +86,20 @@ export default async function PaginaLeccion({
           >
             ← {curso.titulo}
           </Link>
+          {modulo ? (
+            <p className="text-xs font-medium tracking-wider text-muted-foreground uppercase">
+              {modulo.titulo}
+            </p>
+          ) : null}
           <h1 className="text-xl font-semibold tracking-tight text-balance sm:text-2xl">
             {leccion.titulo}
           </h1>
-          {indice >= 0 ? (
+          {modulo && enModulo > 0 ? (
+            <p className="text-xs text-muted-foreground">
+              Lección {enModulo} de {modulo.lecciones.length} de este módulo
+              {indice >= 0 ? ` · ${indice + 1} de ${total} del curso` : ''}
+            </p>
+          ) : indice >= 0 ? (
             <p className="text-xs text-muted-foreground">
               Lección {indice + 1} de {total}
             </p>
@@ -121,21 +136,23 @@ export default async function PaginaLeccion({
 
         <AdjuntosAlumno adjuntos={leccion.adjuntos} />
 
-        <div className="flex flex-wrap items-center gap-3 border-t border-border pt-6">
+        <div className="flex flex-col gap-4 border-t border-border pt-6 sm:flex-row sm:items-start sm:justify-between">
           <BotonCompletada
             leccionId={leccion.id}
             cursoSlug={slug}
             completadaInicial={leccion.completada}
           />
 
-          <div className="ml-auto flex gap-2">
+          {/* Ya completada, "Siguiente" es lo que toca: se pinta como la acción
+              principal para que el camino a seguir no haya que buscarlo. */}
+          <div className="flex shrink-0 gap-2">
             {anterior ? (
               <Button asChild variant="ghost" size="sm">
                 <Link href={`/curso/${slug}/${anterior.id}`}>← Anterior</Link>
               </Button>
             ) : null}
             {siguiente ? (
-              <Button asChild variant="outline" size="sm">
+              <Button asChild variant={leccion.completada ? 'default' : 'outline'} size="sm">
                 <Link href={`/curso/${slug}/${siguiente.id}`}>Siguiente →</Link>
               </Button>
             ) : null}
@@ -150,8 +167,31 @@ export default async function PaginaLeccion({
         />
       </div>
 
-      <aside className="w-full shrink-0 border-t border-border pt-6 lg:w-72 lg:border-t-0 lg:pt-0">
-        <IndiceCurso curso={curso} leccionActiva={leccion.id} compacto />
+      {/* El índice: en el teléfono va cerrado tras su propio botón —si no,
+          empuja los comentarios cuarenta renglones hacia abajo—; en escritorio
+          se queda pegado y se desplaza solo él. */}
+      <aside className="w-full shrink-0 lg:sticky lg:top-6 lg:max-h-[calc(100dvh-3rem)] lg:w-80 lg:overflow-y-auto">
+        <details className="rounded-[10px] border border-border lg:hidden">
+          <summary className="flex cursor-pointer list-none items-center justify-between gap-2 px-4 py-3 text-sm font-medium select-none [&::-webkit-details-marker]:hidden">
+            Índice del curso
+            <span className="text-xs text-muted-foreground tabular-nums">
+              {curso.completadas} de {curso.totalLecciones}
+            </span>
+          </summary>
+          <div className="border-t border-border p-3">
+            <IndiceCurso curso={curso} leccionActiva={leccion.id} compacto />
+          </div>
+        </details>
+
+        <div className="hidden lg:block">
+          <p className="mb-2 flex items-baseline justify-between gap-2 text-sm font-medium">
+            Índice del curso
+            <span className="text-xs text-muted-foreground tabular-nums">
+              {curso.completadas} de {curso.totalLecciones}
+            </span>
+          </p>
+          <IndiceCurso curso={curso} leccionActiva={leccion.id} compacto />
+        </div>
       </aside>
     </div>
   )
