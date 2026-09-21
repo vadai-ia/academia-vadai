@@ -175,6 +175,8 @@ export async function crearSesion(_previo: EstadoAccion, datos: FormData): Promi
   }
 
   revalidatePath(`/admin/cohortes/${cohorteId}`)
+  // También se agenda desde el panel principal, que lista las próximas.
+  revalidatePath('/admin')
   return { aviso: 'Sesión agendada.' }
 }
 

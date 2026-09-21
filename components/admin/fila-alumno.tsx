@@ -42,12 +42,17 @@ function fecha(iso: string | null): string {
   }).format(new Date(iso))
 }
 
+/**
+ * `amount` ya viene en pesos o dólares, no en centavos: el webhook divide
+ * entre 100 al guardar (app/api/stripe/webhook/route.ts) y el seed siembra
+ * 14999.00. Esto dividía otra vez y el pago de $14,999 se mostraba como $150.
+ */
 function dinero(monto: number, moneda: string): string {
   return new Intl.NumberFormat('es-MX', {
     style: 'currency',
     currency: moneda.toUpperCase(),
     maximumFractionDigits: 0,
-  }).format(monto / 100)
+  }).format(monto)
 }
 
 /**

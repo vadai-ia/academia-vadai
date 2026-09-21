@@ -20,6 +20,8 @@ function Boton() {
   )
 }
 
+export type CohorteParaAgendar = { id: string; nombre: string; cursoTitulo: string }
+
 /**
  * `reinicio` cambia cuando se agrega una sesión: React remonta el formulario y
  * los campos vuelven a su valor por default.
@@ -28,9 +30,23 @@ function Boton() {
  * porque ese envoltorio es una función de CLIENTE: Next deja de emitir el campo
  * oculto $ACTION_ID y el formulario pasa a depender de JavaScript. Con la acción
  * pasada directa, el form funciona aunque el JS falle.
+ *
+ * Dos lugares lo usan. La página de una cohorte pasa `cohorteId` y el campo va
+ * oculto. El panel principal pasa `cohortes` y la cohorte se elige en un
+ * <select>: desde ahí se agenda la sesión de la semana sin ir a buscar el
+ * curso, la cohorte y luego el formulario.
  */
-export function NuevaSesion({ cohorteId, reinicio }: { cohorteId: string; reinicio: number }) {
+export function NuevaSesion({
+  cohorteId,
+  cohortes,
+  reinicio,
+}: {
+  cohorteId?: string
+  cohortes?: CohorteParaAgendar[]
+  reinicio: number
+}) {
   const [estado, accion] = useActionState(crearSesion, SIN_ESTADO)
+  const sufijo = cohorteId ?? 'panel'
 
   return (
     <form
@@ -38,14 +54,36 @@ export function NuevaSesion({ cohorteId, reinicio }: { cohorteId: string; reinic
       action={accion}
       className="flex flex-col gap-4 rounded-lg border border-dashed border-border p-4"
     >
-      <input type="hidden" name="cohort_id" value={cohorteId} />
+      {cohorteId ? (
+        <input type="hidden" name="cohort_id" value={cohorteId} />
+      ) : (
+        <div className="flex flex-col gap-1.5">
+          <Label htmlFor={`sesion-cohorte-${sufijo}`}>Cohorte</Label>
+          <select
+            id={`sesion-cohorte-${sufijo}`}
+            name="cohort_id"
+            required
+            defaultValue={cohortes?.length === 1 ? cohortes[0]?.id : ''}
+            className="h-10 rounded-md border border-input bg-transparent px-3 text-sm"
+          >
+            <option value="" disabled>
+              Elige la cohorte
+            </option>
+            {(cohortes ?? []).map((c) => (
+              <option key={c.id} value={c.id}>
+                {c.cursoTitulo} · {c.nombre}
+              </option>
+            ))}
+          </select>
+        </div>
+      )}
 
       <div className="flex flex-col gap-1.5">
-        <Label htmlFor="sesion-titulo">Título</Label>
+        <Label htmlFor={`sesion-titulo-${sufijo}`}>Título</Label>
         <Input
-          id="sesion-titulo"
+          id={`sesion-titulo-${sufijo}`}
           name="title"
-          placeholder="Sesión 1 · Fundamentos de Claude"
+          placeholder="Sesión 1 · Contexto del mundo y arranque del tour"
           required
           minLength={2}
         />
@@ -53,13 +91,13 @@ export function NuevaSesion({ cohorteId, reinicio }: { cohorteId: string; reinic
 
       <div className="grid gap-3 sm:grid-cols-2">
         <div className="flex flex-col gap-1.5">
-          <Label htmlFor="sesion-fecha">Fecha</Label>
-          <Input id="sesion-fecha" name="fecha" type="date" required />
+          <Label htmlFor={`sesion-fecha-${sufijo}`}>Fecha</Label>
+          <Input id={`sesion-fecha-${sufijo}`} name="fecha" type="date" required />
         </div>
 
         <div className="flex flex-col gap-1.5">
-          <Label htmlFor="sesion-hora">Hora (CDMX)</Label>
-          <Input id="sesion-hora" name="hora" type="time" required defaultValue="19:00" />
+          <Label htmlFor={`sesion-hora-${sufijo}`}>Hora (CDMX)</Label>
+          <Input id={`sesion-hora-${sufijo}`} name="hora" type="time" required defaultValue="19:00" />
           <p className="text-xs text-muted-foreground">
             Se captura en horario de Ciudad de México. Cada alumno la verá en su
             propia hora local.
@@ -68,12 +106,12 @@ export function NuevaSesion({ cohorteId, reinicio }: { cohorteId: string; reinic
       </div>
 
       <div className="flex flex-col gap-1.5">
-        <Label htmlFor="sesion-meet">Link de Google Meet</Label>
+        <Label htmlFor={`sesion-liga-${sufijo}`}>Liga de la sesión (Zoom o Meet)</Label>
         <Input
-          id="sesion-meet"
+          id={`sesion-liga-${sufijo}`}
           name="meet_url"
           type="url"
-          placeholder="https://meet.google.com/abc-defg-hij"
+          placeholder="https://us02web.zoom.us/j/…"
         />
         <p className="text-xs text-muted-foreground">
           El botón &ldquo;Unirse&rdquo; se activa 15 minutos antes de la hora.
@@ -81,9 +119,9 @@ export function NuevaSesion({ cohorteId, reinicio }: { cohorteId: string; reinic
       </div>
 
       <div className="flex flex-col gap-1.5">
-        <Label htmlFor="sesion-descripcion">Descripción</Label>
+        <Label htmlFor={`sesion-descripcion-${sufijo}`}>Descripción</Label>
         <Textarea
-          id="sesion-descripcion"
+          id={`sesion-descripcion-${sufijo}`}
           name="description"
           rows={2}
           placeholder="Qué se ve en esta sesión. Opcional."

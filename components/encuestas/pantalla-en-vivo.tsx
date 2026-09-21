@@ -155,8 +155,16 @@ export function PantallaEnVivo({
       {/* El QR vive aquí SIEMPRE, no solo al principio: la gente llega tarde, se
           le bloquea el teléfono, o se anima a participar hasta la tercera
           pregunta. Un QR que desaparece deja fuera a todos ellos. */}
-      <header className="flex shrink-0 flex-wrap items-center justify-between gap-6">
-        <div className="flex min-w-0 flex-col gap-1">
+      {/*
+        Sin `flex-wrap` y con `items-start`, a propósito. Con una pregunta larga
+        el título crecía a tres renglones, y el bloque del QR —centrado
+        verticalmente— bajaba con él, o se iba a un segundo renglón debajo de
+        la pregunta. El QR es lo único de esta pantalla que la gente busca con
+        el teléfono en la mano: vive arriba a la derecha siempre, y la pregunta
+        se extiende hacia abajo lo que necesite.
+      */}
+      <header className="flex shrink-0 items-start justify-between gap-8">
+        <div className="flex min-w-0 flex-1 flex-col gap-1">
           {datos.pregunta ? (
             <>
               <span className="text-lg text-muted-foreground">

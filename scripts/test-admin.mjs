@@ -200,6 +200,17 @@ async function main() {
   // ======================================================================
   const G1 = 'ACCESO AL ADMIN'
 
+  // El panel principal (20-sep-2026): accesos, sesiones con formulario para
+  // agendar desde ahí, avance por curso e ingresos. Se afirma que las piezas
+  // están, no los números: esos cambian con cada alta.
+  const panel = await pedir('/admin', admin)
+  const panelHtml = await panel.text()
+  afirmar(G1, 'el panel principal abre', 200, panel.status)
+  afirmar(G1, 'dice quién ha entrado', true, panelHtml.includes('nunca han entrado'))
+  afirmar(G1, 'muestra el avance del curso sembrado', true, panelHtml.includes('Curso de prueba'))
+  afirmar(G1, 'permite agendar una sesión desde ahí', true,
+    panelHtml.includes('name="cohort_id"') && panelHtml.includes('name="fecha"'))
+
   afirmar(G1, 'el admin ve el listado', 200, (await pedir('/admin/cursos', admin)).status)
   afirmar(G1, 'el admin ve el formulario de alta', 200, (await pedir('/admin/cursos/nuevo', admin)).status)
   afirmar(

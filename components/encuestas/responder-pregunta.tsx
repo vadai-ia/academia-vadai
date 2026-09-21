@@ -1,6 +1,6 @@
 'use client'
 
-import { useActionState } from 'react'
+import { useActionState, useState } from 'react'
 import { useFormStatus } from 'react-dom'
 
 import { Button } from '@/components/ui/button'
@@ -14,11 +14,105 @@ import type { PreguntaPublica } from '@/lib/encuestas/publico'
  * El formulario que contesta una pregunta, desde el celular.
  *
  * Mobile-first de verdad: los blancos táctiles de 44 px de `globals.css` ya
- * aplican, y la escala se contesta con botones grandes en vez de un deslizador.
- * Un `<input type="range">` es imposible de acertar con el pulgar, no dice qué
- * valor eligió sin JavaScript, y no se puede leer con lector de pantalla sin
- * trabajo extra. Diez botones se tocan y se ven.
+ * aplican.
+ *
+ * La escala es una BARRA que se recorre, no diez botones (pedido por Alejandro
+ * el 20-sep-2026, para que se vea como la barra de la proyección). Las tres
+ * objeciones que tenía el deslizador se resuelven en la misma pieza:
+ *
+ *   - "imposible de acertar con el pulgar": hay botones − y + de 44 px que
+ *     mueven de uno en uno; la barra es para ir rápido, los botones para afinar.
+ *   - "no dice qué valor eligió": el número va en grande arriba de la barra,
+ *     y cambia al instante.
+ *   - "sin JavaScript no funciona": el `<input type="range">` es un campo de
+ *     formulario normal y viaja con el POST aunque el JS no cargue; solo los
+ *     botones − y + necesitan JS.
  */
+
+/**
+ * La barra de la escala. El valor arranca en medio del rango: una barra tiene
+ * que empezar en algún lado, y el centro no empuja a nadie hacia un extremo.
+ */
+function EscalaDeslizable({
+  min,
+  max,
+  etiquetaMin,
+  etiquetaMax,
+}: {
+  min: number
+  max: number
+  etiquetaMin?: string
+  etiquetaMax?: string
+}) {
+  const [valor, setValor] = useState(Math.round((min + max) / 2))
+  const fijar = (v: number) => setValor(Math.max(min, Math.min(max, v)))
+  const porcentaje = max === min ? 100 : ((valor - min) / (max - min)) * 100
+
+  return (
+    <fieldset className="flex flex-col gap-4">
+      <legend className="sr-only">
+        Elige un número del {min} al {max}
+      </legend>
+
+      <div className="flex items-end justify-center gap-1" aria-hidden>
+        <span className="text-6xl leading-none font-medium text-primary tabular-nums">{valor}</span>
+        <span className="pb-1 text-lg text-muted-foreground tabular-nums">/ {max}</span>
+      </div>
+
+      <div className="flex items-center gap-3">
+        <button
+          type="button"
+          onClick={() => fijar(valor - 1)}
+          disabled={valor <= min}
+          aria-label="Uno menos"
+          className="flex size-11 shrink-0 items-center justify-center rounded-full border border-border text-2xl leading-none transition-colors hover:bg-muted disabled:opacity-40"
+        >
+          −
+        </button>
+
+        {/* La pista pintada hasta el valor, como la barra de la proyección. */}
+        <input
+          type="range"
+          name="valor"
+          min={min}
+          max={max}
+          step={1}
+          value={valor}
+          onChange={(e) => fijar(Number(e.currentTarget.value))}
+          aria-valuetext={`${valor} de ${max}`}
+          className="h-11 w-full cursor-pointer accent-vadai-cyan"
+          style={{
+            background: `linear-gradient(to right, var(--primary) ${porcentaje}%, var(--muted) ${porcentaje}%)`,
+            borderRadius: 999,
+            height: 10,
+            appearance: 'auto',
+          }}
+        />
+
+        <button
+          type="button"
+          onClick={() => fijar(valor + 1)}
+          disabled={valor >= max}
+          aria-label="Uno más"
+          className="flex size-11 shrink-0 items-center justify-center rounded-full border border-border text-2xl leading-none transition-colors hover:bg-muted disabled:opacity-40"
+        >
+          +
+        </button>
+      </div>
+
+      <div className="flex justify-between px-14 text-xs text-muted-foreground tabular-nums">
+        <span>
+          {min}
+          {etiquetaMin ? ` · ${etiquetaMin}` : ''}
+        </span>
+        <span>
+          {etiquetaMax ? `${etiquetaMax} · ` : ''}
+          {max}
+        </span>
+      </div>
+    </fieldset>
+  )
+}
 
 function Enviar() {
   const { pending } = useFormStatus()
@@ -40,7 +134,6 @@ export function ResponderPregunta({
 
   const min = pregunta.ajustes.min ?? 1
   const max = pregunta.ajustes.max ?? 10
-  const escala = Array.from({ length: max - min + 1 }, (_, i) => min + i)
 
   return (
     <form
@@ -114,26 +207,12 @@ export function ResponderPregunta({
       ) : null}
 
       {pregunta.tipo === 'escala' ? (
-        <fieldset className="flex flex-col gap-3">
-          <legend className="sr-only">Elige un número</legend>
-          <div className="grid grid-cols-5 gap-2">
-            {escala.map((valor) => (
-              <label
-                key={valor}
-                className="flex cursor-pointer items-center justify-center rounded-[10px] border border-border py-3.5 text-lg font-medium tabular-nums transition-colors has-checked:border-primary has-checked:bg-primary has-checked:text-primary-foreground"
-              >
-                <input type="radio" name="valor" value={valor} required className="sr-only" />
-                {valor}
-              </label>
-            ))}
-          </div>
-          {pregunta.ajustes.etiquetaMin || pregunta.ajustes.etiquetaMax ? (
-            <div className="flex justify-between text-xs text-muted-foreground">
-              <span>{pregunta.ajustes.etiquetaMin}</span>
-              <span>{pregunta.ajustes.etiquetaMax}</span>
-            </div>
-          ) : null}
-        </fieldset>
+        <EscalaDeslizable
+          min={min}
+          max={max}
+          etiquetaMin={pregunta.ajustes.etiquetaMin}
+          etiquetaMax={pregunta.ajustes.etiquetaMax}
+        />
       ) : null}
 
       {estado.error ? (

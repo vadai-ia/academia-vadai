@@ -53,6 +53,95 @@ export async function cohortesDelCurso(cursoId: string): Promise<CohorteEnLista[
   })
 }
 
+export type CohorteAgendable = { id: string; nombre: string; cursoTitulo: string }
+
+/**
+ * Las cohortes de cursos que siguen vivos, para agendar una sesión desde el
+ * panel principal sin pasar por el curso. Un curso archivado ya no agenda.
+ *
+ * Dos consultas planas y no un select anidado: los tipos generados no traen
+ * las relaciones, y así no hace falta ningún cast.
+ */
+export async function cohortesParaAgendar(): Promise<CohorteAgendable[]> {
+  const supabase = await crearClienteServidor()
+  const [cohortes, cursos] = await Promise.all([
+    supabase.from('cohorts').select('id, name, course_id, starts_on').order('starts_on', { ascending: false }),
+    supabase.from('courses').select('id, title, status'),
+  ])
+
+  const fallo = cohortes.error ?? cursos.error
+  if (fallo) {
+    console.error(JSON.stringify({ operacion: 'cohortesParaAgendar', error: fallo.message }))
+    return []
+  }
+
+  const curso = new Map((cursos.data ?? []).map((c) => [c.id, c]))
+  return (cohortes.data ?? []).flatMap((c) => {
+    const suyo = curso.get(c.course_id)
+    if (!suyo || suyo.status === 'archived') return []
+    return [{ id: c.id, nombre: c.name, cursoTitulo: suyo.title }]
+  })
+}
+
+export type SesionProxima = {
+  id: string
+  titulo: string
+  empiezaEn: string
+  ligaUrl: string | null
+  cohorteId: string
+  cohorte: string
+  cursoTitulo: string
+}
+
+/**
+ * Las siguientes sesiones en vivo de todos los cursos vivos, en orden.
+ *
+ * Es lo que el panel principal enseña arriba: qué toca esta semana y con qué
+ * liga. Las de cursos archivados no cuentan; la víspera del lanzamiento el
+ * panel anunciaba la sesión de prueba QA por eso.
+ */
+export async function proximasSesiones(limite = 5): Promise<SesionProxima[]> {
+  const supabase = await crearClienteServidor()
+  const [sesiones, cohortes, cursos] = await Promise.all([
+    supabase
+      .from('cohort_sessions')
+      .select('id, title, scheduled_at, meet_url, cohort_id')
+      .gte('scheduled_at', new Date().toISOString())
+      .order('scheduled_at', { ascending: true })
+      .limit(limite * 4),
+    supabase.from('cohorts').select('id, name, course_id'),
+    supabase.from('courses').select('id, title, status'),
+  ])
+
+  const fallo = sesiones.error ?? cohortes.error ?? cursos.error
+  if (fallo) {
+    console.error(JSON.stringify({ operacion: 'proximasSesiones', error: fallo.message }))
+    return []
+  }
+
+  const curso = new Map((cursos.data ?? []).map((c) => [c.id, c]))
+  const cohorte = new Map((cohortes.data ?? []).map((c) => [c.id, c]))
+
+  return (sesiones.data ?? [])
+    .flatMap((s) => {
+      const co = cohorte.get(s.cohort_id)
+      const cu = co ? curso.get(co.course_id) : undefined
+      if (!co || !cu || cu.status === 'archived') return []
+      return [
+        {
+          id: s.id,
+          titulo: s.title,
+          empiezaEn: s.scheduled_at,
+          ligaUrl: s.meet_url,
+          cohorteId: co.id,
+          cohorte: co.name,
+          cursoTitulo: cu.title,
+        },
+      ]
+    })
+    .slice(0, limite)
+}
+
 /** Cohorte con su calendario completo. */
 export async function obtenerCohorte(id: string): Promise<CohorteConSesiones | null> {
   const supabase = await crearClienteServidor()
