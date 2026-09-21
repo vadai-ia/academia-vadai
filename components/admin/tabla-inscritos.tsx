@@ -5,7 +5,7 @@ import { Cifra, Progreso } from '@/components/ui-vadai/superficie'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
-import { cambiarAcceso, extenderAcceso, quitarDelCurso } from '@/lib/admin/acciones-alumnos'
+import { cambiarAcceso, cambiarCorreoDeAlumno, extenderAcceso, quitarDelCurso } from '@/lib/admin/acciones-alumnos'
 import { cambiarEmpresaDeAlumno } from '@/lib/admin/acciones-empresas'
 import type { Empresa } from '@/lib/admin/empresas'
 import { ORDENES, type FiltrosInscritos, type Inscrito, type ResumenInscritos } from '@/lib/admin/inscritos'
@@ -448,6 +448,31 @@ function Fila({ inscrito: i, cursoId, empresas }: { inscrito: Inscrito; cursoId:
               <Button asChild variant="ghost" size="sm">
                 <Link href={`/admin/alumnos?q=${encodeURIComponent(i.email)}`}>Ver en Alumnos →</Link>
               </Button>
+              <ConfirmarConModal
+                idModal={`correo-${i.userId}`}
+                accion={cambiarCorreoDeAlumno}
+                campos={{ user_id: i.userId }}
+                boton={{ texto: 'Cambiar correo', etiquetaAccesible: `Cambiar el correo de ${i.nombre || i.email}` }}
+                titulo={`Cambiar el correo de ${i.nombre || i.email}`}
+                confirmar={{ texto: 'Cambiar y avisarle', enCurso: 'Cambiando…' }}
+              >
+                <p>
+                  Ahora entra con <span className="font-medium text-foreground">{i.email}</span>. Escribe el
+                  correo nuevo:
+                </p>
+                <input
+                  type="email"
+                  name="nuevo_email"
+                  required
+                  autoComplete="off"
+                  placeholder="nuevo@correo.com"
+                  className="h-10 w-full rounded-md border border-input bg-transparent px-3 text-sm text-foreground"
+                />
+                <p>
+                  Al correo nuevo le llega el mensaje para crear su contraseña, con liga de 30 días. Sus
+                  cursos, avance y puntos siguen igual.
+                </p>
+              </ConfirmarConModal>
               <ConfirmarConModal
                 idModal={`quitar-${i.userId}`}
                 accion={quitarDelCurso}

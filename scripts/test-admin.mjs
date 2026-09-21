@@ -327,7 +327,10 @@ async function main() {
   // Se busca la FILA, no el correo suelto: el encabezado también imprime el
   // correo de quien está dentro, y eso haría verdadera cualquier búsqueda.
   // La fila lleva el formulario de reenviar con el correo en un input oculto.
-  const fila = `value="${correo.admin}"`
+  // El input oculto del formulario "Reenviar correo de acceso" de la fila. No
+  // basta `value="correo"`: el campo "Mandarme una prueba" trae el correo del
+  // admin en todas las vistas.
+  const fila = `name="email" value="${correo.admin}"`
   const nunca = await (await pedir('/admin/alumnos?acceso=nunca', admin)).text()
   afirmar(G2, 'el filtro "nunca han entrado" no trae al admin', false, nunca.includes(fila))
   const entraron = await (await pedir('/admin/alumnos?acceso=entraron', admin)).text()

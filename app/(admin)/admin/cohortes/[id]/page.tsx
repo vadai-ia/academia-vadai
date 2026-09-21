@@ -2,6 +2,7 @@ import type { Metadata } from 'next'
 import Link from 'next/link'
 import { notFound } from 'next/navigation'
 
+import { EnviarCalendario } from '@/components/admin/enviar-calendario'
 import { ExpandirTodo } from '@/components/admin/expandir-todo'
 import { NuevaSesion } from '@/components/admin/nueva-sesion'
 import { SesionesEnSerie } from '@/components/admin/sesiones-en-serie'
@@ -60,7 +61,7 @@ function enCdmx(iso: string): string {
  * vez con "Agendar varias".
  */
 export default async function PaginaCohorte({ params }: { params: Promise<{ id: string }> }) {
-  await exigirAdmin()
+  const perfil = await exigirAdmin()
   const { id } = await params
 
   const cohorte = await obtenerCohorte(id)
@@ -241,6 +242,13 @@ export default async function PaginaCohorte({ params }: { params: Promise<{ id: 
 
         <SesionesEnSerie cohorteId={cohorte.id} reinicio={cohorte.sesiones.length} />
         <NuevaSesion cohorteId={cohorte.id} reinicio={cohorte.sesiones.length} />
+
+        <EnviarCalendario
+          cohorteId={cohorte.id}
+          inscritos={cohorte.inscritos}
+          sesionesFuturas={cohorte.sesiones.filter((s) => new Date(s.scheduled_at).getTime() >= ahora - 3 * 60 * 60 * 1000).length}
+          correoAdmin={perfil.email}
+        />
       </section>
 
       <section className="border-t border-border pt-6">

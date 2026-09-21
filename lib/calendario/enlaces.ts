@@ -69,15 +69,11 @@ export function enlaceOutlook(s: DatosDeSesion): string {
   return `https://outlook.live.com/calendar/0/deeplink/compose?${p.toString()}`
 }
 
-/** Texto de un evento .ics (RFC 5545). Líneas con CRLF, como pide la norma. */
-export function generarIcs(s: DatosDeSesion): string {
-  const escapar = (t: string) => t.replace(/\\/g, '\\\\').replace(/;/g, '\\;').replace(/,/g, '\\,').replace(/\n/g, '\\n')
-  const lineas = [
-    'BEGIN:VCALENDAR',
-    'VERSION:2.0',
-    'PRODID:-//VADAI Academia//Sesiones en vivo//ES',
-    'CALSCALE:GREGORIAN',
-    'METHOD:PUBLISH',
+const escapar = (t: string) =>
+  t.replace(/\\/g, '\\\\').replace(/;/g, '\\;').replace(/,/g, '\\,').replace(/\n/g, '\\n')
+
+function evento(s: DatosDeSesion): string[] {
+  return [
     'BEGIN:VEVENT',
     `UID:sesion-${s.id}@academia.vadai.com.mx`,
     `DTSTAMP:${compacto(new Date().toISOString())}`,
@@ -92,7 +88,33 @@ export function generarIcs(s: DatosDeSesion): string {
     `DESCRIPTION:${escapar(`En 30 minutos: ${s.titulo}`)}`,
     'END:VALARM',
     'END:VEVENT',
+  ]
+}
+
+/** Texto .ics (RFC 5545) con uno o varios eventos. Líneas con CRLF, como pide la norma. */
+export function generarIcsVarios(sesiones: DatosDeSesion[]): string {
+  const lineas = [
+    'BEGIN:VCALENDAR',
+    'VERSION:2.0',
+    'PRODID:-//VADAI Academia//Sesiones en vivo//ES',
+    'CALSCALE:GREGORIAN',
+    'METHOD:PUBLISH',
+    ...sesiones.flatMap(evento),
     'END:VCALENDAR',
   ]
   return lineas.join('\r\n') + '\r\n'
+}
+
+export function generarIcs(s: DatosDeSesion): string {
+  return generarIcsVarios([s])
+}
+
+/** "Lunes 21 de septiembre · 6:00 a 8:30 p.m. (CDMX)", para correos y listas. */
+export function describirHorario(inicio: string): string {
+  const zona = 'America/Mexico_City'
+  const dia = new Intl.DateTimeFormat('es-MX', { timeZone: zona, weekday: 'long', day: 'numeric', month: 'long' }).format(new Date(inicio))
+  const hora = (iso: string) =>
+    new Intl.DateTimeFormat('es-MX', { timeZone: zona, hour: 'numeric', minute: '2-digit', hour12: true }).format(new Date(iso))
+  const conMayuscula = dia.charAt(0).toUpperCase() + dia.slice(1)
+  return `${conMayuscula} · ${hora(inicio)} a ${hora(fin(inicio))} (CDMX)`
 }

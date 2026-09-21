@@ -10,6 +10,7 @@ import { plantillaNuevoCurso, plantillaRecordatorio } from '@/lib/correo/plantil
 import { enviarCorreosEnLote } from '@/lib/correo/resend'
 import { darDeAlta, enviarAccesoInicial } from '@/lib/stripe/provisioning'
 import { crearClienteServidor } from '@/lib/supabase/server'
+import { crearClienteServiceRole } from '@/lib/supabase/service-role'
 
 import { PAR, enLista, leerPares, revisarSeleccion } from './seleccion-de-cursos'
 import type { EstadoAccion } from './tipos'
@@ -184,6 +185,50 @@ export async function reenviarAcceso(datos: FormData): Promise<void> {
 
   console.log(JSON.stringify({ operacion: 'reenviarAcceso', email, enviado }))
   revalidatePath('/admin/alumnos')
+}
+
+/**
+ * Una prueba del recordatorio, a la dirección que se indique.
+ *
+ * Es el MISMO correo que reciben los alumnos —plantilla, asunto y liga de 30
+ * días—, solo que la liga es de la cuenta de quien lo pide: así el admin lo
+ * abre en su propio buzón, da clic y comprueba de punta a punta que la liga
+ * entra, antes de mandarlo a ochenta personas. La dirección no necesita
+ * cuenta: es solo a dónde llega.
+ */
+export async function enviarPruebaDeRecordatorio(
+  _previo: EstadoAccion,
+  datos: FormData
+): Promise<EstadoAccion> {
+  const admin = await exigirAdmin()
+
+  const para = String(datos.get('para') ?? '').trim().toLowerCase() || admin.email
+  if (!/^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(para)) return { error: 'Ese correo no parece válido.' }
+
+  const enlaces = await crearEnlacesDurables({ emails: [admin.email], creadoPor: admin.user_id })
+  const url = enlaces.get(admin.email)
+  if (!url) return { error: 'No se pudo generar la liga de prueba.' }
+
+  const plantilla = plantillaRecordatorio({
+    url,
+    cursos: ['Claude en tu empresa'],
+    nombre: admin.full_name,
+    base: process.env.NEXT_PUBLIC_APP_URL,
+  })
+  const resultado = await enviarCorreosEnLote([
+    { para, asunto: `[PRUEBA] ${plantilla.asunto}`, html: plantilla.html, texto: plantilla.texto },
+  ])
+
+  console.log(
+    JSON.stringify({ operacion: 'enviarPruebaDeRecordatorio', porQuien: admin.email, para, enviados: resultado.enviados, motivo: resultado.motivo ?? null })
+  )
+
+  if (resultado.enviados === 0) {
+    return { error: `No salió la prueba a ${para}. Motivo: ${resultado.motivo ?? 'sin detalle'}.` }
+  }
+  return {
+    aviso: `Prueba enviada a ${para}. La liga entra a TU cuenta (${admin.email}) y vale 30 días.`,
+  }
 }
 
 /**
@@ -658,6 +703,100 @@ export async function suspenderCuenta(_previo: EstadoAccion, datos: FormData): P
   console.log(JSON.stringify({ operacion: 'suspenderCuenta', userId, por: perfil.user_id }))
   revalidatePath('/admin/alumnos')
   return { aviso: `${objetivo.email} quedó suspendido.` }
+}
+
+/**
+ * Cambia el correo de una cuenta (pedido 21-sep-2026, día del lanzamiento:
+ * "el ingeniero Javier dice que su correo se deshabilitó").
+ *
+ * Es la identidad de la cuenta, así que:
+ *   - Pide confirmación (ConfirmarConModal) y solo un superadmin la cambia a
+ *     alguien del equipo.
+ *   - Se cambia en Auth (service role; es el único que puede) y en el perfil,
+ *     en ese orden: si Auth falla, nada cambió.
+ *   - Al correo NUEVO le llega el de crear contraseña con liga de 30 días.
+ *     Es la prueba de que el cambio fue para la persona correcta: solo quien
+ *     tiene ese buzón puede entrar. Al viejo no se le escribe: casi siempre
+ *     se cambia porque el viejo ya no existe, y escribirle rebota.
+ *   - Inscripciones, progreso, puntos y certificados no se tocan: cuelgan del
+ *     id, no del correo.
+ */
+export async function cambiarCorreoDeAlumno(
+  _previo: EstadoAccion,
+  datos: FormData
+): Promise<EstadoAccion> {
+  const admin = await exigirAdmin()
+
+  const userId = String(datos.get('user_id') ?? '')
+  const nuevo = String(datos.get('nuevo_email') ?? '').trim().toLowerCase()
+  if (!userId) return { error: 'Falta la cuenta.' }
+  if (!/^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(nuevo)) return { error: 'Ese correo no parece válido.' }
+
+  const servicio = crearClienteServiceRole()
+  const { data: actual } = await servicio
+    .from('profiles')
+    .select('email, full_name, role')
+    .eq('user_id', userId)
+    .maybeSingle()
+  if (!actual) return { error: 'Esa cuenta no existe.' }
+  if (actual.email === nuevo) return { error: 'Es el mismo correo que ya tiene.' }
+
+  const esDelEquipo = actual.role === 'admin' || actual.role === 'superadmin'
+  if (esDelEquipo && admin.role !== 'superadmin') {
+    return { error: 'Solo un superadmin cambia el correo de alguien del equipo.' }
+  }
+
+  const { data: ocupado } = await servicio.from('profiles').select('user_id').eq('email', nuevo).maybeSingle()
+  if (ocupado) return { error: `${nuevo} ya es de otra cuenta. Si es la misma persona, dale acceso a esa cuenta.` }
+
+  const { error: errorAuth } = await servicio.auth.admin.updateUserById(userId, {
+    email: nuevo,
+    email_confirm: true,
+  })
+  if (errorAuth) {
+    console.error(JSON.stringify({ operacion: 'cambiarCorreo:auth', userId, nuevo, error: errorAuth.message }))
+    return { error: `No se pudo cambiar el correo: ${errorAuth.message}` }
+  }
+
+  const { error: errorPerfil } = await servicio.from('profiles').update({ email: nuevo }).eq('user_id', userId)
+  if (errorPerfil) {
+    // Auth ya cambió y el perfil no: se dice tal cual, con el remedio.
+    console.error(JSON.stringify({ operacion: 'cambiarCorreo:perfil', userId, nuevo, error: errorPerfil.message }))
+    return { error: `Auth ya tiene ${nuevo} pero el perfil no se pudo actualizar. Vuelve a intentar.` }
+  }
+
+  // Los cursos que nombra el correo: los que tiene activos.
+  const { data: inscripciones } = await servicio
+    .from('enrollments')
+    .select('course_id')
+    .eq('user_id', userId)
+    .eq('status', 'active')
+  const ids = (inscripciones ?? []).map((e) => e.course_id)
+  const { data: cursos } = ids.length
+    ? await servicio.from('courses').select('title').in('id', ids).neq('status', 'archived').order('title')
+    : { data: [] }
+
+  const enviado = await enviarAccesoInicial(
+    nuevo,
+    undefined,
+    (cursos ?? []).map((c) => c.title),
+    actual.full_name,
+    admin.user_id
+  )
+
+  console.log(
+    JSON.stringify({ operacion: 'cambiarCorreo:ok', porQuien: admin.email, userId, de: actual.email, a: nuevo, correoEnviado: enviado })
+  )
+  revalidatePath('/admin/alumnos')
+  revalidatePath('/admin/cursos')
+
+  return {
+    aviso:
+      `Correo cambiado de ${actual.email} a ${nuevo}.` +
+      (enviado
+        ? ' Le llegó el correo para crear su contraseña, con liga de 30 días.'
+        : ' El correo de contraseña NO salió: usa "Reenviar correo de acceso".'),
+  }
 }
 
 /** Deshace la suspensión. La persona vuelve a entrar con lo que ya tenía. */

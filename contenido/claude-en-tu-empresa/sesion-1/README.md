@@ -10,22 +10,21 @@
 
 | Archivo | Qué es |
 |---|---|
-| `laminas.md` | La única fuente. 55 láminas; se edita aquí y se reconstruye con `construir.py`. |
-| `entregables/sesion-1-alineacion.pptx` | Para Total Coach: fondo en imagen, cuerpo y notas como texto editable en Inter. Instalar las fuentes de `entregables/fuentes/` antes de abrir. |
+| `laminas.md` | La única fuente. 35 láminas, una por cada una del deck de Total Coach; se edita aquí y se reconstruye con `construir.py`. |
+| `entregables/sesion-1-alineacion.pptx` | Para Total Coach: **todo el texto es editable** (titulares en Anton con el resaltado coral nativo, cifras, etiquetas, filas de tabla, pies y notas). Las barras son rectángulos nativos; solo las ilustraciones, fichas blancas e íconos viajan en la imagen de fondo. Instalar las fuentes de `entregables/fuentes/` antes de abrir, o Anton se sustituye. |
 | `entregables/sesion-1-alineacion.pdf` | 1920×1080, fuentes incrustadas. Para entregar y para adjuntar a la lección. |
 | `entregables/sesion-1-alineacion.html` | El deck para proyectar: flechas, F pantalla completa, funciona sin internet. |
 | `entregables/hoja-de-decision.xlsx` | La hoja de decisión que usan las empresas en las salas, con fórmulas vivas y el ejemplo de la aseguradora. |
 | `hoja-de-decision.py` | Genera el xlsx. |
 
-## Estructura (sigue el deck original de Total Coach, con las etapas numeradas 1 a 5)
+## Estructura
 
-Etapa 1 · WIIFM (láminas 2–6) · Etapa 2 · Quiénes somos (7–9) · Etapa 3 · La IA hoy, América
-Latina, futuro del trabajo (10–24) · Etapa 4 · Diagnóstico personal, liderazgo, tu proyecto,
-por qué no se implementan, metodología (25–46) · Etapa 5 · Alineación por empresa, salas,
-portavoz, salón general (47–51) · Lo que viene, tarea, cierre (52–55).
-
-**Interactivo:** tres encuestas en vivo (26, 28, 30), tres ejercicios cronometrados (31, 36, 49)
-y las salas por empresa. **Gráficas:** nueve de barras, todas con escala honesta y fuente al pie.
+Las 35 láminas del deck de Total Coach, en el mismo orden y con su etiqueta de etapa en la
+cinta superior. Lo que cambió es la forma: 16 láminas llevan ilustración a un lado y el texto
+corto al otro; 4 son gráficas de barras con escala honesta y fuente al pie; 3 son comparaciones
+de dos columnas; 3 son encuestas en vivo (13, 16 y la expectativa) **sin QR de relleno**, porque
+el QR se proyecta en tiempo real desde la academia; 3 son ejercicios cronometrados (17, 21, 30);
+y la 27 muestra la hoja de decisión real. La lámina 5 no lleva nombres ni firmas.
 
 ## Cifras: qué se verificó y qué cambió respecto al deck original
 
@@ -45,11 +44,8 @@ Todas las cifras proyectadas tienen fila `verificado` en `../fuentes.md`. Lo que
 
 ## Pendientes
 
-- **Códigos de encuesta.** Las láminas 26, 28 y 30 traen un QR de relleno. Se crean las tres
-  encuestas en el panel de la academia (`/admin`, encuestas en vivo), se ponen los códigos en
-  `laminas.md` y se reconstruye.
-- **Los presentadores.** La lámina 8 lleva nombres y firma; faltan fotos y una línea de
-  trayectoria de cada uno si se quieren mostrar.
+- **Las tres encuestas** (láminas 13, 16 y la expectativa) se crean en el panel de la academia
+  antes de la sesión; el QR se proyecta en vivo desde ahí, no desde el deck.
 - **Los países de América Latina** vuelven a la lámina 17 en cuanto se confirmen en los datos
   abiertos del reporte (`p-latam-paises` en `fuentes.md`).
 - Nada de esto está commiteado.

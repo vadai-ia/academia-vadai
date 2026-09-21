@@ -165,7 +165,7 @@ export default async function PaginaAlumnos({
             Lo que se hace con el número de arriba. "Nunca han entrado" sin un
             botón al lado es una cifra que da ansiedad y no resuelve nada.
           */}
-          <ReenviarPendientes pendientes={pendientes.length} />
+          <ReenviarPendientes pendientes={pendientes.length} correoAdmin={perfil.email} />
         </Tarjeta>
       ) : null}
 

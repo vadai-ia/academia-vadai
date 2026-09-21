@@ -12,6 +12,7 @@ import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import {
   cambiarAcceso,
+  cambiarCorreoDeAlumno,
   darAccesoACursos,
   extenderAcceso,
   reactivarCuenta,
@@ -362,6 +363,35 @@ export function FilaAlumno({
             </form>
 
             <EnlaceDeAcceso email={alumno.email} />
+
+            {/* Cambiar el correo: con confirmación, y al nuevo le llega el de
+                crear contraseña. Es lo que prueba que el cambio fue para la
+                persona correcta. */}
+            <ConfirmarConModal
+              idModal={`cambiar-correo-${alumno.userId}`}
+              accion={cambiarCorreoDeAlumno}
+              campos={{ user_id: alumno.userId }}
+              boton={{ texto: 'Cambiar correo', etiquetaAccesible: `Cambiar el correo de ${alumno.nombre || alumno.email}` }}
+              titulo={`Cambiar el correo de ${alumno.nombre || alumno.email}`}
+              confirmar={{ texto: 'Cambiar y avisarle', enCurso: 'Cambiando…' }}
+            >
+              <p>
+                Ahora entra con <span className="font-medium text-foreground">{alumno.email}</span>.
+                Escribe el correo nuevo:
+              </p>
+              <input
+                type="email"
+                name="nuevo_email"
+                required
+                autoComplete="off"
+                placeholder="nuevo@correo.com"
+                className="h-10 w-full rounded-md border border-input bg-transparent px-3 text-sm text-foreground"
+              />
+              <p>
+                Al correo nuevo le llega el mensaje para crear su contraseña, con liga de 30 días.
+                Sus cursos, avance y puntos siguen igual. El correo viejo deja de servir para entrar.
+              </p>
+            </ConfirmarConModal>
           </div>
           {!equipo ? (
             <form action={cambiarEmpresaDeAlumno} className="flex flex-wrap items-center gap-2 pt-1">

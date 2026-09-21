@@ -52,6 +52,9 @@ const PREFIJOS_PUBLICOS = [
   // La liga del correo de bienvenida (lib/auth/enlace-durable.ts). Quien la
   // abre todavía no tiene sesión: es justo lo que viene a conseguir.
   '/acceso/',
+  // El reporte de errores del navegador (app/error.tsx). El error puede
+  // ocurrir antes de entrar, y un reporte que rebota al login no llega.
+  '/api/errores',
 ]
 
 export function esPublica(ruta: string): boolean {

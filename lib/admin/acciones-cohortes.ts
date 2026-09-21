@@ -6,6 +6,9 @@ import { z } from 'zod'
 
 import { diaDeLaSemana, sumarDias } from '@/lib/admin/fechas'
 import { exigirAdmin } from '@/lib/auth/sesion'
+import { describirHorario, enlaceGoogle, enlaceOutlook } from '@/lib/calendario/enlaces'
+import { plantillaCalendario } from '@/lib/correo/plantillas'
+import { enviarCorreosEnLote } from '@/lib/correo/resend'
 import { crearClienteServidor } from '@/lib/supabase/server'
 
 import type { EstadoAccion } from './tipos'
@@ -225,6 +228,123 @@ export async function actualizarSesion(datos: FormData): Promise<void> {
 
   revalidatePath(`/admin/cohortes/${cohorteId}`)
   revalidatePath('/admin')
+}
+
+/**
+ * Manda por correo las fechas de las sesiones en vivo de la cohorte, con
+ * botones de calendario (pedido 21-sep-2026). Con `para` manda una PRUEBA
+ * solo a esa dirección; sin `para`, a todos los inscritos activos de la
+ * cohorte, en lote. Solo las sesiones futuras (o de hoy).
+ */
+export async function enviarCalendarioPorCorreo(
+  _previo: EstadoAccion,
+  datos: FormData
+): Promise<EstadoAccion> {
+  const admin = await exigirAdmin()
+
+  const cohorteId = String(datos.get('cohort_id') ?? '')
+  const para = String(datos.get('para') ?? '').trim().toLowerCase()
+  if (!cohorteId) return { error: 'Falta la cohorte.' }
+  if (para && !/^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(para)) return { error: 'Ese correo no parece válido.' }
+
+  const supabase = await crearClienteServidor()
+  const [{ data: cohorte }, { data: sesiones }] = await Promise.all([
+    supabase.from('cohorts').select('id, name, course_id').eq('id', cohorteId).maybeSingle(),
+    supabase
+      .from('cohort_sessions')
+      .select('id, title, description, scheduled_at, meet_url')
+      .eq('cohort_id', cohorteId)
+      .gte('scheduled_at', new Date(Date.now() - 3 * 60 * 60 * 1000).toISOString())
+      .order('scheduled_at'),
+  ])
+  if (!cohorte) return { error: 'La cohorte no existe.' }
+  if (!sesiones || sesiones.length === 0) return { error: 'No hay sesiones futuras que mandar.' }
+
+  const { data: curso } = await supabase.from('courses').select('title').eq('id', cohorte.course_id).maybeSingle()
+  const tituloCurso = curso?.title ?? 'tu curso'
+  const base = (process.env.NEXT_PUBLIC_APP_URL ?? '').replace(/\/+$/, '')
+
+  const paraCorreo = sesiones.map((s) => {
+    const datosSesion = {
+      id: s.id,
+      titulo: s.title,
+      descripcion: s.description,
+      inicio: s.scheduled_at,
+      ligaUrl: s.meet_url,
+      curso: tituloCurso,
+    }
+    return {
+      id: s.id,
+      titulo: s.title,
+      inicio: s.scheduled_at,
+      ligaUrl: s.meet_url,
+      horario: describirHorario(s.scheduled_at),
+      google: enlaceGoogle(datosSesion),
+      outlook: enlaceOutlook(datosSesion),
+    }
+  })
+  const urlTodas = `${base}/api/calendario/cohorte/${cohorteId}`
+
+  // A quién: la prueba, o todos los inscritos activos de la cohorte.
+  let destinatarios: Array<{ email: string; nombre: string | null }>
+  if (para) {
+    destinatarios = [{ email: para, nombre: admin.full_name }]
+  } else {
+    const { data: inscripciones } = await supabase
+      .from('enrollments')
+      .select('user_id')
+      .eq('cohort_id', cohorteId)
+      .eq('status', 'active')
+    const ids = (inscripciones ?? []).map((e) => e.user_id)
+    const { data: perfiles } = ids.length
+      ? await supabase.from('profiles').select('email, full_name, role, status').in('user_id', ids)
+      : { data: [] }
+    destinatarios = (perfiles ?? [])
+      .filter((p) => p.role === 'alumno' && p.status === 'active')
+      .map((p) => ({ email: p.email, nombre: p.full_name }))
+  }
+
+  const correos = destinatarios.map((d) => {
+    const plantilla = plantillaCalendario({
+      nombre: d.nombre,
+      curso: tituloCurso,
+      sesiones: paraCorreo,
+      urlTodas,
+      base,
+    })
+    return {
+      para: d.email,
+      asunto: para ? `[PRUEBA] ${plantilla.asunto}` : plantilla.asunto,
+      html: plantilla.html,
+      texto: plantilla.texto,
+    }
+  })
+
+  const resultado = await enviarCorreosEnLote(correos)
+  console.log(
+    JSON.stringify({
+      operacion: 'enviarCalendarioPorCorreo',
+      porQuien: admin.email,
+      cohorteId,
+      prueba: para || null,
+      sesiones: sesiones.length,
+      destinatarios: correos.length,
+      enviados: resultado.enviados,
+      fallidos: resultado.fallidos.length,
+      motivo: resultado.motivo ?? null,
+    })
+  )
+
+  if (resultado.fallidos.length > 0) {
+    return {
+      error: `Salieron ${resultado.enviados} y fallaron ${resultado.fallidos.length}. Motivo: ${resultado.motivo ?? 'sin detalle'}.`,
+    }
+  }
+  return {
+    aviso: para
+      ? `Prueba enviada a ${para} con las ${sesiones.length} sesiones.`
+      : `Las fechas salieron a ${resultado.enviados} alumno${resultado.enviados === 1 ? '' : 's'} de la cohorte.`,
+  }
 }
 
 const esquemaSerie = z.object({

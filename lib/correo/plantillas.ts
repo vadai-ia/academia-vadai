@@ -349,6 +349,101 @@ Equipo VADAI`
   }
 }
 
+export type SesionParaCorreo = {
+  id: string
+  titulo: string
+  /** ISO UTC. */
+  inicio: string
+  ligaUrl: string | null
+  horario: string
+  google: string
+  outlook: string
+}
+
+/**
+ * Las fechas de las sesiones en vivo, con botones para agregarlas al
+ * calendario (pedido 21-sep-2026, día del lanzamiento: "para que no se les
+ * pase ninguna").
+ *
+ * Cada sesión trae sus ligas a Google Calendar y Outlook, que abren
+ * prellenadas sin entrar a la plataforma; el botón grande descarga TODAS en
+ * un .ics (Apple y cualquier otro), que sí pide entrar. Y se recuerda que la
+ * liga de Zoom se activa en Mis cursos 15 minutos antes.
+ */
+export function plantillaCalendario(opciones: {
+  nombre?: string | null
+  curso: string
+  sesiones: SesionParaCorreo[]
+  /** URL del .ics con todas. */
+  urlTodas: string
+  base?: string | null
+}): Plantilla {
+  const nombre = opciones.nombre?.trim() ?? ''
+  const base = (opciones.base ?? '').replace(/\/+$/, '')
+  const saludo = nombre ? `Hola ${nombre},` : 'Hola,'
+  const parrafo = `margin:0 0 14px;font-size:15px;color:${TEXTO};line-height:1.65;`
+  const chica = `font-size:13px;color:${GRIS};`
+
+  const filas = opciones.sesiones
+    .map(
+      (s) => `
+      <tr>
+        <td style="padding:10px 0;border-top:1px solid #1f3350;">
+          <div style="font-size:15px;color:${TEXTO};font-weight:600;">${escapar(s.titulo)}</div>
+          <div style="${chica}margin-top:2px;">${escapar(s.horario)}</div>
+          <div style="${chica}margin-top:4px;">
+            Agregar a
+            <a href="${s.google}" style="color:${CYAN};">Google Calendar</a> ·
+            <a href="${s.outlook}" style="color:${CYAN};">Outlook</a>
+          </div>
+        </td>
+      </tr>`
+    )
+    .join('')
+
+  const html = envoltura(
+    `
+    <p style="${parrafo}">${escapar(saludo)}</p>
+    <p style="${parrafo}">
+      Estas son las ${opciones.sesiones.length} sesiones en vivo de <strong>${escapar(opciones.curso)}</strong>.
+      Agrégalas a tu calendario hoy, para que ninguna se te pase.
+    </p>
+    ${boton(opciones.urlTodas, 'Agregar todas a mi calendario')}
+    <p style="${chica}margin:0 0 18px;">
+      Descarga un archivo de calendario con las ${opciones.sesiones.length} fechas (te pide entrar con tu correo). También puedes
+      agregarlas una por una aquí abajo.
+    </p>
+    <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="margin:0 0 18px;">
+      ${filas}
+    </table>
+    <p style="${parrafo}">
+      La liga para entrar a cada sesión se activa en <a href="${base}/mis-cursos" style="color:${CYAN};">tu academia</a>
+      15 minutos antes de empezar. Ahí mismo quedan después las grabaciones.
+    </p>
+    <p style="${parrafo}">Si algo no funciona, responde este correo y te ayudamos.</p>
+    <p style="margin:0;font-size:15px;color:${TEXTO};line-height:1.65;">Equipo VADAI</p>
+  `,
+    `${opciones.sesiones.length} sesiones en vivo. Agrégalas a tu calendario hoy.`
+  )
+
+  const texto = `${saludo}
+
+Estas son las ${opciones.sesiones.length} sesiones en vivo de ${opciones.curso}. Agrégalas a tu calendario hoy, para que ninguna se te pase.
+
+Agregar todas a mi calendario (.ics, te pide entrar con tu correo):
+${opciones.urlTodas}
+
+${opciones.sesiones.map((s) => `${s.titulo}\n${s.horario}\nGoogle Calendar: ${s.google}\nOutlook: ${s.outlook}`).join('\n\n')}
+
+La liga para entrar a cada sesión se activa en ${base}/mis-cursos 15 minutos antes de empezar. Ahí mismo quedan después las grabaciones.
+
+Si algo no funciona, responde este correo y te ayudamos.
+
+Equipo VADAI`
+
+  return { asunto: `Fechas de tus sesiones en vivo · ${opciones.curso}`, html, texto }
+}
+
 /** "Olvidé mi contraseña". */
 export function plantillaRecuperacion(url: string): Plantilla {
   const html = envoltura(`

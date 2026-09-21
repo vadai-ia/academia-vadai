@@ -126,34 +126,84 @@ def html_lamina(seccion: str, css: str, fuentes_css: str, modo_fondo: bool) -> s
 
 
 def pptx_desde(deck, cajas_por_lamina: list[list[dict]], fondos: list[Path], destino: Path, tk: dict) -> None:
+    """Fondo en imagen (solo lo que no es texto) + cada texto como caja o forma nativa editable.
+    El marcador coral del titular va como resaltado de texto (a:highlight); las barras como rectángulos."""
     from pptx import Presentation
     from pptx.dml.color import RGBColor
+    from pptx.enum.shapes import MSO_SHAPE
+    from pptx.enum.text import MSO_ANCHOR, MSO_AUTO_SIZE, PP_ALIGN
+    from pptx.oxml.ns import qn
+    from pptx.oxml.xmlchemy import OxmlElement
     from pptx.util import Emu, Pt
 
     prs = Presentation()
     prs.slide_width, prs.slide_height = Emu(12192000), Emu(6858000)  # 13.333 × 7.5 in
-    px = prs.slide_width / ANCHO  # EMU por píxel del lienzo 1920
+    px = prs.slide_width / ANCHO
+    E = lambda v: Emu(int(v * px))
 
     def rgb(h): h = h.lstrip("#"); return RGBColor(int(h[0:2], 16), int(h[2:4], 16), int(h[4:6], 16))
+
+    def resaltar(run, hexcolor):
+        rPr = run._r.get_or_add_rPr()
+        hl = OxmlElement("a:highlight"); clr = OxmlElement("a:srgbClr"); clr.set("val", hexcolor.lstrip("#").upper()); hl.append(clr)
+        latin = rPr.find(qn("a:latin"))
+        if latin is not None: latin.addprevious(hl)
+        else: rPr.append(hl)
+
+    def escribir(tf, c):
+        tf.word_wrap = c.get("ajustar", True); tf.auto_size = MSO_AUTO_SIZE.NONE
+        m = c.get("margen") or (0, 0)
+        mt, mr, mb, ml = (m[0], m[1], m[0], m[1]) if len(m) == 2 else m
+        tf.margin_top, tf.margin_right, tf.margin_bottom, tf.margin_left = Pt(mt * 0.5), Pt(mr * 0.5), Pt(mb * 0.5), Pt(ml * 0.5)
+        if c.get("valinear") == "middle": tf.vertical_anchor = MSO_ANCHOR.MIDDLE
+        elif c.get("valinear") == "bottom": tf.vertical_anchor = MSO_ANCHOR.BOTTOM
+        else: tf.vertical_anchor = MSO_ANCHOR.TOP
+        alinear = {"center": PP_ALIGN.CENTER, "right": PP_ALIGN.RIGHT}.get(c.get("alinear"), PP_ALIGN.LEFT)
+        def espaciar(p):
+            if c.get("exacto"): p.line_spacing = Pt(c["exacto"] * 0.5)
+            elif c.get("interlinea"): p.line_spacing = c["interlinea"]
+
+        def trazar(r):
+            if c.get("tracking"):
+                r._r.get_or_add_rPr().set("spc", str(int(c["tracking"] * 0.5 * 100)))
+
+        runs = c.get("runs")
+        if runs:
+            p = tf.paragraphs[0]; p.alignment = alinear; espaciar(p)
+            for rn in runs:
+                if rn.get("salto"): p.add_line_break(); continue
+                r = p.add_run(); r.text = rn["texto"]
+                r.font.color.rgb = rgb(rn.get("color", c["color"]))
+                r.font.size = Pt(rn.get("pt", c["pt"])); r.font.bold = rn.get("negrita", c.get("negrita", False))
+                r.font.name = rn.get("fuente", c.get("fuente", "Inter"))
+                if rn.get("resaltado"): resaltar(r, rn["resaltado"])
+                trazar(r)
+            return
+        lineas = c["texto"] if isinstance(c["texto"], list) else [c["texto"]]
+        for k, linea in enumerate(lineas):
+            p = tf.paragraphs[0] if k == 0 else tf.add_paragraph()
+            p.alignment = alinear; espaciar(p)
+            if c.get("espacio"): p.space_after = Pt(c["espacio"])
+            r = p.add_run(); r.text = linea
+            r.font.color.rgb = rgb(c["color"]); r.font.size = Pt(c["pt"]); r.font.bold = c.get("negrita", False)
+            r.font.name = c.get("fuente", "Inter"); trazar(r)
 
     for lam, cajas, fondo in zip(deck.laminas, cajas_por_lamina, fondos):
         s = prs.slides.add_slide(prs.slide_layouts[6])
         s.shapes.add_picture(str(fondo), 0, 0, width=prs.slide_width, height=prs.slide_height)
         for c in cajas:
-            tb = s.shapes.add_textbox(Emu(int(c["x"] * px)), Emu(int(c["y"] * px)), Emu(int(c["w"] * px)), Emu(int(c["h"] * px)))
-            tf = tb.text_frame; tf.word_wrap = True
-            tf.margin_left = tf.margin_right = tf.margin_top = tf.margin_bottom = 0
-            lineas = c["texto"] if isinstance(c["texto"], list) else [c["texto"]]
-            for k, linea in enumerate(lineas):
-                p = tf.paragraphs[0] if k == 0 else tf.add_paragraph()
-                r = p.add_run(); r.text = linea
-                r.font.name = c.get("fuente", "Inter"); r.font.size = Pt(c["pt"]); r.font.color.rgb = rgb(c["color"])
-                r.font.bold = c.get("negrita", False)
-                if c.get("espacio"): p.space_after = Pt(c["espacio"])
+            if c.get("relleno"):
+                radio = c.get("radio") or 0
+                forma = s.shapes.add_shape(MSO_SHAPE.ROUNDED_RECTANGLE if radio else MSO_SHAPE.RECTANGLE, E(c["x"]), E(c["y"]), E(c["w"]), E(c["h"]))
+                forma.fill.solid(); forma.fill.fore_color.rgb = rgb(c["relleno"]); forma.line.fill.background(); forma.shadow.inherit = False
+                if radio: forma.adjustments[0] = min(0.5, radio / max(1, min(c["w"], c["h"])))
+                if c.get("texto") or c.get("runs"): escribir(forma.text_frame, c)
+                continue
+            tb = s.shapes.add_textbox(E(c["x"]), E(c["y"]), E(c["w"]), E(c["h"]))
+            escribir(tb.text_frame, c)
         if lam["nota"]:
             s.notes_slide.notes_text_frame.text = lam["nota"]
     prs.save(str(destino))
-
 
 def main() -> int:
     if len(sys.argv) < 2: print(__doc__); return 2

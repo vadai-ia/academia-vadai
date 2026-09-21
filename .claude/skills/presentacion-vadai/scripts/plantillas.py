@@ -90,8 +90,8 @@ def titular_ajustado(texto: str, ctx, ancho: int, max_lineas=3) -> tuple[int, in
     return t["s"], len(envolver(limpio, "Anton-Regular.ttf", t["s"], ancho, mayusculas=True))
 
 
-def alto_cuerpo(texto: str, tam: int, ancho: int, interlinea=1.4) -> int:
-    return int(len(envolver(texto or "", "Inter-Variable.ttf", tam, ancho)) * tam * interlinea)
+def alto_cuerpo(texto: str, tam: int, ancho: int, interlinea=1.4, fuente="Inter-Variable.ttf") -> int:
+    return int(len(envolver(texto or "", fuente, tam, ancho)) * tam * interlinea)
 
 
 # --- utilidades ------------------------------------------------------------------
@@ -137,8 +137,117 @@ _ico = SKILL / "activos" / "marca" / "claude-simple-icons.svg"
 CLAUDE_ICO = _ico.read_text(encoding="utf-8").replace('width="1em" height="1em"', "class='claude-ico'") if _ico.exists() else ""
 
 
-def caja(x, y, w, h, texto, pt, color, fuente="Inter", negrita=False, espacio=0):
-    return {"x": x, "y": y, "w": w, "h": h, "texto": texto, "pt": pt, "color": color, "fuente": fuente, "negrita": negrita, "espacio": espacio}
+def caja(x, y, w, h, texto, pt, color, fuente="Inter", negrita=False, espacio=0, runs=None, interlinea=None,
+         relleno=None, radio=0, alinear=None, valinear=None, margen=(0, 0), exacto=None, tracking=0, ajustar=True):
+    """Una caja de texto (o una forma con relleno y texto) del PPTX. Coordenadas en px del lienzo 1920×1080.
+    runs: tramos [{texto, color, pt?, fuente?, negrita?, resaltado?}]; relleno: hex de una forma redondeada."""
+    return {"x": x, "y": y, "w": w, "h": h, "texto": texto, "pt": pt, "color": color, "fuente": fuente, "negrita": negrita,
+            "espacio": espacio, "runs": runs, "interlinea": interlinea, "relleno": relleno, "radio": radio,
+            "alinear": alinear, "valinear": valinear, "margen": margen, "exacto": exacto, "tracking": tracking, "ajustar": ajustar}
+
+
+# Cajas que registran los helpers (titular, eyebrow, pie, número) mientras se arma una lámina.
+_EXTRA: list = []
+_TIT: dict | None = None
+# Desfase vertical (en em) entre la caja de PowerPoint con interlineado exacto y el bloque CSS; se calibra mirando el render.
+ANTON_DESFASE = 0.19   # medido el 20-sep-2026 contra el render de PowerPoint: +0.19 em en cuatro láminas
+
+
+def medir(texto: str, tam: int, mayus=False, factor=1.0) -> int:
+    """Ancho en px de un texto en Inter, medido con la fuente real."""
+    t = texto.upper() if mayus else texto
+    return int(_font("Inter-Variable.ttf", tam).getlength(t) * factor)
+
+
+def chip_caja(texto, x, y, estilo, ctx, derecha=False):
+    """Un chip o eyebrow como forma redondeada con texto, con las mismas medidas que su CSS."""
+    c = {k: v["hex"] for k, v in ctx.tokens["color"].items()}
+    if estilo in ("eyebrow-claro", "eyebrow-oscuro"):
+        tam, mayus, h = 24, False, 49
+        w = 12 + 18 + 12 + medir(texto, tam, False, 1.06) + 24
+        margen, alinear = (0, 24, 0, 42), "left"
+        fondo, color = (c["accentSoft"], c["accentDeep"]) if estilo == "eyebrow-claro" else ("#22344C", "#FFFFFF")
+        negrita = False
+    else:
+        tam, mayus, h = 20, True, 44
+        w = medir(texto, tam, True, 1.10) + int(len(texto) * 0.06 * tam) + 36
+        margen, alinear, negrita = (0, 18, 0, 18), "left", True
+        fondo, color = {"lima": (c["lime"], c["limeInk"]), "suave": (c["accentSoft"], c["accentDeep"]),
+                        "blanco": (c["canvas"], c["text2"]), "navypanel": (c["navyPanel"], c["text3"]),
+                        "coral": (c["coral"], c["ink"])}[estilo]
+    if derecha: x = x - w
+    forma = caja(x, y, w, h, texto.upper() if mayus else texto, px_a_pt(tam), color, negrita=negrita,
+                 relleno=fondo, radio=100, alinear=alinear, valinear="middle", margen=margen, ajustar=False,
+                 tracking=int(0.06 * tam) if mayus else 0)
+    if estilo.startswith("eyebrow"):
+        punto = c["accent"] if estilo == "eyebrow-claro" else "#FFFFFF"
+        _EXTRA.append(caja(x + 12, y + (h - 18) // 2, 18, 18, "", 1, "#000000", relleno=punto, radio=9))
+    return forma
+
+
+ANTON_ASC, ANTON_DESC = 1.177, 0.330
+
+
+def base_linea(top, tam, k, interlinea):
+    """Base tipográfica de la línea k de un bloque Anton con line-height `interlinea`, como en CSS."""
+    return top + k * interlinea * tam + ((interlinea - (ANTON_ASC + ANTON_DESC)) / 2 + ANTON_ASC) * tam
+
+
+def marcadores_titular(T, color, ancho):
+    """Un rectángulo por cada tramo de **acento**, en cada línea donde cae, medido con Anton real."""
+    out, spans = "", []
+    for k, parte in enumerate(re.split(r"\*\*(.+?)\*\*", T["titular"])):
+        if not parte: continue
+        up = parte.upper()
+        if k % 2 == 1: spans.append((len(out), len(out) + len(up)))
+        out += up
+    plain = out
+    lineas = envolver(plain, "Anton-Regular.ttf", T["tam"], ancho, True)
+    f = _font("Anton-Regular.ttf", T["tam"]); tam = T["tam"]
+    cajas, inicio = [], 0
+    for k, linea in enumerate(lineas):
+        i = plain.find(linea, inicio)
+        if i < 0: i = inicio
+        fin = i + len(linea)
+        for a, b in spans:
+            s0, e0 = max(a, i), min(b, fin)
+            if s0 < e0:
+                x0 = M + f.getlength(linea[:s0 - i]) - 0.1 * tam
+                x1 = M + f.getlength(linea[:e0 - i]) + 0.1 * tam
+                base = base_linea(T["top"], tam, k, .92)
+                cajas.append(caja(int(x0), int(base - 0.91 * tam), int(x1 - x0), int(0.96 * tam), "", 1, "#000000", relleno=color, radio=0))
+        inicio = fin
+    return cajas
+
+
+def runs_titular(titular, base, acento, resaltado=None, claude=None, tam=None, ancho=None):
+    """Tramos del titular en mayúsculas, con los mismos saltos de línea que en pantalla (si se
+    dan tam y ancho): un tramo por segmento de línea, y {"salto": True} entre líneas."""
+    plain, spans = "", []
+    for k, parte in enumerate(re.split(r"\*\*(.+?)\*\*", titular)):
+        if not parte: continue
+        up = parte.upper()
+        if k % 2 == 1: spans.append((len(plain), len(plain) + len(up), parte.strip().lower() == "claude"))
+        plain += up
+    lineas = envolver(plain, "Anton-Regular.ttf", tam, ancho, True) if (tam and ancho) else [plain]
+    out, inicio = [], 0
+    for k, linea in enumerate(lineas):
+        if k: out.append({"salto": True})
+        i = plain.find(linea, inicio)
+        if i < 0: i = inicio
+        fin = i + len(linea); pos = i
+        cortes = sorted({i, fin} | {max(a, i) for a, b, _ in spans if a < fin and b > i} | {min(b, fin) for a, b, _ in spans if a < fin and b > i})
+        for c0, c1 in zip(cortes, cortes[1:]):
+            seg = plain[c0:c1]
+            if not seg: continue
+            acc = next(((a, b, cl) for a, b, cl in spans if a <= c0 and c1 <= b), None)
+            if acc:
+                es_claude = bool(claude) and acc[2]
+                out.append({"texto": seg, "color": claude if es_claude else acento, "resaltado": None if es_claude else resaltado})
+            else:
+                out.append({"texto": seg, "color": base})
+        inicio = fin
+    return out
 
 
 def cuerpo_px(ctx) -> int:
@@ -156,23 +265,59 @@ def pie_fuente(l: Lamina, ctx) -> str:
     badge = " <span class='badge'>proyección</span>" if any(ctx.fuentes.get(i, {}).get("estado") == "proyección" for i in ids) else ""
     texto = " · ".join(nombres)
     if len(texto) > 120: texto = texto[:117].rstrip(" ,;·") + "…"
-    return f"<div class='pie'><span class='fk'>Fuente</span>{esc(texto)}{badge}</div>"
+    return f"<div class='pie editable'><span class='fk'>Fuente</span>{esc(texto)}{badge}</div>"
+
+
+def pie_texto(l: Lamina, ctx) -> str:
+    nombres, vistos = [], set()
+    for i in l.citas:
+        f = ctx.fuentes.get(i, {}).get("fuente", i)
+        if f not in vistos: vistos.add(f); nombres.append(f)
+    texto = " · ".join(nombres)
+    if len(texto) > 120: texto = texto[:117].rstrip(" ,;·") + "…"
+    if any(ctx.fuentes.get(i, {}).get("estado") == "proyección" for i in l.citas): texto += "   ·   PROYECCIÓN"
+    return texto
 
 
 def eyebrow(l: Lamina, ctx, tema: str, texto: str | None = None) -> str:
     t = texto or l["eyebrow"] or f"{ctx.deck.cabecera.get('sesion', ctx.deck.titulo)} · {l.n:02d} / {len(ctx.deck.laminas):02d}"
-    return f"<div class='eyebrow eb-{tema}'><i></i>{esc(t)}</div>"
+    return f"<div class='eyebrow eb-{tema} editable'><i></i>{esc(t)}</div>"
 
 
 def h1(l: Lamina, tam: int, top: int, ancho: int, extra: str = "") -> str:
-    return f"<h1 class='tit' style='top:{top}px;font-size:{tam}px;width:{ancho}px;{extra}'>{html_acento(l['titular'])}</h1>"
+    global _TIT
+    lineas = len(envolver(re.sub(r"\*\*", "", l["titular"]), "Anton-Regular.ttf", tam, ancho, True))
+    _TIT = {"top": top, "tam": tam, "ancho": ancho, "lineas": lineas, "titular": l["titular"]}
+    return f"<h1 class='tit editable' style='top:{top}px;font-size:{tam}px;width:{ancho}px;{extra}'>{html_acento(l['titular'])}</h1>"
 
 
 def seccion(l: Lamina, tema: str, interior: str, ctx, eb: str | None = "") -> str:
+    c = {k: v["hex"] for k, v in ctx.tokens["color"].items()}
+    oscuro = tema in ("navy", "cielo")
     ebh = "" if eb is None else eyebrow(l, ctx, "claro" if tema in ("mesa", "lima") else "oscuro", eb or None)
+    if eb is not None:
+        t = eb or l["eyebrow"] or f"{ctx.deck.cabecera.get('sesion', ctx.deck.titulo)} · {l.n:02d} / {len(ctx.deck.laminas):02d}"
+        _EXTRA.append(chip_caja(t, M, 64, "eyebrow-oscuro" if oscuro else "eyebrow-claro", ctx))
+    if _TIT:
+        T = _TIT
+        geo = dict(tam=T["tam"], ancho=T["ancho"])
+        if oscuro: runs = runs_titular(T["titular"], "#FFFFFF", c["lime"], None, claude=c["coral"], **geo)
+        elif tema == "lima":
+            runs = runs_titular(T["titular"], c["limeInk"], c["ink"], **geo); _EXTRA.extend(marcadores_titular(T, "#FFFFFF", T["ancho"]))
+        else:
+            runs = runs_titular(T["titular"], c["ink"], c["ink"], **geo); _EXTRA.extend(marcadores_titular(T, c["coral"], T["ancho"]))
+        w = min(int(T["ancho"] * 1.02) + 24, 1920 - M - 24)
+        _EXTRA.append(caja(M, T["top"] + int(ANTON_DESFASE * T["tam"]), w, int(T["lineas"] * T["tam"] * .92) + int(.6 * T["tam"]),
+                           re.sub(r"\*\*", "", T["titular"]).upper(), px_a_pt(T["tam"]), c["ink"], fuente="Anton", runs=runs,
+                           exacto=int(T["tam"] * .92), tracking=-int(0.01 * T["tam"])))
+    if l.citas:
+        _EXTRA.append(caja(M, 1080 - 44 - 34, 1600, 34, "", 11, c["text2"], valinear="bottom", runs=[
+            {"texto": "FUENTE   ", "color": c["accent2"] if oscuro else c["accentDeep"], "pt": 7, "fuente": "JetBrains Mono"},
+            {"texto": pie_texto(l, ctx), "color": "#93A3B5" if oscuro else c["text2"], "pt": 11}]))
+    _EXTRA.append(caja(1920 - 48 - 80, 1080 - 44 - 34, 80, 34, f"{l.n:02d}", 10, c["text3"], fuente="JetBrains Mono", alinear="right", valinear="bottom"))
     interior = re.sub(r"<b>(claude)</b>", lambda m: f"<b class='claude'>{m.group(1)}{CLAUDE_ICO}</b>", interior, flags=re.I)  # CLAUDE + ícono, en coral
     return (f"<section class='l t-{tema}' data-tipo='{l.tipo}' data-n='{l.n}'>{ebh}{interior}"
-            f"{pie_fuente(l, ctx)}<div class='num'>{l.n:02d}</div></section>")
+            f"{pie_fuente(l, ctx)}<div class='num editable'>{l.n:02d}</div></section>")
 
 
 # --- css ---------------------------------------------------------------------------
@@ -354,6 +499,15 @@ def r_seccion(l, ctx):
     return seccion(l, "cielo", interior, ctx), cajas
 
 
+def ventana_imagen(l, ctx):
+    """Si la lámina trae `imagen:` y existe, devuelve (html de la ventana en cols 9–12, True).
+    Es el injerto de Cielo editorial: imagen a un lado, texto corto al otro. Sin imagen no se
+    dibuja nada: una ventana vacía sería fondo decorativo."""
+    img = ctx.imagenes / l["imagen"] if l["imagen"] else None
+    if not (img and img.exists()): return "", False
+    return f"<div class='ventana-cielo' style='left:{col(9)}px;top:144px;width:{ancho_cols(4)}px;height:808px'><img src='{uri(img)}' alt=''></div>", True
+
+
 def r_numero(l, ctx):
     img = ctx.imagenes / l["imagen"] if l["imagen"] else None
     con_ventana = bool(img and img.exists())
@@ -366,7 +520,8 @@ def r_numero(l, ctx):
     while y + int(ctam * .85) + 40 + alto_cuerpo(l["texto"], cp, ancho_tit) > 1080 - 120 and ctam > 160:
         ctam -= 40
     interior = h1(l, tam, TOP_TIT, ancho_tit)
-    interior += f"<div class='cifra' style='top:{y}px;font-size:{ctam}px'>{esc(l['cifra'])}</div>"
+    interior += f"<div class='cifra editable' style='top:{y}px;font-size:{ctam}px'>{esc(l['cifra'])}</div>"
+    _EXTRA.append(caja(M - 8, y + int(ANTON_DESFASE * ctam), ancho_tit, int(ctam * .85) + int(.6 * ctam), l["cifra"], px_a_pt(ctam), C(ctx, "accentDeep"), fuente="Anton", exacto=int(ctam * .85), tracking=-int(0.02 * ctam), ajustar=False))
     yc = y + int(ctam * .85) + 40
     interior += f"<p class='cuerpo editable' style='top:{yc}px;width:{ancho_tit}px'>{esc(l['texto'])}</p>"
     # ventana de cielo (injerto de Cielo editorial): solo cuando trae imagen; vacía sería fondo decorativo
@@ -376,15 +531,18 @@ def r_numero(l, ctx):
 
 
 def r_frase(l, ctx):
-    tam, n = titular_ajustado(l["titular"], ctx, ANCHO_UTIL, 3)
-    interior = h1(l, tam, TOP_TIT, ANCHO_UTIL)
+    ventana, con_ventana = ventana_imagen(l, ctx)
+    ancho = ancho_cols(7) if con_ventana else ANCHO_UTIL
+    tam, n = titular_ajustado(l["titular"], ctx, ancho, 4 if con_ventana else 3)
+    interior = h1(l, tam, TOP_TIT, ancho)
     cajas = []
     if l["texto"]:
         y = TOP_TIT + int(tam * .92 * n) + 56
         cp = cuerpo_px(ctx)
-        interior += f"<p class='cuerpo editable' style='top:{y}px;width:1200px'>{esc(l['texto'])}</p>"
-        cajas.append(caja(M, y, 1200, alto_cuerpo(l["texto"], cp, 1200) + 10, l["texto"], px_a_pt(cp), "#072835"))
-    return seccion(l, "mesa", interior, ctx), cajas
+        w = min(1200, ancho)
+        interior += f"<p class='cuerpo editable' style='top:{y}px;width:{w}px'>{esc(l['texto'])}</p>"
+        cajas.append(caja(M, y, w, alto_cuerpo(l["texto"], cp, w) + 10, l["texto"], px_a_pt(cp), "#072835"))
+    return seccion(l, "mesa", interior + ventana, ctx), cajas
 
 
 def _ficha_bajo_titular(l, ctx, ancho_tit=ANCHO_UTIL, max_lineas=2):
@@ -394,11 +552,14 @@ def _ficha_bajo_titular(l, ctx, ancho_tit=ANCHO_UTIL, max_lineas=2):
 
 
 def r_lista(l, ctx):
-    tit, y, alto = _ficha_bajo_titular(l, ctx)
+    ventana, con_ventana = ventana_imagen(l, ctx)
+    ancho = ancho_cols(7) if con_ventana else ANCHO_UTIL
+    tit, y, alto = _ficha_bajo_titular(l, ctx, ancho, 3 if con_ventana else 2)
     items = items_lista(l["texto"])
     cp = cuerpo_px(ctx)
-    ul = "<ul class='lista editable' style='top:%dpx;width:1100px'>%s</ul>" % (y + 8, "".join(f"<li>{esc(i)}</li>" for i in items))
-    return seccion(l, "mesa", tit + ul, ctx), [caja(M + 52, y + 8, 1050, alto, items, px_a_pt(cp), "#072835", espacio=12)]
+    w = min(1100, ancho)
+    ul = "<ul class='lista editable' style='top:%dpx;width:%dpx'>%s</ul>" % (y + 8, w, "".join(f"<li>{esc(i)}</li>" for i in items))
+    return seccion(l, "mesa", tit + ul + ventana, ctx), [caja(M + 52, y + 8, w - 52, alto, items, px_a_pt(cp), "#072835", espacio=12)]
 
 
 def r_tabla(l, ctx):
@@ -417,9 +578,19 @@ def r_tabla(l, ctx):
         return seccion(l, "mesa", tit + ficha, ctx), []
     # (b) comparación: filas 'a → b' — dos celdas y una flecha, sin cabeceras que presuman antes/después
     if all(len(f) == 1 and "→" in f[0] for f in filas):
-        celdas = "".join(f"<div class='antes'>{esc(a.strip())}</div><div class='flecha'>→</div><div class='despues'>{esc(b.strip())}</div>" for a, b in (f[0].split("→", 1) for f in filas))
-        ficha = f"<div class='ficha' style='left:{M}px;top:{y}px;width:{ANCHO_UTIL}px;height:auto'><div class='comp'>{celdas}</div></div>"
-        return seccion(l, "mesa", tit + ficha, ctx), []
+        pares = [(a.strip(), b.strip()) for a, b in (f[0].split("→", 1) for f in filas)]
+        celdas = "".join(f"<div class='antes'>{esc(a)}</div><div class='flecha'>→</div><div class='despues'>{esc(b)}</div>" for a, b in pares)
+        ficha = f"<div class='ficha' style='left:{M}px;top:{y}px;width:{ANCHO_UTIL}px;height:auto'><div class='comp editable'>{celdas}</div></div>"
+        cp = cuerpo_px(ctx); fs = cp - 4
+        cellw = (ANCHO_UTIL - 96 - 64 - 48) // 2
+        cajas, yy = [], y + 48
+        for a, b in pares:
+            ha = alto_cuerpo(a, fs, cellw - 64, 1.35) + 56; hb = alto_cuerpo(b, fs, cellw - 64, 1.35) + 56; hh = max(ha, hb)
+            cajas.append(caja(M + 48, yy + (hh - ha) // 2, cellw, ha, a, px_a_pt(fs), C(ctx, "text2"), relleno=C(ctx, "surface"), radio=14, valinear="middle", margen=(28, 32)))
+            cajas.append(caja(M + 48 + cellw + 24, yy, 64, hh, "→", 28, C(ctx, "coral"), fuente="Anton", alinear="center", valinear="middle"))
+            cajas.append(caja(M + 48 + cellw + 24 + 64 + 24, yy + (hh - hb) // 2, cellw, hb, b, px_a_pt(fs), C(ctx, "text"), relleno=C(ctx, "accentSoft"), radio=14, valinear="middle", margen=(28, 32)))
+            yy += hh + 24
+        return seccion(l, "mesa", tit + ficha, ctx), cajas
     # (c) ranking con barras cuando hay números; (d) definiciones cuando no
     nums = []
     for f in filas:
@@ -430,22 +601,37 @@ def r_tabla(l, ctx):
         fk = _font("Inter-Variable.ttf", 32)
         ancho_k = max(120, min(420, int(max(fk.getlength(f[0]) for f in filas) * 1.06) + 24))
         pad = 22 if len(filas) < 5 else 14
-        html_f = "".join(f"<div class='defi' style='grid-template-columns:{ancho_k}px 1fr;padding:{pad}px 0'><span class='k'>{esc(f[0])}</span><span>{esc(' · '.join(f[1:]))}</span></div>" for f in filas[:6])
+        html_f = "".join(f"<div class='defi' style='grid-template-columns:{ancho_k}px 1fr;padding:{pad}px 0'><span class='k editable'>{esc(f[0])}</span><span class='editable'>{esc(' · '.join(f[1:]))}</span></div>" for f in filas[:6])
         ficha = f"<div class='ficha' style='left:{M}px;top:{y}px;width:{ANCHO_UTIL}px;height:auto'><div class='filas'>{html_f}</div></div>"
-        return seccion(l, "mesa", tit + ficha, ctx), []
+        cp = cuerpo_px(ctx); fs = cp - 4
+        wt = ANCHO_UTIL - 96 - ancho_k - 32
+        cajas, yy = [], y + 48
+        for i, f in enumerate(filas[:6]):
+            tx = " · ".join(f[1:]); arriba = 0 if i == 0 else pad
+            h = max(alto_cuerpo(tx, fs, wt, 1.35), alto_cuerpo(f[0], fs, ancho_k, 1.35))
+            cajas.append(caja(M + 48, yy + arriba, ancho_k, h + 6, f[0], px_a_pt(fs), C(ctx, "ink"), negrita=True))
+            cajas.append(caja(M + 48 + ancho_k + 32, yy + arriba, wt, h + 6, tx, px_a_pt(fs), C(ctx, "text")))
+            yy += arriba + h + pad
+        return seccion(l, "mesa", tit + ficha, ctx), cajas
     mx = max([n for n in nums if n], default=None)
     n_filas = min(len(filas), 7)
     alto_fila = 72 if 96 + 72 * n_filas <= alto else max(52, (alto - 96) // n_filas)
     fs = 32 if alto_fila >= 64 else 26
-    html_f = []
-    for f, n in zip(filas[:7], nums):
+    html_f, cajas, yy = [], [], y + 48
+    for k, (f, n) in enumerate(zip(filas[:7], nums)):
         et, val = (f[0], f[-1]) if len(f) >= 2 else (f[0], "")
-        barra = f"<div class='barra' style='width:{max(24, int(n / mx * 880))}px'></div>" if (n and mx) else "<div></div>"
-        html_f.append(f"<div class='fila' style='height:{alto_fila}px;font-size:{fs}px'><span>{esc(et)}</span>{barra}<span class='valor'>{esc(val)}</span></div>")
-    mas = f"<div class='cuerpo sub' style='position:static;font-size:24px;margin-top:16px'>y {len(filas) - 7} más</div>" if len(filas) > 7 else ""
+        wb = max(24, int(n / mx * 880)) if (n and mx) else 0
+        barra = f"<div class='barra editable' style='width:{wb}px'></div>" if wb else "<div></div>"
+        html_f.append(f"<div class='fila' style='height:{alto_fila}px;font-size:{fs}px'><span class='editable'>{esc(et)}</span>{barra}<span class='valor editable'>{esc(val)}</span></div>")
+        cajas.append(caja(M + 48, yy, 480, alto_fila, et, px_a_pt(fs), C(ctx, "text"), valinear="middle"))
+        if wb: cajas.append(caja(M + 48 + 512, yy + (alto_fila - 32) // 2, min(848, wb), 32, "", 1, "#000000", relleno=C(ctx, "accentDeep" if k == 0 else "accent"), radio=8))
+        cajas.append(caja(M + 1440, yy, 240, alto_fila, val, px_a_pt(fs), C(ctx, "ink"), fuente="JetBrains Mono", alinear="right", valinear="middle"))
+        yy += alto_fila
+    mas = f"<div class='cuerpo sub editable' style='position:static;font-size:24px;margin-top:16px'>y {len(filas) - 7} más</div>" if len(filas) > 7 else ""
+    if mas: cajas.append(caja(M + 48, yy + 16, 600, 36, f"y {len(filas) - 7} más", 12, C(ctx, "text2")))
     alto_ficha = min(alto, 96 + alto_fila * n_filas + (56 if mas else 0))
     ficha = f"<div class='ficha' style='left:{M}px;top:{y}px;width:{ANCHO_UTIL}px;height:{alto_ficha}px'><div class='filas'>{''.join(html_f)}</div>{mas}</div>"
-    return seccion(l, "mesa", tit + ficha, ctx), []
+    return seccion(l, "mesa", tit + ficha, ctx), cajas
 
 
 def mock_claude(prompt: str) -> str:
@@ -467,31 +653,38 @@ def r_demo(l, ctx):
     interior = h1(l, tam, TOP_TIT, ancho_tit)
     y = TOP_TIT + int(tam * .92 * n) + 40
     if l["texto"]:
-        interior += f"<div class='prompt' style='left:{M}px;top:{y}px;width:{ancho_tit}px'>{esc(l['texto'])}</div>"
-        y += alto_cuerpo(l["texto"], 30, ancho_tit - 64) + 64 + 24
-    interior += "<span class='chip lima' style='position:absolute;left:%dpx;top:%dpx'>Nadie envía nada</span>" % (M, y) if "correo" in (l["texto"] + l["titular"]).lower() else ""
+        interior += f"<div class='prompt editable' style='left:{M}px;top:{y}px;width:{ancho_tit}px'>{esc(l['texto'])}</div>"
+        hp = alto_cuerpo(l["texto"], 30, ancho_tit - 64, 1.45, "JetBrainsMono-Variable.ttf") + 64
+        _EXTRA.append(caja(M, y, ancho_tit, hp, l["texto"], 15, "#FFFFFF", fuente="JetBrains Mono", relleno=C(ctx, "navyPanel"), radio=22, margen=(32, 32), interlinea=1.45))
+        y += hp + 24
+    if "correo" in (l["texto"] + l["titular"]).lower():
+        interior += "<span class='chip lima editable' style='position:absolute;left:%dpx;top:%dpx'>Nadie envía nada</span>" % (M, y)
+        _EXTRA.append(chip_caja("Nadie envía nada", M, y, "lima", ctx))
     img = ctx.imagenes / l["imagen"] if l["imagen"] else None
     interior += (f"<div class='pantalla' style='left:{col(6)}px;top:208px;width:{ancho_cols(7)}px;height:704px'><div class='barra-t'><i></i><i></i><i></i></div>"
                  + (f"<img src='{uri(img)}' alt=''>" if img and img.exists() else mock_claude(l["texto"])) + "</div>")
-    interior += f"<span class='chip blanco' style='position:absolute;left:{col(6)}px;top:936px;background:{C(ctx, 'navyPanel')};color:{C(ctx, 'text3')};border-color:rgba(255,255,255,.14)'>boceto · la captura real entra la semana del curso</span>"
+    etiqueta = (l["respaldo"] or l["imagen"]) if (img and img.exists()) else "boceto · la captura real entra la semana del curso"
+    interior += f"<span class='chip blanco editable' style='position:absolute;left:{col(6)}px;top:936px;background:{C(ctx, 'navyPanel')};color:{C(ctx, 'text3')};border-color:rgba(255,255,255,.14)'>{esc(etiqueta)}</span>"
+    _EXTRA.append(chip_caja(etiqueta, col(6), 936, "navypanel", ctx))
     return seccion(l, "navy", interior, ctx, eb="En vivo · pantalla compartida"), []
 
 
 def r_encuesta(l, ctx):
-    ancho_tit = ancho_cols(6)
-    tam, n = titular_ajustado(l["titular"], ctx, ancho_tit, 3)
-    interior = h1(l, tam, TOP_TIT, ancho_tit)
+    """Encuesta en vivo. El QR NO se dibuja aquí: se muestra en tiempo real desde la pantalla
+    de proyección de la academia. Un QR de relleno confunde a la sala (Alejandro, 20-sep-2026)."""
+    ventana, con_ventana = ventana_imagen(l, ctx)
+    ancho = ancho_cols(7) if con_ventana else ancho_cols(9)
+    tam, n = titular_ajustado(l["titular"], ctx, ancho, 3)
+    interior = h1(l, tam, TOP_TIT, ancho)
     y = TOP_TIT + int(tam * .92 * n) + 48
     cp = cuerpo_px(ctx)
     cajas = []
     if l["texto"]:
-        interior += f"<p class='cuerpo editable' style='top:{y}px;width:{ancho_tit}px'>{esc(l['texto'])}</p>"
-        cajas.append(caja(M, y, ancho_tit, alto_cuerpo(l["texto"], cp, ancho_tit) + 10, l["texto"], px_a_pt(cp), "#072835"))
-    interior += (f"<div class='ficha' style='left:{col(8)}px;top:320px;width:{ancho_cols(5)}px;height:592px'><div class='qr'></div>"
-                 f"<div class='mono' style='text-align:center;margin-top:24px;color:{C(ctx, 'accentDeep')}'>academia.vadai.com.mx/e/····</div>"
-                 f"<div style='text-align:center;margin-top:8px;font-size:28px;font-weight:500;color:{C(ctx, 'text2')}'>Escanea y contesta</div></div>")
-    interior += f"<span class='chip blanco' style='position:absolute;left:{M}px;bottom:128px'>● Sin respuesta buena</span>"
-    return seccion(l, "mesa", interior, ctx), cajas
+        interior += f"<p class='cuerpo editable' style='top:{y}px;width:{ancho}px'>{esc(l['texto'])}</p>"
+        cajas.append(caja(M, y, ancho, alto_cuerpo(l["texto"], cp, ancho) + 10, l["texto"], px_a_pt(cp), "#072835"))
+    interior += f"<span class='chip lima editable' style='position:absolute;left:{M}px;bottom:128px'>Contesta desde tu celular · el QR va en pantalla</span>"
+    _EXTRA.append(chip_caja("Contesta desde tu celular · el QR va en pantalla", M, 1080 - 128 - 44, "lima", ctx))
+    return seccion(l, "mesa", interior + ventana, ctx), cajas
 
 
 def r_pacto(l, ctx):
@@ -531,7 +724,7 @@ def r_ejercicio(l, ctx):
     tam, n = titular_ajustado(l["titular"], ctx, ancho_tit, 2)
     if tam > 112: tam = 112; n = len(envolver(re.sub(r"\*\*", "", l["titular"]), "Anton-Regular.ttf", 112, ancho_tit, True))
     interior = h1(l, tam, TOP_TIT, ancho_tit)
-    interior += f"<div class='timer'><svg viewBox='0 0 28 28'><circle cx='14' cy='14' r='11' fill='none' stroke='#D2E3EC' stroke-width='4'/><circle cx='14' cy='14' r='11' fill='none' stroke='#006E96' stroke-width='4' stroke-dasharray='69' stroke-dashoffset='17' transform='rotate(-90 14 14)'/></svg>{esc(l['tiempo'] or '20')} min</div>"
+    interior += f"<div class='timer editable'><svg viewBox='0 0 28 28'><circle cx='14' cy='14' r='11' fill='none' stroke='#D2E3EC' stroke-width='4'/><circle cx='14' cy='14' r='11' fill='none' stroke='#006E96' stroke-width='4' stroke-dasharray='69' stroke-dashoffset='17' transform='rotate(-90 14 14)'/></svg>{esc(l['tiempo'] or '20')} min</div>"
     y = max(TOP_TIT + int(tam * .92 * n) + 40, 320)
     items = items_lista(l["texto"])[:4]
     k = len(items) or 1
@@ -539,9 +732,17 @@ def r_ejercicio(l, ctx):
     fichas = []
     for i, it in enumerate(items, 1):
         t, _, d = it.partition(":")
-        fichas.append(f"<div class='ficha' style='width:{w}px;height:{1080 - 120 - y}px'><span class='N'>{i:02d}</span><span class='T'>{esc(t.strip())}</span><span class='D editable'>{esc(d.strip())}</span><div class='lineas'><i></i><i></i></div></div>")
+        fichas.append(f"<div class='ficha' style='width:{w}px;height:{1080 - 120 - y}px'><span class='N editable'>{i:02d}</span><span class='T editable'>{esc(t.strip())}</span><span class='D editable'>{esc(d.strip())}</span><div class='lineas'><i></i><i></i></div></div>")
     interior += f"<div class='riel' style='left:{M}px;top:{y}px'>{''.join(fichas)}</div>"
-    cajas = [caja(M + i * (w + CANAL) + 40, y + 40 + 72 + 16 + 44 + 12, w - 80, 160, it.partition(":")[2].strip(), px_a_pt(28), "#4E6572") for i, it in enumerate(items)]
+    cajas = []
+    for i, it in enumerate(items):
+        t, _, d = it.partition(":")
+        fx = M + i * (w + CANAL) + 40
+        ht = alto_cuerpo(t.strip(), 32, w - 80, 1.25)
+        cajas.append(caja(fx, y + 40 + int(ANTON_DESFASE * 72), 120, 76 + 40, f"{i + 1:02d}", 36, C(ctx, "accentDeep"), fuente="Anton", exacto=72, ajustar=False))
+        cajas.append(caja(fx, y + 40 + 72 + 14, w - 80, ht + 6, t.strip(), 16, C(ctx, "ink"), negrita=True))
+        cajas.append(caja(fx, y + 40 + 72 + 14 + ht + 14, w - 80, 160, d.strip(), px_a_pt(28), "#4E6572"))
+    cajas.append(chip_caja(f"{l['tiempo'] or '20'} min", 1920 - M, TOP_TIT, "blanco", ctx, derecha=True))
     return seccion(l, "lima", interior, ctx), cajas
 
 
@@ -571,8 +772,10 @@ def r_cierre(l, ctx):
             mm = re.match(r"^(decide|implementa|aplica)\s*:\s*(.+)$", p, re.I)
             rot, tx = (mm.group(1).capitalize(), mm.group(2)) if mm else ("", p)
             if rot == "Aplica": rot = "Aplica el lunes"
-            celdas.append(f"<div><b>{esc(rot)}</b><span class='editable'>{esc(tx)}</span></div>")
-            cajas.append(caja(M + k * ((ANCHO_UTIL - 2 * CANAL) // 3 + CANAL), 1080 - 128 - 100, (ANCHO_UTIL - 2 * CANAL) // 3, 100, tx, px_a_pt(30), "#F5F8FB"))
+            celdas.append(f"<div><b class='editable'>{esc(rot)}</b><span class='editable'>{esc(tx)}</span></div>")
+            cw = (ANCHO_UTIL - 2 * CANAL) // 3; cx = M + k * (cw + CANAL)
+            cajas.append(caja(cx, 1080 - 128 - 100 - 40, cw, 32, rot.upper(), 12, C(ctx, "coral"), negrita=True))
+            cajas.append(caja(cx, 1080 - 128 - 100, cw, 100, tx, px_a_pt(30), "#F5F8FB"))
         interior += f"<div class='accion'>{''.join(celdas)}</div>"
     return seccion(l, "navy", interior, ctx), cajas
 
@@ -583,4 +786,7 @@ RENDER = {"portada": r_portada, "seccion": r_seccion, "numero": r_numero, "frase
 
 
 def render(l: Lamina, ctx) -> tuple[str, list]:
-    return RENDER.get(l.tipo, r_frase)(l, ctx)
+    global _TIT
+    _EXTRA.clear(); _TIT = None
+    html, cajas = RENDER.get(l.tipo, r_frase)(l, ctx)
+    return html, list(cajas) + list(_EXTRA)
