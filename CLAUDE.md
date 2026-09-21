@@ -51,7 +51,7 @@ En su lugar: `pnpm db:migrate` → `scripts/migrate.mjs`, que aplica los `.sql` 
 /app
   /(auth)        login, reset
   /(alumno)      mis-cursos, curso/[slug], comunidad, blog, perfil
-  /(admin)       admin/* (cursos, alumnos, entregas, cohortes, posts, encuestas)
+  /(admin)       admin/* (cursos, alumnos, alumnos/[userId] ficha, entregas, cohortes, posts, encuestas)
   /api/stripe/webhook
   /api/certificados/[folio]
   /api/calendario/cohorte/[id]  # .ics con todas las sesiones; firmado (?t=) para abrirse desde el correo sin sesión
@@ -67,7 +67,7 @@ En su lugar: `pnpm db:migrate` → `scripts/migrate.mjs`, que aplica los `.sql` 
   /stripe        webhook handlers
 /components
 /supabase/migrations
-/scripts         migrate, seed, checks, pruebas de RLS
+/scripts         migrate, seed, checks, pruebas de RLS, capturas (pantallas a 390/1280 px: se miran)
 /docs            master document + doc de infraestructura
 ```
 
@@ -89,6 +89,14 @@ En su lugar: `pnpm db:migrate` → `scripts/migrate.mjs`, que aplica los `.sql` 
 - La primera cuenta real se crea con `pnpm cuenta:crear`. El panel de admin exige ya ser admin y
   todo lo demás crea `alumno`: sin ese script la plataforma no puede dar de alta a su propio dueño.
 - Usuario autenticado SIN fila en `academia.profiles` → pantalla de sin-acceso + logout. Middleware lo aplica en TODAS las rutas.
+- **Suspender es reversible; eliminar es real** (M14, 21-sep-2026). `eliminarCuenta`
+  (`lib/admin/acciones-baja.ts`) borra en Auth y la academia en cascada, conserva los pagos
+  marcados con `account_deleted_at` y reasigna las publicaciones del blog; se confirma
+  tecleando el correo y solo desde la ficha `/admin/alumnos/[userId]`. Nadie se borra a sí
+  mismo; al equipo solo lo borra un superadmin.
+- **"¿Ya entró?" vive en `profiles.last_sign_in_at`**, que la app sella al abrir sesión
+  (`lib/auth/inicio-de-sesion.ts`). Nunca un trigger sobre `auth.users` ni un barrido de la
+  Admin API para leerlo.
 - RLS habilitado en TODAS las tablas, sin excepciones ni "temporalmente off".
 - `SUPABASE_SERVICE_ROLE_KEY` solo en server; jamás importar el client de service role en código de cliente.
 
@@ -148,7 +156,9 @@ En su lugar: `pnpm db:migrate` → `scripts/migrate.mjs`, que aplica los `.sql` 
   le quita a React el `$ACTION_ID` y el `<form>` deja de funcionar sin JavaScript. La acción va
   directa (`action={accion}`) y el reset de los campos se hace con `key`, con un valor del servidor
 - NO esconder un formulario detrás de `useState` + `onClick`: sin JS el botón no hace nada.
-  Lo que se abre y se cierra va en `<details>`/`<summary>`
+  Lo que se abre y se cierra va en `<details>`/`<summary>`. En el admin, un formulario detrás
+  de un botón es `components/admin/desplegable.tsx` (M14): cerrado por default, y `abierto`
+  lo decide el servidor con el estado de la acción (`estado.error || estado.aviso`)
 - NO poner un `loading.tsx` en una ruta que controle acceso con `redirect()` o `notFound()`.
   El límite de Suspense hace que Next transmita de inmediato, y a partir de ahí la respuesta
   sale **200** con el esqueleto: sin JS el rebote nunca ocurre y el alumno vencido se queda
