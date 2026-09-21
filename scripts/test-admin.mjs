@@ -109,6 +109,42 @@ function leerFormularios(html) {
   return formularios
 }
 
+/**
+ * El formulario que CONTIENE un texto (el de su botón, o un input), con todos
+ * sus inputs, incluidos los `$ACTION_REF_`/`$ACTION_KEY` de `useActionState`.
+ * `leerFormularios` solo recoge acciones directas (`$ACTION_ID_`); este sirve
+ * para las que van por `useActionState`, que también funcionan sin JavaScript.
+ */
+function leerConRef(html, contiene) {
+  for (const bloque of html.matchAll(/<form\b[^>]*>([\s\S]*?)<\/form>/g)) {
+    if (!bloque[1].includes(contiene)) continue
+    const campos = {}
+    for (const et of bloque[1].matchAll(/<input\b[^>]*>/g)) {
+      const nombre = et[0].match(/name="([^"]*)"/)?.[1]
+      if (!nombre) continue
+      campos[nombre] = (et[0].match(/value="([^"]*)"/)?.[1] ?? '')
+        .replace(/&quot;/g, '"').replace(/&#x27;/g, "'").replace(/&amp;/g, '&')
+    }
+    return { campos, html: bloque[0] }
+  }
+  return null
+}
+
+/**
+ * La etiqueta `<details …>` más cercana ANTES de un marcador: para afirmar que
+ * un formulario vive detrás de su botón (M14) y si está abierto o cerrado.
+ */
+function detailsQueEnvuelve(html, marcador) {
+  const i = html.indexOf(marcador)
+  if (i === -1) return null
+  const inicio = html.lastIndexOf('<details', i)
+  if (inicio === -1) return null
+  return html.slice(inicio, html.indexOf('>', inicio) + 1)
+}
+
+const estadoDe = (etiqueta) =>
+  etiqueta === null ? 'no encontrado' : /\sopen(=|\s|>)/.test(etiqueta) ? 'abierto' : 'cerrado'
+
 /** Reenvía un formulario como lo haría un navegador sin JavaScript. */
 async function enviarFormulario(ruta, formulario, frasco) {
   const cuerpo = new FormData()
@@ -129,6 +165,29 @@ async function posicionesDeModulos() {
     { headers: { apikey: ANON, Authorization: `Bearer ${token}`, 'Accept-Profile': 'academia' } }
   )
   return await respuesta.json()
+}
+
+const cabecerasServicio = {
+  apikey: SERVICE,
+  Authorization: `Bearer ${SERVICE}`,
+  'Accept-Profile': 'academia',
+  'Content-Profile': 'academia',
+}
+
+/** El user_id de un correo, con service role (solo lectura de una fila). */
+async function idPorCorreo(email) {
+  const r = await fetch(
+    `${SUPABASE}/rest/v1/profiles?email=eq.${encodeURIComponent(email)}&select=user_id`,
+    { headers: cabecerasServicio }
+  )
+  const filas = await r.json()
+  return Array.isArray(filas) && filas[0] ? filas[0].user_id : null
+}
+
+async function existePerfil(id) {
+  const r = await fetch(`${SUPABASE}/rest/v1/profiles?user_id=eq.${id}&select=user_id`, { headers: cabecerasServicio })
+  const filas = await r.json()
+  return Array.isArray(filas) && filas.length > 0
 }
 
 let tokenCache = null
@@ -267,20 +326,6 @@ async function main() {
   // `$ACTION_ID_` (acción directa) y el de crear va por `useActionState`
   // (`$ACTION_REF_`); tomar "el primero con nombre" daba el de RENOMBRAR de la
   // primera empresa real, que quedó renombrada y luego borrada por la limpieza.
-  const leerConRef = (html, contiene) => {
-    for (const bloque of html.matchAll(/<form\b[^>]*>([\s\S]*?)<\/form>/g)) {
-      if (!bloque[1].includes(contiene)) continue
-      const campos = {}
-      for (const et of bloque[1].matchAll(/<input\b[^>]*>/g)) {
-        const nombre = et[0].match(/name="([^"]*)"/)?.[1]
-        if (!nombre) continue
-        campos[nombre] = (et[0].match(/value="([^"]*)"/)?.[1] ?? '')
-          .replace(/&quot;/g, '"').replace(/&#x27;/g, "'").replace(/&amp;/g, '&')
-      }
-      return { campos, html: bloque[0] }
-    }
-    return null
-  }
   const formEmpresa = leerConRef(empresasHtml, 'Crear empresa')
   afirmar(G2, 'trae el formulario para crear una', true, Boolean(formEmpresa))
   if (formEmpresa) {
@@ -324,25 +369,240 @@ async function main() {
   }
 
   // Quién ya entró (20-sep-2026). El admin acaba de entrar con su liga, así que
-  // Auth ya tiene su `last_sign_in_at`: sale en "ya entraron" y no en "nunca".
-  // Es una propiedad de la sesión que esta misma suite abrió, no un número.
+  // su perfil ya tiene `last_sign_in_at` (M14: lo sella /auth/confirmar): sale
+  // en "ya entraron" y no en "nunca". Es una propiedad de la sesión que esta
+  // misma suite abrió, no un número.
   const alumnos = await (await pedir('/admin/alumnos', admin)).text()
   afirmar(G2, 'el listado de alumnos cuenta quién ya entró', true,
     alumnos.includes('ya entraron') && alumnos.includes('nunca han entrado'))
-  // Se busca la FILA, no el correo suelto: el encabezado también imprime el
-  // correo de quien está dentro, y eso haría verdadera cualquier búsqueda.
-  // La fila lleva el formulario de reenviar con el correo en un input oculto.
-  // El input oculto del formulario "Reenviar correo de acceso" de la fila. No
-  // basta `value="correo"`: el campo "Mandarme una prueba" trae el correo del
-  // admin en todas las vistas.
-  const fila = `name="email" value="${correo.admin}"`
-  const nunca = await (await pedir('/admin/alumnos?acceso=nunca', admin)).text()
-  afirmar(G2, 'el filtro "nunca han entrado" no trae al admin', false, nunca.includes(fila))
-  const entraron = await (await pedir('/admin/alumnos?acceso=entraron', admin)).text()
-  afirmar(G2, 'el filtro "ya entraron" sí lo trae', true, entraron.includes(fila))
+  // Se busca la FILA por su enlace a la ficha, no el correo suelto: el
+  // encabezado también imprime el correo de quien está dentro. Y se acota con
+  // `q`: la lista va de 25 en 25 y las cuentas QA son las más viejas.
+  const idAdmin = await idPorCorreo(correo.admin)
+  const filaAdmin = `href="/admin/alumnos/${idAdmin}"`
+  const busca = encodeURIComponent(correo.admin)
+  const nunca = await (await pedir(`/admin/alumnos?acceso=nunca&q=${busca}`, admin)).text()
+  afirmar(G2, 'el filtro "nunca han entrado" no trae al admin', false, nunca.includes(filaAdmin))
+  const entraron = await (await pedir(`/admin/alumnos?acceso=entraron&q=${busca}`, admin)).text()
+  afirmar(G2, 'el filtro "ya entraron" sí lo trae', true, entraron.includes(filaAdmin))
   // Todos los de esa vista entraron: la insignia roja no puede aparecer ahí.
+  const entraronTodos = await (await pedir('/admin/alumnos?acceso=entraron', admin)).text()
   afirmar(G2, 'y en esa vista nadie lleva "Nunca ha entrado"', false,
-    entraron.includes('Nunca ha entrado'))
+    entraronTodos.includes('Nunca ha entrado'))
+
+  // ======================================================================
+  // M14 · Fase 1: búsqueda en Postgres, paginación y ficha por persona.
+  const G4 = 'ALUMNOS: BÚSQUEDA, PAGINACIÓN Y FICHA'
+
+  const idVigente = await idPorCorreo(correo.alumnoVigente)
+  const idVencido = await idPorCorreo(correo.alumnoVencido)
+  const fichaDe = (id) => `href="/admin/alumnos/${id}"`
+
+  const lista = await pedir('/admin/alumnos', admin)
+  const listaHtml = await lista.text()
+  afirmar(G4, 'la lista abre', 200, lista.status)
+  afirmar(G4, 'el buscador dice por qué busca', true,
+    listaHtml.includes('placeholder="Buscar por nombre, correo o empresa"'))
+  afirmar(G4, 'la lista dice cuántos muestra', true, listaHtml.includes('Mostrando'))
+  // Cada fila enlaza a su ficha (dos veces: nombre y "Ver ficha"); se cuentan personas.
+  const personasEnPagina = new Set(
+    [...listaHtml.matchAll(/href="\/admin\/alumnos\/([0-9a-f-]{36})"/g)].map((m) => m[1])
+  )
+  afirmar(G4, 'una página trae 25 personas o menos', true,
+    personasEnPagina.size > 0 && personasEnPagina.size <= 25)
+  const fuera = await pedir('/admin/alumnos?pagina=999', admin)
+  afirmar(G4, 'una página fuera de rango cae en la última', true,
+    fuera.status === 200 && (await fuera.text()).includes('Mostrando'))
+
+  const porCorreo = await (await pedir(`/admin/alumnos?q=${encodeURIComponent(correo.alumnoVigente)}`, admin)).text()
+  afirmar(G4, 'buscar por correo encuentra al vigente', true, porCorreo.includes(fichaDe(idVigente)))
+  afirmar(G4, 'y no trae al vencido', false, porCorreo.includes(fichaDe(idVencido)))
+  const porNombre = await (await pedir('/admin/alumnos?q=Alumno%20Vencido', admin)).text()
+  afirmar(G4, 'buscar por nombre encuentra al vencido', true,
+    porNombre.includes(fichaDe(idVencido)) && !porNombre.includes(fichaDe(idVigente)))
+
+  // Por empresa: se crea una de prueba, se le asigna al vencido y se busca por
+  // ella. Todo por marca exacta, y se deja como estaba.
+  const formEmpresaBusqueda = leerConRef(await (await pedir('/admin/empresas', admin)).text(), 'Crear empresa')
+  if (formEmpresaBusqueda) {
+    formEmpresaBusqueda.campos.nombre = 'QA Empresa de prueba'
+    await enviarFormulario('/admin/empresas', formEmpresaBusqueda, admin)
+    const empresaQA = await (
+      await fetch(`${SUPABASE}/rest/v1/companies?name=eq.${encodeURIComponent('QA Empresa de prueba')}&select=id`, {
+        headers: cabecerasServicio,
+      })
+    ).json()
+    const idEmpresa = empresaQA[0]?.id
+    afirmar(G4, 'la empresa de prueba existe', true, Boolean(idEmpresa))
+    if (idEmpresa) {
+      const asignar = (companyId) =>
+        fetch(`${SUPABASE}/rest/v1/profiles?user_id=eq.${idVencido}`, {
+          method: 'PATCH',
+          headers: { ...cabecerasServicio, 'Content-Type': 'application/json', Prefer: 'return=minimal' },
+          body: JSON.stringify({ company_id: companyId }),
+        })
+      await asignar(idEmpresa)
+      const porEmpresa = await (await pedir('/admin/alumnos?q=Empresa%20de%20prueba', admin)).text()
+      afirmar(G4, 'buscar por empresa encuentra a su gente', true,
+        porEmpresa.includes(fichaDe(idVencido)) && !porEmpresa.includes(fichaDe(idVigente)))
+      const filtroEmpresa = await (await pedir(`/admin/alumnos?empresa=${idEmpresa}`, admin)).text()
+      afirmar(G4, 'y el filtro por empresa también', true, filtroEmpresa.includes(fichaDe(idVencido)))
+      await asignar(null)
+    }
+    await fetch(`${SUPABASE}/rest/v1/companies?name=eq.${encodeURIComponent('QA Empresa de prueba')}`, {
+      method: 'DELETE',
+      headers: cabecerasServicio,
+    })
+  }
+
+  const ficha = await pedir(`/admin/alumnos/${idVigente}`, admin)
+  const fichaHtml = await ficha.text()
+  afirmar(G4, 'la ficha de una persona abre', 200, ficha.status)
+  afirmar(G4, 'con sus cursos y avance', true,
+    fichaHtml.includes('Cursos y avance') && fichaHtml.includes('Curso de prueba'))
+  afirmar(G4, 'con acceso y cuenta', true,
+    fichaHtml.includes('Reenviar correo de acceso') && fichaHtml.includes('Suspender cuenta'))
+  afirmar(G4, 'y con eliminar, confirmando el correo', true,
+    fichaHtml.includes('Eliminar cuenta') && fichaHtml.includes('name="confirmacion"'))
+  afirmar(G4, 'una persona inventada da 404', 404,
+    (await pedir('/admin/alumnos/00000000-0000-4000-8000-00000000dead', admin)).status)
+
+  // ======================================================================
+  // M14 · Fase 1: cada formulario vive detrás de su botón y se abre solo
+  // cuando la acción contestó algo — también sin JavaScript.
+  const G5 = 'FORMULARIOS DETRÁS DE SU BOTÓN (sin JavaScript)'
+
+  afirmar(G5, '"Agendar sesión" está cerrado', 'cerrado', estadoDe(detailsQueEnvuelve(cohortePagina, 'name="title"')))
+  afirmar(G5, '"Agendar varias" está cerrado', 'cerrado', estadoDe(detailsQueEnvuelve(cohortePagina, 'name="titulo_base"')))
+  afirmar(G5, 'la sesión futura está cerrada, con su botón Editar', true,
+    estadoDe(detailsQueEnvuelve(cohortePagina, `id="sesion-${IDS.sesionFutura}"`)) === 'cerrado' &&
+      cohortePagina.includes('>Editar<'))
+  const conSesion = await (await pedir(`/admin/cohortes/${IDS.cohorte}?sesion=${IDS.sesionFutura}`, admin)).text()
+  afirmar(G5, 'y ?sesion= la abre para editar', 'abierto',
+    estadoDe(detailsQueEnvuelve(conSesion, `id="sesion-${IDS.sesionFutura}"`)))
+  afirmar(G5, '"Editar datos del curso" está cerrado', 'cerrado', estadoDe(detailsQueEnvuelve(detalle, 'name="slug"')))
+  afirmar(G5, '"Nuevo módulo" está cerrado', 'cerrado',
+    estadoDe(detailsQueEnvuelve(detalle, 'placeholder="Nombre del módulo"')))
+  afirmar(G5, '"Agendar sesión" del panel está cerrado', 'cerrado',
+    estadoDe(detailsQueEnvuelve(panelHtml, 'name="cohort_id"')))
+
+  const formAgendar = leerConRef(cohortePagina, 'Agendar sesión')
+  afirmar(G5, 'el formulario de agendar viaja sin JavaScript', true, Boolean(formAgendar))
+  if (formAgendar) {
+    formAgendar.campos.title = ''
+    formAgendar.campos.fecha = '2026-09-21'
+    formAgendar.campos.hora = '18:00'
+    const respuesta = await enviarFormulario(`/admin/cohortes/${IDS.cohorte}`, formAgendar, admin)
+    const html = await respuesta.text()
+    afirmar(G5, 'un envío inválido contesta el error', true, html.includes('La sesión necesita un título.'))
+    afirmar(G5, 'y el panel se abre solo para enseñarlo', 'abierto',
+      estadoDe(detailsQueEnvuelve(html, 'La sesión necesita un título.')))
+  }
+
+  afirmar(G5, 'eliminar cohorte pide confirmación', true,
+    cohortePagina.includes(`id="eliminar-cohorte-${IDS.cohorte}"`) && cohortePagina.includes('popover="auto"'))
+  afirmar(G5, 'eliminar sesión pide confirmación', true,
+    cohortePagina.includes(`id="eliminar-sesion-${IDS.sesionFutura}"`))
+  afirmar(G5, 'eliminar módulo pide confirmación', true, detalle.includes('id="eliminar-modulo-'))
+  afirmar(G5, 'eliminar lección pide confirmación', true,
+    leccion.includes(`id="eliminar-leccion-${IDS.leccionVideo}"`))
+
+  // ======================================================================
+  // M14 · Fase 1: eliminar una cuenta de verdad. Con una cuenta de prueba
+  // propia, por marca exacta, que se limpia al inicio y al final.
+  const G6 = 'ELIMINAR CUENTA (borrado real)'
+
+  const superadmin = await iniciarSesion(correo.superadmin)
+  const CORREO_BORRAR = 'qa-borrar@academia.vadai.com.mx'
+  const borrarRastro = async () => {
+    await fetch(`${SUPABASE}/rest/v1/payments?stripe_session_id=eq.cs_qa_borrar`, {
+      method: 'DELETE',
+      headers: cabecerasServicio,
+    })
+    const id = await idPorCorreo(CORREO_BORRAR)
+    if (id) {
+      await fetch(`${SUPABASE}/auth/v1/admin/users/${id}`, {
+        method: 'DELETE',
+        headers: { apikey: SERVICE, Authorization: `Bearer ${SERVICE}` },
+      })
+    }
+  }
+  await borrarRastro()
+
+  // El alta individual, por su botón. Sin correo: el dominio QA se corta en
+  // lib/correo/resend.ts.
+  const altaForm = leerConRef(await (await pedir('/admin/alumnos', superadmin)).text(), 'Dar de alta')
+  afirmar(G6, 'el alta individual viaja sin JavaScript', true, Boolean(altaForm))
+  let idBorrar = null
+  if (altaForm) {
+    altaForm.campos.email = CORREO_BORRAR
+    altaForm.campos.nombre = 'QA Borrar'
+    altaForm.campos.accesos = `${IDS.curso}|`
+    altaForm.campos.company_nueva = ''
+    await enviarFormulario('/admin/alumnos', altaForm, superadmin)
+    idBorrar = await idPorCorreo(CORREO_BORRAR)
+    afirmar(G6, 'la cuenta de prueba existe', true, Boolean(idBorrar))
+  }
+
+  if (idBorrar) {
+    await fetch(`${SUPABASE}/rest/v1/payments`, {
+      method: 'POST',
+      headers: { ...cabecerasServicio, 'Content-Type': 'application/json', Prefer: 'return=minimal' },
+      body: JSON.stringify({
+        user_id: idBorrar,
+        email: CORREO_BORRAR,
+        course_id: IDS.curso,
+        stripe_session_id: 'cs_qa_borrar',
+        amount: 100,
+        currency: 'mxn',
+        status: 'paid',
+      }),
+    })
+
+    const fichaBorrar = await (await pedir(`/admin/alumnos/${idBorrar}`, superadmin)).text()
+    const formEliminar = leerConRef(fichaBorrar, 'name="confirmacion"')
+    afirmar(G6, 'la ficha trae el formulario de eliminar', true, Boolean(formEliminar))
+
+    if (formEliminar) {
+      formEliminar.campos.confirmacion = 'otro@correo.com'
+      const mal = await (await enviarFormulario(`/admin/alumnos/${idBorrar}`, formEliminar, superadmin)).text()
+      afirmar(G6, 'con el correo equivocado no borra y lo dice', true,
+        mal.includes('El correo no coincide') && (await existePerfil(idBorrar)))
+
+      // Guarda de equipo: un admin no borra a un superadmin, ni ve el botón.
+      const idSuperadmin = await idPorCorreo(correo.superadmin)
+      const fichaSuperComoAdmin = await (await pedir(`/admin/alumnos/${idSuperadmin}`, admin)).text()
+      afirmar(G6, 'un admin no ve "Eliminar cuenta" en la ficha de un superadmin', false,
+        fichaSuperComoAdmin.includes('name="confirmacion"'))
+      const intento = { ...formEliminar, campos: { ...formEliminar.campos, user_id: idSuperadmin, confirmacion: correo.superadmin } }
+      await enviarFormulario(`/admin/alumnos/${idSuperadmin}`, intento, admin)
+      afirmar(G6, 'y aunque mande el formulario, el superadmin sigue', true, await existePerfil(idSuperadmin))
+
+      // Nadie se borra a sí mismo.
+      await enviarFormulario(`/admin/alumnos/${idSuperadmin}`, intento, superadmin)
+      afirmar(G6, 'nadie se borra a sí mismo', true, await existePerfil(idSuperadmin))
+
+      // El borrado real. En MAYÚSCULAS: el servidor compara en minúsculas.
+      formEliminar.campos.confirmacion = CORREO_BORRAR.toUpperCase()
+      const borrado = await enviarFormulario(`/admin/alumnos/${idBorrar}`, formEliminar, superadmin)
+      afirmar(G6, 'con el correo correcto borra y vuelve a la lista', '/admin/alumnos', rutaDestino(borrado))
+      afirmar(G6, 'el perfil desapareció', false, await existePerfil(idBorrar))
+      const enAuth = await fetch(`${SUPABASE}/auth/v1/admin/users/${idBorrar}`, {
+        headers: { apikey: SERVICE, Authorization: `Bearer ${SERVICE}` },
+      })
+      afirmar(G6, 'y la cuenta de Auth también', 404, enAuth.status)
+      const pagosTras = await (
+        await fetch(`${SUPABASE}/rest/v1/payments?stripe_session_id=eq.cs_qa_borrar&select=user_id,account_deleted_at`, {
+          headers: cabecerasServicio,
+        })
+      ).json()
+      afirmar(G6, 'el pago se queda, sin cuenta y marcado', true,
+        pagosTras.length === 1 && pagosTras[0].user_id === null && Boolean(pagosTras[0].account_deleted_at))
+      const listaTras = await (await pedir('/admin/alumnos', superadmin)).text()
+      afirmar(G6, 'y no aparece como "pago sin cuenta"', false, listaTras.includes(CORREO_BORRAR))
+    }
+  }
+  await borrarRastro()
 
   // ======================================================================
   // Lo más delicado que escribí en M3: el intercambio de posiciones.
