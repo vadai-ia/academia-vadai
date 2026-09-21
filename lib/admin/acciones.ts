@@ -8,6 +8,7 @@ import { crearClienteServidor } from '@/lib/supabase/server'
 
 import { slugOcupado } from './consultas'
 import {
+  esquemaAjusteDeLeccion,
   esquemaCurso,
   esquemaIdDeCurso,
   esquemaLeccion,
@@ -53,6 +54,9 @@ const CAMPOS_LECCION = [
   'module_id', 'title', 'lesson_type', 'status', 'is_required',
   'description_rich', 'bunny_video_id', 'video_duration_sec',
 ] as const
+
+/** Lo que se edita desde el árbol, sin abrir la lección (M14). */
+const CAMPOS_AJUSTE = ['title', 'lesson_type', 'status', 'is_required'] as const
 
 // ==========================================================================
 // Cursos
@@ -216,19 +220,31 @@ export async function crearModulo(_previo: EstadoAccion, datos: FormData): Promi
   return { aviso: 'Módulo creado.' }
 }
 
-export async function renombrarModulo(datos: FormData): Promise<void> {
+/**
+ * Cambiarle el título a un módulo desde el árbol (M14).
+ *
+ * Existía desde M3 pero ningún botón la llamaba: para corregir el nombre de un
+ * módulo había que borrarlo y volver a crearlo con sus lecciones.
+ */
+export async function renombrarModulo(_previo: EstadoAccion, datos: FormData): Promise<EstadoAccion> {
   await exigirAdmin()
 
   const id = String(datos.get('id') ?? '')
   const cursoId = String(datos.get('course_id') ?? '')
   const title = String(datos.get('title') ?? '').trim()
-  if (!id || title.length < 2) return
+  if (!id) return { error: 'Falta el módulo.' }
+  if (title.length < 2) return { error: 'El título necesita al menos 2 caracteres.' }
 
   const supabase = await crearClienteServidor()
   const { error } = await supabase.from('modules').update({ title }).eq('id', id)
 
-  if (error) registrarFallo('renombrarModulo', { id }, error.message)
+  if (error) {
+    registrarFallo('renombrarModulo', { id }, error.message)
+    return { error: 'No se pudo guardar el título. Inténtalo otra vez.' }
+  }
+
   revalidatePath(`/admin/cursos/${cursoId}`)
+  return { aviso: `Módulo guardado: ${title}` }
 }
 
 /** Con confirmación en modal (M14). Cascada: se lleva sus lecciones y todo lo que cuelgue. */
@@ -314,6 +330,45 @@ export async function actualizarLeccion(_previo: EstadoAccion, datos: FormData):
   revalidatePath(`/admin/cursos/${cursoId}`)
   revalidatePath(`/admin/lecciones/${id}`)
   return { aviso: 'Lección guardada.' }
+}
+
+/**
+ * Título, tipo, estado y obligatoriedad de una lección, desde el árbol (M14).
+ *
+ * Es el "editar" que faltaba: hasta hoy, cambiarle el nombre a una lección o
+ * publicarla obligaba a abrir su editor, una por una. Publicar un módulo de
+ * quince lecciones eran quince viajes.
+ *
+ * NO toca `description_rich`, `bunny_video_id` ni `video_duration_sec`: esos
+ * no viajan en este formulario y escribirlos vacíos borraría el contenido.
+ * Para eso está el editor completo (`actualizarLeccion`).
+ */
+export async function ajustarLeccion(_previo: EstadoAccion, datos: FormData): Promise<EstadoAccion> {
+  await exigirAdmin()
+
+  const id = String(datos.get('id') ?? '')
+  const cursoId = String(datos.get('course_id') ?? '')
+  if (!id) return { error: 'Falta la lección.' }
+
+  const resultado = esquemaAjusteDeLeccion.safeParse(leerFormulario(datos, CAMPOS_AJUSTE))
+  if (!resultado.success) return { error: primerError(resultado) }
+
+  const supabase = await crearClienteServidor()
+  const { error } = await supabase.from('lessons').update(resultado.data).eq('id', id)
+
+  if (error) {
+    registrarFallo('ajustarLeccion', { id }, error.message)
+    return { error: 'No se pudo guardar la lección. Inténtalo otra vez.' }
+  }
+
+  revalidatePath(`/admin/cursos/${cursoId}`)
+  revalidatePath(`/admin/lecciones/${id}`)
+  return {
+    aviso:
+      resultado.data.status === 'published'
+        ? `Guardada y publicada: ${resultado.data.title}`
+        : `Guardada en borrador: ${resultado.data.title}`,
+  }
 }
 
 /** Con confirmación en modal (M14): devuelve el error si lo hay; si no, vuelve al curso. */

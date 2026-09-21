@@ -131,6 +131,50 @@ function leerConRef(html, contiene) {
 }
 
 /**
+ * Un formulario completo: inputs, selects y casillas, como los mandaría un
+ * navegador sin JavaScript.
+ *
+ * `leerFormularios` y `leerConRef` solo miran `<input>`, y eso basta para los
+ * formularios de campos ocultos. El de editar una lección tiene `<select>` y
+ * una casilla, y mandarlo sin ellos falla la validación o —peor— manda una
+ * casilla apagada como encendida.
+ *
+ * Pide TODOS los marcadores porque el id de una lección aparece también en sus
+ * botones de mover, que salen antes en el HTML: con un solo marcador esta
+ * prueba tomaba el de mover y movía la lección en vez de editarla.
+ */
+function leerFormularioCompleto(html, ...marcadores) {
+  for (const bloque of html.matchAll(/<form\b[^>]*>([\s\S]*?)<\/form>/g)) {
+    if (!marcadores.every((m) => bloque[1].includes(m))) continue
+    const campos = {}
+    const limpiar = (v) =>
+      (v ?? '').replace(/&quot;/g, '"').replace(/&#x27;/g, "'").replace(/&amp;/g, '&')
+
+    for (const et of bloque[1].matchAll(/<input\b[^>]*>/g)) {
+      const etiqueta = et[0]
+      const nombre = etiqueta.match(/name="([^"]*)"/)?.[1]
+      if (!nombre) continue
+      const tipo = etiqueta.match(/type="([^"]*)"/)?.[1] ?? 'text'
+      // Una casilla apagada NO se manda: es lo que distingue "obligatoria" de
+      // "no obligatoria" en el formulario de la lección.
+      if ((tipo === 'checkbox' || tipo === 'radio') && !/\schecked/.test(etiqueta)) continue
+      campos[nombre] = limpiar(etiqueta.match(/value="([^"]*)"/)?.[1])
+    }
+
+    for (const sel of bloque[1].matchAll(/<select\b([^>]*)>([\s\S]*?)<\/select>/g)) {
+      const nombre = sel[1].match(/name="([^"]*)"/)?.[1]
+      if (!nombre) continue
+      const opciones = [...sel[2].matchAll(/<option\b([^>]*)>/g)]
+      const elegida = opciones.find((o) => /\sselected/.test(o[1])) ?? opciones[0]
+      campos[nombre] = limpiar(elegida?.[1].match(/value="([^"]*)"/)?.[1])
+    }
+
+    return { campos, html: bloque[0] }
+  }
+  return null
+}
+
+/**
  * La etiqueta `<details …>` más cercana ANTES de un marcador: para afirmar que
  * un formulario vive detrás de su botón (M14) y si está abierto o cerrado.
  */
@@ -603,6 +647,95 @@ async function main() {
     }
   }
   await borrarRastro()
+
+  // ======================================================================
+  // M14: renombrar un módulo y editar una lección DESDE EL ÁRBOL, sin abrirla.
+  const G7 = 'EDITAR MÓDULOS Y LECCIONES DESDE EL ÁRBOL'
+
+  const leerLeccion = async (id) => {
+    const r = await fetch(
+      `${SUPABASE}/rest/v1/lessons?id=eq.${id}&select=title,lesson_type,status,is_required,bunny_video_id,description_rich`,
+      { headers: cabecerasServicio }
+    )
+    return (await r.json())[0]
+  }
+  const leerModulo = async (id) => {
+    const r = await fetch(`${SUPABASE}/rest/v1/modules?id=eq.${id}&select=title,position`, {
+      headers: cabecerasServicio,
+    })
+    return (await r.json())[0]
+  }
+
+  // --- el módulo ---
+  const moduloAntes = await leerModulo(IDS.modulo1)
+  const formModulo = leerFormularioCompleto(detalle, `value="${IDS.modulo1}"`, 'Título del módulo')
+  afirmar(G7, 'el árbol trae el formulario de renombrar módulo', true, Boolean(formModulo))
+
+  if (formModulo) {
+    await enviarFormulario(`/admin/cursos/${IDS.curso}`, { ...formModulo, campos: { ...formModulo.campos, title: 'QA · Módulo renombrado' } }, admin)
+    const renombrado = await leerModulo(IDS.modulo1)
+    afirmar(G7, 'renombrar un módulo lo guarda', 'QA · Módulo renombrado', renombrado?.title)
+    afirmar(G7, 'y no lo mueve de lugar', moduloAntes?.position, renombrado?.position)
+    await enviarFormulario(`/admin/cursos/${IDS.curso}`, { ...formModulo, campos: { ...formModulo.campos, title: moduloAntes.title } }, admin)
+    afirmar(G7, 'y se puede devolver a su nombre', moduloAntes?.title, (await leerModulo(IDS.modulo1))?.title)
+  }
+
+  // --- la lección ---
+  const leccionAntes = await leerLeccion(IDS.leccionVideo)
+  const arbol = await (await pedir(`/admin/cursos/${IDS.curso}`, admin)).text()
+  const formLeccion = leerFormularioCompleto(arbol, `value="${IDS.leccionVideo}"`, 'name="lesson_type"')
+  afirmar(G7, 'cada lección trae su formulario de edición', true, Boolean(formLeccion))
+  afirmar(G7, 'con título, tipo y estado', true,
+    Boolean(formLeccion) &&
+      formLeccion.campos.title === leccionAntes.title &&
+      formLeccion.campos.lesson_type === leccionAntes.lesson_type &&
+      formLeccion.campos.status === leccionAntes.status)
+
+  if (formLeccion) {
+    await enviarFormulario(
+      `/admin/cursos/${IDS.curso}`,
+      { ...formLeccion, campos: { ...formLeccion.campos, title: 'QA · Lección renombrada', status: 'draft' } },
+      admin
+    )
+    const editada = await leerLeccion(IDS.leccionVideo)
+    afirmar(G7, 'editarla guarda el título', 'QA · Lección renombrada', editada?.title)
+    afirmar(G7, 'y el estado', 'draft', editada?.status)
+    // Lo que este formulario NO manda no se puede perder: el video y el texto
+    // rico viven en el editor completo, y escribirlos vacíos los borraría.
+    afirmar(G7, 'sin borrar el video ligado', leccionAntes.bunny_video_id, editada?.bunny_video_id)
+    afirmar(G7, 'ni el texto de la lección', true, editada?.description_rich !== null)
+    // La casilla apagada es la que prueba que no se manda a la ligera.
+    afirmar(G7, 'y la casilla decide si es obligatoria', false,
+      (await (async () => {
+        const sinCasilla = { ...formLeccion.campos }
+        delete sinCasilla.is_required
+        await enviarFormulario(`/admin/cursos/${IDS.curso}`, { ...formLeccion, campos: sinCasilla }, admin)
+        return (await leerLeccion(IDS.leccionVideo))?.is_required
+      })()))
+
+    // Se deja como estaba, para que el script sea re-corrible.
+    await enviarFormulario(
+      `/admin/cursos/${IDS.curso}`,
+      {
+        ...formLeccion,
+        campos: {
+          ...formLeccion.campos,
+          title: leccionAntes.title,
+          status: leccionAntes.status,
+          is_required: leccionAntes.is_required ? 'true' : '',
+        },
+      },
+      admin
+    )
+    const restaurada = await leerLeccion(IDS.leccionVideo)
+    afirmar(G7, 'y se restaura completa', true,
+      restaurada?.title === leccionAntes.title &&
+        restaurada?.status === leccionAntes.status &&
+        restaurada?.is_required === leccionAntes.is_required)
+  }
+
+  afirmar(G7, 'cada lección se puede eliminar desde el árbol', true,
+    arbol.includes(`id="eliminar-leccion-${IDS.leccionVideo}"`))
 
   // ======================================================================
   // Lo más delicado que escribí en M3: el intercambio de posiciones.

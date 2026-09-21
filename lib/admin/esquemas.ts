@@ -100,6 +100,20 @@ export const esquemaLeccion = z.object({
   video_duration_sec: enteroOpcional,
 })
 
+/**
+ * Lo que se edita de una lección DESDE EL ÁRBOL del curso (M14).
+ *
+ * Son cuatro campos a propósito: el texto rico, el video de Bunny y la
+ * duración viven en el editor completo y NO viajan en este formulario.
+ * Validarlos aquí con `esquemaLeccion` los mandaría vacíos y los borraría.
+ */
+export const esquemaAjusteDeLeccion = z.object({
+  title: z.string().trim().min(2, 'El título necesita al menos 2 caracteres.').max(200),
+  lesson_type: z.enum(TIPOS_LECCION),
+  status: z.enum(ESTADOS_LECCION),
+  is_required: z.coerce.boolean(),
+})
+
 export type DatosCurso = z.infer<typeof esquemaCurso>
 export type DatosModulo = z.infer<typeof esquemaModulo>
 export type DatosLeccion = z.infer<typeof esquemaLeccion>

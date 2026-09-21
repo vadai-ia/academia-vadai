@@ -26,18 +26,22 @@ export function NuevaLeccion({
   moduloId,
   cursoId,
   reinicio,
+  nombre,
 }: {
   moduloId: string
   cursoId: string
   reinicio: number
+  /** Acordeón: abre este y se cierra el de "Editar módulo" del mismo módulo. */
+  nombre?: string
 }) {
   const [estado, accion] = useActionState(crearLeccion, SIN_ESTADO)
 
   return (
     <Desplegable
       etiqueta="Nueva lección"
-      variante="discreto"
+      variante="contorno"
       tamano="sm"
+      nombre={nombre}
       abierto={Boolean(estado.error || estado.aviso)}
     >
       <form key={reinicio} action={accion} className="flex flex-col gap-2">
