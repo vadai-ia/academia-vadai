@@ -5,6 +5,7 @@ import { redirect } from 'next/navigation'
 import { marcarUsoDeEnlace, resolverEnlaceDurable } from '@/lib/auth/enlace-durable'
 import { RUTAS } from '@/lib/auth/rutas'
 import { generarEnlaceDeAcceso } from '@/lib/stripe/provisioning'
+import { crearClienteServidor } from '@/lib/supabase/server'
 
 /**
  * El botón de /acceso/[token].
@@ -14,9 +15,17 @@ import { generarEnlaceDeAcceso } from '@/lib/stripe/provisioning'
  * escáner de correo que abra la liga no gasta nada, y la persona que da clic
  * dos veces entra dos veces.
  *
- * Se redirige a /auth/confirmar por RUTA RELATIVA, no por la URL absoluta que
- * arma `generarEnlaceDeAcceso`: esa lleva NEXT_PUBLIC_APP_URL, y en pruebas
- * eso mandaría al servidor local a producción.
+ * CORREGIDO 21-sep-2026, día del lanzamiento. La primera versión hacía
+ * `redirect('/auth/confirmar?token_hash=…')` y dejaba que ese route handler
+ * canjeara el token. Sin JavaScript funcionaba (un 303 y el navegador sigue);
+ * CON JavaScript, que es como llega todo el mundo, el cliente de Next sigue el
+ * redirect de una server action pidiendo la ruta como página RSC, y un route
+ * handler no responde eso: "An unexpected response was received from the
+ * server", y la persona no podía crear su contraseña. Tres reportes en la
+ * primera hora, en Windows y en iPhone.
+ *
+ * Ahora la acción canjea el token AQUÍ MISMO —`verifyOtp` escribe las cookies
+ * de sesión; una server action puede— y redirige a una página de verdad.
  */
 export async function entrarConEnlace(datos: FormData): Promise<void> {
   const token = String(datos.get('token') ?? '')
@@ -30,8 +39,14 @@ export async function entrarConEnlace(datos: FormData): Promise<void> {
     redirect(`${RUTAS.login}?error=enlace`)
   }
 
-  await marcarUsoDeEnlace(token)
+  const tokenHash = new URL(absoluta).searchParams.get('token_hash') ?? ''
+  const supabase = await crearClienteServidor()
+  const { error } = await supabase.auth.verifyOtp({ type: 'recovery', token_hash: tokenHash })
+  if (error) {
+    console.error(JSON.stringify({ operacion: 'entrarConEnlace:verifyOtp', email: enlace.email, error: error.message }))
+    redirect(`${RUTAS.login}?error=enlace`)
+  }
 
-  const url = new URL(absoluta)
-  redirect(`${url.pathname}${url.search}`)
+  await marcarUsoDeEnlace(token)
+  redirect(RUTAS.nuevaContrasena)
 }

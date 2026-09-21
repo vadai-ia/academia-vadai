@@ -43,7 +43,10 @@ const claseResumen =
   '[&::-webkit-details-marker]:hidden'
 
 function fechaCorta(iso: string): string {
+  // Zona fija: el servidor pinta en UTC y el navegador en la suya; si no
+  // coinciden, React 418 tira la página entera (21-sep-2026).
   return new Intl.DateTimeFormat('es-MX', {
+    timeZone: 'America/Mexico_City',
     day: 'numeric',
     month: 'short',
     hour: 'numeric',

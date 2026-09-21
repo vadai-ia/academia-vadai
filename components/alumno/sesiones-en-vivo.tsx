@@ -11,13 +11,24 @@ import type { SesionDelAlumno } from '@/lib/alumno/sesiones'
 /**
  * Calendario de sesiones en vivo (§3.10).
  *
- * Es client component por dos razones, ambas de reloj:
+ * Es client component por el reloj: el botón "Unirse" se habilita 15 minutos
+ * antes, y si eso se calculara al renderizar, una página abierta desde antes
+ * nunca lo activaría. Aquí el componente se re-evalúa cada 30 segundos.
  *
- *   1. La hora se muestra en la zona DEL ALUMNO, con CDMX como referencia. En el
- *      servidor no sabemos dónde está; el navegador sí.
- *   2. El botón "Unirse" se habilita 15 minutos antes. Si eso se calculara al
- *      renderizar, una página abierta desde antes nunca lo activaría. Aquí el
- *      componente se re-evalúa cada 30 segundos.
+ * LA HORA VA SIEMPRE EN CDMX (corregido 21-sep-2026, día del lanzamiento).
+ * Antes se mostraba en la zona del navegador "con CDMX como referencia". Dos
+ * problemas, y los dos reales:
+ *
+ *   1. El servidor pintaba la fecha en UTC y el navegador en su zona: el texto
+ *      no coincidía al hidratar (error 418 de React) y la página ENTERA del
+ *      curso se caía con "Algo falló al cargar la página". Apareció el día
+ *      que se agendaron las ocho sesiones; con la lista vacía no había nada
+ *      que no coincidiera.
+ *   2. Muchas PCs en México tienen la zona "Central Time (US & Canada)", con
+ *      horario de verano que aquí ya no existe: la sesión de las 6 salía a
+ *      las 7. Bayón lo reportó al minuto.
+ *
+ * Todos los alumnos están en México. Una sola hora, la de CDMX, y se dice.
  */
 
 const ZONA_CDMX = 'America/Mexico_City'
@@ -25,7 +36,7 @@ const MINUTOS_ANTES = 15
 /** Se considera "en curso" hasta 3 horas después: las sesiones duran 2.5 h (§0). */
 const HORAS_DE_GRACIA = 3
 
-function formatear(iso: string, zona?: string): string {
+function formatear(iso: string): string {
   return new Intl.DateTimeFormat('es-MX', {
     weekday: 'short',
     day: 'numeric',
@@ -33,16 +44,8 @@ function formatear(iso: string, zona?: string): string {
     hour: 'numeric',
     minute: '2-digit',
     hour12: true,
-    ...(zona ? { timeZone: zona } : {}),
+    timeZone: ZONA_CDMX,
   }).format(new Date(iso))
-}
-
-function zonaDelNavegador(): string {
-  try {
-    return Intl.DateTimeFormat().resolvedOptions().timeZone
-  } catch {
-    return ZONA_CDMX
-  }
 }
 
 type Estado = 'proxima' | 'porEmpezar' | 'enCurso' | 'pasada'
@@ -60,8 +63,6 @@ function estadoDe(iso: string, ahora: number): Estado {
 
 function Fila({ sesion, ahora }: { sesion: SesionDelAlumno; ahora: number }) {
   const estado = estadoDe(sesion.programadaEn, ahora)
-  const zona = zonaDelNavegador()
-  const mismaZona = zona === ZONA_CDMX
 
   return (
     <li className="flex flex-col gap-3 rounded-lg border border-border px-4 py-3">
@@ -76,10 +77,8 @@ function Fila({ sesion, ahora }: { sesion: SesionDelAlumno; ahora: number }) {
           </span>
 
           <span className="text-sm text-muted-foreground">
-            {formatear(sesion.programadaEn)}
-            {!mismaZona ? (
-              <span className="text-xs"> · {formatear(sesion.programadaEn, ZONA_CDMX)} CDMX</span>
-            ) : null}
+            {formatear(sesion.programadaEn)}{' '}
+            <span className="text-xs">(hora de la Ciudad de México)</span>
           </span>
 
           {sesion.descripcion ? (

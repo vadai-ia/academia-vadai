@@ -374,21 +374,23 @@ async function main() {
       const frascoPost = crearFrasco()
       const post = await enviar(`/acceso/${tokenBueno}`, formulario, frascoPost)
       const destino = post.headers.get('location') ?? ''
-      afirmar(G8, 'el POST manda a /auth/confirmar con un token fresco', true,
-        destino.includes('/auth/confirmar?token_hash='))
+      // La acción canjea el token AHÍ MISMO y deja las cookies en la respuesta
+      // del POST (21-sep-2026): antes redirigía a /auth/confirmar, que con
+      // JavaScript reventaba con "unexpected response". Se afirma el efecto,
+      // no el camino: sesión abierta y aterrizaje en poner contraseña.
+      afirmar(G8, 'el POST abre sesión', true, frascoPost.tamano > 0)
+      afirmar(G8, 'y manda a poner contraseña, a una PÁGINA', true,
+        destino.includes('/nueva-contrasena') && !destino.includes('/auth/confirmar'))
       afirmar(G8, 'por ruta relativa, no a producción', true, destino.startsWith('/'))
-
-      const confirma = await pedir(destino, null)
-      frascoPost.guardar(confirma)
-      afirmar(G8, 'y ese token abre sesión', true, frascoPost.tamano > 0)
-      afirmar(G8, 'que aterriza en poner contraseña', true,
-        (confirma.headers.get('location') ?? '').includes('/nueva-contrasena'))
+      afirmar(G8, 'y la sesión sirve para abrir esa página', 200,
+        (await pedir('/nueva-contrasena', frascoPost)).status)
 
       // Segunda vez: la misma liga vuelve a servir. Esto es lo que NO daba el
       // recovery de Supabase.
-      const segundo = await enviar(`/acceso/${tokenBueno}`, formulario, crearFrasco())
+      const frascoSegundo = crearFrasco()
+      const segundo = await enviar(`/acceso/${tokenBueno}`, formulario, frascoSegundo)
       afirmar(G8, 'la misma liga sirve una segunda vez', true,
-        (segundo.headers.get('location') ?? '').includes('/auth/confirmar?token_hash='))
+        frascoSegundo.tamano > 0 && (segundo.headers.get('location') ?? '').includes('/nueva-contrasena'))
 
       const { rows: [usos] } = await bd.query(
         `select used_count from academia.access_links where token_hash = $1`, [hashDe(tokenBueno)]
