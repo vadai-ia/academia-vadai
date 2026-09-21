@@ -44,6 +44,8 @@ export type Pestana = {
   deshabilitada?: boolean
   motivo?: string
   insignia?: string | number
+  /** `vivo` pinta la insignia en lima: es para "Ahora", que sí urge. */
+  tono?: 'vivo'
 }
 
 export function Pestanas({
@@ -96,7 +98,12 @@ export function Pestanas({
               <Link href={p.href} className={clases} aria-current={activa ? 'page' : undefined}>
                 {p.etiqueta}
                 {p.insignia !== undefined && p.insignia !== 0 ? (
-                  <span className="inline-flex min-w-5 items-center justify-center rounded-full bg-muted px-1.5 py-0.5 text-xs tabular-nums">
+                  <span
+                    className={cn(
+                      'inline-flex min-w-5 items-center justify-center rounded-full px-1.5 py-0.5 text-xs tabular-nums',
+                      p.tono === 'vivo' ? 'bg-accent text-accent-foreground' : 'bg-muted'
+                    )}
+                  >
                     {p.insignia}
                   </span>
                 ) : null}

@@ -63,7 +63,7 @@ export async function notificacionesDelAlumno(perfil: Perfil): Promise<Novedades
       tipo: 'sesion' as const,
       publicadoEn: s.actualizadaEn,
       detalle: describirHorario(s.programadaEn),
-      href: `/curso/${s.cursoSlug}#sesiones`,
+      href: `/curso/${s.cursoSlug}/en-vivo`,
       nueva: new Date(s.actualizadaEn).getTime() > desde,
     }))
 

@@ -200,6 +200,12 @@ export default async function PaginaInicio() {
                   curso: proximaSesion.cohorteNombre,
                 }}
               />
+              <Link
+                href={`/curso/${proximaSesion.cursoSlug}/en-vivo`}
+                className="text-sm text-primary underline-offset-4 hover:underline"
+              >
+                Ver todas las sesiones →
+              </Link>
             </Tarjeta>
           ) : null}
 

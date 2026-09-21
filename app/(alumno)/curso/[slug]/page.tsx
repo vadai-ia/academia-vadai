@@ -4,13 +4,15 @@ import { notFound } from 'next/navigation'
 
 import { AccesoVencido } from '@/components/alumno/acceso-vencido'
 import { CertificadoDelCurso } from '@/components/alumno/certificado-del-curso'
+import { ProximaSesionEnlace } from '@/components/alumno/en-vivo'
 import { IndiceCurso } from '@/components/alumno/indice-curso'
-import { SesionesEnVivo } from '@/components/alumno/sesiones-en-vivo'
 import { Seccion, Tarjeta } from '@/components/ui-vadai/superficie'
 import { Button } from '@/components/ui/button'
 import { cursoDelAlumno } from '@/lib/alumno/consultas'
 import { sesionesDelAlumno } from '@/lib/alumno/sesiones'
 import { exigirPerfil } from '@/lib/auth/sesion'
+import { proximaOActual } from '@/lib/calendario/estado'
+import { hoyCdmx } from '@/lib/calendario/mes'
 import { certificadoDelCurso } from '@/lib/certificados/consultas'
 import { revisarElegibilidad } from '@/lib/certificados/elegibilidad'
 
@@ -45,6 +47,9 @@ export default async function PaginaCurso({ params }: { params: Promise<{ slug: 
   const siguiente =
     planas.find((l) => l.desbloqueada && !l.completada) ?? planas.find((l) => l.desbloqueada)
 
+  const ahora = Date.now()
+  const proxima = proximaOActual(sesiones, ahora)
+
   return (
     <div className="flex flex-col gap-8">
       {/* "Continuar" es la única acción primaria de la pantalla y por eso va
@@ -66,6 +71,17 @@ export default async function PaginaCurso({ params }: { params: Promise<{ slug: 
         </Tarjeta>
       ) : null}
 
+      {/* Las sesiones en vivo tienen su propia pestaña (M14 · Fase 2). Aquí
+          queda UNA línea con la que sigue: el bloque de ocho tarjetas que vivía
+          encima del temario era justo lo que estorbaba para llegar a él. */}
+      {curso.vigente && proxima ? (
+        <ProximaSesionEnlace
+          sesion={proxima}
+          href={`/curso/${curso.slug}/en-vivo`}
+          hoy={hoyCdmx(ahora)}
+        />
+      ) : null}
+
       {!curso.vigente ? <AccesoVencido curso={curso} /> : null}
 
       <CertificadoDelCurso
@@ -75,10 +91,6 @@ export default async function PaginaCurso({ params }: { params: Promise<{ slug: 
         cumple={elegibilidad.cumple}
         faltantes={curso.vigente ? elegibilidad.faltantes : []}
       />
-
-      <div id="sesiones">
-        <SesionesEnVivo sesiones={sesiones} />
-      </div>
 
       <Seccion
         titulo="Contenido del curso"

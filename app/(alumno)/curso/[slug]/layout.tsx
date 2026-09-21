@@ -5,7 +5,10 @@ import { notFound } from 'next/navigation'
 import { Pestanas, type Pestana } from '@/components/ui-vadai/pestanas'
 import { Progreso } from '@/components/ui-vadai/superficie'
 import { cursoDelAlumno } from '@/lib/alumno/consultas'
+import { sesionesDelAlumno } from '@/lib/alumno/sesiones'
 import { exigirPerfil } from '@/lib/auth/sesion'
+import { estadoDe, proximaOActual } from '@/lib/calendario/estado'
+import { hoyCdmx, partesCdmx } from '@/lib/calendario/mes'
 
 /**
  * Marco de un curso: encabezado con progreso y fila de pestañas.
@@ -35,14 +38,40 @@ export default async function LayoutCurso({
   await exigirPerfil()
   const { slug } = await params
 
-  // Memorizado con cache(): la página vuelve a pedirlo y no cuesta otro viaje.
-  const curso = await cursoDelAlumno(slug)
+  // Memorizados con cache(): las páginas vuelven a pedirlos y no cuestan otro viaje.
+  const [curso, sesiones] = await Promise.all([cursoDelAlumno(slug), sesionesDelAlumno(slug)])
   if (!curso) notFound()
 
   const base = `/curso/${curso.slug}`
 
+  // La insignia dice lo único que urge saber desde cualquier pestaña: si la
+  // sesión está pasando o si es hoy. Sin contador: un "8" no significa nada.
+  const ahora = Date.now()
+  const actual = proximaOActual(sesiones, ahora)
+  const insignia = !actual
+    ? undefined
+    : estadoDe(actual.programadaEn, ahora) !== 'proxima'
+      ? 'Ahora'
+      : partesCdmx(actual.programadaEn).fecha === hoyCdmx(ahora)
+        ? 'Hoy'
+        : undefined
+
   const pestanas: Pestana[] = [
     { href: base, etiqueta: 'Contenido', exacto: true },
+    // Con el acceso vencido las sesiones ya no se leen (la policy las esconde),
+    // así que la pestaña se pinta apagada con su motivo en vez de desaparecer.
+    ...(sesiones.length > 0 || !curso.vigente
+      ? [
+          {
+            href: `${base}/en-vivo`,
+            etiqueta: 'En vivo',
+            insignia,
+            tono: insignia === 'Ahora' ? ('vivo' as const) : undefined,
+            deshabilitada: !curso.vigente,
+            motivo: 'Tu acceso venció. Renuévalo para volver a las sesiones en vivo.',
+          } satisfies Pestana,
+        ]
+      : []),
     {
       href: `${base}/comunidad`,
       etiqueta: 'Comunidad',

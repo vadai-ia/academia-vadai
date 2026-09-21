@@ -1,14 +1,17 @@
 import 'server-only'
 
+import { cache } from 'react'
+
 import { crearClienteServidor } from '@/lib/supabase/server'
 
 export type SesionDelAlumno = {
   id: string
   titulo: string
   descripcion: string | null
-  /** ISO en UTC. La hora local la calcula el navegador (§3.10). */
+  /** ISO en UTC. Se pinta SIEMPRE en hora de la Ciudad de México (§3.10). */
   programadaEn: string
   meetUrl: string | null
+  cohorteId: string
   cohorteNombre: string
   cursoSlug: string
   grabacionLeccionId: string | null
@@ -23,8 +26,14 @@ export type SesionDelAlumno = {
  * `pertenece_a_cohorte`, que además de la pertenencia comprueba la vigencia. Un
  * alumno de otra cohorte del mismo curso no ve estas sesiones, y uno con acceso
  * vencido no ve ninguna.
+ *
+ * Va con `cache()`: el layout del curso lo pide para la insignia de la pestaña
+ * y la página vuelve a pedirlo para pintarlas. Sin esto serían dos viajes a
+ * Supabase por carga.
  */
-export async function sesionesDelAlumno(cursoSlug?: string): Promise<SesionDelAlumno[]> {
+export const sesionesDelAlumno = cache(async function sesionesDelAlumno(
+  cursoSlug?: string
+): Promise<SesionDelAlumno[]> {
   const supabase = await crearClienteServidor()
 
   const { data, error } = await supabase
@@ -44,6 +53,7 @@ export async function sesionesDelAlumno(cursoSlug?: string): Promise<SesionDelAl
     scheduled_at: string
     meet_url: string | null
     recording_lesson_id: string | null
+    cohort_id: string
     created_at: string
     updated_at: string
     cohorts: { name: string; courses: { slug: string } }
@@ -56,10 +66,11 @@ export async function sesionesDelAlumno(cursoSlug?: string): Promise<SesionDelAl
       descripcion: s.description,
       programadaEn: s.scheduled_at,
       meetUrl: s.meet_url,
+      cohorteId: s.cohort_id,
       cohorteNombre: s.cohorts.name,
       cursoSlug: s.cohorts.courses.slug,
       grabacionLeccionId: s.recording_lesson_id,
       actualizadaEn: s.updated_at ?? s.created_at,
     }))
     .filter((s) => !cursoSlug || s.cursoSlug === cursoSlug)
-}
+})
