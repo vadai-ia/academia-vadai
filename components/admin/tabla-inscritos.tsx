@@ -454,7 +454,7 @@ function Fila({ inscrito: i, cursoId, empresas }: { inscrito: Inscrito; cursoId:
 
             <div className="flex flex-wrap items-center gap-2 pt-1">
               <Button asChild variant="ghost" size="sm">
-                <Link href={`/admin/alumnos?q=${encodeURIComponent(i.email)}`}>Ver en Alumnos →</Link>
+                <Link href={`/admin/alumnos/${i.userId}`}>Ver ficha completa →</Link>
               </Button>
               <ConfirmarConModal
                 idModal={`correo-${i.userId}`}

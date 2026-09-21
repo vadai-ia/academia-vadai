@@ -10,7 +10,7 @@ export type AlumnoEnLista = {
   rol: string
   estado: string
   creadoEn: string | null
-  /** Último inicio de sesión según Auth. null = nunca ha entrado. */
+  /** Último inicio de sesión (profiles.last_sign_in_at). null = nunca ha entrado. */
   ultimoAcceso: string | null
   /** De dónde viene. null = General. */
   empresa: { id: string; nombre: string } | null
@@ -23,7 +23,6 @@ export type AlumnoEnLista = {
     vigente: boolean
     expiraEn: string | null
     revocada: boolean
-    /** Avance en ese curso, para la fila desplegable. */
     hechas: number
     total: number
     porcentaje: number
@@ -40,50 +39,128 @@ export type PagoEnLista = {
   estado: string
   fecha: string
   tieneCuenta: boolean
+  /** La cuenta se eliminó a propósito: no es un alta que quedó a medias. */
+  cuentaEliminada: boolean
 }
 
+export const POR_PAGINA = 25
+
+export type CorteDeAcceso = 'todos' | 'nunca' | 'entraron'
+
+export type FiltrosAlumnos = {
+  /** Nombre, correo o empresa. */
+  q?: string
+  /** uuid de la empresa, 'general' (sin empresa) o vacío (todas). */
+  empresa?: string
+  ver?: 'activos' | 'suspendidos'
+  acceso?: CorteDeAcceso
+  pagina?: number
+}
+
+export type PaginaDeAlumnos = {
+  filas: AlumnoEnLista[]
+  /** Cuántos cumplen los filtros, en todas las páginas. */
+  total: number
+  /** Ya acotada a [1, paginas]. */
+  pagina: number
+  paginas: number
+  porPagina: number
+}
+
+/** Para las pestañas y las pastillas: respetan búsqueda y empresa, no el corte. */
+export type ConteosDeAlumnos = {
+  activos: number
+  suspendidos: number
+  /** Sobre las cuentas activas. */
+  entraron: number
+  nunca: number
+}
+
+// --- filtros comunes ---------------------------------------------------------
+
 /**
- * Listado de alumnos con sus inscripciones.
+ * PostgREST separa un `or=` por comas y paréntesis, y el `%` es el comodín de
+ * `ilike`: lo que la persona teclea no puede colarse con esos caracteres.
+ */
+function limpiarTermino(q: string | undefined): string {
+  return (q ?? '')
+    .trim()
+    .replace(/[,()"'\\%]/g, ' ')
+    .replace(/\s+/g, ' ')
+    .slice(0, 80)
+}
+
+type Cliente = Awaited<ReturnType<typeof crearClienteServidor>>
+
+async function empresasQueCoinciden(supabase: Cliente, termino: string): Promise<string[]> {
+  if (!termino) return []
+  const { data } = await supabase.from('companies').select('id').ilike('name', `%${termino}%`).limit(20)
+  return (data ?? []).map((e) => e.id)
+}
+
+/** La expresión `or=` de la búsqueda, o null si no hay término. */
+function expresionDeBusqueda(termino: string, empresas: string[]): string | null {
+  if (!termino) return null
+  const partes = [`full_name.ilike.%${termino}%`, `email.ilike.%${termino}%`]
+  if (empresas.length > 0) partes.push(`company_id.in.(${empresas.join(',')})`)
+  return partes.join(',')
+}
+
+// --- listado -----------------------------------------------------------------
+
+/**
+ * Una página de alumnos con sus inscripciones.
+ *
+ * M14: búsqueda, empresa, estado y "¿ya entró?" se filtran en Postgres —antes
+ * la lista traía a TODOS con TODO su progreso y TODOS los pagos y filtraba en
+ * memoria— y solo se enriquecen (avance, pagos, ligas) los 25 de la página.
  *
  * Va por el cliente de servidor con la llave del admin, no con service role:
  * las policies ya le dan acceso total al schema y así el listado respeta RLS
  * como todo lo demás.
  */
-export async function listarAlumnos(busqueda?: string): Promise<AlumnoEnLista[]> {
+export async function listarAlumnos(filtros: FiltrosAlumnos = {}): Promise<PaginaDeAlumnos> {
   const supabase = await crearClienteServidor()
+  const termino = limpiarTermino(filtros.q)
+  const empresasBuscadas = await empresasQueCoinciden(supabase, termino)
+  const busqueda = expresionDeBusqueda(termino, empresasBuscadas)
+  const paginaPedida = Math.max(1, Math.floor(filtros.pagina ?? 1))
 
-  // Las cuatro son independientes: en serie serían cuatro viajes encadenados.
-  //
-  // El progreso se pide COMPLETO y se agrupa aquí, en vez de una consulta por
-  // persona. Con 40 alumnos eso serían 40 viajes de red para pintar una tabla;
-  // así es uno. `lesson_outline` da el total de lecciones por curso.
-  const [perfiles, progreso, outline, pagos, enlaces, empresas] = await Promise.all([
-    supabase
+  const consultar = async (pagina: number) => {
+    const desde = (pagina - 1) * POR_PAGINA
+    let c = supabase
       .from('profiles')
       .select(
-        'user_id, email, full_name, role, status, created_at, company_id, last_sign_in_at, enrollments(course_id, expires_at, status, courses(title), cohorts(name))'
+        'user_id, email, full_name, role, status, created_at, company_id, last_sign_in_at, enrollments(course_id, expires_at, status, courses(title), cohorts(name))',
+        { count: 'exact' }
       )
       // Los `invitado` NO son alumnos: son gente que contestó una encuesta en un
-      // evento y dejó su correo. Mezclarlos aquí llenaría el padrón de leads y
-      // haría inútil el buscador el día de un evento con cien asistentes. Viven
-      // en su encuesta, y salen en su exportación.
-      //
-      // En cuanto uno compra o se le da de alta en un curso deja de ser
-      // invitado y aparece aquí solo: lo asciende `darDeAlta()`.
+      // evento y dejó su correo. Mezclarlos aquí llenaría el padrón de leads.
+      // En cuanto uno compra o se le da de alta deja de ser invitado y aparece
+      // aquí solo: lo asciende `darDeAlta()`.
       .neq('role', 'invitado')
-      .order('created_at', { ascending: false }),
-    supabase.from('lesson_progress').select('user_id, lesson_id, completed'),
-    supabase.from('lesson_outline').select('id, course_id'),
-    supabase.from('payments').select('email, amount, currency, created_at, courses(title)'),
-    // "¿Cuándo se le mandó acceso?": lo que se busca la mañana de un
-    // lanzamiento. Ver lib/admin/accesos.ts. "¿Ya entró?" viene en el perfil.
-    ultimosEnlaces(),
-    supabase.from('companies').select('id, name'),
-  ])
+      .eq('status', filtros.ver === 'suspendidos' ? 'suspended' : 'active')
+    if (busqueda) c = c.or(busqueda)
+    if (filtros.empresa === 'general') c = c.is('company_id', null)
+    else if (filtros.empresa) c = c.eq('company_id', filtros.empresa)
+    if (filtros.acceso === 'nunca') c = c.is('last_sign_in_at', null)
+    else if (filtros.acceso === 'entraron') c = c.not('last_sign_in_at', 'is', null)
+    return c.order('created_at', { ascending: false }).range(desde, desde + POR_PAGINA - 1)
+  }
 
-  if (perfiles.error) {
-    console.error(JSON.stringify({ operacion: 'listarAlumnos', error: perfiles.error.message }))
-    return []
+  let pagina = paginaPedida
+  let { data, count, error } = await consultar(pagina)
+  const total = count ?? 0
+  const paginas = Math.max(1, Math.ceil(total / POR_PAGINA))
+  // Una página fuera de rango (una URL vieja, un alumno borrado) cae en la última.
+  if (!error && pagina > paginas) {
+    pagina = paginas
+    ;({ data, count, error } = await consultar(pagina))
+  }
+
+  if (error) {
+    console.error(JSON.stringify({ operacion: 'listarAlumnos', filtros, error: error.message }))
+    return { filas: [], total: 0, pagina: 1, paginas: 1, porPagina: POR_PAGINA }
   }
 
   type Anidado = {
@@ -104,7 +181,25 @@ export async function listarAlumnos(busqueda?: string): Promise<AlumnoEnLista[]>
     }>
   }
 
-  // Lección -> curso, para saber a qué curso cuenta cada avance.
+  const perfiles = (data ?? []) as unknown as Anidado[]
+  const ids = perfiles.map((p) => p.user_id)
+  const correos = perfiles.map((p) => (p.email ?? '').toLowerCase())
+
+  // Solo lo de esta página. `lesson_outline` (lecciones publicadas por curso)
+  // es chica y da el total contra el que se mide el avance.
+  const vacio = Promise.resolve({ data: [] as never[] })
+  const [progreso, outline, pagos, enlaces, empresas] = await Promise.all([
+    ids.length
+      ? supabase.from('lesson_progress').select('user_id, lesson_id').eq('completed', true).in('user_id', ids)
+      : vacio,
+    supabase.from('lesson_outline').select('id, course_id'),
+    correos.length
+      ? supabase.from('payments').select('email, amount, currency, created_at, courses(title)').in('email', correos)
+      : vacio,
+    ultimosEnlaces(ids),
+    supabase.from('companies').select('id, name'),
+  ])
+
   const cursoDeLeccion = new Map<string, string>()
   const totalPorCurso = new Map<string, number>()
   for (const fila of outline.data ?? []) {
@@ -113,10 +208,8 @@ export async function listarAlumnos(busqueda?: string): Promise<AlumnoEnLista[]>
     totalPorCurso.set(fila.course_id, (totalPorCurso.get(fila.course_id) ?? 0) + 1)
   }
 
-  // (usuario, curso) -> lecciones hechas.
   const hechasPor = new Map<string, number>()
-  for (const fila of progreso.data ?? []) {
-    if (!fila.completed) continue
+  for (const fila of (progreso.data ?? []) as Array<{ user_id: string; lesson_id: string }>) {
     const curso = cursoDeLeccion.get(fila.lesson_id)
     if (!curso) continue
     const llave = `${fila.user_id}::${curso}`
@@ -130,7 +223,6 @@ export async function listarAlumnos(busqueda?: string): Promise<AlumnoEnLista[]>
     created_at: string
     courses: { title: string } | null
   }
-
   const pagosPor = new Map<string, AlumnoEnLista['pagos']>()
   for (const fila of (pagos.data ?? []) as unknown as PagoAnidado[]) {
     const correo = (fila.email ?? '').toLowerCase()
@@ -144,51 +236,103 @@ export async function listarAlumnos(busqueda?: string): Promise<AlumnoEnLista[]>
     pagosPor.set(correo, lista)
   }
 
-  const termino = (busqueda ?? '').trim().toLowerCase()
   const nombreDeEmpresa = new Map((empresas.data ?? []).map((e) => [e.id, e.name]))
+  const ahora = Date.now()
 
-  return (perfiles.data as unknown as Anidado[])
-    .filter((p) => {
-      if (termino === '') return true
-      // Se busca por nombre Y por correo a la vez: quien busca "ana" no sabe si
-      // la registró como Ana Pérez o como ana@empresa.com.
-      return (
-        (p.full_name ?? '').toLowerCase().includes(termino) ||
-        (p.email ?? '').toLowerCase().includes(termino)
-      )
-    })
-    .map((p) => ({
-      userId: p.user_id,
-      email: p.email,
-      nombre: p.full_name,
-      rol: p.role,
-      estado: p.status,
-      creadoEn: p.created_at,
-      ultimoAcceso: p.last_sign_in_at ?? null,
-      empresa: p.company_id
-        ? { id: p.company_id, nombre: nombreDeEmpresa.get(p.company_id) ?? 'Empresa' }
-        : null,
-      enlace: enlaces.get(p.user_id) ?? null,
-      pagos: pagosPor.get((p.email ?? '').toLowerCase()) ?? [],
-      inscripciones: (p.enrollments ?? []).map((e) => {
-        const total = totalPorCurso.get(e.course_id) ?? 0
-        const hechas = hechasPor.get(`${p.user_id}::${e.course_id}`) ?? 0
+  const filas = perfiles.map((p) => ({
+    userId: p.user_id,
+    email: p.email,
+    nombre: p.full_name,
+    rol: p.role,
+    estado: p.status,
+    creadoEn: p.created_at,
+    ultimoAcceso: p.last_sign_in_at ?? null,
+    empresa: p.company_id
+      ? { id: p.company_id, nombre: nombreDeEmpresa.get(p.company_id) ?? 'Empresa' }
+      : null,
+    enlace: enlaces.get(p.user_id) ?? null,
+    pagos: pagosPor.get((p.email ?? '').toLowerCase()) ?? [],
+    inscripciones: (p.enrollments ?? []).map((e) => {
+      const total = totalPorCurso.get(e.course_id) ?? 0
+      const hechas = hechasPor.get(`${p.user_id}::${e.course_id}`) ?? 0
+      return {
+        cursoId: e.course_id,
+        cursoTitulo: e.courses?.title ?? 'Curso',
+        cohorte: e.cohorts?.name ?? null,
+        revocada: e.status === 'revoked',
+        vigente: e.status === 'active' && (!e.expires_at || new Date(e.expires_at).getTime() > ahora),
+        expiraEn: e.expires_at,
+        hechas,
+        total,
+        porcentaje: total === 0 ? 0 : Math.round((hechas / total) * 100),
+      }
+    }),
+  }))
 
-        return {
-          cursoId: e.course_id,
-          cursoTitulo: e.courses?.title ?? 'Curso',
-          cohorte: e.cohorts?.name ?? null,
-          revocada: e.status === 'revoked',
-          vigente:
-            e.status === 'active' &&
-            (!e.expires_at || new Date(e.expires_at).getTime() > Date.now()),
-          expiraEn: e.expires_at,
-          hechas,
-          total,
-          porcentaje: total === 0 ? 0 : Math.round((hechas / total) * 100),
-        }
-      }),
-    }))
+  return { filas, total, pagina, paginas, porPagina: POR_PAGINA }
+}
+
+/**
+ * Cuántos hay en cada pestaña y en cada corte, con la misma búsqueda y empresa
+ * que la lista. Una consulta chica: tres columnas por perfil.
+ */
+export async function conteosDeAlumnos(filtros: Pick<FiltrosAlumnos, 'q' | 'empresa'>): Promise<ConteosDeAlumnos> {
+  const supabase = await crearClienteServidor()
+  const termino = limpiarTermino(filtros.q)
+  const busqueda = expresionDeBusqueda(termino, await empresasQueCoinciden(supabase, termino))
+
+  let c = supabase.from('profiles').select('user_id, status, last_sign_in_at').neq('role', 'invitado')
+  if (busqueda) c = c.or(busqueda)
+  if (filtros.empresa === 'general') c = c.is('company_id', null)
+  else if (filtros.empresa) c = c.eq('company_id', filtros.empresa)
+
+  const { data, error } = await c
+  if (error) {
+    console.error(JSON.stringify({ operacion: 'conteosDeAlumnos', error: error.message }))
+    return { activos: 0, suspendidos: 0, entraron: 0, nunca: 0 }
+  }
+
+  const activos = (data ?? []).filter((p) => p.status === 'active')
+  const entraron = activos.filter((p) => p.last_sign_in_at).length
+  return {
+    activos: activos.length,
+    suspendidos: (data ?? []).length - activos.length,
+    entraron,
+    nunca: activos.length - entraron,
+  }
+}
+
+/** Las cifras de arriba de la lista. Solo se piden en la primera página sin filtros. */
+export async function resumenDeAlumnos(): Promise<{
+  personas: number
+  conAccesoVigente: number
+  entraron: number
+  nunca: number
+  pagos: number
+}> {
+  const supabase = await crearClienteServidor()
+  const [perfiles, inscripciones, pagos] = await Promise.all([
+    supabase.from('profiles').select('user_id, last_sign_in_at').neq('role', 'invitado').eq('status', 'active'),
+    supabase.from('enrollments').select('user_id, expires_at').eq('status', 'active'),
+    supabase.from('payments').select('id', { count: 'exact', head: true }),
+  ])
+
+  const ahora = Date.now()
+  const activos = perfiles.data ?? []
+  const conVigente = new Set(
+    (inscripciones.data ?? [])
+      .filter((e) => !e.expires_at || new Date(e.expires_at).getTime() > ahora)
+      .map((e) => e.user_id)
+  )
+  const entraron = activos.filter((p) => p.last_sign_in_at).length
+
+  return {
+    personas: activos.length,
+    conAccesoVigente: activos.filter((p) => conVigente.has(p.user_id)).length,
+    entraron,
+    nunca: activos.length - entraron,
+    pagos: pagos.count ?? 0,
+  }
 }
 
 /**
@@ -196,14 +340,15 @@ export async function listarAlumnos(busqueda?: string): Promise<AlumnoEnLista[]>
  *
  * `tieneCuenta` es lo que hace útil esta pantalla: un pago sin cuenta significa
  * que el webhook registró el dinero pero el alta no se completó. Es el caso que
- * §11 manda resolver a mano, y aquí se ve de un vistazo.
+ * §11 manda resolver a mano, y aquí se ve de un vistazo. `cuentaEliminada`
+ * separa el otro caso: la cuenta existió y el equipo la borró a propósito.
  */
 export async function listarPagos(): Promise<PagoEnLista[]> {
   const supabase = await crearClienteServidor()
 
   const { data, error } = await supabase
     .from('payments')
-    .select('id, email, amount, currency, status, created_at, user_id, courses(title)')
+    .select('id, email, amount, currency, status, created_at, user_id, account_deleted_at, courses(title)')
     .order('created_at', { ascending: false })
     .limit(100)
 
@@ -220,6 +365,7 @@ export async function listarPagos(): Promise<PagoEnLista[]> {
     status: string
     created_at: string
     user_id: string | null
+    account_deleted_at: string | null
     courses: { title: string } | null
   }
 
@@ -232,6 +378,7 @@ export async function listarPagos(): Promise<PagoEnLista[]> {
     estado: p.status,
     fecha: p.created_at,
     tieneCuenta: Boolean(p.user_id),
+    cuentaEliminada: Boolean(p.account_deleted_at),
   }))
 }
 
