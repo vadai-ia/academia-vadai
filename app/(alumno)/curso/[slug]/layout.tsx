@@ -62,13 +62,13 @@ export default async function LayoutCurso({
     { href: base, etiqueta: 'Contenido', exacto: true },
     // Habilitada aunque el acceso haya vencido: leer una dinámica es
     // estructura del curso; puntuar es lo que exige acceso vigente.
-    { href: , etiqueta: 'Dinámicas', insignia: abiertas },
+    { href: `${base}/dinamicas`, etiqueta: 'Dinámicas', insignia: abiertas },
     // Con el acceso vencido las sesiones ya no se leen (la policy las esconde),
     // así que la pestaña se pinta apagada con su motivo en vez de desaparecer.
     ...(sesiones.length > 0 || !curso.vigente
       ? [
           {
-            href: ,
+            href: `${base}/en-vivo`,
             etiqueta: 'En vivo',
             insignia,
             tono: insignia === 'Ahora' ? ('vivo' as const) : undefined,

@@ -49,6 +49,12 @@ const SECCIONES = [
     icono: <IconoEncuestas />,
   },
   {
+    href: '/admin/dinamicas',
+    titulo: 'Dinámicas empresariales',
+    apoyo: 'Criterios con peso, tableros por empresa y exportación',
+    icono: <IconoDinamicas />,
+  },
+  {
     href: '/admin/entregas',
     titulo: 'Entregas',
     apoyo: 'Revisar y calificar las tareas',
@@ -279,12 +285,12 @@ export default async function PaginaAdmin() {
         )}
       </Seccion>
 
-      {/* --- Encuestas ----------------------------------------------------------
+      {/* --- Encuestas y dinámicas -------------------------------------------
           Aquí vivía "Ingresos": cobrado por moneda y los últimos pagos con el
           correo de quien pagó. Salió del panel el 21-sep-2026 porque esta
           pantalla se proyecta en sala. El dinero va a tener su propio apartado,
-          con Stripe conectado. */}
-      <div className="grid gap-3">
+          con Stripe conectado. Las dos tarjetas que quedan van lado a lado. */}
+      <div className="grid gap-3 lg:grid-cols-2">
         <Seccion
           titulo="Encuestas en vivo"
           accion={
@@ -302,6 +308,30 @@ export default async function PaginaAdmin() {
             <p className="text-sm text-muted-foreground">
               El padrón son las personas que han contestado alguna encuesta con su nombre y correo.
               Se exporta a Excel desde cada encuesta.
+            </p>
+          </Tarjeta>
+        </Seccion>
+
+        <Seccion
+          titulo="Dinámicas empresariales"
+          accion={
+            <Button asChild variant="outline" size="sm">
+              <Link href="/admin/dinamicas">Abrir</Link>
+            </Button>
+          }
+        >
+          <Tarjeta className="flex h-full flex-col gap-5 p-5 sm:p-6">
+            <div className="grid grid-cols-3 gap-x-6 gap-y-6">
+              <Cifra
+                valor={t.dinamicas.abiertas}
+                etiqueta="abiertas ahora"
+                destacada={t.dinamicas.abiertas > 0}
+              />
+              <Cifra valor={t.dinamicas.total} etiqueta="dinámicas" />
+              <Cifra valor={t.dinamicas.tableros} etiqueta="tableros" />
+            </div>
+            <p className="text-sm text-muted-foreground">
+              Cada empresa trabaja su propio tablero. Se exporta a Excel desde cada dinámica.
             </p>
           </Tarjeta>
         </Seccion>
@@ -389,6 +419,18 @@ function IconoEncuestas() {
     <>
       <path d="M3 3v18h18" />
       <path d="M7 15v-4M12 15V7M17 15v-6" />
+    </>
+  )
+}
+
+/* Rejilla 3×3, la misma figura que la pastilla de navegación pero en el
+   tamaño de esta página (18 px): el de iconos-navegacion.tsx es size-4 y no
+   se importa a propósito. */
+function IconoDinamicas() {
+  return marco(
+    <>
+      <rect x="3" y="3" width="18" height="18" rx="2" />
+      <path d="M3 9h18M3 15h18M9 3v18M15 3v18" />
     </>
   )
 }

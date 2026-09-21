@@ -39,6 +39,7 @@
     "check:curso": "node scripts/check-curso.mjs",
     "curso:sembrar": "node scripts/seed-curso.mjs",
     "qa:mostrar": "node scripts/qa-mostrar.mjs",
+    "seed:dinamica": "node scripts/seed-dinamica.mjs",
     "qa:esconder": "node scripts/qa-esconder.mjs",
     "capturas": "node scripts/capturas.mjs"
   },

@@ -24,6 +24,13 @@ import type { Notificacion } from '@/lib/notificaciones/consultas'
  * a ver su lección no quiere leer un letrero con prisa.
  */
 
+const ETIQUETA_TIPO: Record<Notificacion['tipo'], string> = {
+  announcement: 'Anuncio',
+  blog: 'Blog',
+  sesion: 'Sesión en vivo',
+  dinamica: 'Dinámica',
+}
+
 function fechaCorta(iso: string): string {
   // Zona fija: si el servidor y el navegador pintaran distinto, React 418.
   return new Intl.DateTimeFormat('es-MX', { day: 'numeric', month: 'short', timeZone: 'America/Mexico_City' }).format(
@@ -78,7 +85,8 @@ export function Campana({ lista, nuevas }: { lista: Notificacion[]; nuevas: numb
 
         {lista.length === 0 ? (
           <p className="px-4 py-6 text-center text-sm text-muted-foreground">
-            Aquí verás los anuncios y las entradas nuevas del blog.
+            Aquí verás los anuncios, las entradas nuevas del blog y las dinámicas que se abran en
+            tu curso.
           </p>
         ) : (
           <ul className="flex max-h-96 flex-col divide-y divide-border overflow-y-auto">
@@ -97,7 +105,7 @@ export function Campana({ lista, nuevas }: { lista: Notificacion[]; nuevas: numb
                   />
                   <span className="flex min-w-0 flex-col gap-0.5">
                     <span className="text-xs tracking-wider text-muted-foreground uppercase">
-                      {n.tipo === 'blog' ? 'Blog' : n.tipo === 'sesion' ? 'Sesión en vivo' : 'Anuncio'} ·{' '}
+                      {ETIQUETA_TIPO[n.tipo]} ·{' '}
                       {fechaCorta(n.publicadoEn)}
                       {n.nueva ? <span className="ml-1.5 font-semibold text-foreground normal-case">Nuevo</span> : null}
                     </span>

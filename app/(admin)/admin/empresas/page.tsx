@@ -94,6 +94,12 @@ export default async function PaginaEmpresas() {
                   titulo={`¿Borrar «${e.nombre}»?`}
                   confirmar={{ texto: 'Sí, borrar', enCurso: 'Borrando…', tono: 'destructivo' }}
                 >
+                  {e.tableros > 0 ? (
+                    <p>
+                      Tiene {e.tableros} tablero{e.tableros === 1 ? '' : 's'} en dinámicas y no se
+                      puede borrar hasta que los quites o descargues su Excel.
+                    </p>
+                  ) : null}
                   <p>
                     {e.alumnos > 0
                       ? `Sus ${e.alumnos} alumno${e.alumnos === 1 ? '' : 's'} no se borran: quedan en General, sin empresa.`
