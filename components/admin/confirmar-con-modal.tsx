@@ -33,7 +33,12 @@ type Tono = 'destructivo' | 'neutro'
 function Confirmar({ texto, enCurso, tono }: { texto: string; enCurso: string; tono: Tono }) {
   const { pending } = useFormStatus()
   return (
-    <Button type="submit" variant={tono === 'destructivo' ? 'destructive' : 'default'} disabled={pending}>
+    <Button
+      type="submit"
+      variant={tono === 'destructivo' ? 'destructive' : 'default'}
+      className="w-full sm:w-auto"
+      disabled={pending}
+    >
       {pending ? enCurso : texto}
     </Button>
   )
@@ -53,9 +58,24 @@ export function ConfirmarConModal({
   accion: (previo: EstadoAccion, datos: FormData) => Promise<EstadoAccion>
   /** Viajan como inputs ocultos. */
   campos: Record<string, string>
-  boton: { texto: string; etiquetaAccesible: string; tono?: Tono }
+  /**
+   * `variante`/`tamano` son los del <Button>. El default (ghost, sm) es el
+   * botón discreto de una fila; "Eliminar cuenta" usa destructive + default.
+   */
+  boton: {
+    texto: string
+    etiquetaAccesible: string
+    tono?: Tono
+    variante?: 'ghost' | 'outline' | 'destructive'
+    tamano?: 'sm' | 'default'
+  }
   titulo: string
   confirmar: { texto: string; enCurso: string; tono?: Tono }
+  /**
+   * Va DENTRO del <form>: además de texto puede traer inputs (el correo que se
+   * teclea para confirmar un borrado viaja así, y se valida sin JavaScript
+   * con `required` y `pattern`).
+   */
   children: ReactNode
 }) {
   const [estado, enviar] = useActionState(accion, SIN_ESTADO)
@@ -65,10 +85,12 @@ export function ConfirmarConModal({
     <>
       <Button
         type="button"
-        variant="ghost"
-        size="sm"
+        variant={boton.variante ?? 'ghost'}
+        size={boton.tamano ?? 'sm'}
         className={
-          boton.tono === 'destructivo' ? 'text-destructive hover:text-destructive' : undefined
+          boton.tono === 'destructivo' && (boton.variante ?? 'ghost') === 'ghost'
+            ? 'text-destructive hover:text-destructive'
+            : undefined
         }
         popoverTarget={idModal}
         aria-haspopup="dialog"
@@ -100,10 +122,13 @@ export function ConfirmarConModal({
 
           <AvisoAccion estado={estado} />
 
-          <div className="flex flex-wrap justify-end gap-2">
+          {/* En teléfono los dos botones van a lo ancho y el de confirmar
+              arriba, donde cae el pulgar; en escritorio, a la derecha. */}
+          <div className="flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
             <Button
               type="button"
               variant="outline"
+              className="w-full sm:w-auto"
               popoverTarget={idModal}
               popoverTargetAction="hide"
             >
