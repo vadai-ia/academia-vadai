@@ -285,12 +285,22 @@
   @media (pointer: coarse) {
     [data-slot='button'],
     [data-slot='select-trigger'],
+    /* M14: las pastillas de filtro, las pestañas y los destinos de la barra
+       inferior también se tocan; `pnpm capturas --auditar` los mide. */
+    [data-slot='pastilla'],
+    [data-slot='pestana'],
+    [data-slot='destino'],
     summary,
     input:not([type='checkbox']):not([type='radio']):not([type='hidden']),
     textarea,
     select {
       min-height: 44px;
-      }
+    }
+    /* Botones de solo icono: campana, tema, cerrar. */
+    [data-slot='icono-boton'] {
+      min-height: 44px;
+      min-width: 44px;
+    }
   }
 
   /* Cruce suave al cambiar de tema.
