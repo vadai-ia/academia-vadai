@@ -4,11 +4,12 @@ import { notFound } from 'next/navigation'
 
 import { AgregarAlumnos } from '@/components/admin/agregar-alumnos'
 import { ArbolCurso } from '@/components/admin/arbol-curso'
+import { CalendarioDeCohorte } from '@/components/admin/calendario-de-cohorte'
 import { FormularioCurso } from '@/components/admin/formulario-curso'
 import { NuevaCohorte } from '@/components/admin/nueva-cohorte'
 import { TablaInscritos } from '@/components/admin/tabla-inscritos'
 import { Badge } from '@/components/ui/badge'
-import { cohortesDelCurso } from '@/lib/admin/cohortes'
+import { cohortesDelCurso, leccionesLigables, obtenerCohorte } from '@/lib/admin/cohortes'
 import { obtenerCurso } from '@/lib/admin/consultas'
 import { listarEmpresas } from '@/lib/admin/empresas'
 import { candidatosParaCurso, inscritosDelCurso } from '@/lib/admin/inscritos'
@@ -36,20 +37,27 @@ export default async function PaginaCurso({
   params: Promise<{ id: string }>
   searchParams: Promise<Parametros>
 }) {
-  await exigirAdmin()
+  const perfil = await exigirAdmin()
   const { id } = await params
   const filtros = await searchParams
 
   const curso = await obtenerCurso(id)
   if (!curso) notFound()
 
-  // Independientes entre sí: en serie serían cuatro viajes encadenados.
-  const [cohortes, { visibles, resumen }, candidatos, empresas] = await Promise.all([
+  // Independientes entre sí: en serie serían cinco viajes encadenados.
+  const [cohortes, { visibles, resumen }, candidatos, empresas, ligables] = await Promise.all([
     cohortesDelCurso(curso.id),
     inscritosDelCurso(curso.id, filtros),
     candidatosParaCurso(curso.id, filtros.buscar ?? ''),
     listarEmpresas(),
+    leccionesLigables(curso.id),
   ])
+  // Las sesiones de cada cohorte, para editarlas aquí sin ir a la cohorte
+  // (pedido 21-sep-2026). Casi siempre es una cohorte; si son varias, cada
+  // una va en su propio bloque plegable.
+  const calendarios = (await Promise.all(cohortes.map((c) => obtenerCohorte(c.id)))).filter(
+    (c): c is NonNullable<typeof c> => c !== null
+  )
 
   return (
     <div className="flex flex-col gap-10">
@@ -128,6 +136,51 @@ export default async function PaginaCurso({
         ) : null}
 
         <NuevaCohorte cursoId={curso.id} reinicio={cohortes.length} />
+      </section>
+
+      {/* --- Sesiones en vivo ---------------------------------------------
+          El calendario de cada cohorte, editable aquí mismo: agendar una o la
+          serie, cambiar fecha, hora y liga, borrar, y mandar las fechas por
+          correo. Agendar o mover una sesión avisa en la campana del alumno. */}
+      <section className="flex flex-col gap-4 border-t border-border pt-8" id="sesiones">
+        <div className="flex flex-wrap items-baseline justify-between gap-2">
+          <h2 className="text-lg font-semibold">Sesiones en vivo</h2>
+          <p className="text-sm text-muted-foreground">
+            Cambiar una sesión avisa a los inscritos en su campana
+          </p>
+        </div>
+
+        {calendarios.length === 0 ? (
+          <p className="rounded-lg border border-dashed border-border px-5 py-8 text-center text-sm text-muted-foreground">
+            Crea una cohorte arriba para agendar sesiones.
+          </p>
+        ) : (
+          calendarios.map((cohorte, i) => (
+            <details
+              key={cohorte.id}
+              open={i === 0}
+              className="group/calendario rounded-[10px] border border-border"
+            >
+              <summary className="flex cursor-pointer list-none flex-wrap items-center justify-between gap-2 px-4 py-3 font-medium select-none [&::-webkit-details-marker]:hidden">
+                <span className="flex items-center gap-2">
+                  <span aria-hidden className="text-muted-foreground transition-transform group-open/calendario:rotate-90">
+                    ›
+                  </span>
+                  {cohorte.name}
+                </span>
+                <Link
+                  href={`/admin/cohortes/${cohorte.id}`}
+                  className="text-xs font-normal text-primary underline-offset-4 hover:underline"
+                >
+                  Abrir la cohorte →
+                </Link>
+              </summary>
+              <div className="border-t border-border px-4 py-4">
+                <CalendarioDeCohorte cohorte={cohorte} ligables={ligables} correoAdmin={perfil.email} compacto />
+              </div>
+            </details>
+          ))
+        )}
       </section>
 
       {/* --- Alumnos ----------------------------------------------------------

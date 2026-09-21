@@ -98,7 +98,11 @@ En su lugar: `pnpm db:migrate` → `scripts/migrate.mjs`, que aplica los `.sql` 
 - **Acceso vencido = estructura sí, contenido no** (decidido 20-ago-2026). Un alumno con `expires_at` pasada sigue viendo el curso en /mis-cursos, sus módulos, los títulos de sus lecciones con candado y su progreso histórico; NO ve video, adjuntos, descripción rica, quizzes, tareas ni comunidad. En RLS eso son dos helpers distintos: `academia.has_enrollment()` (estructura) vs `academia.has_active_access()` (contenido).
 - Tokens de video Bunny: firmados server-side, expiración 6h, solo si enrollment activo. Jamás exponer `BUNNY_STREAM_TOKEN_KEY` ni URLs sin token.
 - Webhook Stripe: verificación de firma + idempotencia por `stripe_events.event_id`. `checkout.session.completed` crea usuario si no existe + enrollment + registra payment. `charge.refunded` marca refund y revoca enrollment.
-- Zona horaria de sesiones: se guarda `timestamptz`; UI muestra hora local del navegador con referencia CDMX.
+- Zona horaria de sesiones: se guarda `timestamptz`; **la UI muestra SIEMPRE hora de la Ciudad de
+  México, en servidor y en navegador** (decidido 21-sep-2026, día del lanzamiento). Pintar la hora
+  del navegador rompía la hidratación (React 418, página entera caída) y en las PCs con zona
+  "Central Time (US)" salía una hora adelantada. Todo `Intl.DateTimeFormat` de cliente lleva
+  `timeZone: 'America/Mexico_City'`.
 - Certificado solo si 100% de lecciones `is_required` completadas y quizzes/tareas obligatorias aprobadas.
 - Archivos: descargas SIEMPRE por signed URL generada server-side; buckets privados.
 - Los correos de la academia (bienvenida y recuperación) los manda **nuestro código por la API de Resend**, no el SMTP de Supabase. Plantillas en `/lib/correo`, en español y con marca. El SMTP queda como respaldo.

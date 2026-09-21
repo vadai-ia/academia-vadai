@@ -4,6 +4,7 @@ import { revalidatePath } from 'next/cache'
 import { z } from 'zod'
 
 import { alumnosPendientesDeEntrar } from '@/lib/admin/accesos'
+import { empresaPorNombre } from '@/lib/admin/empresas'
 import { crearEnlacesDurables } from '@/lib/auth/enlace-durable'
 import { exigirAdmin } from '@/lib/auth/sesion'
 import { plantillaNuevoCurso, plantillaRecordatorio } from '@/lib/correo/plantillas'
@@ -63,8 +64,12 @@ export async function altaManual(_previo: EstadoAccion, datos: FormData): Promis
     accesos,
     course_id: cursoFijo,
     cohort_id: grupoFijo,
-    company_id: empresa,
+    company_id: empresaElegida,
   } = resultado.data
+
+  // "O escribe una nueva": se crea (o se reúsa) ahí mismo (21-sep-2026).
+  const empresaNueva = String(datos.get('company_nueva') ?? '').trim()
+  const empresa = empresaNueva ? ((await empresaPorNombre(empresaNueva)) ?? '') : empresaElegida
 
   const seleccion = await revisarSeleccion(
     accesos.length > 0 ? accesos : cursoFijo ? [`${cursoFijo}|${grupoFijo}`] : []

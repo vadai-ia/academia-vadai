@@ -173,7 +173,10 @@ export async function altaMasiva(
   // La empresa (20-sep-2026): manda la columna "Empresa" del archivo, que se
   // crea si no existe y se reúsa si ya está; si el archivo no la trae, la
   // que se eligió en el formulario para todo el archivo; si tampoco, nada.
-  const empresaFija = String(datos.get('company_id') ?? '')
+  const empresaNueva = String(datos.get('company_nueva') ?? '').trim()
+  const empresaFija = empresaNueva
+    ? ((await empresaPorNombre(empresaNueva)) ?? '')
+    : String(datos.get('company_id') ?? '')
   const empresaDe = new Map<string, string | null>()
 
   for (const persona of personas) {

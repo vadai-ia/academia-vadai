@@ -12,6 +12,8 @@ export type SesionDelAlumno = {
   cohorteNombre: string
   cursoSlug: string
   grabacionLeccionId: string | null
+  /** Cuándo se agendó o se cambió por última vez: es lo que avisa la campana. */
+  actualizadaEn: string
 }
 
 /**
@@ -42,6 +44,8 @@ export async function sesionesDelAlumno(cursoSlug?: string): Promise<SesionDelAl
     scheduled_at: string
     meet_url: string | null
     recording_lesson_id: string | null
+    created_at: string
+    updated_at: string
     cohorts: { name: string; courses: { slug: string } }
   }
 
@@ -55,6 +59,7 @@ export async function sesionesDelAlumno(cursoSlug?: string): Promise<SesionDelAl
       cohorteNombre: s.cohorts.name,
       cursoSlug: s.cohorts.courses.slug,
       grabacionLeccionId: s.recording_lesson_id,
+      actualizadaEn: s.updated_at ?? s.created_at,
     }))
     .filter((s) => !cursoSlug || s.cursoSlug === cursoSlug)
 }

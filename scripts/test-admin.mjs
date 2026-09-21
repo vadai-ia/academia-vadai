@@ -250,6 +250,11 @@ async function main() {
   afirmar(G2, 'con avance y puntos por persona', true,
     cursoConAlumnos.includes('>Avance<') && cursoConAlumnos.includes('>Puntos<'))
   afirmar(G2, 'y la ficha de cada uno', true, cursoConAlumnos.includes('id="ficha-'))
+  // Las sesiones se editan desde el curso (21-sep-2026).
+  afirmar(G2, 'el curso trae el calendario de su cohorte editable', true,
+    cursoConAlumnos.includes('id="sesiones"') &&
+      cursoConAlumnos.includes(`value="${IDS.sesionFutura}"`) &&
+      cursoConAlumnos.includes('name="titulo_base"'))
   const filtrado = await (await pedir(`/admin/cursos/${IDS.curso}?acceso=vencido`, admin)).text()
   afirmar(G2, 'el filtro por acceso deja solo al vencido', true,
     filtrado.includes(correo.alumnoVencido) && !filtrado.includes(`value="${correo.alumnoVigente}"`))

@@ -40,8 +40,12 @@ export type CursoOpcion = {
 
 export type EmpresaOpcion = { id: string; nombre: string }
 
-/** Vacío = General. Las empresas se crean en /admin/empresas. */
-function SelectorDeEmpresa({ id, empresas, ayuda }: { id: string; empresas: EmpresaOpcion[]; ayuda?: string }) {
+/**
+ * Vacío = General. Se elige una existente o se escribe una nueva ahí mismo:
+ * si el campo de texto trae algo, manda sobre el selector y la empresa se
+ * crea (o se reúsa) al dar de alta (pedido de Roberto, 21-sep-2026).
+ */
+export function SelectorDeEmpresa({ id, empresas, ayuda }: { id: string; empresas: EmpresaOpcion[]; ayuda?: string }) {
   return (
     <div className="flex flex-col gap-1.5">
       <Label htmlFor={id}>Empresa</Label>
@@ -53,6 +57,13 @@ function SelectorDeEmpresa({ id, empresas, ayuda }: { id: string; empresas: Empr
           </option>
         ))}
       </select>
+      <Input
+        name="company_nueva"
+        placeholder="…o escribe una empresa nueva"
+        autoComplete="off"
+        aria-label="Empresa nueva"
+        className="h-9"
+      />
       {ayuda ? <p className="text-xs text-muted-foreground">{ayuda}</p> : null}
     </div>
   )

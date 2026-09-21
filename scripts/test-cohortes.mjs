@@ -260,6 +260,19 @@ async function main() {
     afirmar(G3, 've sus dos sesiones', true,
       cursoAlumno.includes('Ya ocurri') && cursoAlumno.includes('xima'))
     afirmar(G3, 'recibe el link de Meet', true, cursoAlumno.includes('meet.google.com/qa-futura'))
+    // Solo hora de CDMX (21-sep-2026): sin ella, servidor y navegador
+    // pintaban distinto y React 418 tiraba la página del curso.
+    afirmar(G3, 'la hora se dice en CDMX', true, cursoAlumno.includes('hora de la Ciudad de México'))
+
+    // La campana avisa de la sesión futura: el seed la sembró hace un momento,
+    // que es después de "la última vez que abrió la campana" (hace 2 h).
+    await bd.query(
+      `update academia.profiles set notifications_seen_at = now() - interval '2 hours' where email = $1`,
+      [correo.alumnoVigente]
+    )
+    const inicio = await texto('/mis-cursos', vigente)
+    afirmar(G3, 'la campana cuenta la sesión agendada', true,
+      Number(inicio.match(/data-nuevas="(\d+)"/)?.[1] ?? 0) >= 1 && inicio.includes('Sesión en vivo'))
 
     // ====================================================================
     // La grabación ligada (§3.10).

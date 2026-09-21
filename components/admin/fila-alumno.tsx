@@ -5,7 +5,7 @@ import { useActionState } from 'react'
 import { AvisoAccion } from '@/components/admin/aviso-accion'
 import { ConfirmarConModal } from '@/components/admin/confirmar-con-modal'
 import type { CursoOpcion, EmpresaOpcion } from '@/components/admin/dar-de-alta'
-import { cambiarEmpresaDeAlumno } from '@/lib/admin/acciones-empresas'
+import { cambiarEmpresaDeAlumnoConAviso } from '@/lib/admin/acciones-empresas'
 import { ListaSeleccionable, gruposDesdeCursos } from '@/components/admin/lista-seleccionable'
 import { Avatar, Progreso } from '@/components/ui-vadai/superficie'
 import { Badge } from '@/components/ui/badge'
@@ -150,6 +150,62 @@ function DarAcceso({
         </div>
       </form>
     </details>
+  )
+}
+
+/**
+ * La empresa de la persona, con aviso.
+ *
+ * Roberto reportó que "Guardar empresa no funciona" (21-sep-2026). La acción
+ * sí guardaba, pero no decía nada: la fila se redibujaba igual y parecía que
+ * el clic se había perdido. Ahora contesta ("Empresa guardada: Mormen") y
+ * además se puede escribir una empresa nueva sin ir a Empresas.
+ */
+function CambiarEmpresa({
+  userId,
+  actual,
+  empresas,
+}: {
+  userId: string
+  actual: string
+  empresas: EmpresaOpcion[]
+}) {
+  const [estado, accion, guardando] = useActionState(cambiarEmpresaDeAlumnoConAviso, SIN_ESTADO)
+
+  return (
+    <div className="flex flex-col gap-1.5 pt-1">
+      <form action={accion} className="flex flex-wrap items-center gap-2">
+        <input type="hidden" name="user_id" value={userId} />
+        <label htmlFor={`empresa-${userId}`} className="text-xs text-muted-foreground">
+          Empresa
+        </label>
+        <select
+          id={`empresa-${userId}`}
+          name="company_id"
+          defaultValue={actual}
+          className="h-8 rounded-md border border-input bg-transparent px-2 text-sm"
+        >
+          <option value="">General</option>
+          {empresas.map((e) => (
+            <option key={e.id} value={e.id}>
+              {e.nombre}
+            </option>
+          ))}
+        </select>
+        <input
+          type="text"
+          name="company_nueva"
+          placeholder="…o una nueva"
+          autoComplete="off"
+          aria-label="Empresa nueva"
+          className="h-8 w-40 rounded-md border border-input bg-transparent px-2 text-sm"
+        />
+        <Button type="submit" variant="ghost" size="sm" disabled={guardando}>
+          {guardando ? 'Guardando…' : 'Guardar'}
+        </Button>
+      </form>
+      <AvisoAccion estado={estado} />
+    </div>
   )
 }
 
@@ -394,28 +450,7 @@ export function FilaAlumno({
             </ConfirmarConModal>
           </div>
           {!equipo ? (
-            <form action={cambiarEmpresaDeAlumno} className="flex flex-wrap items-center gap-2 pt-1">
-              <input type="hidden" name="user_id" value={alumno.userId} />
-              <label htmlFor={`empresa-${alumno.userId}`} className="text-xs text-muted-foreground">
-                Empresa
-              </label>
-              <select
-                id={`empresa-${alumno.userId}`}
-                name="company_id"
-                defaultValue={alumno.empresa?.id ?? ''}
-                className="h-8 rounded-md border border-input bg-transparent px-2 text-sm"
-              >
-                <option value="">General</option>
-                {empresas.map((e) => (
-                  <option key={e.id} value={e.id}>
-                    {e.nombre}
-                  </option>
-                ))}
-              </select>
-              <Button type="submit" variant="ghost" size="sm">
-                Guardar
-              </Button>
-            </form>
+            <CambiarEmpresa userId={alumno.userId} actual={alumno.empresa?.id ?? ''} empresas={empresas} />
           ) : null}
           <p className="text-xs text-muted-foreground">
             Dado de alta el {fecha(alumno.creadoEn)}.{' '}

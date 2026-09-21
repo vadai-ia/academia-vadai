@@ -418,6 +418,14 @@ function Fila({ inscrito: i, cursoId, empresas }: { inscrito: Inscrito; cursoId:
                   </option>
                 ))}
               </select>
+              <input
+                type="text"
+                name="company_nueva"
+                placeholder="…o una nueva"
+                autoComplete="off"
+                aria-label="Empresa nueva"
+                className="h-9 w-40 rounded-md border border-input bg-transparent px-2 text-sm"
+              />
               <Button type="submit" variant="outline" size="sm">
                 Guardar
               </Button>

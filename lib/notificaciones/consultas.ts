@@ -1,27 +1,36 @@
 import 'server-only'
 
+import { sesionesDelAlumno } from '@/lib/alumno/sesiones'
 import type { Perfil } from '@/lib/auth/sesion'
+import { describirHorario } from '@/lib/calendario/enlaces'
 import { publicacionesParaAlumno } from '@/lib/comunidad/posts'
 
 /**
- * Las novedades de la campana: anuncios y entradas de blog publicadas.
+ * Las novedades de la campana: anuncios, entradas de blog y sesiones en vivo.
  *
- * "Nuevo" es todo lo publicado después de la última vez que la persona abrió
- * la campana (`profiles.notifications_seen_at`). Si nunca la ha abierto, cuenta
- * desde que se creó su cuenta: lo publicado antes de que existiera no es una
- * novedad para ella, y estrenar la campana con doce avisos viejos en rojo es
- * la forma más rápida de que deje de mirarla.
+ * "Nuevo" es todo lo publicado —o agendado, o cambiado— después de la última
+ * vez que la persona abrió la campana (`profiles.notifications_seen_at`). Si
+ * nunca la ha abierto, cuenta desde que se creó su cuenta: lo publicado antes
+ * de que existiera no es una novedad para ella, y estrenar la campana con
+ * doce avisos viejos en rojo es la forma más rápida de que deje de mirarla.
  *
- * No hay tabla de notificaciones: la policy de `posts` ya decide qué ve cada
- * quien (publicado, y de su curso o de todos), así que la lista es la misma
- * consulta del blog con una marca de tiempo encima.
+ * Las sesiones entraron el 21-sep-2026: agendar o mover una sesión avisa a
+ * los inscritos de su cohorte. Se usa `updated_at`, que el trigger sella en
+ * cada cambio, y solo cuentan las futuras: mover una sesión pasada no es
+ * noticia. La policy de `cohort_sessions` ya decide quién ve cuál.
+ *
+ * No hay tabla de notificaciones: son las mismas consultas del blog y del
+ * calendario con una marca de tiempo encima.
  */
 
 export type Notificacion = {
   id: string
   titulo: string
-  tipo: 'announcement' | 'blog'
+  tipo: 'announcement' | 'blog' | 'sesion'
+  /** Cuándo pasó lo que se avisa. */
   publicadoEn: string
+  /** Una línea más, cuando hace falta: el horario de la sesión. */
+  detalle?: string
   href: string
   nueva: boolean
 }
@@ -29,12 +38,15 @@ export type Notificacion = {
 export type Novedades = { lista: Notificacion[]; nuevas: number }
 
 const CUANTAS = 8
+/** Una sesión sigue siendo noticia hasta 3 horas después de empezar. */
+const HORAS_DE_GRACIA = 3
 
 export async function notificacionesDelAlumno(perfil: Perfil): Promise<Novedades> {
-  const publicaciones = await publicacionesParaAlumno()
+  const [publicaciones, sesiones] = await Promise.all([publicacionesParaAlumno(), sesionesDelAlumno()])
   const desde = new Date(perfil.notifications_seen_at ?? perfil.created_at ?? 0).getTime()
+  const ahora = Date.now()
 
-  const lista = publicaciones.slice(0, CUANTAS).map((p) => ({
+  const dePosts: Notificacion[] = publicaciones.map((p) => ({
     id: p.id,
     titulo: p.titulo,
     tipo: p.tipo,
@@ -43,8 +55,22 @@ export async function notificacionesDelAlumno(perfil: Perfil): Promise<Novedades
     nueva: new Date(p.publicadoEn).getTime() > desde,
   }))
 
-  // Se cuentan TODAS las nuevas, no solo las ocho de la lista.
-  const nuevas = publicaciones.filter((p) => new Date(p.publicadoEn).getTime() > desde).length
+  const deSesiones: Notificacion[] = sesiones
+    .filter((s) => new Date(s.programadaEn).getTime() >= ahora - HORAS_DE_GRACIA * 60 * 60 * 1000)
+    .map((s) => ({
+      id: `sesion-${s.id}`,
+      titulo: s.titulo,
+      tipo: 'sesion' as const,
+      publicadoEn: s.actualizadaEn,
+      detalle: describirHorario(s.programadaEn),
+      href: `/curso/${s.cursoSlug}#sesiones`,
+      nueva: new Date(s.actualizadaEn).getTime() > desde,
+    }))
 
-  return { lista, nuevas }
+  const todas = [...dePosts, ...deSesiones].sort(
+    (a, b) => new Date(b.publicadoEn).getTime() - new Date(a.publicadoEn).getTime()
+  )
+
+  // Se cuentan TODAS las nuevas, no solo las ocho de la lista.
+  return { lista: todas.slice(0, CUANTAS), nuevas: todas.filter((n) => n.nueva).length }
 }

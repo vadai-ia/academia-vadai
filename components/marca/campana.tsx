@@ -25,7 +25,10 @@ import type { Notificacion } from '@/lib/notificaciones/consultas'
  */
 
 function fechaCorta(iso: string): string {
-  return new Intl.DateTimeFormat('es-MX', { day: 'numeric', month: 'short' }).format(new Date(iso))
+  // Zona fija: si el servidor y el navegador pintaran distinto, React 418.
+  return new Intl.DateTimeFormat('es-MX', { day: 'numeric', month: 'short', timeZone: 'America/Mexico_City' }).format(
+    new Date(iso)
+  )
 }
 
 export function Campana({ lista, nuevas }: { lista: Notificacion[]; nuevas: number }) {
@@ -94,10 +97,12 @@ export function Campana({ lista, nuevas }: { lista: Notificacion[]; nuevas: numb
                   />
                   <span className="flex min-w-0 flex-col gap-0.5">
                     <span className="text-xs tracking-wider text-muted-foreground uppercase">
-                      {n.tipo === 'blog' ? 'Blog' : 'Anuncio'} · {fechaCorta(n.publicadoEn)}
+                      {n.tipo === 'blog' ? 'Blog' : n.tipo === 'sesion' ? 'Sesión en vivo' : 'Anuncio'} ·{' '}
+                      {fechaCorta(n.publicadoEn)}
                       {n.nueva ? <span className="ml-1.5 font-semibold text-foreground normal-case">Nuevo</span> : null}
                     </span>
                     <span className="text-sm leading-snug font-medium text-pretty">{n.titulo}</span>
+                    {n.detalle ? <span className="text-xs text-muted-foreground">{n.detalle}</span> : null}
                   </span>
                 </Link>
               </li>

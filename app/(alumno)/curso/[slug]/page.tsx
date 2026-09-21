@@ -76,7 +76,9 @@ export default async function PaginaCurso({ params }: { params: Promise<{ slug: 
         faltantes={curso.vigente ? elegibilidad.faltantes : []}
       />
 
-      <SesionesEnVivo sesiones={sesiones} />
+      <div id="sesiones">
+        <SesionesEnVivo sesiones={sesiones} />
+      </div>
 
       <Seccion
         titulo="Contenido del curso"

@@ -3,6 +3,7 @@
 import { revalidatePath } from 'next/cache'
 import { z } from 'zod'
 
+import { empresaPorNombre } from '@/lib/admin/empresas'
 import { exigirAdmin } from '@/lib/auth/sesion'
 import { crearClienteServidor } from '@/lib/supabase/server'
 
@@ -77,25 +78,61 @@ export async function eliminarEmpresa(_previo: EstadoAccion, datos: FormData): P
   return { aviso: `"${fila?.name ?? 'La empresa'}" se borró. Sus alumnos quedaron en General.` }
 }
 
-/** Cambia (o quita) la empresa de una persona. Vacío = General. */
-export async function cambiarEmpresaDeAlumno(datos: FormData): Promise<void> {
+/**
+ * Cambia (o quita) la empresa de una persona. Vacío = General.
+ *
+ * `company_nueva` (21-sep-2026, pedido de Roberto): si viene un nombre, se
+ * crea la empresa ahí mismo —o se reúsa si ya existe— y se asigna. Así no
+ * hay que ir a Empresas, crearla y volver.
+ */
+async function cambiarEmpresa(datos: FormData): Promise<EstadoAccion> {
   await exigirAdmin()
 
   const userId = String(datos.get('user_id') ?? '')
-  const empresa = String(datos.get('company_id') ?? '')
-  if (!userId) return
+  const nueva = String(datos.get('company_nueva') ?? '').trim()
+  let empresa = String(datos.get('company_id') ?? '')
+  if (!userId) return { error: 'Falta la cuenta.' }
+
+  if (nueva) {
+    const id = await empresaPorNombre(nueva)
+    if (!id) return { error: `No se pudo crear la empresa "${nueva}".` }
+    empresa = id
+  }
 
   const supabase = await crearClienteServidor()
-  const { error } = await supabase
+  const { data, error } = await supabase
     .from('profiles')
     .update({ company_id: empresa || null })
     .eq('user_id', userId)
+    .select('user_id')
 
-  if (error) {
-    console.error(JSON.stringify({ operacion: 'cambiarEmpresaDeAlumno', userId, empresa, error: error.message }))
+  if (error || !data || data.length === 0) {
+    console.error(
+      JSON.stringify({ operacion: 'cambiarEmpresaDeAlumno', userId, empresa, error: error?.message ?? 'sin filas' })
+    )
+    return { error: 'No se pudo guardar la empresa.' }
   }
+
+  const { data: fila } = empresa
+    ? await supabase.from('companies').select('name').eq('id', empresa).maybeSingle()
+    : { data: null }
 
   revalidarTodo()
   const cursoId = String(datos.get('course_id') ?? '')
   if (cursoId) revalidatePath(`/admin/cursos/${cursoId}`)
+
+  return { aviso: fila?.name ? `Empresa guardada: ${fila.name}.` : 'Quedó en General, sin empresa.' }
+}
+
+/** Para formularios directos (<form action>): sin aviso en pantalla. */
+export async function cambiarEmpresaDeAlumno(datos: FormData): Promise<void> {
+  await cambiarEmpresa(datos)
+}
+
+/** Para `useActionState`: devuelve el aviso, que es lo que faltaba en la fila. */
+export async function cambiarEmpresaDeAlumnoConAviso(
+  _previo: EstadoAccion,
+  datos: FormData
+): Promise<EstadoAccion> {
+  return cambiarEmpresa(datos)
 }

@@ -84,6 +84,8 @@ function SelectorDeEmpresa({ id, empresas }: { id: string; empresas: EmpresaOpci
           </option>
         ))}
       </select>
+      {/* Si trae algo, manda sobre el selector y se crea ahí mismo. */}
+      <Input name="company_nueva" placeholder="…o escribe una empresa nueva" autoComplete="off" aria-label="Empresa nueva" className="h-9" />
     </div>
   )
 }
