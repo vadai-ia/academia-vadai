@@ -140,18 +140,24 @@ export async function crearPregunta(
   return { aviso: 'Pregunta agregada.' }
 }
 
-export async function eliminarPregunta(datos: FormData): Promise<void> {
+/** Con confirmación en modal (M14). */
+export async function eliminarPregunta(_previo: EstadoAccion, datos: FormData): Promise<EstadoAccion> {
   await exigirAdmin()
 
   const id = String(datos.get('id') ?? '')
   const leccionId = String(datos.get('lesson_id') ?? '')
-  if (!id) return
+  if (!id) return { error: 'Falta la pregunta.' }
 
   const supabase = await crearClienteServidor()
   const { error } = await supabase.from('quiz_questions').delete().eq('id', id)
 
-  if (error) registrarFallo('eliminarPregunta', { id }, error.message)
+  if (error) {
+    registrarFallo('eliminarPregunta', { id }, error.message)
+    return { error: 'No se pudo eliminar la pregunta. Inténtalo otra vez.' }
+  }
+
   revalidatePath(`/admin/lecciones/${leccionId}`)
+  return { aviso: 'Pregunta eliminada.' }
 }
 
 /** Mismo intercambio con el vecino que módulos y lecciones (§3.2). */

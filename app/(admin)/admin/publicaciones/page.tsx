@@ -1,5 +1,6 @@
 import type { Metadata } from 'next'
 
+import { ConfirmarConModal } from '@/components/admin/confirmar-con-modal'
 import { NuevaPublicacion } from '@/components/admin/nueva-publicacion'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
@@ -36,13 +37,10 @@ export default async function PaginaPublicaciones() {
         </p>
       </header>
 
-      <section className="flex flex-col gap-4">
-        <h2 className="text-lg font-semibold">Nueva publicación</h2>
-        <NuevaPublicacion
-          cursos={cursos.map((c) => ({ id: c.id, titulo: c.titulo }))}
-          reinicio={publicaciones.length}
-        />
-      </section>
+      <NuevaPublicacion
+        cursos={cursos.map((c) => ({ id: c.id, titulo: c.titulo }))}
+        reinicio={publicaciones.length}
+      />
 
       <section className="flex flex-col gap-4">
         <h2 className="text-lg font-semibold">Todas</h2>
@@ -81,17 +79,16 @@ export default async function PaginaPublicaciones() {
                     </Button>
                   </form>
 
-                  <form action={eliminarPublicacion}>
-                    <input type="hidden" name="id" value={p.id} />
-                    <Button
-                      type="submit"
-                      variant="ghost"
-                      size="sm"
-                      className="text-destructive hover:text-destructive"
-                    >
-                      Eliminar
-                    </Button>
-                  </form>
+                  <ConfirmarConModal
+                    idModal={`eliminar-publicacion-${p.id}`}
+                    accion={eliminarPublicacion}
+                    campos={{ id: p.id }}
+                    boton={{ texto: 'Eliminar', etiquetaAccesible: `Eliminar ${p.titulo}`, tono: 'destructivo' }}
+                    titulo={`¿Eliminar «${p.titulo}»?`}
+                    confirmar={{ texto: 'Sí, eliminar', enCurso: 'Eliminando…', tono: 'destructivo' }}
+                  >
+                    <p>Desaparece del blog y de los anuncios. No se puede deshacer.</p>
+                  </ConfirmarConModal>
                 </span>
               </li>
             ))}

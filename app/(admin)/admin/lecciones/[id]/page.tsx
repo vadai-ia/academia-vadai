@@ -3,10 +3,10 @@ import Link from 'next/link'
 import { notFound } from 'next/navigation'
 
 import { Adjuntos } from '@/components/admin/adjuntos'
+import { ConfirmarConModal } from '@/components/admin/confirmar-con-modal'
 import { ConstructorQuiz } from '@/components/admin/constructor-quiz'
 import { ConstructorTarea } from '@/components/admin/constructor-tarea'
 import { FormularioLeccion } from '@/components/admin/formulario-leccion'
-import { Button } from '@/components/ui/button'
 import { eliminarLeccion } from '@/lib/admin/acciones'
 import { bunnyConfigurado } from '@/lib/bunny/cliente'
 import { obtenerLeccion } from '@/lib/admin/consultas'
@@ -76,19 +76,19 @@ export default async function PaginaLeccion({ params }: { params: Promise<{ id: 
       </div>
 
       <div className="border-t border-border pt-6">
-        <form action={eliminarLeccion}>
-          <input type="hidden" name="id" value={leccion.id} />
-          <input type="hidden" name="course_id" value={leccion.curso_id} />
-          <Button
-            type="submit"
-            variant="ghost"
-            size="sm"
-            className="text-destructive hover:text-destructive"
-            title="Elimina la lección y todo lo que cuelga de ella"
-          >
-            Eliminar lección
-          </Button>
-        </form>
+        <ConfirmarConModal
+          idModal={`eliminar-leccion-${leccion.id}`}
+          accion={eliminarLeccion}
+          campos={{ id: leccion.id, course_id: leccion.curso_id }}
+          boton={{ texto: 'Eliminar lección', etiquetaAccesible: `Eliminar la lección ${leccion.title}`, tono: 'destructivo' }}
+          titulo={`¿Eliminar «${leccion.title}»?`}
+          confirmar={{ texto: 'Sí, eliminar', enCurso: 'Eliminando…', tono: 'destructivo' }}
+        >
+          <p>
+            Se borra con su video ligado, adjuntos, quiz o tarea, y el avance que los alumnos
+            tuvieran en ella. No se puede deshacer.
+          </p>
+        </ConfirmarConModal>
       </div>
     </div>
   )

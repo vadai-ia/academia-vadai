@@ -127,21 +127,26 @@ export async function crearCohorte(_previo: EstadoAccion, datos: FormData): Prom
   return { aviso: 'Cohorte creada.' }
 }
 
-export async function eliminarCohorte(datos: FormData): Promise<void> {
+/** Con confirmación en modal (M14): devuelve el error si lo hay; si no, va al curso. */
+export async function eliminarCohorte(_previo: EstadoAccion, datos: FormData): Promise<EstadoAccion> {
   await exigirAdmin()
 
   const id = String(datos.get('id') ?? '')
   const cursoId = String(datos.get('course_id') ?? '')
-  if (!id) return
+  if (!id) return { error: 'Falta la cohorte.' }
 
   // Las inscripciones NO se borran: cohort_id es `on delete set null`, así que
   // el alumno conserva su acceso y solo deja de pertenecer a un grupo.
   const supabase = await crearClienteServidor()
   const { error } = await supabase.from('cohorts').delete().eq('id', id)
 
-  if (error) registrarFallo('eliminarCohorte', { id }, error.message)
+  if (error) {
+    registrarFallo('eliminarCohorte', { id }, error.message)
+    return { error: 'No se pudo eliminar la cohorte. Inténtalo otra vez.' }
+  }
 
   revalidatePath(`/admin/cursos/${cursoId}`)
+  revalidatePath('/admin')
   redirect(`/admin/cursos/${cursoId}`)
 }
 
@@ -448,18 +453,25 @@ export async function crearSesionesEnSerie(
   }
 }
 
-export async function eliminarSesion(datos: FormData): Promise<void> {
+/** Con confirmación en modal (M14). La sesión se ve en la cohorte, el curso y el panel. */
+export async function eliminarSesion(_previo: EstadoAccion, datos: FormData): Promise<EstadoAccion> {
   await exigirAdmin()
 
   const id = String(datos.get('id') ?? '')
   const cohorteId = String(datos.get('cohort_id') ?? '')
-  if (!id) return
+  if (!id) return { error: 'Falta la sesión.' }
 
   const supabase = await crearClienteServidor()
   const { error } = await supabase.from('cohort_sessions').delete().eq('id', id)
 
-  if (error) registrarFallo('eliminarSesion', { id }, error.message)
+  if (error) {
+    registrarFallo('eliminarSesion', { id }, error.message)
+    return { error: 'No se pudo eliminar la sesión. Inténtalo otra vez.' }
+  }
+
   revalidatePath(`/admin/cohortes/${cohorteId}`)
+  revalidatePath('/admin', 'layout')
+  return { aviso: 'Sesión eliminada.' }
 }
 
 /**

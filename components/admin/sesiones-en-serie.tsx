@@ -4,6 +4,8 @@ import { useActionState } from 'react'
 import { useFormStatus } from 'react-dom'
 
 import { AvisoAccion } from '@/components/admin/aviso-accion'
+import { CerrarDesplegable } from '@/components/admin/cerrar-desplegable'
+import { Desplegable } from '@/components/admin/desplegable'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
@@ -21,20 +23,30 @@ function Boton() {
 }
 
 /**
- * "8 sesiones, lunes y jueves a las 7, desde el 21 de septiembre, con esta
+ * "8 sesiones, lunes y jueves a las 6, desde el 21 de septiembre, con esta
  * liga". Planear el curso completo de una vez, para que los alumnos vean las
  * fechas desde el primer día. Después cada sesión se edita con su tema.
  */
-export function SesionesEnSerie({ cohorteId, reinicio }: { cohorteId: string; reinicio: number }) {
+export function SesionesEnSerie({
+  cohorteId,
+  reinicio,
+  nombre,
+}: {
+  cohorteId: string
+  reinicio: number
+  /** Acordeón: los desplegables con el mismo nombre se cierran entre sí. */
+  nombre?: string
+}) {
   const [estado, accion] = useActionState(crearSesionesEnSerie, SIN_ESTADO)
 
   return (
-    <details className="group/serie rounded-lg border border-dashed border-border">
-      <summary className="inline-flex cursor-pointer list-none items-center gap-2 rounded-lg px-3 py-2 text-sm font-medium text-primary select-none hover:bg-muted [&::-webkit-details-marker]:hidden">
-        + Agendar varias de una vez
-      </summary>
-
-      <form key={reinicio} action={accion} className="flex flex-col gap-4 px-4 pt-1 pb-4">
+    <Desplegable
+      etiqueta="Agendar varias de una vez"
+      variante="contorno"
+      nombre={nombre}
+      abierto={Boolean(estado.error || estado.aviso)}
+    >
+      <form key={reinicio} action={accion} className="flex flex-col gap-4">
         <input type="hidden" name="cohort_id" value={cohorteId} />
 
         <div className="grid gap-3 sm:grid-cols-3">
@@ -49,7 +61,7 @@ export function SesionesEnSerie({ cohorteId, reinicio }: { cohorteId: string; re
           </div>
           <div className="flex flex-col gap-1.5">
             <Label htmlFor="serie-hora">Hora (CDMX)</Label>
-            <Input id="serie-hora" name="hora" type="time" required defaultValue="19:00" />
+            <Input id="serie-hora" name="hora" type="time" required defaultValue="18:00" />
           </div>
         </div>
 
@@ -85,10 +97,11 @@ export function SesionesEnSerie({ cohorteId, reinicio }: { cohorteId: string; re
 
         <AvisoAccion estado={estado} />
 
-        <div>
+        <div className="flex flex-wrap gap-2">
           <Boton />
+          <CerrarDesplegable />
         </div>
       </form>
-    </details>
+    </Desplegable>
   )
 }

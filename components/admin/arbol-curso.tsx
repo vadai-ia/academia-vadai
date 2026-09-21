@@ -1,5 +1,6 @@
 import Link from 'next/link'
 
+import { ConfirmarConModal } from '@/components/admin/confirmar-con-modal'
 import { ExpandirTodo } from '@/components/admin/expandir-todo'
 import { NuevaLeccion } from '@/components/admin/nueva-leccion'
 import { NuevoModulo } from '@/components/admin/nuevo-modulo'
@@ -80,16 +81,18 @@ export function ArbolCurso({ curso }: { curso: CursoCompleto }) {
 
       {curso.modulos.length === 0 ? (
         <p className="rounded-lg border border-dashed border-border px-5 py-8 text-center text-sm text-muted-foreground">
-          Este curso todavía no tiene módulos. Crea el primero abajo.
+          Este curso todavía no tiene módulos. Crea el primero con &ldquo;Nuevo módulo&rdquo;.
         </p>
       ) : null}
 
       {/*
         Cada módulo es un <details> (20-sep-2026): con ocho módulos y veintitrés
         lecciones el árbol completo ya no cabía en una pantalla. Cerrado enseña
-        número, título y cuántas lecciones; abierto, las lecciones y el
-        formulario para agregar una. El primero abre solo. Los botones viven
-        dentro del <summary> y no lo pliegan: el clic lo toma el botón.
+        número, título y cuántas lecciones; abierto, las lecciones y al pie los
+        botones "Nueva lección" y "Eliminar módulo" (M14: el de eliminar ya no
+        vive en el <summary>, donde un formulario no es HTML válido, y pide
+        confirmación). El primero abre solo. Los botones de orden sí viven en el
+        <summary> y no lo pliegan: el clic lo toma el botón.
       */}
       <ul className="flex flex-col gap-3">
         {curso.modulos.map((modulo, indiceModulo) => (
@@ -122,20 +125,6 @@ export function ArbolCurso({ curso }: { curso: CursoCompleto }) {
                   ultimo={indiceModulo === curso.modulos.length - 1}
                   etiqueta="módulo"
                 />
-                <form action={eliminarModulo}>
-                  <input type="hidden" name="id" value={modulo.id} />
-                  <input type="hidden" name="course_id" value={curso.id} />
-                  <Button
-                    type="submit"
-                    variant="ghost"
-                    size="sm"
-                    className="text-destructive hover:text-destructive"
-                    // Borrar un módulo se lleva sus lecciones por cascada.
-                    title="Eliminar el módulo y todas sus lecciones"
-                  >
-                    Eliminar
-                  </Button>
-                </form>
               </div>
             </summary>
 
@@ -180,11 +169,30 @@ export function ArbolCurso({ curso }: { curso: CursoCompleto }) {
               </ul>
             ) : null}
 
-            <NuevaLeccion
-              moduloId={modulo.id}
-              cursoId={curso.id}
-              reinicio={modulo.lecciones.length}
-            />
+            <div className="flex flex-wrap items-start justify-between gap-2 border-t border-border px-3 py-2">
+              <NuevaLeccion
+                moduloId={modulo.id}
+                cursoId={curso.id}
+                reinicio={modulo.lecciones.length}
+              />
+              <ConfirmarConModal
+                idModal={`eliminar-modulo-${modulo.id}`}
+                accion={eliminarModulo}
+                campos={{ id: modulo.id, course_id: curso.id }}
+                boton={{
+                  texto: 'Eliminar módulo',
+                  etiquetaAccesible: `Eliminar el módulo ${modulo.title}`,
+                  tono: 'destructivo',
+                }}
+                titulo={`¿Eliminar el módulo «${modulo.title}» y sus ${modulo.lecciones.length} lecciones?`}
+                confirmar={{ texto: 'Sí, eliminar', enCurso: 'Eliminando…', tono: 'destructivo' }}
+              >
+                <p>
+                  Se borra con sus lecciones: videos ligados, adjuntos, quizzes o tareas, y el
+                  avance que los alumnos tuvieran en ellas. No se puede deshacer.
+                </p>
+              </ConfirmarConModal>
+            </div>
           </details>
           </li>
         ))}

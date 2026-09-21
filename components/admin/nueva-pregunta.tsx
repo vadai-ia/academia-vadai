@@ -4,6 +4,8 @@ import { useActionState } from 'react'
 import { useFormStatus } from 'react-dom'
 
 import { AvisoAccion } from '@/components/admin/aviso-accion'
+import { CerrarDesplegable } from '@/components/admin/cerrar-desplegable'
+import { Desplegable } from '@/components/admin/desplegable'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
@@ -14,7 +16,7 @@ import { SIN_ESTADO } from '@/lib/admin/tipos'
 function Boton() {
   const { pending } = useFormStatus()
   return (
-    <Button type="submit" variant="outline" disabled={pending}>
+    <Button type="submit" disabled={pending}>
       {pending ? 'Agregando…' : 'Agregar pregunta'}
     </Button>
   )
@@ -32,11 +34,8 @@ export function NuevaPregunta({
   const [estado, accion] = useActionState(crearPregunta, SIN_ESTADO)
 
   return (
-    <form
-      key={reinicio}
-      action={accion}
-      className="flex flex-col gap-4 rounded-lg border border-dashed border-border p-4"
-    >
+    <Desplegable etiqueta="Agregar pregunta" variante="contorno" abierto={Boolean(estado.error || estado.aviso)}>
+    <form key={reinicio} action={accion} className="flex flex-col gap-4">
       <input type="hidden" name="quiz_id" value={quizId} />
       <input type="hidden" name="lesson_id" value={leccionId} />
 
@@ -87,7 +86,9 @@ export function NuevaPregunta({
 
       <div>
         <Boton />
+        <CerrarDesplegable />
       </div>
     </form>
+    </Desplegable>
   )
 }

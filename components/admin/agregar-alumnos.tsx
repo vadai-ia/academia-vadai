@@ -4,6 +4,9 @@ import { useActionState } from 'react'
 import { useFormStatus } from 'react-dom'
 
 import { AvisoAccion } from '@/components/admin/aviso-accion'
+import { SelectorDeEmpresa, type EmpresaOpcion } from '@/components/admin/dar-de-alta'
+import { Desplegable } from '@/components/admin/desplegable'
+import { claseResumen, claseSelect } from '@/components/admin/estilos'
 import { ListaSeleccionable } from '@/components/admin/lista-seleccionable'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -25,21 +28,12 @@ import { SIN_ESTADO } from '@/lib/admin/tipos'
  *     Aquí también se le pone empresa.
  *
  * La búsqueda es un <form> GET: viaja en la URL (`?buscar=`) y funciona sin
- * JavaScript. Las acciones van directas al <form> (CLAUDE.md).
+ * JavaScript. Las acciones van directas al <form> (CLAUDE.md). Todo vive
+ * detrás del botón "Agregar alumnos" (M14), que se abre solo si hay una
+ * búsqueda en la URL o si una acción contestó algo.
  */
 
-const claseSelect =
-  'h-11 w-full rounded-md border border-input bg-transparent px-3 text-sm ' +
-  'outline-none focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50'
-
-const claseResumen =
-  'inline-flex w-fit cursor-pointer list-none items-center gap-2 rounded-lg px-3 py-2 ' +
-  'text-sm font-medium select-none hover:bg-muted ' +
-  'focus-visible:ring-3 focus-visible:ring-ring/50 focus-visible:outline-none ' +
-  '[&::-webkit-details-marker]:hidden'
-
 type Grupo = { id: string; nombre: string }
-type EmpresaOpcion = { id: string; nombre: string }
 
 function Enviar({ children }: { children: string }) {
   const { pending } = useFormStatus()
@@ -72,24 +66,6 @@ function SelectorDeGrupo({ id, grupos }: { id: string; grupos: Grupo[] }) {
   )
 }
 
-function SelectorDeEmpresa({ id, empresas }: { id: string; empresas: EmpresaOpcion[] }) {
-  return (
-    <div className="flex flex-col gap-1.5">
-      <Label htmlFor={id}>Empresa</Label>
-      <select id={id} name="company_id" defaultValue="" className={claseSelect}>
-        <option value="">General (sin empresa)</option>
-        {empresas.map((e) => (
-          <option key={e.id} value={e.id}>
-            {e.nombre}
-          </option>
-        ))}
-      </select>
-      {/* Si trae algo, manda sobre el selector y se crea ahí mismo. */}
-      <Input name="company_nueva" placeholder="…o escribe una empresa nueva" autoComplete="off" aria-label="Empresa nueva" className="h-9" />
-    </div>
-  )
-}
-
 export function AgregarAlumnos({
   cursoId,
   candidatos,
@@ -109,15 +85,19 @@ export function AgregarAlumnos({
 }) {
   const [estadoLista, inscribir] = useActionState(inscribirEnCurso, SIN_ESTADO)
   const [estadoCorreo, darDeAlta] = useActionState(altaManual, SIN_ESTADO)
+  const contestoLista = Boolean(estadoLista.error || estadoLista.aviso)
+  const contestoCorreo = Boolean(estadoCorreo.error || estadoCorreo.aviso)
 
   return (
     <div className="flex flex-col gap-3" id="agregar">
-      <details className="group/agregar rounded-[10px] border border-dashed border-border" open={Boolean(buscar)}>
-        <summary className={`${claseResumen} text-primary`}>+ Agregar alumnos</summary>
-
-        <div className="flex flex-col gap-4 px-3 pb-3">
+      <Desplegable
+        etiqueta="Agregar alumnos"
+        variante="primario"
+        abierto={Boolean(buscar) || contestoLista || contestoCorreo}
+      >
+        <div className="flex flex-col gap-4">
           {/* --- Ya tienen cuenta: buscar y marcar ---------------------- */}
-          <form method="get" action={`/admin/cursos/${cursoId}`} className="flex flex-wrap items-end gap-2 pt-1">
+          <form method="get" action={`/admin/cursos/${cursoId}`} className="flex flex-wrap items-end gap-2">
             <label className="flex min-w-56 flex-1 flex-col gap-1.5">
               <span className="text-sm font-medium">Buscar a quien ya tiene cuenta</span>
               <Input
@@ -164,6 +144,8 @@ export function AgregarAlumnos({
                 tienen el curso.
               </p>
 
+              <AvisoAccion estado={estadoLista} />
+
               <div>
                 <Enviar>Dar acceso</Enviar>
               </div>
@@ -177,7 +159,7 @@ export function AgregarAlumnos({
           )}
 
           {/* --- Todavía no tiene cuenta ----------------------------------- */}
-          <details className="border-t border-border pt-2">
+          <details className="border-t border-border pt-2" open={contestoCorreo || undefined}>
             <summary className={claseResumen}>Alguien que todavía no tiene cuenta</summary>
 
             <form
@@ -214,16 +196,15 @@ export function AgregarAlumnos({
                 correo ya tiene cuenta, solo se le agrega el curso y se le avisa.
               </p>
 
+              <AvisoAccion estado={estadoCorreo} />
+
               <div>
                 <Enviar>Dar de alta en este curso</Enviar>
               </div>
             </form>
           </details>
         </div>
-      </details>
-
-      <AvisoAccion estado={estadoLista} />
-      <AvisoAccion estado={estadoCorreo} />
+      </Desplegable>
     </div>
   )
 }

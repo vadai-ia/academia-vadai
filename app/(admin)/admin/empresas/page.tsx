@@ -2,6 +2,7 @@ import type { Metadata } from 'next'
 import Link from 'next/link'
 
 import { ConfirmarConModal } from '@/components/admin/confirmar-con-modal'
+import { Desplegable } from '@/components/admin/desplegable'
 import { NuevaEmpresa } from '@/components/admin/nueva-empresa'
 import { Cifra, Tarjeta, Titulo } from '@/components/ui-vadai/superficie'
 import { Button } from '@/components/ui/button'
@@ -20,7 +21,8 @@ export const dynamic = 'force-dynamic'
  * cada alumno. Es la base de lo que viene: puntaje por empresa y dinámicas
  * segmentadas por empresa. Quien no tiene empresa es "General".
  *
- * Renombrar es un <form> por renglón con el nombre editable en línea; borrar
+ * Renombrar vive detrás de "Renombrar" en cada renglón (M14: antes el nombre
+ * era un campo editable siempre, y una lista de campos no se lee); borrar
  * pide confirmación porque, aunque no borra alumnos, los deja en General.
  */
 export default async function PaginaEmpresas() {
@@ -58,20 +60,24 @@ export default async function PaginaEmpresas() {
                 key={e.id}
                 className="flex flex-wrap items-center gap-3 border-b border-border px-4 py-3 last:border-b-0"
               >
-                <form action={renombrarEmpresa} className="flex min-w-0 flex-1 items-center gap-2">
-                  <input type="hidden" name="id" value={e.id} />
-                  <Input
-                    name="nombre"
-                    defaultValue={e.nombre}
-                    aria-label={`Nombre de ${e.nombre}`}
-                    required
-                    minLength={2}
-                    className="h-9 max-w-sm"
-                  />
-                  <Button type="submit" variant="ghost" size="sm">
-                    Guardar
-                  </Button>
-                </form>
+                <span className="min-w-0 flex-1 truncate font-medium">{e.nombre}</span>
+
+                <Desplegable etiqueta="Renombrar" variante="discreto" tamano="sm" icono="lapiz" className="basis-full sm:basis-auto">
+                  <form action={renombrarEmpresa} className="flex flex-wrap items-center gap-2">
+                    <input type="hidden" name="id" value={e.id} />
+                    <Input
+                      name="nombre"
+                      defaultValue={e.nombre}
+                      aria-label={`Nombre de ${e.nombre}`}
+                      required
+                      minLength={2}
+                      className="h-9 max-w-sm"
+                    />
+                    <Button type="submit" size="sm">
+                      Guardar
+                    </Button>
+                  </form>
+                </Desplegable>
 
                 <Link
                   href={`/admin/alumnos?empresa=${e.id}`}

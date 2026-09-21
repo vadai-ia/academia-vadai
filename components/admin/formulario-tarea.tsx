@@ -4,6 +4,7 @@ import { useActionState } from 'react'
 import { useFormStatus } from 'react-dom'
 
 import { AvisoAccion } from '@/components/admin/aviso-accion'
+import { Desplegable } from '@/components/admin/desplegable'
 import { EditorRico } from '@/components/admin/editor-rico'
 import { Button } from '@/components/ui/button'
 import { Label } from '@/components/ui/label'
@@ -14,7 +15,7 @@ import { SIN_ESTADO } from '@/lib/admin/tipos'
 function Boton() {
   const { pending } = useFormStatus()
   return (
-    <Button type="submit" variant="outline" disabled={pending}>
+    <Button type="submit" disabled={pending}>
       {pending ? 'Guardando…' : 'Guardar tarea'}
     </Button>
   )
@@ -30,6 +31,12 @@ export function FormularioTarea({
   const [estado, accion] = useActionState(actualizarTarea, SIN_ESTADO)
 
   return (
+    <Desplegable
+      etiqueta="Editar la tarea"
+      variante="contorno"
+      icono="lapiz"
+      abierto={Boolean(estado.error || estado.aviso)}
+    >
     <form action={accion} className="flex flex-col gap-5">
       <input type="hidden" name="id" value={tarea.id} />
       <input type="hidden" name="lesson_id" value={leccionId} />
@@ -80,5 +87,6 @@ export function FormularioTarea({
         <Boton />
       </div>
     </form>
+    </Desplegable>
   )
 }

@@ -4,6 +4,9 @@ import { useActionState } from 'react'
 import { useFormStatus } from 'react-dom'
 
 import { AvisoAccion } from '@/components/admin/aviso-accion'
+import { CerrarDesplegable } from '@/components/admin/cerrar-desplegable'
+import { Desplegable } from '@/components/admin/desplegable'
+import { claseSelect } from '@/components/admin/estilos'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
@@ -12,10 +15,6 @@ import { SIN_ESTADO } from '@/lib/admin/tipos'
 import { crearPreguntaEncuesta } from '@/lib/encuestas/acciones'
 import { AYUDA_TIPO_PREGUNTA, ETIQUETA_TIPO_PREGUNTA, TIPOS_PREGUNTA } from '@/lib/encuestas/comun'
 import { LETRAS } from '@/lib/quiz/comun'
-
-const claseSelect =
-  'h-11 w-full rounded-md border border-input bg-transparent px-3 text-sm shadow-xs ' +
-  'outline-none focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50'
 
 function Enviar() {
   const { pending } = useFormStatus()
@@ -53,11 +52,8 @@ export function NuevaPreguntaEncuesta({
   const [estado, accion] = useActionState(crearPreguntaEncuesta, SIN_ESTADO)
 
   return (
-    <form
-      key={reinicio}
-      action={accion}
-      className="flex flex-col gap-5 rounded-[10px] border border-dashed border-border p-4 sm:p-5"
-    >
+    <Desplegable etiqueta="Agregar pregunta" variante="contorno" abierto={Boolean(estado.error || estado.aviso)}>
+    <form key={reinicio} action={accion} className="flex flex-col gap-5">
       <input type="hidden" name="poll_id" value={encuestaId} />
 
       <div className="flex flex-col gap-1.5">
@@ -185,9 +181,11 @@ export function NuevaPreguntaEncuesta({
 
       <AvisoAccion estado={estado} />
 
-      <div>
+      <div className="flex flex-wrap gap-2">
         <Enviar />
+        <CerrarDesplegable />
       </div>
     </form>
+    </Desplegable>
   )
 }

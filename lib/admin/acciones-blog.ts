@@ -115,15 +115,21 @@ export async function alternarPublicacion(datos: FormData): Promise<void> {
   refrescar()
 }
 
-export async function eliminarPublicacion(datos: FormData): Promise<void> {
+/** Con confirmación en modal (M14). */
+export async function eliminarPublicacion(_previo: EstadoAccion, datos: FormData): Promise<EstadoAccion> {
   await exigirAdmin()
 
   const id = String(datos.get('id') ?? '')
-  if (!id) return
+  if (!id) return { error: 'Falta la publicación.' }
 
   const supabase = await crearClienteServidor()
   const { error } = await supabase.from('posts').delete().eq('id', id)
 
-  if (error) registrarFallo('eliminarPublicacion', { id }, error.message)
+  if (error) {
+    registrarFallo('eliminarPublicacion', { id }, error.message)
+    return { error: 'No se pudo eliminar la publicación. Inténtalo otra vez.' }
+  }
+
   refrescar()
+  return { aviso: 'Publicación eliminada.' }
 }

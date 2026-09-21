@@ -3,6 +3,9 @@
 import { useActionState, useState } from 'react'
 import { useFormStatus } from 'react-dom'
 
+import { CerrarDesplegable } from '@/components/admin/cerrar-desplegable'
+import { Desplegable } from '@/components/admin/desplegable'
+import { claseSelect } from '@/components/admin/estilos'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
@@ -43,10 +46,13 @@ function Campo({
   )
 }
 
-const claseSelect =
-  'h-9 w-full rounded-md border border-input bg-transparent px-3 text-sm shadow-xs ' +
-  'outline-none focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50'
-
+/**
+ * Los datos de un curso.
+ *
+ * Al crear (`/admin/cursos/nuevo`) la página ES el formulario: llegar a ella
+ * fue el clic. Al editar vive detrás de "Editar datos del curso" (M14): en la
+ * página del curso lo que se abre a diario es el contenido, no el precio.
+ */
 export function FormularioCurso({ curso }: { curso?: Curso }) {
   const nuevo = !curso
   const [estado, accion] = useActionState(nuevo ? crearCurso : actualizarCurso, SIN_ESTADO)
@@ -62,7 +68,7 @@ export function FormularioCurso({ curso }: { curso?: Curso }) {
     if (!slugTocado) setSlug(generarSlug(valor))
   }
 
-  return (
+  const formulario = (
     <form action={accion} className="flex flex-col gap-6">
       {curso ? <input type="hidden" name="id" value={curso.id} /> : null}
 
@@ -251,9 +257,23 @@ export function FormularioCurso({ curso }: { curso?: Curso }) {
 
       <AvisoAccion estado={estado} />
 
-      <div className="flex items-center gap-3">
+      <div className="flex flex-wrap items-center gap-2">
         <Guardar nuevo={nuevo} />
+        {nuevo ? null : <CerrarDesplegable />}
       </div>
     </form>
+  )
+
+  if (nuevo) return formulario
+
+  return (
+    <Desplegable
+      etiqueta="Editar datos del curso"
+      variante="contorno"
+      icono="lapiz"
+      abierto={Boolean(estado.error || estado.aviso)}
+    >
+      {formulario}
+    </Desplegable>
   )
 }

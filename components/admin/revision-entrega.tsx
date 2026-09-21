@@ -4,6 +4,7 @@ import { useActionState, useState, useTransition } from 'react'
 import { useFormStatus } from 'react-dom'
 
 import { AvisoAccion } from '@/components/admin/aviso-accion'
+import { Desplegable } from '@/components/admin/desplegable'
 import { Button } from '@/components/ui/button'
 import { Textarea } from '@/components/ui/textarea'
 import { revisarEntrega, urlDeEntrega } from '@/lib/admin/acciones-tareas'
@@ -90,20 +91,30 @@ export function RevisionEntrega({ entrega }: { entrega: EntregaEnBandeja }) {
         </div>
       ) : null}
 
-      <form action={accion} className="flex flex-col gap-3">
-        <input type="hidden" name="id" value={entrega.id} />
+      {/* Lo que se lee (texto y archivos) queda a la vista; lo que se escribe
+          (la calificación) vive detrás de "Calificar" (M14). */}
+      <Desplegable
+        etiqueta="Calificar"
+        variante="contorno"
+        tamano="sm"
+        icono="lapiz"
+        abierto={Boolean(estado.error || estado.aviso)}
+      >
+        <form action={accion} className="flex flex-col gap-3">
+          <input type="hidden" name="id" value={entrega.id} />
 
-        <Textarea
-          name="feedback"
-          rows={2}
-          defaultValue={entrega.feedback ?? ''}
-          placeholder="Feedback para el alumno. Obligatorio si pides correcciones."
-          aria-label="Feedback"
-        />
+          <Textarea
+            name="feedback"
+            rows={2}
+            defaultValue={entrega.feedback ?? ''}
+            placeholder="Feedback para el alumno. Obligatorio si pides correcciones."
+            aria-label="Feedback"
+          />
 
-        <AvisoAccion estado={estado} />
-        <Botones />
-      </form>
+          <AvisoAccion estado={estado} />
+          <Botones />
+        </form>
+      </Desplegable>
     </li>
   )
 }

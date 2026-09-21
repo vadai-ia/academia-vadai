@@ -28,7 +28,15 @@ export async function generateMetadata({
   return { title: curso?.title ?? 'Curso' }
 }
 
-type Parametros = { q?: string; acceso?: string; empresa?: string; orden?: string; buscar?: string }
+type Parametros = {
+  q?: string
+  acceso?: string
+  empresa?: string
+  orden?: string
+  buscar?: string
+  /** La sesión que se pide ver abierta para editar (`?sesion=<id>`). */
+  sesion?: string
+}
 
 export default async function PaginaCurso({
   params,
@@ -176,7 +184,13 @@ export default async function PaginaCurso({
                 </Link>
               </summary>
               <div className="border-t border-border px-4 py-4">
-                <CalendarioDeCohorte cohorte={cohorte} ligables={ligables} correoAdmin={perfil.email} compacto />
+                <CalendarioDeCohorte
+                  cohorte={cohorte}
+                  ligables={ligables}
+                  correoAdmin={perfil.email}
+                  compacto
+                  sesionAbierta={filtros.sesion ?? null}
+                />
               </div>
             </details>
           ))

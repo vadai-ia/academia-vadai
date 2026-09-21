@@ -3,6 +3,7 @@
 import { useActionState, useState, useTransition } from 'react'
 import { useFormStatus } from 'react-dom'
 
+import { Desplegable } from '@/components/admin/desplegable'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { eliminarAdjunto, subirAdjunto, urlDeDescarga } from '@/lib/admin/acciones'
@@ -21,7 +22,7 @@ function tamanoLegible(bytes: number | null): string {
 function BotonSubir() {
   const { pending } = useFormStatus()
   return (
-    <Button type="submit" variant="outline" disabled={pending}>
+    <Button type="submit" disabled={pending}>
       {pending ? 'Subiendo…' : 'Subir'}
     </Button>
   )
@@ -120,23 +121,25 @@ export function Adjuntos({
         </ul>
       )}
 
-      <form key={adjuntos.length} action={accion} className="flex flex-col gap-2">
-        <input type="hidden" name="lesson_id" value={leccionId} />
-        <input type="hidden" name="course_id" value={cursoId} />
+      <Desplegable etiqueta="Subir adjunto" variante="contorno" abierto={Boolean(estado.error || estado.aviso)}>
+        <form key={adjuntos.length} action={accion} className="flex flex-col gap-2">
+          <input type="hidden" name="lesson_id" value={leccionId} />
+          <input type="hidden" name="course_id" value={cursoId} />
 
-        <div className="flex flex-col gap-2 sm:flex-row">
-          <Input
-            name="archivo"
-            type="file"
-            aria-label="Archivo a subir"
-            required
-            className="file:mr-3 file:text-sm"
-          />
-          <BotonSubir />
-        </div>
+          <div className="flex flex-col gap-2 sm:flex-row">
+            <Input
+              name="archivo"
+              type="file"
+              aria-label="Archivo a subir"
+              required
+              className="file:mr-3 file:text-sm"
+            />
+            <BotonSubir />
+          </div>
 
-        <AvisoAccion estado={estado} />
-      </form>
+          <AvisoAccion estado={estado} />
+        </form>
+      </Desplegable>
     </section>
   )
 }

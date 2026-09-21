@@ -189,7 +189,9 @@ export default async function PaginaAdmin() {
                     </span>
                   )}
                   <Button asChild variant="outline" size="sm">
-                    <Link href={`/admin/cohortes/${siguiente.cohorteId}`}>Editar</Link>
+                    <Link href={`/admin/cohortes/${siguiente.cohorteId}?sesion=${siguiente.id}#sesion-${siguiente.id}`}>
+                      Editar
+                    </Link>
                   </Button>
                 </div>
               </div>
@@ -207,7 +209,10 @@ export default async function PaginaAdmin() {
                       <span className="flex items-baseline gap-3 text-muted-foreground">
                         <span>{fechaSesion(s.empiezaEn)}</span>
                         {s.ligaUrl ? null : <span className="text-xs text-destructive">sin liga</span>}
-                        <Link href={`/admin/cohortes/${s.cohorteId}`} className="text-xs text-primary underline-offset-4 hover:underline">
+                        <Link
+                          href={`/admin/cohortes/${s.cohorteId}?sesion=${s.id}#sesion-${s.id}`}
+                          className="text-xs text-primary underline-offset-4 hover:underline"
+                        >
                           Editar
                         </Link>
                       </span>
@@ -224,14 +229,7 @@ export default async function PaginaAdmin() {
           )}
 
           {t.cohortes.length > 0 ? (
-            <details className="group/agendar rounded-[10px] border border-dashed border-border">
-              <summary className="inline-flex cursor-pointer list-none items-center gap-2 rounded-[10px] px-3 py-2 text-sm font-medium text-primary select-none hover:bg-muted [&::-webkit-details-marker]:hidden">
-                + Agendar una sesión
-              </summary>
-              <div className="px-3 pt-1 pb-3">
-                <NuevaSesion cohortes={t.cohortes} reinicio={t.sesiones.length} />
-              </div>
-            </details>
+            <NuevaSesion cohortes={t.cohortes} reinicio={t.sesiones.length} />
           ) : (
             <p className="text-sm text-muted-foreground">
               Para agendar sesiones primero crea una cohorte en el curso.

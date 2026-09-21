@@ -231,19 +231,24 @@ export async function renombrarModulo(datos: FormData): Promise<void> {
   revalidatePath(`/admin/cursos/${cursoId}`)
 }
 
-export async function eliminarModulo(datos: FormData): Promise<void> {
+/** Con confirmación en modal (M14). Cascada: se lleva sus lecciones y todo lo que cuelgue. */
+export async function eliminarModulo(_previo: EstadoAccion, datos: FormData): Promise<EstadoAccion> {
   await exigirAdmin()
 
   const id = String(datos.get('id') ?? '')
   const cursoId = String(datos.get('course_id') ?? '')
-  if (!id) return
+  if (!id) return { error: 'Falta el módulo.' }
 
-  // Cascada: se lleva sus lecciones y todo lo que cuelgue de ellas.
   const supabase = await crearClienteServidor()
   const { error } = await supabase.from('modules').delete().eq('id', id)
 
-  if (error) registrarFallo('eliminarModulo', { id }, error.message)
+  if (error) {
+    registrarFallo('eliminarModulo', { id }, error.message)
+    return { error: 'No se pudo eliminar el módulo. Inténtalo otra vez.' }
+  }
+
   revalidatePath(`/admin/cursos/${cursoId}`)
+  return { aviso: 'Módulo eliminado.' }
 }
 
 // ==========================================================================
@@ -311,17 +316,21 @@ export async function actualizarLeccion(_previo: EstadoAccion, datos: FormData):
   return { aviso: 'Lección guardada.' }
 }
 
-export async function eliminarLeccion(datos: FormData): Promise<void> {
+/** Con confirmación en modal (M14): devuelve el error si lo hay; si no, vuelve al curso. */
+export async function eliminarLeccion(_previo: EstadoAccion, datos: FormData): Promise<EstadoAccion> {
   await exigirAdmin()
 
   const id = String(datos.get('id') ?? '')
   const cursoId = String(datos.get('course_id') ?? '')
-  if (!id) return
+  if (!id) return { error: 'Falta la lección.' }
 
   const supabase = await crearClienteServidor()
   const { error } = await supabase.from('lessons').delete().eq('id', id)
 
-  if (error) registrarFallo('eliminarLeccion', { id }, error.message)
+  if (error) {
+    registrarFallo('eliminarLeccion', { id }, error.message)
+    return { error: 'No se pudo eliminar la lección. Inténtalo otra vez.' }
+  }
 
   revalidatePath(`/admin/cursos/${cursoId}`)
   redirect(`/admin/cursos/${cursoId}`)

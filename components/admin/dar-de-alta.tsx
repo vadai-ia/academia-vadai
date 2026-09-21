@@ -4,14 +4,15 @@ import { useActionState } from 'react'
 import { useFormStatus } from 'react-dom'
 
 import { AvisoAccion } from '@/components/admin/aviso-accion'
+import { Desplegable } from '@/components/admin/desplegable'
+import { claseResumen, claseSelect } from '@/components/admin/estilos'
 import { ListaSeleccionable, gruposDesdeCursos } from '@/components/admin/lista-seleccionable'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { altaManual } from '@/lib/admin/acciones-alumnos'
 import { altaDeEquipo, altaMasiva } from '@/lib/admin/acciones-equipo'
-import { SIN_ESTADO } from '@/lib/admin/tipos'
-import { cn } from '@/lib/utils'
+import { SIN_ESTADO, type EstadoAccion } from '@/lib/admin/tipos'
 
 /**
  * Las tres formas de dar de alta, detrás de un solo botón.
@@ -20,17 +21,17 @@ import { cn } from '@/lib/utils'
  * aunque el 95% de las visitas son para BUSCAR a alguien, no para agregar. Un
  * formulario permanentemente desplegado empuja hacia abajo lo que sí se usa.
  *
- * Se abre con `<details>` y no con estado de React: sin JavaScript un botón con
- * `onClick` no hace nada y el formulario quedaría inalcanzable — que es justo el
- * anti-pattern que CLAUDE.md prohíbe.
+ * Se abre con `Desplegable` (<details>) y no con estado de React: sin
+ * JavaScript un botón con `onClick` no hace nada y el formulario quedaría
+ * inalcanzable — que es justo el anti-pattern que CLAUDE.md prohíbe.
+ *
+ * Los tres `useActionState` viven aquí arriba (M14): así el panel sabe cuándo
+ * una acción contestó algo y se abre solo para enseñar el aviso o el error,
+ * también en el envío sin JavaScript.
  *
  * Las tres vías van en la misma caja porque son la misma tarea vista desde
  * distinta cantidad: uno, muchos, o alguien del equipo.
  */
-
-const claseSelect =
-  'h-11 w-full rounded-md border border-input bg-transparent px-3 text-sm shadow-xs ' +
-  'outline-none focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50'
 
 export type CursoOpcion = {
   id: string
@@ -39,6 +40,8 @@ export type CursoOpcion = {
 }
 
 export type EmpresaOpcion = { id: string; nombre: string }
+
+type Accion = (datos: FormData) => void
 
 /**
  * Vacío = General. Se elige una existente o se escribe una nueva ahí mismo:
@@ -82,13 +85,15 @@ function AltaIndividual({
   cursos,
   empresas,
   reinicio,
+  estado,
+  accion,
 }: {
   cursos: CursoOpcion[]
   empresas: EmpresaOpcion[]
   reinicio: number
+  estado: EstadoAccion
+  accion: Accion
 }) {
-  const [estado, accion] = useActionState(altaManual, SIN_ESTADO)
-
   return (
     <form key={reinicio} action={accion} className="flex flex-col gap-4">
       <div className="grid gap-4 sm:grid-cols-3">
@@ -136,13 +141,15 @@ function AltaPorArchivo({
   cursos,
   empresas,
   reinicio,
+  estado,
+  accion,
 }: {
   cursos: CursoOpcion[]
   empresas: EmpresaOpcion[]
   reinicio: number
+  estado: EstadoAccion
+  accion: Accion
 }) {
-  const [estado, accion] = useActionState(altaMasiva, SIN_ESTADO)
-
   return (
     <form key={reinicio} action={accion} className="flex flex-col gap-4">
       <div className="flex flex-col gap-1.5">
@@ -193,9 +200,7 @@ function AltaPorArchivo({
   )
 }
 
-function AltaEquipo({ reinicio }: { reinicio: number }) {
-  const [estado, accion] = useActionState(altaDeEquipo, SIN_ESTADO)
-
+function AltaEquipo({ reinicio, estado, accion }: { reinicio: number; estado: EstadoAccion; accion: Accion }) {
   return (
     <form key={reinicio} action={accion} className="flex flex-col gap-4">
       <div className="grid gap-4 sm:grid-cols-3">
@@ -237,11 +242,7 @@ function AltaEquipo({ reinicio }: { reinicio: number }) {
   )
 }
 
-const claseResumenSeccion =
-  'inline-flex w-fit cursor-pointer list-none items-center gap-2 rounded-lg px-3 py-2 ' +
-  'text-sm font-medium transition-colors select-none hover:bg-muted ' +
-  'focus-visible:ring-3 focus-visible:ring-ring/50 focus-visible:outline-none ' +
-  '[&::-webkit-details-marker]:hidden'
+const contesto = (estado: EstadoAccion) => Boolean(estado.error || estado.aviso)
 
 export function DarDeAlta({
   cursos,
@@ -254,6 +255,10 @@ export function DarDeAlta({
   reinicio: number
   soySuperadmin: boolean
 }) {
+  const [estadoIndividual, altaIndividual] = useActionState(altaManual, SIN_ESTADO)
+  const [estadoArchivo, altaArchivo] = useActionState(altaMasiva, SIN_ESTADO)
+  const [estadoEquipo, altaEquipo] = useActionState(altaDeEquipo, SIN_ESTADO)
+
   if (cursos.length === 0) {
     return (
       <p className="rounded-[10px] border border-dashed border-border px-4 py-3 text-sm text-muted-foreground">
@@ -263,36 +268,39 @@ export function DarDeAlta({
   }
 
   return (
-    <details className="group/alta">
-      <summary
-        className={cn(
-          'inline-flex w-fit cursor-pointer list-none items-center gap-2 rounded-lg px-4 py-2.5',
-          'bg-primary text-sm font-medium text-primary-foreground select-none',
-          'transition-all hover:-translate-y-px hover:brightness-110',
-          'focus-visible:ring-3 focus-visible:ring-ring/50 focus-visible:outline-none',
-          '[&::-webkit-details-marker]:hidden'
-        )}
-      >
-        <Mas />
-        Dar de alta
-      </summary>
-
-      <div className="mt-4 flex flex-col gap-2 rounded-[10px] border border-border bg-card p-4 sm:p-5">
-        <details open>
-          <summary className={claseResumenSeccion}>
+    <Desplegable
+      etiqueta="Dar de alta"
+      variante="primario"
+      abierto={contesto(estadoIndividual) || contesto(estadoArchivo) || contesto(estadoEquipo)}
+    >
+      <div className="flex flex-col gap-2">
+        <details open={!contesto(estadoArchivo) && !contesto(estadoEquipo)}>
+          <summary className={claseResumen}>
             <Flecha /> Una persona
           </summary>
           <div className="px-1 pt-4 pb-2">
-            <AltaIndividual cursos={cursos} empresas={empresas} reinicio={reinicio} />
+            <AltaIndividual
+              cursos={cursos}
+              empresas={empresas}
+              reinicio={reinicio}
+              estado={estadoIndividual}
+              accion={altaIndividual}
+            />
           </div>
         </details>
 
-        <details className="border-t border-border pt-2">
-          <summary className={claseResumenSeccion}>
+        <details className="border-t border-border pt-2" open={contesto(estadoArchivo) || undefined}>
+          <summary className={claseResumen}>
             <Flecha /> Varias desde un archivo
           </summary>
           <div className="px-1 pt-4 pb-2">
-            <AltaPorArchivo cursos={cursos} empresas={empresas} reinicio={reinicio} />
+            <AltaPorArchivo
+              cursos={cursos}
+              empresas={empresas}
+              reinicio={reinicio}
+              estado={estadoArchivo}
+              accion={altaArchivo}
+            />
           </div>
         </details>
 
@@ -301,33 +309,17 @@ export function DarDeAlta({
             comprobar en el servidor — esto es únicamente para no mostrar una
             puerta que no abre. */}
         {soySuperadmin ? (
-          <details className="border-t border-border pt-2">
-            <summary className={claseResumenSeccion}>
+          <details className="border-t border-border pt-2" open={contesto(estadoEquipo) || undefined}>
+            <summary className={claseResumen}>
               <Flecha /> Alguien del equipo (admin o superadmin)
             </summary>
             <div className="px-1 pt-4 pb-2">
-              <AltaEquipo reinicio={reinicio} />
+              <AltaEquipo reinicio={reinicio} estado={estadoEquipo} accion={altaEquipo} />
             </div>
           </details>
         ) : null}
       </div>
-    </details>
-  )
-}
-
-function Mas() {
-  return (
-    <svg
-      viewBox="0 0 24 24"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="2.5"
-      strokeLinecap="round"
-      className="size-4 transition-transform group-open/alta:rotate-45"
-      aria-hidden
-    >
-      <path d="M12 5v14M5 12h14" />
-    </svg>
+    </Desplegable>
   )
 }
 

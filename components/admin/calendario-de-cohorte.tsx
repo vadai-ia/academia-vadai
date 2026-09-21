@@ -1,27 +1,33 @@
+import { ConfirmarConModal } from '@/components/admin/confirmar-con-modal'
 import { EnviarCalendario } from '@/components/admin/enviar-calendario'
+import { claseSelect } from '@/components/admin/estilos'
 import { ExpandirTodo } from '@/components/admin/expandir-todo'
 import { NuevaSesion } from '@/components/admin/nueva-sesion'
 import { SesionesEnSerie } from '@/components/admin/sesiones-en-serie'
 import { Badge } from '@/components/ui/badge'
-import { Button } from '@/components/ui/button'
+import { Button, buttonVariants } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
 import { actualizarSesion, eliminarSesion, ligarGrabacion } from '@/lib/admin/acciones-cohortes'
 import type { CohorteConSesiones } from '@/lib/admin/cohortes'
 import { utcACdmx, ZONA_CDMX } from '@/lib/admin/fechas'
+import { cn } from '@/lib/utils'
 
 /**
  * El calendario de una cohorte: sus sesiones, cada una editable, más agendar
  * (una o la serie) y mandar las fechas por correo.
  *
  * Es UN componente porque se ve en dos lugares (21-sep-2026): en la página de
- * la cohorte, y ahora también dentro del curso, donde Alejandro quiere
- * agregar, cambiar y borrar sesiones sin ir a buscar la cohorte.
+ * la cohorte, y también dentro del curso, donde Alejandro quiere agregar,
+ * cambiar y borrar sesiones sin ir a buscar la cohorte.
  *
- * Cada sesión es un <details>: cerrada enseña número, tema, fecha y si tiene
- * liga; abierta, su formulario con lo que ya tiene (fecha y hora en CDMX). La
- * próxima abre sola. Server component: cada acción es un <form> directo.
+ * M14: lo que se puede hacer va como botones ARRIBA de la lista —agendar una,
+ * agendar la serie, mandar las fechas— y cada uno abre su formulario (y cierra
+ * los demás). Cada sesión es un <details> cerrado con su botón "Editar":
+ * abierta enseña su formulario con lo que ya tiene, en hora CDMX. Solo se
+ * abre sola la que pide la URL (`?sesion=`), que es como llega "Editar" desde
+ * el panel. Server component: cada acción es un <form> directo.
  */
 
 function enCdmx(iso: string): string {
@@ -42,16 +48,20 @@ export function CalendarioDeCohorte({
   ligables,
   correoAdmin,
   compacto = false,
+  sesionAbierta,
 }: {
   cohorte: CohorteConSesiones
   ligables: Array<{ id: string; titulo: string; modulo: string }>
   correoAdmin: string
   /** Dentro del curso: sin el título "Calendario", que ya lo pone el marco. */
   compacto?: boolean
+  /** La sesión que la URL pide ver abierta (`?sesion=<id>`). */
+  sesionAbierta?: string | null
 }) {
   const ahora = Date.now()
   const proxima = cohorte.sesiones.find((s) => new Date(s.scheduled_at).getTime() >= ahora)
   const selector = `details[data-sesion="${cohorte.id}"]`
+  const acordeon = `sesiones-${cohorte.id}`
 
   return (
     <div className="flex flex-col gap-4">
@@ -61,14 +71,28 @@ export function CalendarioDeCohorte({
             {cohorte.sesiones.length} sesión(es) · {cohorte.inscritos} inscrito(s)
           </span>
         ) : (
-          <h2 className="text-lg font-semibold">Calendario</h2>
+          <h2 className="text-lg font-medium">Calendario</h2>
         )}
         {cohorte.sesiones.length > 1 ? <ExpandirTodo selector={selector} /> : null}
       </div>
 
+      {/* Lo que se puede hacer, como botones. Comparten `nombre`: abrir uno
+          cierra los otros, sin JavaScript. */}
+      <div className="flex flex-col gap-2">
+        <NuevaSesion cohorteId={cohorte.id} reinicio={cohorte.sesiones.length} nombre={acordeon} />
+        <SesionesEnSerie cohorteId={cohorte.id} reinicio={cohorte.sesiones.length} nombre={acordeon} />
+        <EnviarCalendario
+          cohorteId={cohorte.id}
+          inscritos={cohorte.inscritos}
+          sesionesFuturas={cohorte.sesiones.filter((s) => new Date(s.scheduled_at).getTime() >= ahora - 3 * 60 * 60 * 1000).length}
+          correoAdmin={correoAdmin}
+          nombre={acordeon}
+        />
+      </div>
+
       {cohorte.sesiones.length === 0 ? (
         <p className="rounded-lg border border-dashed border-border px-4 py-8 text-center text-sm text-muted-foreground">
-          Todavía no hay sesiones agendadas. Agenda las del curso completo abajo, con
+          Todavía no hay sesiones agendadas. Agenda las del curso completo con
           &ldquo;Agendar varias de una vez&rdquo;.
         </p>
       ) : (
@@ -81,15 +105,13 @@ export function CalendarioDeCohorte({
             return (
               <li key={sesion.id}>
                 <details
+                  id={`sesion-${sesion.id}`}
                   data-sesion={cohorte.id}
-                  open={esProxima}
+                  open={sesion.id === sesionAbierta || undefined}
                   className={'group/sesion rounded-lg border ' + (esProxima ? 'border-primary/50' : 'border-border')}
                 >
-                  <summary className="flex cursor-pointer list-none flex-wrap items-center justify-between gap-x-3 gap-y-1 px-4 py-3 select-none [&::-webkit-details-marker]:hidden">
+                  <summary className="flex cursor-pointer list-none flex-wrap items-center justify-between gap-x-3 gap-y-2 px-4 py-3 select-none [&::-webkit-details-marker]:hidden">
                     <span className="flex min-w-0 flex-wrap items-center gap-2">
-                      <span aria-hidden className="text-muted-foreground transition-transform group-open/sesion:rotate-90">
-                        ›
-                      </span>
                       <span className="font-mono text-xs text-muted-foreground">{i + 1}</span>
                       <span className="font-medium">{sesion.title}</span>
                       {pasada ? <Badge variant="outline">Ya ocurrió</Badge> : null}
@@ -101,7 +123,15 @@ export function CalendarioDeCohorte({
                       ) : null}
                       {sesion.grabacionTitulo ? <Badge variant="secondary">Grabación ligada</Badge> : null}
                     </span>
-                    <span className="text-sm text-muted-foreground">{enCdmx(sesion.scheduled_at)} CDMX</span>
+                    <span className="flex flex-wrap items-center gap-3">
+                      <span className="text-sm text-muted-foreground">{enCdmx(sesion.scheduled_at)} CDMX</span>
+                      {/* El summary ya es el control; esto solo le dice a la
+                          vista que es un botón y qué va a hacer. */}
+                      <span aria-hidden className={cn(buttonVariants({ variant: 'outline', size: 'sm' }))}>
+                        <span className="group-open/sesion:hidden">Editar</span>
+                        <span className="hidden group-open/sesion:inline">Cerrar</span>
+                      </span>
+                    </span>
                   </summary>
 
                   <div className="flex flex-col gap-5 border-t border-border px-4 py-4">
@@ -168,7 +198,7 @@ export function CalendarioDeCohorte({
                         <select
                           name="recording_lesson_id"
                           defaultValue={sesion.recording_lesson_id ?? ''}
-                          className="h-9 w-full rounded-md border border-input bg-transparent px-3 text-sm"
+                          className={claseSelect}
                         >
                           <option value="">Sin grabación ligada</option>
                           {ligables.map((l) => (
@@ -183,13 +213,22 @@ export function CalendarioDeCohorte({
                       </Button>
                     </form>
 
-                    <form action={eliminarSesion} className="flex justify-end">
-                      <input type="hidden" name="id" value={sesion.id} />
-                      <input type="hidden" name="cohort_id" value={cohorte.id} />
-                      <Button type="submit" variant="ghost" size="sm" className="text-destructive hover:text-destructive">
-                        Eliminar esta sesión
-                      </Button>
-                    </form>
+                    <div className="flex justify-end border-t border-border pt-4">
+                      <ConfirmarConModal
+                        idModal={`eliminar-sesion-${sesion.id}`}
+                        accion={eliminarSesion}
+                        campos={{ id: sesion.id, cohort_id: cohorte.id }}
+                        boton={{
+                          texto: 'Eliminar sesión',
+                          etiquetaAccesible: `Eliminar la sesión ${sesion.title}`,
+                          tono: 'destructivo',
+                        }}
+                        titulo={`¿Eliminar la sesión «${sesion.title}»?`}
+                        confirmar={{ texto: 'Sí, eliminar', enCurso: 'Eliminando…', tono: 'destructivo' }}
+                      >
+                        <p>Desaparece del calendario de los alumnos y del correo de fechas.</p>
+                      </ConfirmarConModal>
+                    </div>
                   </div>
                 </details>
               </li>
@@ -197,16 +236,6 @@ export function CalendarioDeCohorte({
           })}
         </ol>
       )}
-
-      <SesionesEnSerie cohorteId={cohorte.id} reinicio={cohorte.sesiones.length} />
-      <NuevaSesion cohorteId={cohorte.id} reinicio={cohorte.sesiones.length} />
-
-      <EnviarCalendario
-        cohorteId={cohorte.id}
-        inscritos={cohorte.inscritos}
-        sesionesFuturas={cohorte.sesiones.filter((s) => new Date(s.scheduled_at).getTime() >= ahora - 3 * 60 * 60 * 1000).length}
-        correoAdmin={correoAdmin}
-      />
     </div>
   )
 }

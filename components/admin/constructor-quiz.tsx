@@ -1,4 +1,5 @@
 import { AjustesQuiz } from '@/components/admin/ajustes-quiz'
+import { ConfirmarConModal } from '@/components/admin/confirmar-con-modal'
 import { NuevaPregunta } from '@/components/admin/nueva-pregunta'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
@@ -60,7 +61,7 @@ export function ConstructorQuiz({
 
       {quiz.preguntas.length === 0 ? (
         <p className="rounded-lg border border-dashed border-border px-4 py-6 text-center text-sm text-muted-foreground">
-          Agrega la primera pregunta abajo.
+          Todavía no hay preguntas. Agrega la primera con &ldquo;Agregar pregunta&rdquo;.
         </p>
       ) : (
         <ul className="flex flex-col gap-3">
@@ -92,18 +93,17 @@ export function ConstructorQuiz({
                     </form>
                   ))}
 
-                  <form action={eliminarPregunta}>
-                    <input type="hidden" name="id" value={pregunta.id} />
-                    <input type="hidden" name="lesson_id" value={leccionId} />
-                    <Button
-                      type="submit"
-                      variant="ghost"
-                      size="sm"
-                      className="text-destructive hover:text-destructive"
-                    >
-                      Eliminar
-                    </Button>
-                  </form>
+                  <ConfirmarConModal
+                    idModal={`eliminar-pregunta-${pregunta.id}`}
+                    accion={eliminarPregunta}
+                    campos={{ id: pregunta.id, lesson_id: leccionId }}
+                    boton={{ texto: 'Eliminar', etiquetaAccesible: `Eliminar la pregunta ${i + 1}`, tono: 'destructivo' }}
+                    titulo={`¿Eliminar la pregunta ${i + 1}?`}
+                    confirmar={{ texto: 'Sí, eliminar', enCurso: 'Eliminando…', tono: 'destructivo' }}
+                  >
+                    <p>{pregunta.question}</p>
+                    <p>No se puede deshacer.</p>
+                  </ConfirmarConModal>
                 </div>
               </div>
 
