@@ -839,10 +839,10 @@ async function main() {
 
     const rutaPublica = `/e/${encuesta.join_code}`
     const rutaProyeccion = `/proyectar/${encuesta.projection_token}`
-    // Con la dinámica a medias, la proyección pregunta si continuar o arrancar
-    // una corrida nueva. Para ver la pantalla en sí hay que responder que se
-    // continúa; lo que hace el selector se prueba en su propio grupo.
-    const rutaPantalla = `${rutaProyeccion}?continuar=1`
+    // Proyectar solo proyecta: abre directo a la pantalla, pase lo que pase
+    // (21-sep-2026). Correrla otra vez o reiniciarla se decide en la
+    // configuración, no frente a la sala.
+    const rutaPantalla = rutaProyeccion
 
     afirmar(G9, 'el QR abre sin sesión', 200, (await pedir(rutaPublica, null)).status)
     afirmar(G9, 'un código inventado da 404', 404, (await pedir('/e/ZZZZZZ', null)).status)
@@ -1693,27 +1693,30 @@ async function main() {
     )
     afirmar(G21, 'la base sella la corrida de la respuesta', 1, selloCorrida[0].corrida)
 
-    // Abrir la proyección con la dinámica a medias no reanuda ni reinicia sola:
-    // pregunta. Nadie puede adivinar cuál de las dos quería quien acaba de abrir.
-    // React separa el texto de una interpolación con un comentario HTML, así que
-    // "Empezar la corrida {n}" no aparece como una sola cadena. Se quitan los
-    // comentarios antes de buscar; si no, la prueba fallaría por la
-    // serialización y no por el contenido.
+    // Abrir la proyección con la dinámica a medias NO pregunta nada: proyecta
+    // (21-sep-2026). "Proyectar" se aprieta con la sala mirando la pared, y lo
+    // que aparecía ahí era un formulario. React separa el texto de una
+    // interpolación con un comentario HTML, así que "Empezar la corrida {n}" no
+    // aparece como una sola cadena. Se quitan los comentarios antes de buscar;
+    // si no, la prueba fallaría por la serialización y no por el contenido.
     const sinComentarios = (html) => html.replace(/<!--.*?-->/g, '')
 
-    const selector = sinComentarios(await texto(rutaProyeccion, admin))
-    afirmar(G21, 'la proyección pregunta qué hacer', true, selector.includes('Continuar donde iba'))
-    afirmar(G21, 'y ofrece arrancar la siguiente corrida', true, selector.includes('Empezar la corrida 2'))
-    afirmar(
-      G21,
-      'no se pinta la pantalla en vivo sin decidir',
-      false,
-      selector.includes('control de presentaciones')
-    )
+    const aMedias = sinComentarios(await texto(rutaProyeccion, admin))
+    afirmar(G21, 'la proyección no pregunta nada', false, aMedias.includes('Continuar donde iba'))
+    afirmar(G21, 'proyecta de una vez', true, aMedias.includes('control de presentaciones'))
 
-    const formCorrida = leerFormularios(selector).find((f) => f.campos.id === encuesta.id)
-    afirmar(G21, 'el selector trae el botón de corrida nueva', true, Boolean(formCorrida))
-    if (formCorrida) await enviar(rutaProyeccion, formCorrida, admin, { id: encuesta.id })
+    // Correrla otra vez para otro grupo se decide en la configuración, con
+    // calma. El botón lleva solo el id, igual que el de reiniciar: lo que los
+    // distingue es su texto.
+    const config = sinComentarios(await texto(rutaConfig, admin))
+    afirmar(G21, 'la configuración ofrece la corrida siguiente', true,
+      config.includes('Empezar la corrida 2'))
+
+    const formCorrida = leerFormularios(config).find(
+      (f) => f.campos.id === encuesta.id && f.html.includes('Empezar la corrida')
+    )
+    afirmar(G21, 'y trae su formulario', true, Boolean(formCorrida))
+    if (formCorrida) await enviar(rutaConfig, formCorrida, admin, { id: encuesta.id })
 
     const { rows: trasCorrida } = await bd.query(
       'select corrida, status from academia.polls where id = $1',
@@ -1765,28 +1768,18 @@ async function main() {
     afirmar(G21, 'y marca a qué corrida pertenece cada fila', true,
       hojasCorridas.includes('Corrida'))
 
-    // Ya sin avance, la proyección entra directo — y entra CON el parámetro
-    // puesto. Eso último es lo que arregla el bug de que volviera a preguntar
-    // justo después de que la cuenta regresiva abriera la primera pregunta:
-    // sin el parámetro en la URL, la siguiente vuelta al servidor veía "avance"
-    // y preguntaba otra vez, encima de una decisión ya tomada.
+    // Una corrida limpia también entra directo, sin rebotes por el camino: un
+    // 307 en medio es una recarga más frente a la sala.
     const sinDecidir = await pedir(rutaProyeccion, admin)
-    afirmar(G21, 'una corrida limpia no pregunta: redirige', 307, sinDecidir.status)
-    afirmar(
-      G21,
-      'y deja la decisión pegada en la URL',
-      true,
-      (sinDecidir.headers.get('location') ?? '').includes('continuar=1')
-    )
+    afirmar(G21, 'una corrida limpia abre de una vez', 200, sinDecidir.status)
 
-    // Y con una pregunta ya abierta, el parámetro sigue mandando: se ve la
-    // pantalla, no el selector. Es exactamente el estado en el que el bug
-    // aparecía.
+    // Y con una pregunta ya abierta —el estado en el que el selector aparecía—
+    // se sigue viendo la pantalla.
     await bd.query("update academia.poll_questions set status = 'open' where id = $1", [
       primeraDeNuevo,
     ])
     const conPreguntaAbierta = sinComentarios(await texto(rutaPantalla, admin))
-    afirmar(G21, 'con la pregunta abierta ya no vuelve a preguntar', false,
+    afirmar(G21, 'con la pregunta abierta tampoco pregunta', false,
       conPreguntaAbierta.includes('Continuar donde iba'))
     afirmar(G21, 'sigue siendo la pantalla en vivo', true,
       conPreguntaAbierta.includes('control de presentaciones'))

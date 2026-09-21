@@ -1,15 +1,12 @@
 import type { Metadata } from 'next'
-import Link from 'next/link'
-import { notFound, redirect } from 'next/navigation'
+import { notFound } from 'next/navigation'
 
 import { CodigoQr } from '@/components/encuestas/codigo-qr'
 import { PantallaEnVivo } from '@/components/encuestas/pantalla-en-vivo'
 import { CambiarTema } from '@/components/marca/cambiar-tema'
-import { Button } from '@/components/ui/button'
 import { exigirAdmin } from '@/lib/auth/sesion'
-import { nuevaCorrida } from '@/lib/encuestas/acciones'
 import { urlDeEncuesta } from '@/lib/encuestas/comun'
-import { cuantosEntraron, encuestaPorToken, payloadDeProyeccion } from '@/lib/encuestas/publico'
+import { encuestaPorToken, payloadDeProyeccion } from '@/lib/encuestas/publico'
 
 export const dynamic = 'force-dynamic'
 
@@ -31,115 +28,34 @@ export const metadata: Metadata = {
  * desde la sala; y desde que la pantalla trae los controles, ese token dejaría
  * manejar la dinámica a quien lo copiara.
  *
- * AL ABRIRLA CON UNA DINÁMICA A MEDIAS, PREGUNTA QUÉ HACER. Reanudar sola sería
- * un error el día que se cierra la pestaña sin querer entre dos eventos; y
- * empezar sola sería peor, porque se llevaría por delante lo que la sala está
- * contestando. Nadie puede adivinar cuál de las dos quería quien acaba de abrir
- * la pantalla, así que se pregunta — una sola vez, y solo cuando hay algo que
- * decidir.
+ * ABRE DIRECTO A LA PANTALLA, SIN PREGUNTAR NADA (21-sep-2026, decisión de
+ * Alejandro el día del lanzamiento). Durante unas horas, abrirla con la
+ * dinámica empezada mostraba antes una pregunta —"¿continuar donde iba o
+ * empezar otra corrida?"— para no pisar lo que la sala estuviera contestando.
+ * La intención era buena y el momento de usarla, pésimo: "Proyectar" se aprieta
+ * con la sala mirando la pared, y lo que aparecía era un formulario. Peor aún,
+ * bastaba con que alguien hubiera entrado por el QR —una persona probando— para
+ * que saliera, aunque no hubiera ni una respuesta.
+ *
+ * Proyectar ahora solo proyecta, y nunca destruye nada: retoma la dinámica tal
+ * como estaba. Correrla otra vez para otro grupo, o dejarla como nueva, sigue
+ * estando donde se decide con calma y no frente a la sala: "Empezar la corrida
+ * siguiente" y "Reiniciar", en la configuración de la encuesta.
  */
 export default async function PaginaProyectar({
   params,
-  searchParams,
 }: {
   params: Promise<{ token: string }>
-  searchParams: Promise<{ continuar?: string }>
 }) {
   await exigirAdmin()
 
   const { token } = await params
-  const { continuar } = await searchParams
   const encuesta = await encuestaPorToken(token)
 
   if (!encuesta) notFound()
 
   const base = process.env.NEXT_PUBLIC_APP_URL ?? ''
   const url = urlDeEncuesta(base, encuesta.joinCode)
-
-  // "Avance" es cualquier señal de que esta corrida ya empezó: una pregunta
-  // tocada o gente adentro. Sin nada de eso no hay nada que decidir.
-  const abiertas = encuesta.preguntas.filter((p) => p.status !== 'pending')
-  const dentro = await cuantosEntraron(encuesta.id)
-  const hayAvance = abiertas.length > 0 || dentro > 0
-
-  if (continuar !== '1') {
-    // Sin nada que decidir no se pregunta: se entra. Pero se entra CON el
-    // parámetro puesto, y eso es lo que arregla el bug de verdad.
-    //
-    // Sin este redirect, la decisión no era pegajosa: bastaba con que se
-    // abriera la primera pregunta —lo hace la cuenta regresiva— para que la
-    // siguiente vuelta al servidor viera "avance" y volviera a preguntar, justo
-    // después de que quien presenta ya había decidido. Con el parámetro en la
-    // URL, ninguna recarga posterior vuelve a preguntar.
-    if (!hayAvance) redirect(`/proyectar/${token}?continuar=1`)
-
-    const cerradas = encuesta.preguntas.filter((p) => p.status === 'closed').length
-    const abiertaAhora = encuesta.preguntas.find((p) => p.status === 'open')
-
-    return (
-      <main className="mx-auto flex min-h-dvh w-full max-w-2xl flex-col justify-center gap-8 px-6 py-12">
-        <div className="absolute top-4 right-4">
-          <CambiarTema />
-        </div>
-
-        <div className="flex flex-col gap-2">
-          <span className="text-sm tracking-wider text-muted-foreground">
-            CORRIDA {encuesta.corrida}
-          </span>
-          <h1 className="text-[1.75rem] leading-tight font-medium text-balance">
-            {encuesta.title}
-          </h1>
-          <p className="text-sm text-muted-foreground">
-            {abiertaAhora
-              ? `Se quedó en la pregunta ${abiertaAhora.position}, abierta.`
-              : `${cerradas} de ${encuesta.preguntas.length} pregunta(s) cerrada(s).`}{' '}
-            {dentro === 0
-              ? 'Todavía no ha entrado nadie.'
-              : `${dentro} persona(s) dentro.`}
-          </p>
-        </div>
-
-        <div className="flex flex-col gap-3">
-          <Button asChild size="lg">
-            <Link href={`/proyectar/${token}?continuar=1`}>Continuar donde iba</Link>
-          </Button>
-          <p className="text-xs text-muted-foreground">
-            Retoma la dinámica tal como quedó. Es lo que quieres si se cerró la pestaña sin
-            querer.
-          </p>
-
-          <div className="flex items-center gap-3 pt-2" aria-hidden>
-            <span className="h-px flex-1 bg-border" />
-            <span className="text-xs text-muted-foreground">o</span>
-            <span className="h-px flex-1 bg-border" />
-          </div>
-
-          <form action={nuevaCorrida}>
-            <input type="hidden" name="id" value={encuesta.id} />
-            <Button type="submit" variant="outline" size="lg" className="w-full">
-              Empezar la corrida {encuesta.corrida + 1}
-            </Button>
-          </form>
-          <p className="text-xs text-muted-foreground">
-            Arranca desde la pregunta 1 con la sala vacía, para otro grupo.{' '}
-            <span className="font-medium text-foreground">No borra nada</span>: las respuestas de
-            la corrida {encuesta.corrida} se quedan guardadas y salen en el Excel con su número.
-          </p>
-        </div>
-
-        <p className="text-xs text-muted-foreground">
-          ¿Querías dejarla como nueva, sin historial? Eso es{' '}
-          <Link
-            href={`/admin/encuestas/${encuesta.id}/configuracion`}
-            className="text-primary underline-offset-4 hover:underline"
-          >
-            Reiniciar
-          </Link>
-          , en la configuración de la encuesta.
-        </p>
-      </main>
-    )
-  }
 
   const inicial = await payloadDeProyeccion(encuesta)
 
