@@ -1,6 +1,7 @@
 import type { Metadata } from 'next'
 import Link from 'next/link'
 
+import { AgregarAlCalendario } from '@/components/alumno/agregar-al-calendario'
 import { RenderRico } from '@/components/alumno/render-rico'
 import { TarjetaCurso } from '@/components/alumno/tarjeta-curso'
 import { TarjetaNivel } from '@/components/alumno/tarjeta-nivel'
@@ -189,6 +190,16 @@ export default async function PaginaInicio() {
                   </Button>
                 </div>
               ) : null}
+              <AgregarAlCalendario
+                sesion={{
+                  id: proximaSesion.id,
+                  titulo: proximaSesion.titulo,
+                  descripcion: proximaSesion.descripcion,
+                  inicio: proximaSesion.programadaEn,
+                  ligaUrl: proximaSesion.meetUrl,
+                  curso: proximaSesion.cohorteNombre,
+                }}
+              />
             </Tarjeta>
           ) : null}
 

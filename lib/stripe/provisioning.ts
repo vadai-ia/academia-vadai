@@ -1,7 +1,7 @@
 import 'server-only'
 
 import { crearEnlaceDurable } from '@/lib/auth/enlace-durable'
-import { plantillaBienvenida } from '@/lib/correo/plantillas'
+import { plantillaBienvenida, plantillaNuevoCurso } from '@/lib/correo/plantillas'
 import { enviarCorreo } from '@/lib/correo/resend'
 import { crearClienteServiceRole } from '@/lib/supabase/service-role'
 
@@ -22,6 +22,8 @@ export type ResultadoAlta = {
   userId?: string
   creado?: boolean
   invitado?: boolean
+  /** true si ya tenía cuenta, el curso era nuevo y se le avisó por correo. */
+  avisado?: boolean
   motivo?: string
 }
 
@@ -56,6 +58,17 @@ type Opciones = {
    * Sin esto se usa el título del curso de esta llamada, como siempre.
    */
   titulosParaCorreo?: string[]
+  /**
+   * La empresa de la que viene (20-sep-2026). `undefined` no toca lo que ya
+   * tenga; `null` la quita explícitamente; un id la fija.
+   */
+  companyId?: string | null
+  /**
+   * Si la cuenta YA existía y el curso es nuevo, se le avisa por correo. El
+   * alta a varios cursos lo pone en true solo en la primera llamada, que es
+   * la que nombra todos los cursos; las demás no repiten el correo.
+   */
+  avisarNuevoCurso?: boolean
 }
 
 function registrar(operacion: string, detalle: Record<string, unknown>) {
@@ -226,6 +239,8 @@ export async function darDeAlta(opciones: Opciones): Promise<ResultadoAlta> {
       email,
       full_name: opciones.nombre?.trim() || previo?.full_name || '',
       role: opciones.rol ?? (asciendeDeInvitado ? 'alumno' : rolPrevio),
+      // Solo si el llamador dijo algo: un alta sin empresa no borra la que ya tenía.
+      ...(opciones.companyId !== undefined ? { company_id: opciones.companyId } : {}),
     },
     { onConflict: 'user_id', ignoreDuplicates: false }
   )
@@ -241,6 +256,17 @@ export async function darDeAlta(opciones: Opciones): Promise<ResultadoAlta> {
     curso?.access_days != null
       ? new Date(Date.now() + curso.access_days * 24 * 60 * 60 * 1000).toISOString()
       : null
+
+  // ¿Ya tenía este curso? Se mira ANTES del upsert: es lo que decide si a una
+  // cuenta existente se le avisa "tienes un curso nuevo" o no se le dice nada.
+  const { data: inscripcionPrevia } = curso
+    ? await supabase
+        .from('enrollments')
+        .select('user_id')
+        .eq('user_id', usuario.id)
+        .eq('course_id', curso.id)
+        .maybeSingle()
+    : { data: null }
 
   const { error: errorInscripcion } = curso
     ? await supabase.from('enrollments').upsert(
@@ -289,6 +315,18 @@ export async function darDeAlta(opciones: Opciones): Promise<ResultadoAlta> {
     }
   }
 
+  // 6. Cuenta que ya existía y curso nuevo: se le avisa (pedido 20-sep-2026).
+  //    Antes no salía nada y "la persona ya sabe entrar"; pero si nadie te
+  //    avisa, el curso nuevo no existe hasta que entres por otra razón.
+  let avisado = false
+  if (!creado && curso && !inscripcionPrevia && (opciones.avisarNuevoCurso ?? true)) {
+    avisado = await avisarCursoNuevo(
+      email,
+      opciones.titulosParaCorreo ?? [curso.title],
+      opciones.nombre ?? previo?.full_name
+    )
+  }
+
   registrar('darDeAlta:ok', {
     email,
     curso: curso?.title ?? null,
@@ -296,9 +334,30 @@ export async function darDeAlta(opciones: Opciones): Promise<ResultadoAlta> {
     origen: opciones.origen,
     cuentaNueva: creado,
     correoEnviado: invitado,
+    avisadoCursoNuevo: avisado,
   })
 
-  return { ok: true, userId: usuario.id, creado, invitado }
+  return { ok: true, userId: usuario.id, creado, invitado, avisado }
+}
+
+/**
+ * "Te dimos acceso a X": para quien ya tiene cuenta. Sin liga de acceso, con
+ * el botón a Mis cursos. Devuelve false en vez de lanzar, como todo correo.
+ */
+export async function avisarCursoNuevo(
+  email: string,
+  cursos: string[],
+  nombre?: string | null
+): Promise<boolean> {
+  const plantilla = plantillaNuevoCurso({ cursos, nombre, base: process.env.NEXT_PUBLIC_APP_URL })
+  const resultado = await enviarCorreo({
+    para: email.trim().toLowerCase(),
+    asunto: plantilla.asunto,
+    html: plantilla.html,
+    texto: plantilla.texto,
+  })
+  if (!resultado.ok) registrar('avisarCursoNuevo:fallo', { email, motivo: resultado.motivo })
+  return resultado.ok
 }
 
 /**

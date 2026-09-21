@@ -6,7 +6,7 @@ import { z } from 'zod'
 import { alumnosPendientesDeEntrar } from '@/lib/admin/accesos'
 import { crearEnlacesDurables } from '@/lib/auth/enlace-durable'
 import { exigirAdmin } from '@/lib/auth/sesion'
-import { plantillaRecordatorio } from '@/lib/correo/plantillas'
+import { plantillaNuevoCurso, plantillaRecordatorio } from '@/lib/correo/plantillas'
 import { enviarCorreosEnLote } from '@/lib/correo/resend'
 import { darDeAlta, enviarAccesoInicial } from '@/lib/stripe/provisioning'
 import { crearClienteServidor } from '@/lib/supabase/server'
@@ -36,6 +36,8 @@ const esquema = z.object({
   accesos: z.array(z.string().regex(PAR, 'Selección inválida.')),
   course_id: z.union([z.uuid('Curso inválido.'), z.literal('')]),
   cohort_id: z.union([z.uuid('Grupo inválido.'), z.literal('')]),
+  /** Vacío = General (sin empresa). */
+  company_id: z.union([z.uuid('Empresa inválida.'), z.literal('')]),
 })
 
 export async function altaManual(_previo: EstadoAccion, datos: FormData): Promise<EstadoAccion> {
@@ -47,13 +49,21 @@ export async function altaManual(_previo: EstadoAccion, datos: FormData): Promis
     accesos: datos.getAll('accesos').filter((v): v is string => typeof v === 'string'),
     course_id: datos.get('course_id') ?? '',
     cohort_id: datos.get('cohort_id') ?? '',
+    company_id: datos.get('company_id') ?? '',
   })
 
   if (!resultado.success) {
     return { error: resultado.error.issues[0]?.message ?? 'Revisa los datos.' }
   }
 
-  const { email, nombre, accesos, course_id: cursoFijo, cohort_id: grupoFijo } = resultado.data
+  const {
+    email,
+    nombre,
+    accesos,
+    course_id: cursoFijo,
+    cohort_id: grupoFijo,
+    company_id: empresa,
+  } = resultado.data
 
   const seleccion = await revisarSeleccion(
     accesos.length > 0 ? accesos : cursoFijo ? [`${cursoFijo}|${grupoFijo}`] : []
@@ -67,6 +77,7 @@ export async function altaManual(_previo: EstadoAccion, datos: FormData): Promis
   // cuenta ya hecha y solo agregan su inscripción.
   let creado = false
   let invitado = false
+  let avisado = false
   const listos: string[] = []
 
   for (const [i, curso] of seleccion.cursos.entries()) {
@@ -78,6 +89,9 @@ export async function altaManual(_previo: EstadoAccion, datos: FormData): Promis
       origen: 'manual',
       urlRedireccion: `${process.env.NEXT_PUBLIC_APP_URL ?? ''}/nueva-contrasena`,
       titulosParaCorreo: titulos,
+      // La empresa solo en la primera llamada; vacío no toca la que ya tenga.
+      companyId: i === 0 && empresa ? empresa : undefined,
+      avisarNuevoCurso: i === 0,
     })
 
     if (!alta.ok) {
@@ -94,6 +108,7 @@ export async function altaManual(_previo: EstadoAccion, datos: FormData): Promis
     if (i === 0) {
       creado = alta.creado === true
       invitado = alta.invitado === true
+      avisado = alta.avisado === true
     }
     listos.push(titulos[i] ?? 'Curso')
   }
@@ -104,7 +119,11 @@ export async function altaManual(_previo: EstadoAccion, datos: FormData): Promis
   for (const curso of seleccion.cursos) revalidatePath(`/admin/cursos/${curso.id}`)
 
   if (!creado) {
-    return { aviso: `${email} ya tenía cuenta; se le agregó ${enLista(listos)}.` }
+    return {
+      aviso:
+        `${email} ya tenía cuenta; se le agregó ${enLista(listos)}` +
+        (avisado ? ' y se le avisó por correo.' : '. Ya tenía ese acceso, no se mandó correo.'),
+    }
   }
 
   // La cuenta y la inscripción existen aunque el correo no haya salido. Se dice
@@ -275,6 +294,8 @@ type ResultadoInscripciones =
       ok: true
       creadas: Par[]
       omitidas: Par[]
+      /** Cuántos correos de "tienes un curso nuevo" salieron. */
+      avisados: number
       tituloDe: Map<string, string>
       nombreDe: Map<string, string>
     }
@@ -347,6 +368,7 @@ async function crearInscripciones(pares: Par[]): Promise<ResultadoInscripciones>
   const yaInscrito = new Set((previas.data ?? []).map((e) => `${e.user_id}::${e.course_id}`))
   const creadas: Par[] = []
   const omitidas: Par[] = []
+  let avisados = 0
 
   for (const par of pares) {
     const archivado = cursoPorId.get(par.cursoId)?.status === 'archived'
@@ -379,6 +401,29 @@ async function crearInscripciones(pares: Par[]): Promise<ResultadoInscripciones>
     }
 
     console.log(JSON.stringify({ operacion: 'crearInscripciones:ok', creadas }))
+
+    // Se les avisa por correo (pedido 20-sep-2026). Antes no salía nada:
+    // "la persona ya sabe entrar". Pero si nadie te avisa, el curso nuevo no
+    // existe hasta que entres por otra razón. Un correo por persona que nombra
+    // todos sus cursos nuevos, en lote: veinte personas son una petición.
+    const tituloDeCurso = new Map((cursos.data ?? []).map((c) => [c.id, c.title]))
+    const cursosDe = new Map<string, string[]>()
+    for (const par of creadas) {
+      const titulo = tituloDeCurso.get(par.cursoId)
+      if (titulo) cursosDe.set(par.userId, [...(cursosDe.get(par.userId) ?? []), titulo])
+    }
+    const correos = [...cursosDe].flatMap(([userId, titulos]) => {
+      const persona = (personas.data ?? []).find((p) => p.user_id === userId)
+      if (!persona?.email) return []
+      const plantilla = plantillaNuevoCurso({
+        cursos: titulos,
+        nombre: persona.full_name,
+        base: process.env.NEXT_PUBLIC_APP_URL,
+      })
+      return [{ para: persona.email, asunto: plantilla.asunto, html: plantilla.html, texto: plantilla.texto }]
+    })
+    const envio = await enviarCorreosEnLote(correos)
+    avisados = envio.enviados
   }
 
   revalidatePath('/admin/alumnos')
@@ -389,9 +434,46 @@ async function crearInscripciones(pares: Par[]): Promise<ResultadoInscripciones>
     ok: true,
     creadas,
     omitidas,
+    avisados,
     tituloDe: new Map((cursos.data ?? []).map((c) => [c.id, c.title])),
     nombreDe,
   }
+}
+
+/**
+ * Quita a una persona de un curso: borra la inscripción.
+ *
+ * Es distinto de revocar. Revocar deja la fila con `status = 'revoked'`, que
+ * es lo que se quiere tras un reembolso: consta que compró y que se le quitó.
+ * Quitar es para el que se agregó por error o cambió de grupo: la fila
+ * desaparece del curso. El progreso NO se toca (§6.3): si vuelve a entrar al
+ * curso, encuentra su avance donde lo dejó.
+ */
+export async function quitarDelCurso(_previo: EstadoAccion, datos: FormData): Promise<EstadoAccion> {
+  await exigirAdmin()
+
+  const userId = String(datos.get('user_id') ?? '')
+  const courseId = String(datos.get('course_id') ?? '')
+  if (!userId || !courseId) return { error: 'Faltan datos.' }
+
+  const supabase = await crearClienteServidor()
+  const { data, error } = await supabase
+    .from('enrollments')
+    .delete()
+    .eq('user_id', userId)
+    .eq('course_id', courseId)
+    .select('user_id')
+
+  if (error || !data || data.length === 0) {
+    console.error(
+      JSON.stringify({ operacion: 'quitarDelCurso', userId, courseId, error: error?.message ?? 'sin filas' })
+    )
+    return { error: 'No se pudo quitar del curso.' }
+  }
+
+  revalidatePath('/admin/alumnos')
+  revalidatePath(`/admin/cursos/${courseId}`)
+  return { aviso: 'Quedó fuera del curso. Su avance se conserva por si vuelve.' }
 }
 
 /** Títulos o nombres sin repetir, para armar el aviso. */
@@ -452,6 +534,7 @@ export async function darAccesoACursos(_previo: EstadoAccion, datos: FormData): 
   return {
     aviso:
       `Acceso dado a: ${enumerar(hecho.creadas.map((p) => hecho.tituloDe.get(p.cursoId)))}.` +
+      (hecho.avisados > 0 ? ' Se le avisó por correo.' : '') +
       (sinCambios ? ` Sin cambios en: ${sinCambios}.` : ''),
   }
 }
@@ -497,6 +580,9 @@ export async function inscribirEnCurso(_previo: EstadoAccion, datos: FormData): 
   return {
     aviso:
       `Acceso dado a: ${enumerar(hecho.creadas.map((p) => hecho.nombreDe.get(p.userId)))}.` +
+      (hecho.avisados > 0
+        ? ` Se avisó por correo a ${hecho.avisados}.`
+        : '') +
       (yaLoTenian ? ` Ya lo tenían: ${yaLoTenian}.` : ''),
   }
 }

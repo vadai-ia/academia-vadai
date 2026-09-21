@@ -295,6 +295,27 @@ export type Database = {
         }
         Relationships: []
       }
+      companies: {
+        Row: {
+          id: string
+          name: string
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          name: string
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          name?: string
+          created_at?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       courses: {
         Row: {
           id: string
@@ -882,6 +903,7 @@ export type Database = {
           created_at: string
           updated_at: string
           notifications_seen_at: string | null
+          company_id: string | null
         }
         Insert: {
           user_id: string
@@ -893,6 +915,7 @@ export type Database = {
           created_at?: string
           updated_at?: string
           notifications_seen_at?: string | null
+          company_id?: string | null
         }
         Update: {
           user_id?: string
@@ -904,6 +927,7 @@ export type Database = {
           created_at?: string
           updated_at?: string
           notifications_seen_at?: string | null
+          company_id?: string | null
         }
         Relationships: []
       }

@@ -38,6 +38,26 @@ export type CursoOpcion = {
   cohortes: Array<{ id: string; nombre: string }>
 }
 
+export type EmpresaOpcion = { id: string; nombre: string }
+
+/** Vacío = General. Las empresas se crean en /admin/empresas. */
+function SelectorDeEmpresa({ id, empresas, ayuda }: { id: string; empresas: EmpresaOpcion[]; ayuda?: string }) {
+  return (
+    <div className="flex flex-col gap-1.5">
+      <Label htmlFor={id}>Empresa</Label>
+      <select id={id} name="company_id" defaultValue="" className={claseSelect}>
+        <option value="">General (sin empresa)</option>
+        {empresas.map((e) => (
+          <option key={e.id} value={e.id}>
+            {e.nombre}
+          </option>
+        ))}
+      </select>
+      {ayuda ? <p className="text-xs text-muted-foreground">{ayuda}</p> : null}
+    </div>
+  )
+}
+
 function Enviar({ children }: { children: string }) {
   const { pending } = useFormStatus()
   return (
@@ -47,12 +67,20 @@ function Enviar({ children }: { children: string }) {
   )
 }
 
-function AltaIndividual({ cursos, reinicio }: { cursos: CursoOpcion[]; reinicio: number }) {
+function AltaIndividual({
+  cursos,
+  empresas,
+  reinicio,
+}: {
+  cursos: CursoOpcion[]
+  empresas: EmpresaOpcion[]
+  reinicio: number
+}) {
   const [estado, accion] = useActionState(altaManual, SIN_ESTADO)
 
   return (
     <form key={reinicio} action={accion} className="flex flex-col gap-4">
-      <div className="grid gap-4 sm:grid-cols-2">
+      <div className="grid gap-4 sm:grid-cols-3">
         <div className="flex flex-col gap-1.5">
           <Label htmlFor="ind-correo">Correo</Label>
           <Input
@@ -69,6 +97,7 @@ function AltaIndividual({ cursos, reinicio }: { cursos: CursoOpcion[]; reinicio:
           <Label htmlFor="ind-nombre">Nombre</Label>
           <Input id="ind-nombre" name="nombre" placeholder="Nombre y apellido" />
         </div>
+        <SelectorDeEmpresa id="ind-empresa" empresas={empresas} />
       </div>
 
       <ListaSeleccionable
@@ -92,7 +121,15 @@ function AltaIndividual({ cursos, reinicio }: { cursos: CursoOpcion[]; reinicio:
   )
 }
 
-function AltaPorArchivo({ cursos, reinicio }: { cursos: CursoOpcion[]; reinicio: number }) {
+function AltaPorArchivo({
+  cursos,
+  empresas,
+  reinicio,
+}: {
+  cursos: CursoOpcion[]
+  empresas: EmpresaOpcion[]
+  reinicio: number
+}) {
   const [estado, accion] = useActionState(altaMasiva, SIN_ESTADO)
 
   return (
@@ -112,9 +149,17 @@ function AltaPorArchivo({ cursos, reinicio }: { cursos: CursoOpcion[]; reinicio:
           importa el orden de las columnas ni cómo se llame el encabezado —
           <span className="font-medium"> Correo</span>,{' '}
           <span className="font-medium">E-mail</span> o{' '}
-          <span className="font-medium">mail</span> funcionan igual.
+          <span className="font-medium">mail</span> funcionan igual. Si trae una columna{' '}
+          <span className="font-medium">Empresa</span>, cada fila queda en la suya y las que no
+          existan se crean.
         </p>
       </div>
+
+      <SelectorDeEmpresa
+        id="mas-empresa"
+        empresas={empresas}
+        ayuda="Solo se usa si el archivo no trae columna Empresa."
+      />
 
       <ListaSeleccionable
         nombre="accesos"
@@ -189,10 +234,12 @@ const claseResumenSeccion =
 
 export function DarDeAlta({
   cursos,
+  empresas,
   reinicio,
   soySuperadmin,
 }: {
   cursos: CursoOpcion[]
+  empresas: EmpresaOpcion[]
   reinicio: number
   soySuperadmin: boolean
 }) {
@@ -225,7 +272,7 @@ export function DarDeAlta({
             <Flecha /> Una persona
           </summary>
           <div className="px-1 pt-4 pb-2">
-            <AltaIndividual cursos={cursos} reinicio={reinicio} />
+            <AltaIndividual cursos={cursos} empresas={empresas} reinicio={reinicio} />
           </div>
         </details>
 
@@ -234,7 +281,7 @@ export function DarDeAlta({
             <Flecha /> Varias desde un archivo
           </summary>
           <div className="px-1 pt-4 pb-2">
-            <AltaPorArchivo cursos={cursos} reinicio={reinicio} />
+            <AltaPorArchivo cursos={cursos} empresas={empresas} reinicio={reinicio} />
           </div>
         </details>
 

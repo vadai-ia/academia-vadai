@@ -120,6 +120,14 @@ En su lugar: `pnpm db:migrate` → `scripts/migrate.mjs`, que aplica los `.sql` 
   solo enseña la actividad de los grupos donde está inscrito quien pregunta.
 - **Notificaciones internas sin tabla**: "nuevo" es lo publicado después de
   `profiles.notifications_seen_at`. Abrir la campana lo sella.
+- **Empresas** (`academia.companies`, `profiles.company_id`; 20-sep-2026): de dónde viene cada
+  alumno; null = General. Las asigna solo el equipo (trigger de perfil). El importador crea las
+  que trae la columna Empresa. Es la base del puntaje y las dinámicas por empresa.
+- **Agregar un curso a quien ya tiene cuenta SIEMPRE avisa por correo** (`plantillaNuevoCurso`).
+- **Los cursos QA se archivan fuera de las corridas.** El seed los publica y las suites los
+  necesitan así; `test-todo` y `pnpm qa` los vuelven a archivar al terminar. Si corres una suite
+  suelta, termina con `pnpm qa:esconder`: publicados salen en el panel del admin real y "se
+  desarchivan solos".
 
 ## ANTI-PATTERNS — NO HACEMOS
 

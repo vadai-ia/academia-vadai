@@ -3,6 +3,7 @@
 import { revalidatePath } from 'next/cache'
 import { z } from 'zod'
 
+import { empresaPorNombre } from '@/lib/admin/empresas'
 import { filasDeArchivo, interpretar } from '@/lib/admin/importar'
 import { crearEnlaceDurable } from '@/lib/auth/enlace-durable'
 import { exigirAdmin } from '@/lib/auth/sesion'
@@ -169,8 +170,24 @@ export async function altaMasiva(
   /** Entraron a la academia, pero no a todos los cursos marcados. */
   const aMedias: string[] = []
 
+  // La empresa (20-sep-2026): manda la columna "Empresa" del archivo, que se
+  // crea si no existe y se reúsa si ya está; si el archivo no la trae, la
+  // que se eligió en el formulario para todo el archivo; si tampoco, nada.
+  const empresaFija = String(datos.get('company_id') ?? '')
+  const empresaDe = new Map<string, string | null>()
+
   for (const persona of personas) {
     let completa = true
+
+    let companyId: string | null | undefined
+    if (persona.empresa) {
+      if (!empresaDe.has(persona.empresa)) {
+        empresaDe.set(persona.empresa, await empresaPorNombre(persona.empresa))
+      }
+      companyId = empresaDe.get(persona.empresa) ?? undefined
+    } else if (empresaFija) {
+      companyId = empresaFija
+    }
 
     for (const [i, curso] of seleccion.cursos.entries()) {
       const alta = await darDeAlta({
@@ -181,6 +198,8 @@ export async function altaMasiva(
         origen: 'manual',
         urlRedireccion: urlNuevaContrasena(),
         titulosParaCorreo: titulos,
+        companyId: i === 0 ? companyId : undefined,
+        avisarNuevoCurso: i === 0,
       })
 
       if (!alta.ok) {

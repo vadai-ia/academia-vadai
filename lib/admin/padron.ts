@@ -236,7 +236,13 @@ export function filasDeXlsx(zip: Buffer): FilasLeidas {
 // Interpretación
 // ---------------------------------------------------------------------------
 
-export type PersonaImportada = { email: string; nombre: string; linea: number }
+export type PersonaImportada = {
+  email: string
+  nombre: string
+  /** La columna "Empresa" del archivo, si la trae. Vacío = sin empresa. */
+  empresa: string
+  linea: number
+}
 
 export type Interpretacion = {
   personas: PersonaImportada[]
@@ -313,6 +319,9 @@ export function interpretar(filas: string[][]): Interpretacion {
   }
 
   let iCorreo = buscaColumna(['correo', 'email', 'e-mail', 'mail'])
+  // La empresa (20-sep-2026): el padrón real trae `Empresa` y de ahí salen
+  // las empresas de la academia, sin que nadie las capture dos veces.
+  const iEmpresa = buscaColumna(['empresa', 'compania', 'company', 'organizacion', 'razon social'])
   let iNombre = buscaColumna(
     ['nombre', 'name', 'alumno', 'participante'],
     // Por palabra completa, no por fragmento: "apellido" contiene "id".
@@ -362,6 +371,7 @@ export function interpretar(filas: string[][]): Interpretacion {
     personas.push({
       email,
       nombre: iNombre >= 0 ? (fila[iNombre] ?? '').trim() : '',
+      empresa: conCabecera && iEmpresa >= 0 ? (fila[iEmpresa] ?? '').trim() : '',
       linea,
     })
   }

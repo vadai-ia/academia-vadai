@@ -197,8 +197,20 @@ async function main() {
     // Lo delicado: capturar en CDMX y guardar el UTC correcto.
     const G2 = 'ZONA HORARIA (server action real, sin JavaScript)'
 
+    // El de NUEVA sesión: sin `id`. Desde el 20-sep cada sesión trae también
+    // su formulario de edición, con los mismos campos más el `id`; el primero
+    // que aparecía era el de la sesión pasada, y esta prueba la editaba y
+    // luego la borraba por título creyendo que era la suya.
     const formularioSesion = leerFormularios(paginaCohorte).find(
-      (f) => 'cohort_id' in f.campos && 'fecha' in f.campos && 'hora' in f.campos
+      (f) =>
+        'cohort_id' in f.campos &&
+        'title' in f.campos &&
+        'fecha' in f.campos &&
+        'hora' in f.campos &&
+        !('id' in f.campos) &&
+        // "Agendar varias" también trae cohorte, fecha y hora, pero su título es
+        // `titulo_base` y agenda ocho de golpe.
+        !('titulo_base' in f.campos)
     )
     afirmar(G2, 'el formulario admite envío sin JS', true, Boolean(formularioSesion))
 

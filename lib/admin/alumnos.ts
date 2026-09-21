@@ -12,6 +12,8 @@ export type AlumnoEnLista = {
   creadoEn: string | null
   /** Último inicio de sesión según Auth. null = nunca ha entrado. */
   ultimoAcceso: string | null
+  /** De dónde viene. null = General. */
+  empresa: { id: string; nombre: string } | null
   /** El último enlace de 30 días que se le mandó, si alguno. */
   enlace: UltimoEnlace | null
   inscripciones: Array<{
@@ -55,11 +57,11 @@ export async function listarAlumnos(busqueda?: string): Promise<AlumnoEnLista[]>
   // El progreso se pide COMPLETO y se agrupa aquí, en vez de una consulta por
   // persona. Con 40 alumnos eso serían 40 viajes de red para pintar una tabla;
   // así es uno. `lesson_outline` da el total de lecciones por curso.
-  const [perfiles, progreso, outline, pagos, inicios, enlaces] = await Promise.all([
+  const [perfiles, progreso, outline, pagos, inicios, enlaces, empresas] = await Promise.all([
     supabase
       .from('profiles')
       .select(
-        'user_id, email, full_name, role, status, created_at, enrollments(course_id, expires_at, status, courses(title), cohorts(name))'
+        'user_id, email, full_name, role, status, created_at, company_id, enrollments(course_id, expires_at, status, courses(title), cohorts(name))'
       )
       // Los `invitado` NO son alumnos: son gente que contestó una encuesta en un
       // evento y dejó su correo. Mezclarlos aquí llenaría el padrón de leads y
@@ -77,6 +79,7 @@ export async function listarAlumnos(busqueda?: string): Promise<AlumnoEnLista[]>
     // de un lanzamiento. Ver lib/admin/accesos.ts.
     ultimosInicios(),
     ultimosEnlaces(),
+    supabase.from('companies').select('id, name'),
   ])
 
   if (perfiles.error) {
@@ -91,6 +94,7 @@ export async function listarAlumnos(busqueda?: string): Promise<AlumnoEnLista[]>
     role: string
     status: string
     created_at: string | null
+    company_id: string | null
     enrollments: Array<{
       course_id: string
       expires_at: string | null
@@ -141,6 +145,7 @@ export async function listarAlumnos(busqueda?: string): Promise<AlumnoEnLista[]>
   }
 
   const termino = (busqueda ?? '').trim().toLowerCase()
+  const nombreDeEmpresa = new Map((empresas.data ?? []).map((e) => [e.id, e.name]))
 
   return (perfiles.data as unknown as Anidado[])
     .filter((p) => {
@@ -160,6 +165,9 @@ export async function listarAlumnos(busqueda?: string): Promise<AlumnoEnLista[]>
       estado: p.status,
       creadoEn: p.created_at,
       ultimoAcceso: inicios.get(p.user_id) ?? null,
+      empresa: p.company_id
+        ? { id: p.company_id, nombre: nombreDeEmpresa.get(p.company_id) ?? 'Empresa' }
+        : null,
       enlace: enlaces.get(p.user_id) ?? null,
       pagos: pagosPor.get((p.email ?? '').toLowerCase()) ?? [],
       inscripciones: (p.enrollments ?? []).map((e) => {
@@ -225,84 +233,6 @@ export async function listarPagos(): Promise<PagoEnLista[]> {
     fecha: p.created_at,
     tieneCuenta: Boolean(p.user_id),
   }))
-}
-
-export type InscritoEnCurso = {
-  userId: string
-  nombre: string
-  email: string
-  grupo: string | null
-  /** Lo mismo que se ve en la fila del alumno: vigente, vencido o revocado. */
-  acceso: 'vigente' | 'vencido' | 'revocado'
-}
-
-export type CandidatoAlCurso = { userId: string; nombre: string; email: string }
-
-/**
- * Las dos mitades del padrón vistas desde un curso: quién ya está inscrito y a
- * quién se le puede dar acceso.
- *
- * Son dos consultas planas que se cruzan aquí, en vez de un select anidado: los
- * tipos generados no traen las relaciones, y así no hace falta ningún cast.
- *
- * De los candidatos quedan fuera los `invitado` —son leads de una encuesta, no
- * alumnos; ver `listarAlumnos`— y las cuentas suspendidas, que en esta pantalla
- * equivalen a eliminadas.
- */
-export async function alumnosDelCurso(
-  cursoId: string
-): Promise<{ inscritos: InscritoEnCurso[]; candidatos: CandidatoAlCurso[] }> {
-  const supabase = await crearClienteServidor()
-
-  const [inscripciones, perfiles, grupos] = await Promise.all([
-    supabase
-      .from('enrollments')
-      .select('user_id, status, expires_at, cohort_id')
-      .eq('course_id', cursoId),
-    supabase
-      .from('profiles')
-      .select('user_id, full_name, email, role, status')
-      .neq('role', 'invitado')
-      .order('full_name'),
-    supabase.from('cohorts').select('id, name').eq('course_id', cursoId),
-  ])
-
-  const fallo = inscripciones.error ?? perfiles.error ?? grupos.error
-  if (fallo) {
-    console.error(JSON.stringify({ operacion: 'alumnosDelCurso', cursoId, error: fallo.message }))
-    return { inscritos: [], candidatos: [] }
-  }
-
-  const nombreDeGrupo = new Map((grupos.data ?? []).map((g) => [g.id, g.name]))
-  const inscripcionDe = new Map((inscripciones.data ?? []).map((e) => [e.user_id, e]))
-
-  const inscritos: InscritoEnCurso[] = []
-  const candidatos: CandidatoAlCurso[] = []
-
-  for (const p of perfiles.data ?? []) {
-    const inscripcion = inscripcionDe.get(p.user_id)
-
-    if (!inscripcion) {
-      if (p.status === 'active') {
-        candidatos.push({ userId: p.user_id, nombre: p.full_name.trim(), email: p.email })
-      }
-      continue
-    }
-
-    const vigente =
-      inscripcion.status === 'active' &&
-      (!inscripcion.expires_at || new Date(inscripcion.expires_at).getTime() > Date.now())
-
-    inscritos.push({
-      userId: p.user_id,
-      nombre: p.full_name.trim(),
-      email: p.email,
-      grupo: inscripcion.cohort_id ? (nombreDeGrupo.get(inscripcion.cohort_id) ?? null) : null,
-      acceso: inscripcion.status === 'revoked' ? 'revocado' : vigente ? 'vigente' : 'vencido',
-    })
-  }
-
-  return { inscritos, candidatos }
 }
 
 /** Cursos y cohortes publicados, para el formulario de alta manual. */

@@ -6,16 +6,16 @@ import { AgregarAlumnos } from '@/components/admin/agregar-alumnos'
 import { ArbolCurso } from '@/components/admin/arbol-curso'
 import { FormularioCurso } from '@/components/admin/formulario-curso'
 import { NuevaCohorte } from '@/components/admin/nueva-cohorte'
+import { TablaInscritos } from '@/components/admin/tabla-inscritos'
 import { Badge } from '@/components/ui/badge'
-import { alumnosDelCurso } from '@/lib/admin/alumnos'
 import { cohortesDelCurso } from '@/lib/admin/cohortes'
 import { obtenerCurso } from '@/lib/admin/consultas'
+import { listarEmpresas } from '@/lib/admin/empresas'
+import { candidatosParaCurso, inscritosDelCurso } from '@/lib/admin/inscritos'
 import { ETIQUETA_ESTADO_CURSO } from '@/lib/admin/tipos'
 import { exigirAdmin } from '@/lib/auth/sesion'
 
 export const dynamic = 'force-dynamic'
-
-const ETIQUETA_ACCESO = { vigente: null, vencido: 'Vencido', revocado: 'Revocado' } as const
 
 export async function generateMetadata({
   params,
@@ -27,17 +27,28 @@ export async function generateMetadata({
   return { title: curso?.title ?? 'Curso' }
 }
 
-export default async function PaginaCurso({ params }: { params: Promise<{ id: string }> }) {
+type Parametros = { q?: string; acceso?: string; empresa?: string; orden?: string; buscar?: string }
+
+export default async function PaginaCurso({
+  params,
+  searchParams,
+}: {
+  params: Promise<{ id: string }>
+  searchParams: Promise<Parametros>
+}) {
   await exigirAdmin()
   const { id } = await params
+  const filtros = await searchParams
 
   const curso = await obtenerCurso(id)
   if (!curso) notFound()
 
-  // Independientes entre sí: en serie serían dos viajes encadenados.
-  const [cohortes, { inscritos, candidatos }] = await Promise.all([
+  // Independientes entre sí: en serie serían cuatro viajes encadenados.
+  const [cohortes, { visibles, resumen }, candidatos, empresas] = await Promise.all([
     cohortesDelCurso(curso.id),
-    alumnosDelCurso(curso.id),
+    inscritosDelCurso(curso.id, filtros),
+    candidatosParaCurso(curso.id, filtros.buscar ?? ''),
+    listarEmpresas(),
   ])
 
   return (
@@ -54,6 +65,11 @@ export default async function PaginaCurso({ params }: { params: Promise<{ id: st
           <Badge variant={curso.status === 'published' ? 'default' : 'secondary'}>
             {ETIQUETA_ESTADO_CURSO[curso.status]}
           </Badge>
+          {curso.is_default ? (
+            <Badge className="bg-vadai-lima text-vadai-navy" title="Todo alumno lo recibe al darse de alta">
+              Base
+            </Badge>
+          ) : null}
         </h1>
 
         {/* El equipo entra al curso sin estar inscrito. Es la única puerta a la
@@ -71,6 +87,9 @@ export default async function PaginaCurso({ params }: { params: Promise<{ id: st
           >
             Comunidad →
           </Link>
+          <a href="#inscritos" className="text-primary underline-offset-4 hover:underline">
+            Alumnos ↓
+          </a>
         </p>
       </header>
 
@@ -111,50 +130,25 @@ export default async function PaginaCurso({ params }: { params: Promise<{ id: st
         <NuevaCohorte cursoId={curso.id} reinicio={cohortes.length} />
       </section>
 
-      {/* La inscripción se puede crear desde sus dos lados: aquí, y en la fila
-          de cada persona en /admin/alumnos. Revocar, extender o suspender sigue
-          siendo cosa de Alumnos — cada nombre lleva allá. */}
-      <section className="flex flex-col gap-4 border-t border-border pt-8">
+      {/* --- Alumnos ----------------------------------------------------------
+          Tabla con resumen, filtros en la URL, desplazamiento propio y ficha
+          por persona. La inscripción se puede crear desde sus dos lados: aquí
+          y en la fila de cada persona en /admin/alumnos. */}
+      <section className="flex flex-col gap-5 border-t border-border pt-8">
         <div className="flex flex-wrap items-baseline justify-between gap-2">
           <h2 className="text-lg font-semibold">Alumnos</h2>
-          <p className="text-sm text-muted-foreground">{inscritos.length} inscrito(s)</p>
+          <p className="text-sm text-muted-foreground">
+            {resumen.total} inscrito{resumen.total === 1 ? '' : 's'}
+          </p>
         </div>
 
-        {inscritos.length > 0 ? (
-          <ul className="flex flex-col rounded-lg border border-border">
-            {inscritos.map((persona) => (
-              <li key={persona.userId} className="border-b border-border last:border-b-0">
-                <Link
-                  href={`/admin/alumnos?q=${encodeURIComponent(persona.email)}`}
-                  className="flex flex-wrap items-center justify-between gap-x-3 gap-y-1 px-4 py-2.5 transition-colors hover:bg-muted/50"
-                >
-                  <span className="flex min-w-0 flex-col">
-                    <span className="truncate text-sm font-medium">
-                      {persona.nombre || '(sin nombre)'}
-                    </span>
-                    <span className="truncate text-xs text-muted-foreground">{persona.email}</span>
-                  </span>
-                  <span className="flex shrink-0 items-center gap-2">
-                    {persona.grupo ? (
-                      <Badge variant="secondary" className="text-[11px]">
-                        {persona.grupo}
-                      </Badge>
-                    ) : null}
-                    {ETIQUETA_ACCESO[persona.acceso] ? (
-                      <Badge variant="outline" className="text-[11px]">
-                        {ETIQUETA_ACCESO[persona.acceso]}
-                      </Badge>
-                    ) : null}
-                  </span>
-                </Link>
-              </li>
-            ))}
-          </ul>
-        ) : (
-          <p className="rounded-lg border border-dashed border-border px-5 py-8 text-center text-sm text-muted-foreground">
-            Nadie tiene este curso todavía.
-          </p>
-        )}
+        <TablaInscritos
+          cursoId={curso.id}
+          inscritos={visibles}
+          resumen={resumen}
+          empresas={empresas}
+          filtros={filtros}
+        />
 
         {curso.status === 'archived' ? (
           <p className="text-sm text-muted-foreground">
@@ -164,8 +158,10 @@ export default async function PaginaCurso({ params }: { params: Promise<{ id: st
           <AgregarAlumnos
             cursoId={curso.id}
             candidatos={candidatos}
+            buscar={filtros.buscar ?? ''}
             grupos={cohortes.map((c) => ({ id: c.id, nombre: c.name }))}
-            reinicio={inscritos.length}
+            empresas={empresas}
+            reinicio={resumen.total}
           />
         )}
       </section>

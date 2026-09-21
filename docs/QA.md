@@ -4,8 +4,8 @@
 
 | | |
 |---|---|
-| Fecha | 20 de septiembre de 2026 a las 7:20 p.m. (CDMX) |
-| Commit | `a97f7f3` en `main` |
+| Fecha | 20 de septiembre de 2026 a las 7:55 p.m. (CDMX) |
+| Commit | `37921a4` en `main` |
 | Árbol | **con cambios sin commitear** |
 
 Se regenera con `pnpm qa`, que corre cada paso de verdad. Un checklist que
@@ -35,7 +35,7 @@ el commit, así que dice qué versión exacta pasó.
 | | Paso | Resultado |
 |---|---|---|
 | ✅ | Datos QA sembrados | ok |
-| ✅ | Las once suites de milestone | 13 suites, 615 aserciones |
+| ✅ | Las once suites de milestone | 13 suites, 632 aserciones |
 
 ## Higiene
 

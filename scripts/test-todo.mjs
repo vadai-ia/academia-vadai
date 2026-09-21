@@ -13,7 +13,7 @@
  *   pnpm db:seed && pnpm test:todo
  */
 
-import { spawn } from 'node:child_process'
+import { spawn, spawnSync } from 'node:child_process'
 import { fileURLToPath } from 'node:url'
 import path from 'node:path'
 
@@ -98,5 +98,13 @@ if (fallidas.length === 0) {
   for (const f of fallidas) console.log(`    ${f.milestone} · ${f.titulo} (${f.llave})`)
 }
 console.log('')
+
+// Pase lo que pase, los cursos QA vuelven a quedar archivados: el seed los
+// publica para que las suites tengan qué probar, y publicados aparecen en el
+// panel del admin real ("QA · Curso de prueba" entre los cursos vivos). El
+// 20-sep-2026 Alejandro los archivó a mano tres veces y "se desarchivaban
+// solos": era cada corrida de pruebas.
+const escondido = spawnSync(process.execPath, [path.join(AQUI, 'qa-esconder.mjs')], { stdio: 'inherit' })
+if (escondido.status !== 0) console.log('  ✗  No se pudieron archivar los cursos QA: corre `pnpm qa:esconder`.')
 
 process.exitCode = fallidas.length === 0 ? 0 : 1

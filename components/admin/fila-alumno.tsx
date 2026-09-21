@@ -4,7 +4,8 @@ import { useActionState } from 'react'
 
 import { AvisoAccion } from '@/components/admin/aviso-accion'
 import { ConfirmarConModal } from '@/components/admin/confirmar-con-modal'
-import type { CursoOpcion } from '@/components/admin/dar-de-alta'
+import type { CursoOpcion, EmpresaOpcion } from '@/components/admin/dar-de-alta'
+import { cambiarEmpresaDeAlumno } from '@/lib/admin/acciones-empresas'
 import { ListaSeleccionable, gruposDesdeCursos } from '@/components/admin/lista-seleccionable'
 import { Avatar, Progreso } from '@/components/ui-vadai/superficie'
 import { Badge } from '@/components/ui/badge'
@@ -154,11 +155,14 @@ function DarAcceso({
 export function FilaAlumno({
   alumno,
   cursos,
+  empresas,
   puedeSuspender,
 }: {
   alumno: AlumnoEnLista
   /** Todos los cursos no archivados; la fila descarta los que ya tiene. */
   cursos: CursoOpcion[]
+  /** Para cambiarle la empresa desde aquí. */
+  empresas: EmpresaOpcion[]
   /** Lo decide la página: nadie a sí mismo, y al equipo solo un superadmin. */
   puedeSuspender: boolean
 }) {
@@ -201,6 +205,7 @@ export function FilaAlumno({
           </span>
           <span className="truncate text-xs text-muted-foreground">
             {alumno.email}
+            {alumno.empresa ? ` · ${alumno.empresa.nombre}` : ''}
             {alumno.ultimoAcceso ? ` · entró el ${fecha(alumno.ultimoAcceso)}` : ''}
           </span>
         </span>
@@ -358,6 +363,30 @@ export function FilaAlumno({
 
             <EnlaceDeAcceso email={alumno.email} />
           </div>
+          {!equipo ? (
+            <form action={cambiarEmpresaDeAlumno} className="flex flex-wrap items-center gap-2 pt-1">
+              <input type="hidden" name="user_id" value={alumno.userId} />
+              <label htmlFor={`empresa-${alumno.userId}`} className="text-xs text-muted-foreground">
+                Empresa
+              </label>
+              <select
+                id={`empresa-${alumno.userId}`}
+                name="company_id"
+                defaultValue={alumno.empresa?.id ?? ''}
+                className="h-8 rounded-md border border-input bg-transparent px-2 text-sm"
+              >
+                <option value="">General</option>
+                {empresas.map((e) => (
+                  <option key={e.id} value={e.id}>
+                    {e.nombre}
+                  </option>
+                ))}
+              </select>
+              <Button type="submit" variant="ghost" size="sm">
+                Guardar
+              </Button>
+            </form>
+          ) : null}
           <p className="text-xs text-muted-foreground">
             Dado de alta el {fecha(alumno.creadoEn)}.{' '}
             {alumno.ultimoAcceso

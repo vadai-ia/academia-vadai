@@ -3,6 +3,7 @@
 import Link from 'next/link'
 import { useEffect, useState } from 'react'
 
+import { AgregarAlCalendario } from '@/components/alumno/agregar-al-calendario'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import type { SesionDelAlumno } from '@/lib/alumno/sesiones'
@@ -83,6 +84,21 @@ function Fila({ sesion, ahora }: { sesion: SesionDelAlumno; ahora: number }) {
 
           {sesion.descripcion ? (
             <span className="text-sm text-muted-foreground">{sesion.descripcion}</span>
+          ) : null}
+
+          {/* Para que no se les pase ninguna: Google, Outlook o .ics (20-sep-2026). */}
+          {estado !== 'pasada' ? (
+            <AgregarAlCalendario
+              compacto
+              sesion={{
+                id: sesion.id,
+                titulo: sesion.titulo,
+                descripcion: sesion.descripcion,
+                inicio: sesion.programadaEn,
+                ligaUrl: sesion.meetUrl,
+                curso: sesion.cohorteNombre,
+              }}
+            />
           ) : null}
         </div>
 

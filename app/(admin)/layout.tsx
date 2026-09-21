@@ -3,6 +3,7 @@ import type { ReactNode } from 'react'
 import { Encabezado } from '@/components/marca/encabezado'
 import {
   IconoCursos,
+  IconoEmpresas,
   IconoEncuestas,
   IconoPanel,
   IconoPerfil,
@@ -23,6 +24,7 @@ export default async function LayoutAdmin({ children }: { children: ReactNode })
           { href: '/admin', etiqueta: 'Panel', icono: IconoPanel, exacto: true },
           { href: '/admin/cursos', etiqueta: 'Cursos', icono: IconoCursos },
           { href: '/admin/alumnos', etiqueta: 'Alumnos', icono: IconoPerfil },
+          { href: '/admin/empresas', etiqueta: 'Empresas', icono: IconoEmpresas },
           { href: '/admin/encuestas', etiqueta: 'Encuestas', icono: IconoEncuestas },
           { href: '/mis-cursos', etiqueta: 'Vista de alumno', icono: IconoCursos },
         ]}

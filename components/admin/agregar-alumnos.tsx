@@ -9,26 +9,23 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { altaManual, inscribirEnCurso } from '@/lib/admin/acciones-alumnos'
-import type { CandidatoAlCurso } from '@/lib/admin/alumnos'
+import type { Candidato } from '@/lib/admin/inscritos'
 import { SIN_ESTADO } from '@/lib/admin/tipos'
 
 /**
  * Agregar gente a un curso, desde la página del curso.
  *
- * Es el espejo de "Dar acceso a otro curso" en la fila del alumno: la misma
- * inscripción, creada desde el otro lado. Dos caminos, porque son dos casos:
+ * Dos caminos, porque son dos casos:
  *
- *   - Ya tiene cuenta → se elige de la lista, varias personas a la vez
- *     (`inscribirEnCurso`). No manda correo.
+ *   - Ya tiene cuenta → se BUSCA (con mil cuentas una lista completa no sirve
+ *     ni pesa lo que debe), se marcan varias y se les da acceso
+ *     (`inscribirEnCurso`). Se les avisa por correo.
  *   - Todavía no tiene cuenta → por correo, con `altaManual`: el MISMO alta que
  *     usa /admin/alumnos y el webhook de Stripe, con su correo de bienvenida.
+ *     Aquí también se le pone empresa.
  *
- * Todo lo que se abre es `<details>` y las acciones van directas al `<form>`:
- * funciona sin JavaScript (CLAUDE.md).
- *
- * Los avisos viven aquí arriba y no dentro de cada formulario: cuando se agrega
- * a la última persona que faltaba, la lista deja de pintarse y se llevaría el
- * aviso consigo.
+ * La búsqueda es un <form> GET: viaja en la URL (`?buscar=`) y funciona sin
+ * JavaScript. Las acciones van directas al <form> (CLAUDE.md).
  */
 
 const claseSelect =
@@ -42,6 +39,7 @@ const claseResumen =
   '[&::-webkit-details-marker]:hidden'
 
 type Grupo = { id: string; nombre: string }
+type EmpresaOpcion = { id: string; nombre: string }
 
 function Enviar({ children }: { children: string }) {
   const { pending } = useFormStatus()
@@ -74,15 +72,36 @@ function SelectorDeGrupo({ id, grupos }: { id: string; grupos: Grupo[] }) {
   )
 }
 
+function SelectorDeEmpresa({ id, empresas }: { id: string; empresas: EmpresaOpcion[] }) {
+  return (
+    <div className="flex flex-col gap-1.5">
+      <Label htmlFor={id}>Empresa</Label>
+      <select id={id} name="company_id" defaultValue="" className={claseSelect}>
+        <option value="">General (sin empresa)</option>
+        {empresas.map((e) => (
+          <option key={e.id} value={e.id}>
+            {e.nombre}
+          </option>
+        ))}
+      </select>
+    </div>
+  )
+}
+
 export function AgregarAlumnos({
   cursoId,
   candidatos,
+  buscar,
   grupos,
+  empresas,
   reinicio,
 }: {
   cursoId: string
-  candidatos: CandidatoAlCurso[]
+  /** Los que coinciden con `buscar` y no tienen el curso; máximo treinta. */
+  candidatos: Candidato[]
+  buscar: string
   grupos: Grupo[]
+  empresas: EmpresaOpcion[]
   /** Cambia cuando cambia el padrón del curso: remonta los formularios limpios. */
   reinicio: number
 }) {
@@ -90,18 +109,39 @@ export function AgregarAlumnos({
   const [estadoCorreo, darDeAlta] = useActionState(altaManual, SIN_ESTADO)
 
   return (
-    <div className="flex flex-col gap-3">
-      <details className="group/agregar rounded-[10px] border border-dashed border-border">
+    <div className="flex flex-col gap-3" id="agregar">
+      <details className="group/agregar rounded-[10px] border border-dashed border-border" open={Boolean(buscar)}>
         <summary className={`${claseResumen} text-primary`}>+ Agregar alumnos</summary>
 
-        <div className="flex flex-col gap-2 px-3 pb-3">
+        <div className="flex flex-col gap-4 px-3 pb-3">
+          {/* --- Ya tienen cuenta: buscar y marcar ---------------------- */}
+          <form method="get" action={`/admin/cursos/${cursoId}`} className="flex flex-wrap items-end gap-2 pt-1">
+            <label className="flex min-w-56 flex-1 flex-col gap-1.5">
+              <span className="text-sm font-medium">Buscar a quien ya tiene cuenta</span>
+              <Input
+                type="search"
+                name="buscar"
+                defaultValue={buscar}
+                placeholder="Nombre, correo o empresa…"
+                autoComplete="off"
+              />
+            </label>
+            <Button type="submit" variant="outline">
+              Buscar
+            </Button>
+          </form>
+
           {candidatos.length > 0 ? (
-            <form key={`lista-${reinicio}`} action={inscribir} className="flex flex-col gap-4 pt-1">
+            <form key={`lista-${reinicio}-${buscar}`} action={inscribir} className="flex flex-col gap-4">
               <input type="hidden" name="course_id" value={cursoId} />
 
               <ListaSeleccionable
                 nombre="user_ids"
-                leyenda="Personas que ya tienen cuenta"
+                leyenda={
+                  buscar
+                    ? `${candidatos.length} coinciden con "${buscar}" y no tienen este curso`
+                    : `Sin este curso (los primeros ${candidatos.length}; busca para acotar)`
+                }
                 conScroll
                 grupos={[
                   {
@@ -109,7 +149,7 @@ export function AgregarAlumnos({
                     opciones: candidatos.map((c) => ({
                       valor: c.userId,
                       etiqueta: c.nombre || c.email,
-                      detalle: c.nombre ? c.email : undefined,
+                      detalle: [c.nombre ? c.email : null, c.empresa].filter(Boolean).join(' · ') || undefined,
                     })),
                   },
                 ]}
@@ -118,8 +158,8 @@ export function AgregarAlumnos({
               <SelectorDeGrupo id="grupo-lista" grupos={grupos} />
 
               <p className="text-xs text-muted-foreground">
-                Toca a quienes quieras; toca otra vez para quitar. No se les manda correo: al
-                entrar, encuentran el curso en su lista.
+                Toca a quienes quieras; toca otra vez para quitar. Se les avisa por correo que ya
+                tienen el curso.
               </p>
 
               <div>
@@ -127,11 +167,14 @@ export function AgregarAlumnos({
               </div>
             </form>
           ) : (
-            <p className="pt-1 text-sm text-muted-foreground">
-              Todas las personas con cuenta ya tienen este curso.
+            <p className="text-sm text-muted-foreground">
+              {buscar
+                ? `Nadie sin este curso coincide con "${buscar}".`
+                : 'Todas las personas con cuenta ya tienen este curso.'}
             </p>
           )}
 
+          {/* --- Todavía no tiene cuenta ----------------------------------- */}
           <details className="border-t border-border pt-2">
             <summary className={claseResumen}>Alguien que todavía no tiene cuenta</summary>
 
@@ -142,7 +185,7 @@ export function AgregarAlumnos({
             >
               <input type="hidden" name="course_id" value={cursoId} />
 
-              <div className="grid gap-4 sm:grid-cols-2">
+              <div className="grid gap-4 sm:grid-cols-3">
                 <div className="flex flex-col gap-1.5">
                   <Label htmlFor="nuevo-correo">Correo</Label>
                   <Input
@@ -159,12 +202,14 @@ export function AgregarAlumnos({
                   <Label htmlFor="nuevo-nombre">Nombre</Label>
                   <Input id="nuevo-nombre" name="nombre" placeholder="Nombre y apellido" />
                 </div>
+                <SelectorDeEmpresa id="nuevo-empresa" empresas={empresas} />
               </div>
 
               <SelectorDeGrupo id="grupo-correo" grupos={grupos} />
 
               <p className="text-xs text-muted-foreground">
-                Se le crea la cuenta y se le manda un correo para que defina su contraseña.
+                Se le crea la cuenta y se le manda un correo para que defina su contraseña. Si el
+                correo ya tiene cuenta, solo se le agrega el curso y se le avisa.
               </p>
 
               <div>

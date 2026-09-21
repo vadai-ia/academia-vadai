@@ -195,4 +195,20 @@ const alumnoComoNombre = interpretar(filasDeCsv('Alumno,Correo\nAna Pérez,ana@a
 afirmar(G4, 'sigue aceptando "Alumno" como encabezado de nombre', 'Ana Pérez',
   alumnoComoNombre.personas[0]?.nombre)
 
+// --- Empresa (20-sep-2026) -------------------------------------------------
+
+const G5 = 'EMPRESA'
+
+const conEmpresa = interpretar(
+  filasDeCsv(
+    'Número de alumnos,Empresa,Nombre,Mail\n1,Innovaglass,Zaid Valencia,sistemas@inovaglass.mx\n2,,Ana Pérez,ana@acme.com\n'
+  )
+)
+afirmar(G5, 'lee la columna Empresa', 'Innovaglass', conEmpresa.personas[0]?.empresa)
+afirmar(G5, 'y queda vacía cuando la celda está vacía', '', conEmpresa.personas[1]?.empresa)
+afirmar(G5, 'el nombre sigue siendo el nombre', 'Zaid Valencia', conEmpresa.personas[0]?.nombre)
+
+const sinEmpresa = interpretar(filasDeCsv('Nombre,Correo\nAna Pérez,ana@acme.com\n'))
+afirmar(G5, 'sin columna Empresa no inventa nada', '', sinEmpresa.personas[0]?.empresa)
+
 process.exitCode = imprimir() ? 0 : 1

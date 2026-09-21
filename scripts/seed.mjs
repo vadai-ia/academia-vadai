@@ -200,6 +200,14 @@ async function sembrarDatos(cliente, usuarios) {
       [IDS.sesionPasada, IDS.cohorte, haceUnaSemana, IDS.sesionFutura, enUnaSemana]
     )
 
+    // La cohorte QA es del seed: cualquier sesión que no sea una de sus dos es
+    // un residuo de una prueba que abortó (el 20-sep quedaron ocho de
+    // "agendar varias") y confundiría a la siguiente corrida.
+    await cliente.query(
+      `delete from academia.cohort_sessions where cohort_id = $1 and id <> all($2::uuid[])`,
+      [IDS.cohorte, [IDS.sesionFutura, IDS.sesionPasada]]
+    )
+
     // Quiz con respuesta correcta: la prueba de fuga de correct_option_id.
     await cliente.query(
       `insert into academia.quizzes (id, lesson_id, passing_score, reveal_answers)

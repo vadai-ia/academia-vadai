@@ -243,6 +243,65 @@ async function main() {
   afirmar(G2, 'la lección abre su editor', true, leccion.includes('GUID de Bunny'))
   afirmar(G2, 'muestra su adjunto', true, leccion.includes('guia-qa.pdf'))
 
+  // La tabla de inscritos (20-sep-2026): resumen, filtros y ficha por persona.
+  const cursoConAlumnos = await (await pedir(`/admin/cursos/${IDS.curso}`, admin)).text()
+  afirmar(G2, 'el curso trae la tabla de inscritos', true,
+    cursoConAlumnos.includes('id="inscritos"') && cursoConAlumnos.includes(correo.alumnoVigente))
+  afirmar(G2, 'con avance y puntos por persona', true,
+    cursoConAlumnos.includes('>Avance<') && cursoConAlumnos.includes('>Puntos<'))
+  afirmar(G2, 'y la ficha de cada uno', true, cursoConAlumnos.includes('id="ficha-'))
+  const filtrado = await (await pedir(`/admin/cursos/${IDS.curso}?acceso=vencido`, admin)).text()
+  afirmar(G2, 'el filtro por acceso deja solo al vencido', true,
+    filtrado.includes(correo.alumnoVencido) && !filtrado.includes(`value="${correo.alumnoVigente}"`))
+
+  // Empresas (20-sep-2026): se crean aquí y se eligen en el alta.
+  const empresasRes = await pedir('/admin/empresas', admin)
+  afirmar(G2, 'la página de empresas abre', 200, empresasRes.status)
+  const empresasHtml = await empresasRes.text()
+  const formEmpresa = leerFormularios(empresasHtml).find(
+    (f) => 'nombre' in f.campos || f.html.includes('name="nombre"')
+  )
+  afirmar(G2, 'trae el formulario para crear una', true, Boolean(formEmpresa))
+  if (formEmpresa) {
+    formEmpresa.campos.nombre = 'QA Empresa de prueba'
+    await enviarFormulario('/admin/empresas', formEmpresa, admin)
+    const trasCrear = await (await pedir('/admin/empresas', admin)).text()
+    afirmar(G2, 'y la empresa creada aparece', true, trasCrear.includes('QA Empresa de prueba'))
+    // Limpieza por marca EXACTA, con el token del admin (policy de borrado).
+    await fetch(`${SUPABASE}/rest/v1/companies?name=eq.${encodeURIComponent('QA Empresa de prueba')}`, {
+      method: 'DELETE',
+      headers: { apikey: ANON, Authorization: `Bearer ${await tokenDeAdmin()}`, 'Content-Profile': 'academia' },
+    })
+  }
+
+  // Agregar al calendario (20-sep-2026): el .ics de una sesión se descarga.
+  const ics = await pedir(`/api/calendario/${IDS.sesionFutura}`, admin)
+  const icsTexto = await ics.text()
+  afirmar(G2, 'el .ics de la sesión se descarga', 200, ics.status)
+  afirmar(G2, 'y es un evento de calendario con la sesión', true,
+    (ics.headers.get('content-type') ?? '').includes('text/calendar') &&
+      icsTexto.includes('BEGIN:VEVENT') && icsTexto.includes('SUMMARY:'))
+  afirmar(G2, 'una sesión inventada da 404', 404,
+    (await pedir('/api/calendario/00000000-0000-4000-8000-00000000dead', admin)).status)
+
+  // Sesiones editables (20-sep-2026): el formulario trae lo que ya tiene.
+  const cohortePagina = await (await pedir(`/admin/cohortes/${IDS.cohorte}`, admin)).text()
+  const formSesion = leerFormularios(cohortePagina).find(
+    (f) => f.campos.id === IDS.sesionFutura && 'title' in f.campos && 'fecha' in f.campos
+  )
+  afirmar(G2, 'cada sesión trae su formulario de edición', true, Boolean(formSesion))
+  afirmar(G2, 'prellenado con su fecha y su hora', true,
+    /^\d{4}-\d{2}-\d{2}$/.test(formSesion?.campos.fecha ?? '') && /^\d{2}:\d{2}$/.test(formSesion?.campos.hora ?? ''))
+  if (formSesion) {
+    const original = formSesion.campos.title
+    formSesion.campos.title = 'QA Sesión editada'
+    await enviarFormulario(`/admin/cohortes/${IDS.cohorte}`, formSesion, admin)
+    const trasEditar = await (await pedir(`/admin/cohortes/${IDS.cohorte}`, admin)).text()
+    afirmar(G2, 'y editarla guarda el cambio', true, trasEditar.includes('QA Sesión editada'))
+    formSesion.campos.title = original
+    await enviarFormulario(`/admin/cohortes/${IDS.cohorte}`, formSesion, admin)
+  }
+
   // Quién ya entró (20-sep-2026). El admin acaba de entrar con su liga, así que
   // Auth ya tiene su `last_sign_in_at`: sale en "ya entraron" y no en "nunca".
   // Es una propiedad de la sesión que esta misma suite abrió, no un número.

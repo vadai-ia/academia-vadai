@@ -286,6 +286,69 @@ Equipo VADAI`
   return { asunto: 'Recuerda entrar a tu academia VADAI', html, texto }
 }
 
+/**
+ * Aviso a quien YA tiene cuenta y acaba de recibir un curso más.
+ *
+ * Antes no salía nada: "la persona ya sabe entrar y lo encuentra en su lista".
+ * Alejandro lo pidió sí o sí (20-sep-2026), y tiene razón: si nadie te avisa,
+ * el curso nuevo no existe hasta que entres por otra razón. No lleva liga de
+ * acceso: ya tiene contraseña. Lleva el botón a Mis cursos y, por si acaso, la
+ * ruta para recuperarla.
+ */
+export function plantillaNuevoCurso(opciones: {
+  cursos: string[]
+  nombre?: string | null
+  base?: string | null
+}): Plantilla {
+  const { cursos } = opciones
+  const nombre = opciones.nombre?.trim() ?? ''
+  const base = (opciones.base ?? '').replace(/\/+$/, '')
+  const urlInicio = `${base}/mis-cursos`
+  const urlRecuperar = `${base}/recuperar`
+
+  const saludo = nombre ? `Hola ${nombre},` : 'Hola,'
+  const que =
+    cursos.length === 1
+      ? `el curso <strong>${escapar(enLista(cursos))}</strong>`
+      : `los cursos <strong>${escapar(enLista(cursos))}</strong>`
+  const queTexto = cursos.length === 1 ? `el curso ${enLista(cursos)}` : `los cursos ${enLista(cursos)}`
+
+  const parrafo = `margin:0 0 14px;font-size:15px;color:${TEXTO};line-height:1.65;`
+
+  const html = envoltura(
+    `
+    <p style="${parrafo}">${escapar(saludo)}</p>
+    <p style="${parrafo}">Te dimos acceso a ${que}. Ya está en tu academia.</p>
+    <p style="${parrafo}">Entra con tu correo y tu contraseña de siempre.</p>
+    ${boton(urlInicio, 'Ir a mi academia')}
+    ${urlEnTexto(urlInicio)}
+    <p style="${parrafo};margin-top:18px;">
+      Si no recuerdas tu contraseña, pide una nueva en
+      <a href="${urlRecuperar}" style="color:${CYAN};">${escapar(urlRecuperar.replace(/^https?:\/\//, ''))}</a>.
+    </p>
+    <p style="margin:0;font-size:15px;color:${TEXTO};line-height:1.65;">Equipo VADAI</p>
+  `,
+    `Ya tienes acceso a ${cursos[0] ?? 'un curso nuevo'}.`
+  )
+
+  const texto = `${saludo}
+
+Te dimos acceso a ${queTexto}. Ya está en tu academia.
+
+Entra con tu correo y tu contraseña de siempre:
+${urlInicio}
+
+Si no recuerdas tu contraseña, pide una nueva en ${urlRecuperar}
+
+Equipo VADAI`
+
+  return {
+    asunto: cursos.length === 1 ? `Ya tienes acceso a ${cursos[0]}` : 'Tienes cursos nuevos en tu academia',
+    html,
+    texto,
+  }
+}
+
 /** "Olvidé mi contraseña". */
 export function plantillaRecuperacion(url: string): Plantilla {
   const html = envoltura(`

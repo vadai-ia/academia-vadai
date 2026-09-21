@@ -1,5 +1,6 @@
 import Link from 'next/link'
 
+import { ExpandirTodo } from '@/components/admin/expandir-todo'
 import { NuevaLeccion } from '@/components/admin/nueva-leccion'
 import { NuevoModulo } from '@/components/admin/nuevo-modulo'
 import { Badge } from '@/components/ui/badge'
@@ -68,10 +69,13 @@ export function ArbolCurso({ curso }: { curso: CursoCompleto }) {
     <div className="flex flex-col gap-5">
       <div className="flex flex-wrap items-baseline justify-between gap-2">
         <h2 className="text-lg font-semibold">Contenido</h2>
-        <p className="text-sm text-muted-foreground">
-          {curso.modulos.length} módulo(s) ·{' '}
-          {curso.modulos.reduce((n, m) => n + m.lecciones.length, 0)} lección(es)
-        </p>
+        <span className="flex flex-wrap items-center gap-3">
+          {curso.modulos.length > 1 ? <ExpandirTodo selector="details[data-modulo]" /> : null}
+          <p className="text-sm text-muted-foreground">
+            {curso.modulos.length} módulo(s) ·{' '}
+            {curso.modulos.reduce((n, m) => n + m.lecciones.length, 0)} lección(es)
+          </p>
+        </span>
       </div>
 
       {curso.modulos.length === 0 ? (
@@ -80,17 +84,31 @@ export function ArbolCurso({ curso }: { curso: CursoCompleto }) {
         </p>
       ) : null}
 
-      <ul className="flex flex-col gap-4">
+      {/*
+        Cada módulo es un <details> (20-sep-2026): con ocho módulos y veintitrés
+        lecciones el árbol completo ya no cabía en una pantalla. Cerrado enseña
+        número, título y cuántas lecciones; abierto, las lecciones y el
+        formulario para agregar una. El primero abre solo. Los botones viven
+        dentro del <summary> y no lo pliegan: el clic lo toma el botón.
+      */}
+      <ul className="flex flex-col gap-3">
         {curso.modulos.map((modulo, indiceModulo) => (
-          <li key={modulo.id} className="rounded-lg border border-border">
-            <div className="flex flex-wrap items-center justify-between gap-2 px-3 py-2.5">
+          <li key={modulo.id}>
+          <details data-modulo open={indiceModulo === 0} className="group/modulo rounded-lg border border-border">
+            <summary className="flex cursor-pointer list-none flex-wrap items-center justify-between gap-2 px-3 py-2.5 select-none [&::-webkit-details-marker]:hidden">
               <div className="flex min-w-0 items-center gap-2">
+                <span aria-hidden className="text-muted-foreground transition-transform group-open/modulo:rotate-90">
+                  ›
+                </span>
                 <span className="font-mono text-xs text-muted-foreground">
                   {indiceModulo + 1}
                 </span>
                 <span className="truncate font-medium">{modulo.title}</span>
                 <span className="text-xs text-muted-foreground">
                   {modulo.lecciones.length} lección(es)
+                  {modulo.lecciones.some((l) => l.status === 'draft')
+                    ? ` · ${modulo.lecciones.filter((l) => l.status === 'draft').length} en borrador`
+                    : ''}
                 </span>
               </div>
 
@@ -119,7 +137,7 @@ export function ArbolCurso({ curso }: { curso: CursoCompleto }) {
                   </Button>
                 </form>
               </div>
-            </div>
+            </summary>
 
             {modulo.lecciones.length > 0 ? (
               <ul className="border-t border-border">
@@ -167,6 +185,7 @@ export function ArbolCurso({ curso }: { curso: CursoCompleto }) {
               cursoId={curso.id}
               reinicio={modulo.lecciones.length}
             />
+          </details>
           </li>
         ))}
       </ul>

@@ -84,6 +84,13 @@
 | `wef-2030` | Para 2030: empleos creados · desplazados · neto · empleos en transformación estructural · habilidades que cambiarán · trabajadores que necesitarán capacitación · empleadores que priorizan reentrenar | **170 M** · **92 M** · **+78 M** · **22%** · **39%** · **59%** · **85%** | WEF, *Future of Jobs Report 2025* | todos | verificado |
 | `imf-40-60` | Empleos expuestos a la IA en el mundo · en economías avanzadas | **40%** · **60%** | FMI, K. Georgieva, ene-2024 | todos | verificado |
 | `anthropic-index` | En el uso real de Claude, la IA **aumenta** el trabajo humano en una parte sustancial de las conversaciones, no solo lo automatiza | reparto aumento/automatización | Anthropic, *Economic Index* | colaborador | verificado |
+| `mck-88-39` | Organizaciones que usan IA en al menos una función · que reportan algún impacto en EBIT | **88%** (78% un año antes) · **39%** | McKinsey, *The State of AI 2025* (nov-2025). Verificado 20-sep-2026 | dirección · todos | verificado |
+| `stanford-costo-280` | Caída del costo de inferencia para un sistema de nivel GPT-3.5, nov-2022 → oct-2024 | **280×**: de **$20** a **$0.07** USD por millón de tokens | Stanford HAI, *AI Index Report 2025*, cap. 1. Verificado 20-sep-2026 | dirección | verificado |
+| `nanda-embudo` | Soluciones empresariales de IA generativa: organizaciones que las evalúan · llegan a piloto · llegan a producción. El titular "95%" es de **organizaciones** sin retorno medible, no de pilotos | **60%** · **20%** · **5%** | MIT Project NANDA, *The GenAI Divide* (jul-2025). Verificado 20-sep-2026 | dirección | verificado |
+| `ms-difusion-mx` | Población en edad de trabajar que usó IA generativa en el 1T-2026: México · promedio mundial · Norte Global · Sur Global. México subió **+2.3 pts** vs 2S-2025 | **20.1%** · **17.8%** · **27.5%** · **15.4%** | Microsoft AI Economy Institute, *Global AI Diffusion Report Q1 2026* (may-2026). Verificado 20-sep-2026 en el blog oficial y cobertura de Mexico Business News | todos | verificado |
+| `gartner-agentes-40` | Aplicaciones empresariales que incluirán agentes de IA para tareas específicas a finales de 2026 · en 2025 | **40%** · **menos de 5%** | Gartner, comunicado de prensa 26-ago-2025. Verificado 20-sep-2026 | dirección · mando | verificado |
+| `gartner-agentes-cancel` | Proyectos de IA agéntica que serán cancelados para finales de 2027 por costos, valor poco claro o controles de riesgo | **más del 40%** | Gartner, comunicado 25-jun-2025 | dirección | verificado |
+| `datareportal-uso` | Personas en el mundo que han usado IA generativa · que pagan una suscripción. Estimación, no censo | **~29%** (2,400 M) · **~1%** (~80 M) | DataReportal, *Digital 2026*; OpenAI, suscripciones pagadas (feb-2026). Verificado 20-sep-2026 como estimación de referencia | todos | verificado |
 
 ## Correcciones a datos que circulan en los decks de referencia
 
@@ -95,6 +102,12 @@
 | `fix-training-18` | "18% recibió capacitación" | es **18% de los capacitados dice que los dejó listos** (`training-18`); lo fuerte es `training-85` |
 | `fix-email-31` | "reducir 31% del tiempo de correo, 3.6 h" | MGI dice **25–30%** de ~13 h → **3.25–3.9 h**, y es de 2012 (`mgi-email`) |
 | `fix-jornada` | "casi 8 horas" | son **8 exactas**, con calendario anual (`jornada-40`) |
+| `fix-mck-78` | "78% de las organizaciones usa IA" (deck Total Coach) | ese es el dato de 2024; el reporte de nov-2025 dice **88%** (`mck-88-39`) |
+| `fix-costo-60` | "un millón de tokens costaba $60 y hoy $0.20" (investigación Total Coach) | Stanford dice **$20 → $0.07** (`stanford-costo-280`); el factor 280× sí es correcto |
+| `fix-nanda-95-pilotos` | "95% de los pilotos no genera retorno" | el reporte habla de **95% de las organizaciones** sin retorno medible; del embudo, 5% de las que evalúan llegan a producción (`nanda-embudo`) |
+| `fix-pesos-matriz` | lámina 26 del deck Total Coach: impacto 30 · ROI 25 · probabilidad 20 · facilidad 15 · técnico 10 | el Excel real usa técnico **20** · facilidad 15 · probabilidad **10** · impacto 30 · ROI 25, y esos son los que dan 8.0 · 8.4 · 8.4 · 7.8 |
+| `fix-prima-60` | "prima salarial de hasta 60%" | PwC 2026 dice **62%** (`pwc-62`); 56% en el barómetro 2025 |
+| `fix-stanford-13-16` | "entre 13% y 16% menos contratación de jóvenes" | el dato vigente (ago-2026) es **19%** por debajo de tendencia (`stanford-19`) |
 
 ## Pendientes — no se proyectan hasta tener fuente
 
@@ -104,3 +117,7 @@
 | `p-44-pymes` | "5–10 h por persona por semana en tareas repetitivas; le pasa al 44% de las pymes" | no encontrado; usar `asana-58` o `managers-8h` |
 | `p-55-nula` | "55% opera con automatización muy baja o nula" | no encontrado; ver `aws-mx` (63% en usos básicos) |
 | `p-nomina-18-23` | "costo real de nómina +18–23%" | compuesto sin fuente; **calcular en vivo** con supuestos a la vista (`jornada-40` + `salario-min-2027`) |
+| `p-83-implementaciones` | "83% de las implementaciones no son efectivas o fracasan" (guion Total Coach) | sin fuente; se usa `mck-72` o `nanda-embudo` |
+| `p-9-madurez` | "solo 9% ha alcanzado madurez real de IA" (atribuido a Lucidworks) | no verificado; se usa `mck-6` (6% de alto desempeño, McKinsey) |
+| `p-latam-paises` | Costa Rica 28.5% · Rep. Dominicana 24.8% · Uruguay 24.6% · Colombia 24.5% · Chile 22.7% (Microsoft, 1T-2026) | no aparecen en el texto público del reporte; pendiente confirmar en los datos abiertos antes de proyectar |
+| `p-latam-valor` | "solo 23% de las organizaciones de la región obtiene retorno medible; 6 de cada 10 pymes ninguno" (Transgenia / Odoo) | no verificado; en el deck se dice sin cifra |

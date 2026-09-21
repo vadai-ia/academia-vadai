@@ -75,6 +75,15 @@ export const IconoPanel = marco(
   </>
 )
 
+/** Un edificio: las empresas de las que vienen los alumnos. */
+export const IconoEmpresas = marco(
+  <>
+    <path d="M3 21h18" />
+    <path d="M5 21V7l7-4 7 4v14" />
+    <path d="M9 9h1M14 9h1M9 13h1M14 13h1M9 17h1M14 17h1" />
+  </>
+)
+
 /** Barras de una gráfica en vivo: es lo que la sala ve crecer en la proyección. */
 export const IconoEncuestas = marco(
   <>

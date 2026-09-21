@@ -9,6 +9,7 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { alumnosPendientesDeEntrar } from '@/lib/admin/accesos'
 import { listarAlumnos, listarPagos, opcionesDeAlta } from '@/lib/admin/alumnos'
+import { listarEmpresas } from '@/lib/admin/empresas'
 import { exigirAdmin } from '@/lib/auth/sesion'
 import { stripeConfigurado, stripeEnVivo } from '@/lib/stripe/cliente'
 import { cn } from '@/lib/utils'
@@ -49,20 +50,29 @@ function fecha(iso: string): string {
 export default async function PaginaAlumnos({
   searchParams,
 }: {
-  searchParams: Promise<{ q?: string; ver?: string; acceso?: string }>
+  searchParams: Promise<{ q?: string; ver?: string; acceso?: string; empresa?: string }>
 }) {
   const perfil = await exigirAdmin()
-  const { q, ver, acceso } = await searchParams
+  const { q, ver, acceso, empresa } = await searchParams
   const busqueda = (q ?? '').trim()
   const verSuspendidos = ver === 'suspendidos'
   const corte: Acceso = acceso === 'nunca' || acceso === 'entraron' ? acceso : 'todos'
+  const empresaFiltro = (empresa ?? '').trim()
 
-  const [alumnos, pagos, cursos, pendientes] = await Promise.all([
+  const [listado, pagos, cursos, pendientes, empresas] = await Promise.all([
     listarAlumnos(busqueda),
     listarPagos(),
     opcionesDeAlta(),
     alumnosPendientesDeEntrar(),
+    listarEmpresas(),
   ])
+
+  // El filtro por empresa (20-sep-2026): `general` es quien no tiene ninguna.
+  const alumnos = empresaFiltro
+    ? listado.filter((a) =>
+        empresaFiltro === 'general' ? a.empresa === null : a.empresa?.id === empresaFiltro
+      )
+    : listado
 
   // Un pago sin cuenta es el caso que §11 manda resolver a mano: el dinero
   // entró pero el alta no se completó.
@@ -95,6 +105,7 @@ export default async function PaginaAlumnos({
     if (opciones.q) parametros.set('q', opciones.q)
     if (opciones.suspendidos) parametros.set('ver', 'suspendidos')
     if (opciones.acceso && opciones.acceso !== 'todos') parametros.set('acceso', opciones.acceso)
+    if (empresaFiltro) parametros.set('empresa', empresaFiltro)
     const cadena = parametros.toString()
     return cadena ? `/admin/alumnos?${cadena}` : '/admin/alumnos'
   }
@@ -158,7 +169,7 @@ export default async function PaginaAlumnos({
         </Tarjeta>
       ) : null}
 
-      <DarDeAlta cursos={cursos} reinicio={alumnos.length} soySuperadmin={soySuperadmin} />
+      <DarDeAlta cursos={cursos} empresas={empresas} reinicio={listado.length} soySuperadmin={soySuperadmin} />
 
       {/*
         El buscador es un <form> GET, no un filtro en el cliente.
@@ -181,12 +192,28 @@ export default async function PaginaAlumnos({
             autoComplete="off"
           />
         </label>
+        <label className="flex flex-col gap-1.5">
+          <span className="text-sm font-medium">Empresa</span>
+          <select
+            name="empresa"
+            defaultValue={empresaFiltro}
+            className="h-10 rounded-md border border-input bg-transparent px-3 text-sm"
+          >
+            <option value="">Todas</option>
+            <option value="general">General (sin empresa)</option>
+            {empresas.map((e) => (
+              <option key={e.id} value={e.id}>
+                {e.nombre} ({e.alumnos})
+              </option>
+            ))}
+          </select>
+        </label>
         <Button type="submit" variant="outline">
           Buscar
         </Button>
-        {busqueda ? (
+        {busqueda || empresaFiltro ? (
           <Button asChild variant="ghost">
-            <a href={hrefDe({ suspendidos: verSuspendidos, acceso: corte })}>Limpiar</a>
+            <a href={verSuspendidos ? '/admin/alumnos?ver=suspendidos' : '/admin/alumnos'}>Limpiar</a>
           </Button>
         ) : null}
       </form>
@@ -259,6 +286,7 @@ export default async function PaginaAlumnos({
                 <FilaAlumno
                   alumno={alumno}
                   cursos={cursos}
+                  empresas={empresas}
                   // Nadie se suspende a sí mismo, y al equipo solo lo toca un
                   // superadmin. La acción vuelve a comprobar las dos cosas.
                   puedeSuspender={
