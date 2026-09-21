@@ -14,16 +14,15 @@ import { crearClienteServidor } from '@/lib/supabase/server'
  * Reemplaza a `resumen.ts`, que daba cuatro cifras y una línea. Lo que pidió
  * Alejandro la víspera del lanzamiento (20-sep-2026) fue lo que ya daba la
  * pantalla de alumnos, pero para toda la academia: quién ha entrado, cómo van
- * avanzando por curso, qué se ha cobrado y qué sesión toca, con un botón para
- * agendar la siguiente sin ir a buscar la cohorte.
+ * avanzando por curso y qué sesión toca, con un botón para
+ * agendar la siguiente sin ir a buscar la generación.
  *
- * Todo sale de la base en un solo `Promise.all`. Son ocho consultas planas
+ * Todo sale de la base en un solo `Promise.all`. Son consultas planas
  * que se cruzan aquí; con doscientos alumnos y veinte lecciones son unas
  * miles de filas, que es nada. Cuando sean cientos de miles, esto se
  * convierte en vistas materializadas; hoy sería optimizar lo que no duele.
  *
- * Va por el cliente del admin, con su RLS. Lo único con service role es
- * `ultimosInicios()`, porque `auth.users` no se puede leer de otra forma.
+ * Va por el cliente del admin, con su RLS: aquí no hay service role.
  */
 
 export type CursoEnTablero = {
@@ -38,14 +37,6 @@ export type CursoEnTablero = {
   avancePromedio: number
 }
 
-export type PagoEnTablero = {
-  email: string
-  cursoTitulo: string
-  monto: number
-  moneda: string
-  fecha: string
-}
-
 export type Tablero = {
   personas: number
   conAccesoVigente: number
@@ -54,11 +45,9 @@ export type Tablero = {
   activosSemana: number
   cursos: CursoEnTablero[]
   cursosBorrador: number
-  ingresos: {
-    pagos: number
-    totalPorMoneda: Array<{ moneda: string; total: number; esteMes: number }>
-    ultimos: PagoEnTablero[]
-  }
+  // El dinero NO vive aquí (21-sep-2026). El panel se proyecta en sala y en
+  // pantalla compartida: los ingresos y los correos de quien pagó no se
+  // enseñan de paso. Van a tener su propio apartado, con Stripe conectado.
   entregasPendientes: number
   certificadosEmitidos: number
   encuestas: { enVivo: number; total: number; padron: number }
@@ -70,7 +59,6 @@ export async function tableroAdmin(): Promise<Tablero> {
   const supabase = await crearClienteServidor()
   const ahora = Date.now()
   const haceSieteDias = ahora - 7 * 24 * 60 * 60 * 1000
-  const inicioDeMes = new Date(new Date().getFullYear(), new Date().getMonth(), 1).getTime()
 
   const [
     perfiles,
@@ -78,7 +66,6 @@ export async function tableroAdmin(): Promise<Tablero> {
     cursos,
     outline,
     progreso,
-    pagos,
     entregas,
     certificados,
     encuestas,
@@ -91,10 +78,6 @@ export async function tableroAdmin(): Promise<Tablero> {
     supabase.from('courses').select('id, slug, title, status'),
     supabase.from('lesson_outline').select('id, course_id'),
     supabase.from('lesson_progress').select('user_id, lesson_id, completed'),
-    supabase
-      .from('payments')
-      .select('email, amount, currency, status, created_at, course_id')
-      .order('created_at', { ascending: false }),
     supabase.from('assignment_submissions').select('id').eq('status', 'submitted'),
     supabase.from('certificates').select('id'),
     supabase.from('polls').select('status'),
@@ -103,7 +86,7 @@ export async function tableroAdmin(): Promise<Tablero> {
     cohortesParaAgendar(),
   ])
 
-  for (const [nombre, r] of Object.entries({ perfiles, inscripciones, cursos, outline, progreso, pagos })) {
+  for (const [nombre, r] of Object.entries({ perfiles, inscripciones, cursos, outline, progreso })) {
     if (r.error) console.error(JSON.stringify({ operacion: 'tableroAdmin', consulta: nombre, error: r.error.message }))
   }
 
@@ -175,20 +158,6 @@ export async function tableroAdmin(): Promise<Tablero> {
     })
     .sort((a, b) => b.inscritos - a.inscritos)
 
-  // --- ingresos --------------------------------------------------------------
-  // `amount` viene en unidades de la moneda: el webhook divide entre 100 al
-  // guardar (app/api/stripe/webhook/route.ts).
-  const tituloDeCurso = new Map((cursos.data ?? []).map((c) => [c.id, c.title]))
-  const cobrados = (pagos.data ?? []).filter((p) => p.status === 'paid')
-  const porMoneda = new Map<string, { total: number; esteMes: number }>()
-  for (const p of cobrados) {
-    const m = p.currency.toUpperCase()
-    const acumulado = porMoneda.get(m) ?? { total: 0, esteMes: 0 }
-    acumulado.total += Number(p.amount)
-    if (new Date(p.created_at).getTime() >= inicioDeMes) acumulado.esteMes += Number(p.amount)
-    porMoneda.set(m, acumulado)
-  }
-
   // --- encuestas -------------------------------------------------------------
   const listaEncuestas = encuestas.data ?? []
 
@@ -200,19 +169,6 @@ export async function tableroAdmin(): Promise<Tablero> {
     activosSemana,
     cursos: cursosEnTablero,
     cursosBorrador: cursosVivos.filter((c) => c.status === 'draft').length,
-    ingresos: {
-      pagos: cobrados.length,
-      totalPorMoneda: [...porMoneda.entries()]
-        .map(([moneda, v]) => ({ moneda, ...v }))
-        .sort((a, b) => b.total - a.total),
-      ultimos: cobrados.slice(0, 5).map((p) => ({
-        email: p.email,
-        cursoTitulo: tituloDeCurso.get(p.course_id) ?? 'Curso',
-        monto: Number(p.amount),
-        moneda: p.currency.toUpperCase(),
-        fecha: p.created_at,
-      })),
-    },
     entregasPendientes: entregas.data?.length ?? 0,
     certificadosEmitidos: certificados.data?.length ?? 0,
     encuestas: {

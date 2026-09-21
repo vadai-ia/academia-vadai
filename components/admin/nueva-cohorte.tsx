@@ -16,17 +16,17 @@ function Boton() {
   const { pending } = useFormStatus()
   return (
     <Button type="submit" disabled={pending}>
-      {pending ? 'Creando…' : 'Crear cohorte'}
+      {pending ? 'Creando…' : 'Crear generación'}
     </Button>
   )
 }
 
-/** El botón "Nueva cohorte" y, detrás, su formulario (M14). */
+/** El botón "Nueva generación" y, detrás, su formulario (M14). */
 export function NuevaCohorte({ cursoId, reinicio }: { cursoId: string; reinicio: number }) {
   const [estado, accion] = useActionState(crearCohorte, SIN_ESTADO)
 
   return (
-    <Desplegable etiqueta="Nueva cohorte" variante="contorno" abierto={Boolean(estado.error || estado.aviso)}>
+    <Desplegable etiqueta="Nueva generación" variante="contorno" abierto={Boolean(estado.error || estado.aviso)}>
       <form key={reinicio} action={accion} className="flex flex-col gap-3">
         <input type="hidden" name="course_id" value={cursoId} />
 

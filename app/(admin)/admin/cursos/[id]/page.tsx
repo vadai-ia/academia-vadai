@@ -113,7 +113,7 @@ export default async function PaginaCurso({
 
       <section className="flex flex-col gap-4 border-t border-border pt-8">
         <div className="flex flex-wrap items-baseline justify-between gap-2">
-          <h2 className="text-lg font-semibold">Cohortes</h2>
+          <h2 className="text-lg font-medium">Generaciones</h2>
           <p className="text-sm text-muted-foreground">
             Grupos con calendario de sesiones en vivo
           </p>
@@ -160,7 +160,7 @@ export default async function PaginaCurso({
 
         {calendarios.length === 0 ? (
           <p className="rounded-lg border border-dashed border-border px-5 py-8 text-center text-sm text-muted-foreground">
-            Crea una cohorte arriba para agendar sesiones.
+            Crea una generación arriba para agendar sesiones.
           </p>
         ) : (
           calendarios.map((cohorte, i) => (
@@ -180,7 +180,7 @@ export default async function PaginaCurso({
                   href={`/admin/cohortes/${cohorte.id}`}
                   className="text-xs font-normal text-primary underline-offset-4 hover:underline"
                 >
-                  Abrir la cohorte →
+                  Abrir la generación →
                 </Link>
               </summary>
               <div className="border-t border-border px-4 py-4">

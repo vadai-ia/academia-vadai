@@ -18,7 +18,7 @@ export const ETIQUETA_ESTADO_CURSO = {
 } as const
 
 export const ETIQUETA_TIPO_CURSO = {
-  cohort: 'Por cohorte',
+  cohort: 'Por generación',
   evergreen: 'Siempre abierto',
 } as const
 

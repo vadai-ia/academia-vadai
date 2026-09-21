@@ -27,7 +27,6 @@ export type AlumnoEnLista = {
     total: number
     porcentaje: number
   }>
-  pagos: Array<{ cursoTitulo: string; monto: number; moneda: string; fecha: string }>
 }
 
 export type PagoEnLista = {
@@ -201,19 +200,15 @@ export async function listarAlumnos(filtros: FiltrosAlumnos = {}): Promise<Pagin
 
   const perfiles = (data ?? []) as unknown as Anidado[]
   const ids = perfiles.map((p) => p.user_id)
-  const correos = perfiles.map((p) => (p.email ?? '').toLowerCase())
 
   // Solo lo de esta página. `lesson_outline` (lecciones publicadas por curso)
   // es chica y da el total contra el que se mide el avance.
   const vacio = Promise.resolve({ data: [] as never[] })
-  const [progreso, outline, pagos, enlaces, empresas] = await Promise.all([
+  const [progreso, outline, enlaces, empresas] = await Promise.all([
     ids.length
       ? supabase.from('lesson_progress').select('user_id, lesson_id').eq('completed', true).in('user_id', ids)
       : vacio,
     supabase.from('lesson_outline').select('id, course_id'),
-    correos.length
-      ? supabase.from('payments').select('email, amount, currency, created_at, courses(title)').in('email', correos)
-      : vacio,
     ultimosEnlaces(ids),
     supabase.from('companies').select('id, name'),
   ])
@@ -234,26 +229,6 @@ export async function listarAlumnos(filtros: FiltrosAlumnos = {}): Promise<Pagin
     hechasPor.set(llave, (hechasPor.get(llave) ?? 0) + 1)
   }
 
-  type PagoAnidado = {
-    email: string
-    amount: number
-    currency: string
-    created_at: string
-    courses: { title: string } | null
-  }
-  const pagosPor = new Map<string, AlumnoEnLista['pagos']>()
-  for (const fila of (pagos.data ?? []) as unknown as PagoAnidado[]) {
-    const correo = (fila.email ?? '').toLowerCase()
-    const lista = pagosPor.get(correo) ?? []
-    lista.push({
-      cursoTitulo: fila.courses?.title ?? 'Curso',
-      monto: fila.amount,
-      moneda: fila.currency,
-      fecha: fila.created_at,
-    })
-    pagosPor.set(correo, lista)
-  }
-
   const nombreDeEmpresa = new Map((empresas.data ?? []).map((e) => [e.id, e.name]))
   const ahora = Date.now()
 
@@ -269,7 +244,6 @@ export async function listarAlumnos(filtros: FiltrosAlumnos = {}): Promise<Pagin
       ? { id: p.company_id, nombre: nombreDeEmpresa.get(p.company_id) ?? 'Empresa' }
       : null,
     enlace: enlaces.get(p.user_id) ?? null,
-    pagos: pagosPor.get((p.email ?? '').toLowerCase()) ?? [],
     inscripciones: (p.enrollments ?? []).map((e) => {
       const total = totalPorCurso.get(e.course_id) ?? 0
       const hechas = hechasPor.get(`${p.user_id}::${e.course_id}`) ?? 0
@@ -326,13 +300,11 @@ export async function resumenDeAlumnos(): Promise<{
   conAccesoVigente: number
   entraron: number
   nunca: number
-  pagos: number
 }> {
   const supabase = await crearClienteServidor()
-  const [perfiles, inscripciones, pagos] = await Promise.all([
+  const [perfiles, inscripciones] = await Promise.all([
     supabase.from('profiles').select('user_id, last_sign_in_at').neq('role', 'invitado').eq('status', 'active'),
     supabase.from('enrollments').select('user_id, expires_at').eq('status', 'active'),
-    supabase.from('payments').select('id', { count: 'exact', head: true }),
   ])
 
   const ahora = Date.now()
@@ -349,17 +321,20 @@ export async function resumenDeAlumnos(): Promise<{
     conAccesoVigente: activos.filter((p) => conVigente.has(p.user_id)).length,
     entraron,
     nunca: activos.length - entraron,
-    pagos: pagos.count ?? 0,
   }
 }
 
 /**
  * Pagos recibidos.
  *
- * `tieneCuenta` es lo que hace útil esta pantalla: un pago sin cuenta significa
- * que el webhook registró el dinero pero el alta no se completó. Es el caso que
- * §11 manda resolver a mano, y aquí se ve de un vistazo. `cuentaEliminada`
- * separa el otro caso: la cuenta existió y el equipo la borró a propósito.
+ * NO la llama ninguna pantalla desde el 21-sep-2026: el dinero salió del panel
+ * y de la lista de alumnos, que se proyectan. Se queda porque es la consulta
+ * del apartado de Ingresos que viene, con Stripe conectado.
+ *
+ * `tieneCuenta` es lo que la hace útil: un pago sin cuenta significa que el
+ * webhook registró el dinero pero el alta no se completó. Es el caso que §11
+ * manda resolver a mano. `cuentaEliminada` separa el otro caso: la cuenta
+ * existió y el equipo la borró a propósito.
  */
 export async function listarPagos(): Promise<PagoEnLista[]> {
   const supabase = await crearClienteServidor()

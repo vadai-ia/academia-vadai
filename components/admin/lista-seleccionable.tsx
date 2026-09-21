@@ -53,7 +53,7 @@ export function gruposDesdeCursos(
           titulo: curso.titulo,
           unaSola: true,
           opciones: [
-            { valor: `${curso.id}|`, etiqueta: 'Sin grupo' },
+            { valor: `${curso.id}|`, etiqueta: 'Sin generación' },
             ...curso.cohortes.map((grupo) => ({
               valor: `${curso.id}|${grupo.id}`,
               etiqueta: grupo.nombre,

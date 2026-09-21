@@ -10,7 +10,7 @@ import { crearClienteServidor } from '@/lib/supabase/server'
  * Todo lo de una persona, para su ficha (/admin/alumnos/[userId], M14).
  *
  * Es el "revisar su información y su estatus completo" que Alejandro pidió:
- * un solo lugar con datos, empresa, cursos con avance y puntos, pagos, ligas
+ * un solo lugar con datos, empresa, cursos con avance y puntos, ligas
  * de acceso, actividad y certificados, y desde donde salen TODAS las acciones.
  * Va por el cliente del admin (RLS): las policies ya le dan todo el schema.
  */
@@ -42,7 +42,8 @@ export type FichaAlumno = {
     nivel: Nivel
     actividad: Actividad
   }>
-  pagos: Array<{ id: string; cursoTitulo: string; monto: number; moneda: string; estado: string; fecha: string }>
+  // Los pagos NO viven aquí (21-sep-2026): la ficha se abre con la pantalla
+  // compartida. El dinero va a tener su propio apartado.
   /** Las últimas cinco ligas de 30 días, la más reciente primero. */
   enlaces: Array<{ enviadoEn: string; venceEn: string; vigente: boolean; usos: number; ultimoUso: string | null }>
   certificados: Array<{ folio: string; cursoTitulo: string; emitidoEn: string }>
@@ -99,18 +100,12 @@ export const fichaDeAlumno = cache(async function fichaDeAlumno(userId: string):
     }>
   }
   const p = perfil as unknown as Perfil
-  const email = (p.email ?? '').toLowerCase()
 
-  const [progreso, outline, actividad, pagos, enlaces, certificados, comentariosL, comentariosC, publicaciones, entregas, intentos, posts, opciones] =
+  const [progreso, outline, actividad, enlaces, certificados, comentariosL, comentariosC, publicaciones, entregas, intentos, posts, opciones] =
     await Promise.all([
       supabase.from('lesson_progress').select('lesson_id').eq('user_id', userId).eq('completed', true),
       supabase.from('lesson_outline').select('id, course_id'),
       supabase.from('actividad_por_curso').select('*').eq('user_id', userId),
-      supabase
-        .from('payments')
-        .select('id, amount, currency, status, created_at, courses(title)')
-        .ilike('email', email)
-        .order('created_at', { ascending: false }),
       supabase
         .from('access_links')
         .select('created_at, expires_at, used_count, last_used_at, revoked_at')
@@ -181,7 +176,6 @@ export const fichaDeAlumno = cache(async function fichaDeAlumno(userId: string):
     }
   })
 
-  type PagoAnidado = { id: string; amount: number; currency: string; status: string; created_at: string; courses: { title: string } | null }
   type CertificadoAnidado = { folio: string; issued_at: string; courses: { title: string } | null }
 
   const tiene = new Set(inscripciones.map((i) => i.cursoId))
@@ -197,14 +191,6 @@ export const fichaDeAlumno = cache(async function fichaDeAlumno(userId: string):
     ultimoAcceso: p.last_sign_in_at,
     empresa: p.company_id ? { id: p.company_id, nombre: p.companies?.name ?? 'Empresa' } : null,
     inscripciones,
-    pagos: ((pagos.data ?? []) as unknown as PagoAnidado[]).map((x) => ({
-      id: x.id,
-      cursoTitulo: x.courses?.title ?? 'Curso',
-      monto: x.amount,
-      moneda: x.currency,
-      estado: x.status,
-      fecha: x.created_at,
-    })),
     enlaces: (enlaces.data ?? []).map((l) => ({
       enviadoEn: l.created_at,
       venceEn: l.expires_at,

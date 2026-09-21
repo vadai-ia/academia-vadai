@@ -17,7 +17,7 @@ export async function generateMetadata({
 }): Promise<Metadata> {
   const { id } = await params
   const cohorte = await obtenerCohorte(id)
-  return { title: cohorte?.name ?? 'Cohorte' }
+  return { title: cohorte?.name ?? 'Generación' }
 }
 
 /**
@@ -73,8 +73,8 @@ export default async function PaginaCohorte({
           idModal={`eliminar-cohorte-${cohorte.id}`}
           accion={eliminarCohorte}
           campos={{ id: cohorte.id, course_id: cohorte.cursoId }}
-          boton={{ texto: 'Eliminar cohorte', etiquetaAccesible: `Eliminar la cohorte ${cohorte.name}`, tono: 'destructivo' }}
-          titulo={`¿Eliminar la cohorte «${cohorte.name}»?`}
+          boton={{ texto: 'Eliminar generación', etiquetaAccesible: `Eliminar la generación ${cohorte.name}`, tono: 'destructivo' }}
+          titulo={`¿Eliminar la generación «${cohorte.name}»?`}
           confirmar={{ texto: 'Sí, eliminar', enCurso: 'Eliminando…', tono: 'destructivo' }}
         >
           <p>

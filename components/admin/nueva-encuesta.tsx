@@ -101,7 +101,7 @@ export function NuevaEncuesta({
           </div>
 
           <div className="flex flex-col gap-1.5">
-            <Label htmlFor="enc-cohorte">Cohorte</Label>
+            <Label htmlFor="enc-cohorte">Generación</Label>
             <select id="enc-cohorte" name="cohort_id" className={claseSelect}>
               <option value="">Todo el curso</option>
               {cursos.flatMap((c) =>

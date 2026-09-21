@@ -19,7 +19,7 @@ import {
 } from '@/lib/admin/acciones-alumnos'
 import { listarEmpresas } from '@/lib/admin/empresas'
 import { fichaDeAlumno } from '@/lib/admin/ficha-alumno'
-import { dinero, fechaConHora, fechaCorta } from '@/lib/admin/formato'
+import { fechaConHora, fechaCorta } from '@/lib/admin/formato'
 import { exigirAdmin } from '@/lib/auth/sesion'
 
 export const dynamic = 'force-dynamic'
@@ -238,35 +238,9 @@ export default async function PaginaFicha({ params }: { params: Promise<{ userId
         </Tarjeta>
       </Seccion>
 
-      {/* --- Pagos ------------------------------------------------------------ */}
-      <Seccion titulo="Pagos">
-        {ficha.pagos.length === 0 ? (
-          <p className="text-sm text-muted-foreground">Sin pagos: entró por alta manual.</p>
-        ) : (
-          <Tarjeta className="overflow-hidden">
-            <table className="w-full text-sm">
-              <thead className="sr-only">
-                <tr>
-                  <th>Curso</th>
-                  <th>Monto</th>
-                  <th>Estado</th>
-                  <th>Fecha</th>
-                </tr>
-              </thead>
-              <tbody>
-                {ficha.pagos.map((p) => (
-                  <tr key={p.id} className="border-b border-border last:border-b-0">
-                    <td className="px-4 py-2.5">{p.cursoTitulo}</td>
-                    <td className="px-4 py-2.5 text-right tabular-nums">{dinero(p.monto, p.moneda)}</td>
-                    <td className="px-4 py-2.5 text-muted-foreground">{p.estado}</td>
-                    <td className="px-4 py-2.5 text-right text-xs text-muted-foreground tabular-nums">{fechaCorta(p.fecha)}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </Tarjeta>
-        )}
-      </Seccion>
+      {/* Aquí vivía "Pagos", con el monto de cada uno. Salió el 21-sep-2026:
+          la ficha se abre con la pantalla compartida y el dinero va a tener su
+          propio apartado. Los pagos siguen guardados. */}
 
       {/* --- Acceso ----------------------------------------------------------- */}
       <Seccion titulo="Acceso" apoyo="Cómo entra y con qué correo">

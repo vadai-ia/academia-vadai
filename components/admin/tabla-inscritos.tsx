@@ -352,8 +352,8 @@ function Fila({ inscrito: i, cursoId, empresas }: { inscrito: Inscrito; cursoId:
                 <dd className="font-medium">{i.empresa?.nombre ?? 'General'}</dd>
               </div>
               <div className="flex justify-between gap-3">
-                <dt className="text-muted-foreground">Grupo</dt>
-                <dd className="font-medium">{i.grupo ?? 'Sin grupo'}</dd>
+                <dt className="text-muted-foreground">Generación</dt>
+                <dd className="font-medium">{i.grupo ?? 'Sin generación'}</dd>
               </div>
               <div className="flex justify-between gap-3">
                 <dt className="text-muted-foreground">Acceso</dt>

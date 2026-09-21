@@ -70,7 +70,7 @@ export function NuevaSesion({
           <input type="hidden" name="cohort_id" value={cohorteId} />
         ) : (
           <div className="flex flex-col gap-1.5">
-            <Label htmlFor={`sesion-cohorte-${sufijo}`}>Cohorte</Label>
+            <Label htmlFor={`sesion-cohorte-${sufijo}`}>Generación</Label>
             <select
               id={`sesion-cohorte-${sufijo}`}
               name="cohort_id"
@@ -79,7 +79,7 @@ export function NuevaSesion({
               className={claseSelect}
             >
               <option value="" disabled>
-                Elige la cohorte
+                Elige la generación
               </option>
               {(cohortes ?? []).map((c) => (
                 <option key={c.id} value={c.id}>

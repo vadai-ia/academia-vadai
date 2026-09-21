@@ -110,7 +110,7 @@ export default function LayoutAuth({ children }: { children: ReactNode }) {
 
           <p className="flex flex-wrap items-center gap-2 text-sm">
             <span className="inline-flex items-center rounded-full bg-vadai-lima px-3 py-1 text-xs font-semibold text-vadai-navy">
-              Próxima cohorte
+              Próxima generación
             </span>
             <span className="text-muted-foreground">
               <strong className="font-medium text-foreground">Claude en tu Empresa</strong> · 21 de

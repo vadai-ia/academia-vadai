@@ -14,15 +14,12 @@ import { alumnosPendientesDeEntrar } from '@/lib/admin/accesos'
 import {
   conteosDeAlumnos,
   listarAlumnos,
-  listarPagos,
   opcionesDeAlta,
   resumenDeAlumnos,
   type CorteDeAcceso,
 } from '@/lib/admin/alumnos'
 import { listarEmpresas } from '@/lib/admin/empresas'
-import { fechaCorta } from '@/lib/admin/formato'
 import { exigirAdmin } from '@/lib/auth/sesion'
-import { stripeConfigurado, stripeEnVivo } from '@/lib/stripe/cliente'
 import { cn } from '@/lib/utils'
 
 export const metadata: Metadata = { title: 'Alumnos' }
@@ -74,7 +71,7 @@ export default async function PaginaAlumnos({ searchParams }: { searchParams: Pr
   // primera página sin filtros: es la vista de "cómo vamos", no la de buscar.
   const sinFiltros = paginaPedida === 1 && !busqueda && !empresaFiltro && corte === 'todos' && !verSuspendidos
 
-  const [lista, conteos, cursos, empresas, resumen, pendientes, pagos] = await Promise.all([
+  const [lista, conteos, cursos, empresas, resumen, pendientes] = await Promise.all([
     listarAlumnos({
       q: busqueda,
       empresa: empresaFiltro,
@@ -87,12 +84,7 @@ export default async function PaginaAlumnos({ searchParams }: { searchParams: Pr
     listarEmpresas(),
     sinFiltros ? resumenDeAlumnos() : null,
     sinFiltros ? alumnosPendientesDeEntrar() : null,
-    sinFiltros ? listarPagos() : null,
   ])
-
-  // Un pago sin cuenta es el caso que §11 manda resolver a mano: el dinero
-  // entró pero el alta no se completó. Una cuenta eliminada a propósito no lo es.
-  const huerfanos = (pagos ?? []).filter((p) => !p.tieneCuenta && !p.cuentaEliminada && p.estado === 'paid')
 
   // Los filtros se conservan entre sí: cambiar de pestaña no pierde la
   // búsqueda, y buscar no pierde la pestaña ni el corte. Cambiar cualquiera
@@ -130,7 +122,7 @@ export default async function PaginaAlumnos({ searchParams }: { searchParams: Pr
       <Titulo apoyo={apoyo}>Alumnos</Titulo>
 
       {aviso === 'eliminado' && correo ? (
-        <AvisoAccion estado={{ aviso: `La cuenta de ${correo} se eliminó. Sus pagos, si los había, siguen en Ingresos.` }} />
+        <AvisoAccion estado={{ aviso: `La cuenta de ${correo} se eliminó. Sus pagos, si los había, se conservan para la contabilidad.` }} />
       ) : null}
 
       {/*
@@ -174,43 +166,18 @@ export default async function PaginaAlumnos({ searchParams }: { searchParams: Pr
         ) : null}
       </form>
 
-      {stripeConfigurado() && stripeEnVivo() ? (
-        <p className="rounded-[10px] border border-destructive/40 bg-destructive/10 px-4 py-2.5 text-sm text-destructive">
-          Stripe está en modo <strong>LIVE</strong>: cualquier compra aquí mueve dinero real.
-        </p>
-      ) : null}
-
-      {/* Lo que hay que resolver a mano va primero y solo si existe. */}
-      {huerfanos.length > 0 ? (
-        <Tarjeta className="flex flex-col gap-2 border-destructive/40 bg-destructive/5 p-5">
-          <h2 className="font-medium">
-            {huerfanos.length} pago{huerfanos.length === 1 ? '' : 's'} sin cuenta
-          </h2>
-          <p className="text-sm text-muted-foreground">
-            El dinero entró pero el alta no se completó. Da de alta a esta gente a mano con el
-            correo del pago:
-          </p>
-          <ul className="flex flex-col gap-1 text-sm">
-            {huerfanos.map((p) => (
-              <li key={p.id} className="flex flex-wrap items-baseline gap-x-3">
-                <span className="font-medium">{p.email}</span>
-                <span className="text-muted-foreground">
-                  {p.cursoTitulo} · {fechaCorta(p.fecha)}
-                </span>
-              </li>
-            ))}
-          </ul>
-        </Tarjeta>
-      ) : null}
+      {/* Aquí vivían el aviso de "Stripe en modo LIVE" y la tarjeta de "pagos
+          sin cuenta", con los correos de quien pagó. Salieron el 21-sep-2026
+          junto con el resto del dinero: esta pantalla se proyecta. Vuelven en
+          el apartado de Ingresos, con Stripe conectado. */}
 
       {resumen && pendientes ? (
         <Tarjeta className="flex flex-col gap-5 p-5">
-          <div className="grid grid-cols-2 gap-6 sm:grid-cols-5">
+          <div className="grid grid-cols-2 gap-6 sm:grid-cols-4">
             <Cifra valor={resumen.personas} etiqueta="personas con cuenta" />
             <Cifra valor={resumen.conAccesoVigente} etiqueta="con acceso vigente" />
             <Cifra valor={resumen.entraron} etiqueta="ya entraron" destacada />
             <Cifra valor={resumen.nunca} etiqueta="nunca han entrado" />
-            <Cifra valor={resumen.pagos} etiqueta="pagos registrados" />
           </div>
 
           {/*

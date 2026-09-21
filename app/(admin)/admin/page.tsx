@@ -29,33 +29,17 @@ function fechaSesion(iso: string): string {
   }).format(new Date(iso))
 }
 
-function fechaCorta(iso: string): string {
-  return new Intl.DateTimeFormat('es-MX', {
-    day: 'numeric',
-    month: 'short',
-    timeZone: 'America/Mexico_City',
-  }).format(new Date(iso))
-}
-
-function dinero(monto: number, moneda: string): string {
-  return new Intl.NumberFormat('es-MX', {
-    style: 'currency',
-    currency: moneda,
-    maximumFractionDigits: 0,
-  }).format(monto)
-}
-
 const SECCIONES = [
   {
     href: '/admin/cursos',
     titulo: 'Cursos',
-    apoyo: 'Módulos, lecciones, videos, adjuntos y cohortes',
+    apoyo: 'Módulos, lecciones, videos, adjuntos y generaciones',
     icono: <IconoCursos />,
   },
   {
     href: '/admin/alumnos',
-    titulo: 'Alumnos y pagos',
-    apoyo: 'Alta manual, vigencias, accesos y pagos recibidos',
+    titulo: 'Alumnos',
+    apoyo: 'Alta manual, vigencias, accesos y ficha de cada quien',
     icono: <IconoAlumnos />,
   },
   {
@@ -83,8 +67,8 @@ const SECCIONES = [
  *
  * Antes eran cuatro cifras y una línea. Ahora responde, en este orden, lo
  * que el admin quiere saber al abrirlo: qué hay que atender, quién ha entrado,
- * qué sesión toca y con qué liga, cómo van avanzando por curso, y qué se ha
- * cobrado. Cada bloque lleva a la pantalla donde se actúa: las cifras de
+ * qué sesión toca y con qué liga, y cómo van avanzando por curso.
+ * Cada bloque lleva a la pantalla donde se actúa: las cifras de
  * acceso abren el listado ya filtrado, y la sesión se agenda aquí mismo.
  */
 export default async function PaginaAdmin() {
@@ -127,7 +111,7 @@ export default async function PaginaAdmin() {
         }
       >
         <Tarjeta className="flex flex-col gap-5 p-5 sm:p-6">
-          <div className="grid grid-cols-2 gap-x-6 gap-y-6 sm:grid-cols-5">
+          <div className="grid grid-cols-2 gap-x-6 gap-y-6 sm:grid-cols-3 lg:grid-cols-6">
             <Cifra valor={t.personas} etiqueta="personas con cuenta" />
             <Cifra valor={t.conAccesoVigente} etiqueta="con acceso vigente" />
             <Cifra valor={t.entraron} etiqueta="ya entraron" destacada />
@@ -137,6 +121,7 @@ export default async function PaginaAdmin() {
               detalle={t.nuncaEntraron > 0 ? 'se les manda recordatorio desde Alumnos' : undefined}
             />
             <Cifra valor={t.activosSemana} etiqueta="entraron esta semana" />
+            <Cifra valor={t.certificadosEmitidos} etiqueta="certificados emitidos" />
           </div>
 
           <div className="flex flex-col gap-1.5">
@@ -232,7 +217,7 @@ export default async function PaginaAdmin() {
             <NuevaSesion cohortes={t.cohortes} reinicio={t.sesiones.length} />
           ) : (
             <p className="text-sm text-muted-foreground">
-              Para agendar sesiones primero crea una cohorte en el curso.
+              Para agendar sesiones primero crea una generación en el curso.
             </p>
           )}
         </Tarjeta>
@@ -294,59 +279,12 @@ export default async function PaginaAdmin() {
         )}
       </Seccion>
 
-      {/* --- Ingresos y encuestas ---------------------------------------------- */}
-      <div className="grid gap-3 lg:grid-cols-[1.4fr_1fr]">
-        <Seccion
-          titulo="Ingresos"
-          apoyo="Pagos que entraron por Stripe"
-          accion={
-            <Button asChild variant="outline" size="sm">
-              <Link href="/admin/alumnos">Ver pagos</Link>
-            </Button>
-          }
-        >
-          <Tarjeta className="flex flex-col gap-5 p-5 sm:p-6">
-            <div className="grid grid-cols-2 gap-x-6 gap-y-6 sm:grid-cols-3">
-              {t.ingresos.totalPorMoneda.length === 0 ? (
-                <Cifra valor="$0" etiqueta="cobrado" />
-              ) : (
-                t.ingresos.totalPorMoneda.map((m) => (
-                  <Cifra
-                    key={m.moneda}
-                    valor={dinero(m.total, m.moneda)}
-                    etiqueta={`cobrado en ${m.moneda}`}
-                    detalle={`${dinero(m.esteMes, m.moneda)} este mes`}
-                    destacada
-                  />
-                ))
-              )}
-              <Cifra valor={t.ingresos.pagos} etiqueta="pagos registrados" />
-              <Cifra valor={t.certificadosEmitidos} etiqueta="certificados emitidos" />
-            </div>
-
-            {t.ingresos.ultimos.length > 0 ? (
-              <ul className="flex flex-col divide-y divide-border border-t border-border">
-                {t.ingresos.ultimos.map((p, i) => (
-                  <li key={`${p.fecha}-${i}`} className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1 py-2.5 text-sm">
-                    <span className="flex min-w-0 flex-wrap items-baseline gap-x-2">
-                      <span className="truncate font-medium">{p.email}</span>
-                      <span className="text-muted-foreground">{p.cursoTitulo}</span>
-                    </span>
-                    <span className="flex items-baseline gap-3 text-muted-foreground tabular-nums">
-                      <span className="font-medium text-foreground">{dinero(p.monto, p.moneda)}</span>
-                      <span className="text-xs">{fechaCorta(p.fecha)}</span>
-                    </span>
-                  </li>
-                ))}
-              </ul>
-            ) : (
-              <p className="text-sm text-muted-foreground">
-                Todavía no entra ningún pago por Stripe. Las altas manuales no generan pago.
-              </p>
-            )}
-          </Tarjeta>
-        </Seccion>
-
+      {/* --- Encuestas ----------------------------------------------------------
+          Aquí vivía "Ingresos": cobrado por moneda y los últimos pagos con el
+          correo de quien pagó. Salió del panel el 21-sep-2026 porque esta
+          pantalla se proyecta en sala. El dinero va a tener su propio apartado,
+          con Stripe conectado. */}
+      <div className="grid gap-3">
         <Seccion
           titulo="Encuestas en vivo"
           accion={

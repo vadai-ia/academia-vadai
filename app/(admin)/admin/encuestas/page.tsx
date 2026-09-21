@@ -3,6 +3,7 @@ import Link from 'next/link'
 
 import { NuevaEncuesta } from '@/components/admin/nueva-encuesta'
 import { Badge } from '@/components/ui/badge'
+import { Button } from '@/components/ui/button'
 import { Titulo } from '@/components/ui-vadai/superficie'
 import { opcionesDeAlta } from '@/lib/admin/alumnos'
 import { exigirAdmin } from '@/lib/auth/sesion'
@@ -42,30 +43,50 @@ export default async function PaginaEncuestas() {
       ) : (
         <ul className="flex flex-col gap-3">
           {encuestas.map((encuesta) => (
-            <li key={encuesta.id}>
-              <Link
-                href={`/admin/encuestas/${encuesta.id}`}
-                className="flex flex-wrap items-center justify-between gap-3 rounded-[10px] border border-border px-4 py-3 transition-colors hover:border-primary/60"
-              >
-                <div className="flex min-w-0 flex-col gap-1">
-                  <span className="flex flex-wrap items-center gap-2">
-                    <span className="truncate font-medium">{encuesta.title}</span>
-                    <Badge variant={VARIANTE[encuesta.status]} className="shrink-0">
-                      {ETIQUETA_ESTADO_ENCUESTA[encuesta.status]}
-                    </Badge>
-                  </span>
-                  <span className="text-xs text-muted-foreground">
-                    <span className="font-mono tracking-wider">{encuesta.join_code}</span> ·{' '}
-                    {encuesta.curso}
-                    {encuesta.cohorte ? ` · ${encuesta.cohorte}` : ''}
-                  </span>
-                </div>
+            <li
+              key={encuesta.id}
+              className="flex flex-wrap items-center justify-between gap-3 rounded-[10px] border border-border px-4 py-3 transition-colors hover:border-primary/60"
+            >
+              <div className="flex min-w-0 flex-col gap-1">
+                <span className="flex flex-wrap items-center gap-2">
+                  <Link
+                    href={`/admin/encuestas/${encuesta.id}`}
+                    className="truncate font-medium underline-offset-4 hover:underline"
+                  >
+                    {encuesta.title}
+                  </Link>
+                  <Badge variant={VARIANTE[encuesta.status]} className="shrink-0">
+                    {ETIQUETA_ESTADO_ENCUESTA[encuesta.status]}
+                  </Badge>
+                </span>
+                <span className="text-xs text-muted-foreground">
+                  <span className="font-mono tracking-wider">{encuesta.join_code}</span> ·{' '}
+                  {encuesta.curso}
+                  {encuesta.cohorte ? ` · ${encuesta.cohorte}` : ''}
+                </span>
+              </div>
 
-                <div className="flex shrink-0 gap-4 text-xs text-muted-foreground tabular-nums">
+              <div className="flex shrink-0 flex-wrap items-center gap-4">
+                <span className="flex gap-4 text-xs text-muted-foreground tabular-nums">
                   <span>{encuesta.totalPreguntas} preguntas</span>
                   <span>{encuesta.totalParticipantes} participantes</span>
-                </div>
-              </Link>
+                </span>
+
+                {/* Proyectar sin entrar a la encuesta (21-sep-2026): en sala, lo
+                    que se necesita es abrir la pantalla en el proyector de un
+                    clic. En otra pestaña, para que el panel se quede donde
+                    está y no se pierdan los controles a media dinámica. */}
+                <Button asChild variant="outline" size="sm">
+                  <a
+                    href={`/proyectar/${encuesta.projection_token}`}
+                    target="_blank"
+                    rel="noreferrer"
+                    aria-label={`Proyectar ${encuesta.title}`}
+                  >
+                    Proyectar ↗
+                  </a>
+                </Button>
+              </div>
             </li>
           ))}
         </ul>

@@ -30,7 +30,7 @@ const ZONA_CDMX = 'America/Mexico_City'
 
 const esquemaCohorte = z.object({
   course_id: z.uuid('Curso inválido.'),
-  name: z.string().trim().min(2, 'La cohorte necesita un nombre.').max(120),
+  name: z.string().trim().min(2, 'La generación necesita un nombre.').max(120),
   starts_on: z.string().trim().nullable(),
   ends_on: z.string().trim().nullable(),
 })
@@ -119,7 +119,7 @@ export async function crearCohorte(_previo: EstadoAccion, datos: FormData): Prom
     return {
       error: /cohorts_fechas_coherentes/.test(error.message)
         ? 'La fecha de fin no puede ser anterior a la de inicio.'
-        : 'No se pudo crear la cohorte.',
+        : 'No se pudo crear la generación.',
     }
   }
 
@@ -133,7 +133,7 @@ export async function eliminarCohorte(_previo: EstadoAccion, datos: FormData): P
 
   const id = String(datos.get('id') ?? '')
   const cursoId = String(datos.get('course_id') ?? '')
-  if (!id) return { error: 'Falta la cohorte.' }
+  if (!id) return { error: 'Falta la generación.' }
 
   // Las inscripciones NO se borran: cohort_id es `on delete set null`, así que
   // el alumno conserva su acceso y solo deja de pertenecer a un grupo.
@@ -142,7 +142,7 @@ export async function eliminarCohorte(_previo: EstadoAccion, datos: FormData): P
 
   if (error) {
     registrarFallo('eliminarCohorte', { id }, error.message)
-    return { error: 'No se pudo eliminar la cohorte. Inténtalo otra vez.' }
+    return { error: 'No se pudo eliminar la generación. Inténtalo otra vez.' }
   }
 
   revalidatePath(`/admin/cursos/${cursoId}`)
@@ -158,7 +158,7 @@ export async function crearSesion(_previo: EstadoAccion, datos: FormData): Promi
   await exigirAdmin()
 
   const cohorteId = String(datos.get('cohort_id') ?? '')
-  if (!cohorteId) return { error: 'Falta la cohorte.' }
+  if (!cohorteId) return { error: 'Falta la generación.' }
 
   const resultado = esquemaSesion.safeParse({
     title: datos.get('title'),
@@ -252,7 +252,7 @@ export async function enviarCalendarioPorCorreo(
 
   const cohorteId = String(datos.get('cohort_id') ?? '')
   const para = String(datos.get('para') ?? '').trim().toLowerCase()
-  if (!cohorteId) return { error: 'Falta la cohorte.' }
+  if (!cohorteId) return { error: 'Falta la generación.' }
   if (para && !/^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(para)) return { error: 'Ese correo no parece válido.' }
 
   const supabase = await crearClienteServidor()
@@ -265,7 +265,7 @@ export async function enviarCalendarioPorCorreo(
       .gte('scheduled_at', new Date(Date.now() - 3 * 60 * 60 * 1000).toISOString())
       .order('scheduled_at'),
   ])
-  if (!cohorte) return { error: 'La cohorte no existe.' }
+  if (!cohorte) return { error: 'La generación no existe.' }
   if (!sesiones || sesiones.length === 0) return { error: 'No hay sesiones futuras que mandar.' }
 
   const { data: curso } = await supabase.from('courses').select('title').eq('id', cohorte.course_id).maybeSingle()
@@ -368,7 +368,7 @@ export async function enviarCalendarioPorCorreo(
   return {
     aviso: para
       ? `Prueba enviada a ${para} con las ${sesiones.length} sesiones (en la prueba, el botón de acceso lleva al login).`
-      : `Las fechas salieron a ${resultado.enviados} alumno${resultado.enviados === 1 ? '' : 's'} de la cohorte` +
+      : `Las fechas salieron a ${resultado.enviados} alumno${resultado.enviados === 1 ? '' : 's'} de la generación` +
         (conAcceso > 0 ? `; ${conAcceso} con su liga de acceso, porque no han entrado.` : '.'),
   }
 }

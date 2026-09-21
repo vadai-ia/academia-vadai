@@ -76,7 +76,7 @@ export function AjustesEncuesta({
           </div>
 
           <div className="flex flex-col gap-1.5">
-            <Label htmlFor="aj-cohorte">Cohorte</Label>
+            <Label htmlFor="aj-cohorte">Generación</Label>
             <select
               id="aj-cohorte"
               name="cohort_id"

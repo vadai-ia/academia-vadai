@@ -49,9 +49,9 @@ function SelectorDeGrupo({ id, grupos }: { id: string; grupos: Grupo[] }) {
 
   return (
     <div className="flex flex-col gap-1.5">
-      <Label htmlFor={id}>Grupo</Label>
+      <Label htmlFor={id}>Generación</Label>
       <select id={id} name="cohort_id" defaultValue="" className={claseSelect}>
-        <option value="">Sin grupo</option>
+        <option value="">Sin generación</option>
         {grupos.map((g) => (
           <option key={g.id} value={g.id}>
             {g.nombre}
@@ -59,7 +59,7 @@ function SelectorDeGrupo({ id, grupos }: { id: string; grupos: Grupo[] }) {
         ))}
       </select>
       <p className="text-xs text-muted-foreground">
-        El grupo decide qué calendario de sesiones en vivo ve. Aplica a todos los que agregues
+        La generación decide qué calendario de sesiones en vivo ve. Aplica a todos los que agregues
         ahora.
       </p>
     </div>
