@@ -160,6 +160,36 @@ export type Database = {
         }
         Relationships: []
       }
+      client_errors: {
+        Row: {
+          id: string
+          mensaje: string | null
+          pila: string | null
+          ruta: string | null
+          digest: string | null
+          navegador: string | null
+          created_at: string
+        }
+        Insert: {
+          id?: string
+          mensaje?: string | null
+          pila?: string | null
+          ruta?: string | null
+          digest?: string | null
+          navegador?: string | null
+          created_at?: string
+        }
+        Update: {
+          id?: string
+          mensaje?: string | null
+          pila?: string | null
+          ruta?: string | null
+          digest?: string | null
+          navegador?: string | null
+          created_at?: string
+        }
+        Relationships: []
+      }
       cohort_sessions: {
         Row: {
           id: string

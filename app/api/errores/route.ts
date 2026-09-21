@@ -1,17 +1,21 @@
 import { NextResponse, type NextRequest } from 'next/server'
 
+import { crearClienteServiceRole } from '@/lib/supabase/service-role'
+
 /**
- * Recibe los errores del navegador y los deja en el log del servidor.
+ * Recibe los errores del navegador y los deja donde se puedan leer.
  *
  * El 21-sep-2026, día del lanzamiento, una alumna mandó una foto de la barra
  * azul de Next: "a client-side exception has occurred". Eso no llega a ningún
  * log —pasa en su navegador— y sin el mensaje ni el navegador no hay forma de
  * saber qué falló. La pantalla de error (app/error.tsx) manda aquí el mensaje,
- * la ruta y el user agent; en los logs de Vercel se buscan como
- * `errorDelNavegador`.
+ * la ruta y el user agent.
  *
- * Sin sesión a propósito: el error puede ocurrir antes de entrar. Se acota el
- * tamaño y no se guarda nada en la base: es un log, no una tabla.
+ * Va al log de Vercel (`errorDelNavegador`) Y a `academia.client_errors`: el
+ * log no se puede leer desde el repo sin el CLI, y la tabla sí. Service role
+ * porque el error puede ocurrir antes de entrar y no hay sesión que valga.
+ *
+ * Se acota el tamaño; no se guarda quién es. Es un log, no un expediente.
  */
 export async function POST(request: NextRequest) {
   let cuerpo: unknown = null
@@ -24,17 +28,22 @@ export async function POST(request: NextRequest) {
   const c = (typeof cuerpo === 'object' && cuerpo !== null ? cuerpo : {}) as Record<string, unknown>
   const corta = (v: unknown, tope: number) => (typeof v === 'string' ? v.slice(0, tope) : null)
 
-  console.error(
-    JSON.stringify({
-      operacion: 'errorDelNavegador',
-      mensaje: corta(c.mensaje, 500),
-      pila: corta(c.pila, 1500),
-      ruta: corta(c.ruta, 300),
-      digest: corta(c.digest, 100),
-      navegador: corta(request.headers.get('user-agent'), 300),
-      cuando: new Date().toISOString(),
-    })
-  )
+  const fila = {
+    mensaje: corta(c.mensaje, 500),
+    pila: corta(c.pila, 3000),
+    ruta: corta(c.ruta, 300),
+    digest: corta(c.digest, 100),
+    navegador: corta(request.headers.get('user-agent'), 300),
+  }
+
+  console.error(JSON.stringify({ operacion: 'errorDelNavegador', ...fila, cuando: new Date().toISOString() }))
+
+  try {
+    const { error } = await crearClienteServiceRole().from('client_errors').insert(fila)
+    if (error) console.error(JSON.stringify({ operacion: 'errorDelNavegador:guardar', error: error.message }))
+  } catch (e) {
+    console.error(JSON.stringify({ operacion: 'errorDelNavegador:guardar', error: e instanceof Error ? e.message : 'desconocido' }))
+  }
 
   return NextResponse.json({ ok: true })
 }
