@@ -103,13 +103,18 @@ async function sembrarDatos(cliente, usuarios) {
     // Perfiles. `sinPerfil` se omite a propósito.
     for (const usuario of USUARIOS_QA.filter((u) => u.conPerfil)) {
       const resuelto = usuarios[usuario.llave]
+      // También `status` y `company_id`: el seed es el RESET del QA. Un
+      // qa-alumno suspendido a mano, o dejado con empresa por una suite que
+      // se cayó a medias, rompía las aserciones sobre "activos" (21-sep-2026).
       await cliente.query(
-        `insert into academia.profiles (user_id, email, full_name, role)
-         values ($1, $2, $3, $4)
+        `insert into academia.profiles (user_id, email, full_name, role, status, company_id)
+         values ($1, $2, $3, $4, 'active', null)
          on conflict (user_id) do update
            set email = excluded.email,
                full_name = excluded.full_name,
-               role = excluded.role`,
+               role = excluded.role,
+               status = 'active',
+               company_id = null`,
         [resuelto.id, usuario.email, usuario.nombre, usuario.role]
       )
     }

@@ -148,15 +148,33 @@ export async function listarAlumnos(filtros: FiltrosAlumnos = {}): Promise<Pagin
     return c.order('created_at', { ascending: false }).range(desde, desde + POR_PAGINA - 1)
   }
 
+  // Solo para caer de pie: PostgREST contesta 416 cuando el rango queda fuera
+  // de la tabla (una URL vieja, gente borrada), así que ahí se cuenta y se
+  // pide la última página. El caso normal sigue siendo una sola consulta.
+  const contar = async () => {
+    let c = supabase
+      .from('profiles')
+      .select('user_id', { count: 'exact', head: true })
+      .neq('role', 'invitado')
+      .eq('status', filtros.ver === 'suspendidos' ? 'suspended' : 'active')
+    if (busqueda) c = c.or(busqueda)
+    if (filtros.empresa === 'general') c = c.is('company_id', null)
+    else if (filtros.empresa) c = c.eq('company_id', filtros.empresa)
+    if (filtros.acceso === 'nunca') c = c.is('last_sign_in_at', null)
+    else if (filtros.acceso === 'entraron') c = c.not('last_sign_in_at', 'is', null)
+    const { count } = await c
+    return count ?? 0
+  }
+
   let pagina = paginaPedida
-  let { data, count, error } = await consultar(pagina)
+  let respuesta = await consultar(pagina)
+  if (respuesta.error && pagina > 1) {
+    pagina = Math.max(1, Math.ceil((await contar()) / POR_PAGINA))
+    respuesta = await consultar(pagina)
+  }
+  const { data, count, error } = respuesta
   const total = count ?? 0
   const paginas = Math.max(1, Math.ceil(total / POR_PAGINA))
-  // Una página fuera de rango (una URL vieja, un alumno borrado) cae en la última.
-  if (!error && pagina > paginas) {
-    pagina = paginas
-    ;({ data, count, error } = await consultar(pagina))
-  }
 
   if (error) {
     console.error(JSON.stringify({ operacion: 'listarAlumnos', filtros, error: error.message }))
