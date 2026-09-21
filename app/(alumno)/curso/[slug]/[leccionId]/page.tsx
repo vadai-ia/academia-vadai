@@ -104,6 +104,13 @@ export default async function PaginaLeccion({
           <p className="rounded-lg border border-destructive/40 bg-destructive/10 px-4 py-3 text-sm text-destructive">
             El video no está disponible por un problema de configuración. Avísanos.
           </p>
+        ) : leccion.tipo === 'video' ? (
+          // Una lección de video sin video todavía no es un error: es el lugar
+          // reservado para la grabación de una sesión que aún no ocurre (M14).
+          // Sin esto la pantalla salía en blanco y parecía rota.
+          <p className="rounded-[10px] border border-dashed border-border px-4 py-6 text-center text-sm text-muted-foreground">
+            El video se publica aquí en cuanto esté listo. Te avisamos en la campana.
+          </p>
         ) : null}
 
         {leccion.descripcion ? <RenderRico contenido={leccion.descripcion} /> : null}
