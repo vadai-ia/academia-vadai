@@ -175,6 +175,17 @@ async function main() {
   const rutaCohorte = `/admin/cohortes/${IDS.cohorte}`
   const rutaCursoAdmin = `/admin/cursos/${IDS.curso}`
   const rutaCursoAlumno = `/curso/${CURSO_QA.slug}`
+  const rutaEnVivo = `${rutaCursoAlumno}/en-vivo`
+
+  // El día CDMX en que cae la sesión futura del seed (dentro de una semana).
+  // Se calcula igual que la página: con `en-CA` en la zona de México, no con
+  // getDate(), que daría el día del servidor.
+  const fechaFutura = new Intl.DateTimeFormat('en-CA', {
+    timeZone: 'America/Mexico_City',
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+  }).format(new Date(Date.now() + 7 * 24 * 60 * 60 * 1000))
 
   const bd = await conectarPostgres(vars)
 
@@ -255,14 +266,29 @@ async function main() {
     // ====================================================================
     const G3 = 'ALUMNO VIGENTE'
 
+    // Las sesiones salieron de "Contenido" y viven en su pestaña (M14 · Fase 2):
+    // ahí estorbaban para llegar al temario.
     const cursoAlumno = await texto(rutaCursoAlumno, vigente)
-    afirmar(G3, 've el calendario', true, cursoAlumno.includes('Sesiones en vivo'))
+    afirmar(G3, 'Contenido lleva a la pestaña', true, cursoAlumno.includes(`${rutaCursoAlumno}/en-vivo`))
+    afirmar(G3, 'Contenido anuncia la próxima', true, cursoAlumno.includes('Próxima sesión en vivo'))
+    afirmar(G3, 'Contenido ya no trae ligas de Meet', false, cursoAlumno.includes('meet.google.com'))
+
+    const enVivo = await texto(rutaEnVivo, vigente)
     afirmar(G3, 've sus dos sesiones', true,
-      cursoAlumno.includes('Ya ocurri') && cursoAlumno.includes('xima'))
-    afirmar(G3, 'recibe el link de Meet', true, cursoAlumno.includes('meet.google.com/qa-futura'))
+      (enVivo.match(/data-sesion="/g) ?? []).length >= 2)
+    afirmar(G3, 'la futura cae en su día de CDMX', true,
+      enVivo.includes(`data-fecha="${fechaFutura}"`))
+    afirmar(G3, 'recibe el link de Meet', true, enVivo.includes('meet.google.com/qa-futura'))
+    afirmar(G3, 'cada sesión abre su detalle', true,
+      enVivo.includes(`id="sesion-${IDS.sesionFutura}"`) && enVivo.includes('popover="auto"'))
     // Solo hora de CDMX (21-sep-2026): sin ella, servidor y navegador
     // pintaban distinto y React 418 tiraba la página del curso.
-    afirmar(G3, 'la hora se dice en CDMX', true, cursoAlumno.includes('hora de la Ciudad de México'))
+    afirmar(G3, 'la hora se dice en CDMX', true, enVivo.includes('hora de la Ciudad de México'))
+
+    const enVivoLista = await texto(`${rutaEnVivo}?vista=lista`, vigente)
+    afirmar(G3, 'la vista de lista guarda las pasadas', true,
+      enVivoLista.includes('Sesiones anteriores'))
+    afirmar(G3, 'el selector dice en cuál estás', true, enVivoLista.includes('aria-current="true"'))
 
     // La campana avisa de la sesión futura: el seed la sembró hace un momento,
     // que es después de "la última vez que abrió la campana" (hace 2 h).
@@ -273,6 +299,7 @@ async function main() {
     const inicio = await texto('/mis-cursos', vigente)
     afirmar(G3, 'la campana cuenta la sesión agendada', true,
       Number(inicio.match(/data-nuevas="(\d+)"/)?.[1] ?? 0) >= 1 && inicio.includes('Sesión en vivo'))
+    afirmar(G3, 'la campana lleva a la pestaña', true, inicio.includes(`${rutaCursoAlumno}/en-vivo`))
 
     // ====================================================================
     // La grabación ligada (§3.10).
@@ -294,7 +321,8 @@ async function main() {
       )
       afirmar(G4, 'quedó ligada en la base', IDS.leccionVideo, rows[0]?.recording_lesson_id)
 
-      const conGrabacion = await texto(rutaCursoAlumno, vigente)
+      // La grabación se ve en la lista, que es donde se guardan las pasadas.
+      const conGrabacion = await texto(`${rutaEnVivo}?vista=lista`, vigente)
       afirmar(G4, 'el alumno ve "Ver grabación"', true, conGrabacion.includes('Ver grabaci'))
 
       // Se deja como estaba.
@@ -308,8 +336,17 @@ async function main() {
     const G5 = 'ALUMNO VENCIDO'
 
     const cursoVencido = await texto(rutaCursoAlumno, vencido)
-    afirmar(G5, 'no ve el calendario', false, cursoVencido.includes('Sesiones en vivo'))
+    afirmar(G5, 'no ve la próxima sesión', false, cursoVencido.includes('Próxima sesión en vivo'))
     afirmar(G5, 'no recibe links de Meet', false, cursoVencido.includes('meet.google.com'))
+    // La pestaña se queda apagada CON su motivo: si desaparece, el alumno cree
+    // que la plataforma perdió algo.
+    afirmar(G5, 'la pestaña sale apagada con su motivo', true,
+      cursoVencido.includes('Renuévalo para volver a las sesiones en vivo'))
+
+    const vivoVencido = await pedir(rutaEnVivo, vencido)
+    afirmar(G5, '/en-vivo lo devuelve al curso', true,
+      [303, 307].includes(vivoVencido.status) &&
+        (vivoVencido.headers.get('location') ?? '').endsWith(rutaCursoAlumno))
   } finally {
     await bd.end().catch(() => {})
   }

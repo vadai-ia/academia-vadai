@@ -50,7 +50,7 @@ En su lugar: `pnpm db:migrate` → `scripts/migrate.mjs`, que aplica los `.sql` 
 ```
 /app
   /(auth)        login, reset
-  /(alumno)      mis-cursos, curso/[slug], comunidad, blog, perfil
+  /(alumno)      mis-cursos, curso/[slug], curso/[slug]/en-vivo, comunidad, blog, perfil
   /(admin)       admin/* (cursos, alumnos, alumnos/[userId] ficha, entregas, cohortes, posts, encuestas)
   /api/stripe/webhook
   /api/certificados/[folio]
@@ -269,8 +269,13 @@ pastillas **envuelven** si no caben; en móvil se desplazan con un degradado en 
 borde (`mask-image`) que dice "hay más". No es un sidebar a propósito.
 
 Estructura copiada de Skool: **pestañas por sección dentro del curso**
-(`components/ui-vadai/pestanas.tsx`), rejilla de cursos con portada 16:9 y barra
-de avance, y feed con avatar a la izquierda. Los primitivos viven en
+(`components/ui-vadai/pestanas.tsx`) — Contenido · En vivo · Comunidad —, rejilla
+de cursos con portada 16:9 y barra de avance, y feed con avatar a la izquierda.
+Las sesiones en vivo viven en **su propia pestaña** (21-sep-2026): encima del
+temario estorbaban para llegar a la primera lección. Y en el índice del curso
+**los módulos se abren y se cierran** con `<details>`, abierto solo aquel en el
+que estás: abiertos todos, dieciséis módulos son una lista plana de cuarenta
+renglones donde nadie se ubica. Los primitivos viven en
 `components/ui-vadai/superficie.tsx`; una pantalla nueva se arma con esos, no con
 clases sueltas.
 
