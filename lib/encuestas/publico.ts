@@ -385,7 +385,7 @@ export async function entrar(
   // escaneó con ganas al minuto uno no lo vuelve a intentar—. Registrarse antes
   // no cuesta nada: la sala de espera ya explica que falta abrir la pregunta.
   if (encuesta.status === 'closed') {
-    return { ok: false, motivo: 'Esta dinámica ya terminó.' }
+    return { ok: false, motivo: 'Esta encuesta ya terminó.' }
   }
 
   if (await excedeCuota(encuesta.id, 'join')) {

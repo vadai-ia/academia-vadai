@@ -3,7 +3,7 @@ import type { ReactNode } from 'react'
 
 import { Campana } from '@/components/marca/campana'
 import { Encabezado } from '@/components/marca/encabezado'
-import { IconoBlog, IconoCursos, IconoPerfil } from '@/components/marca/iconos-navegacion'
+import { IconoBlog, IconoCursos, IconoDinamicas, IconoPerfil } from '@/components/marca/iconos-navegacion'
 import { SaltarAlContenido } from '@/components/marca/saltar-al-contenido'
 import { esEquipo, exigirPerfil } from '@/lib/auth/sesion'
 import { notificacionesDelAlumno } from '@/lib/notificaciones/consultas'
@@ -27,6 +27,8 @@ export default async function LayoutAlumno({ children }: { children: ReactNode }
         extra={<Campana lista={novedades.lista} nuevas={novedades.nuevas} />}
         navegacion={[
           { href: '/mis-cursos', etiqueta: 'Inicio', icono: IconoCursos, exacto: true },
+          // Segunda a propósito: es lo que se toca durante la sesión.
+          { href: '/dinamicas', etiqueta: 'Dinámicas', icono: IconoDinamicas },
           { href: '/blog', etiqueta: 'Blog', icono: IconoBlog },
           { href: '/perfil', etiqueta: 'Mi perfil', icono: IconoPerfil },
         ]}

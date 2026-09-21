@@ -146,7 +146,7 @@ export function PantallaEnVivo({
   // sala no puede ponerse a decidir entre "abrir la 3" y "cerrar la 2".
   const textoAvanzar = hayPendientes
     ? `Siguiente pregunta (${datos.pendientes} más)`
-    : 'Terminar la dinámica'
+    : 'Terminar la encuesta'
 
   return (
     <div className="flex min-h-dvh flex-col gap-6 p-8 lg:p-12">
@@ -209,7 +209,7 @@ export function PantallaEnVivo({
         <div className="flex flex-wrap items-center gap-3">
           {terminada ? (
             <p className="text-lg text-muted-foreground">
-              Dinámica terminada. Los resultados están en el panel.
+              Encuesta terminada. Los resultados están en el panel.
             </p>
           ) : esperando ? (
             // La primera vez no es un envío: es el botón que lanza la cuenta

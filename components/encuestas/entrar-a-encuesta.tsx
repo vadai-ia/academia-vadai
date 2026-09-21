@@ -131,8 +131,8 @@ export function EntrarAEncuesta({
             <Boton>Entrar</Boton>
             <p className="text-xs text-muted-foreground">
               {permiteInvitados
-                ? 'Te mandamos un correo para que pongas tu contraseña y vuelvas a entrar en la siguiente dinámica sin llenar nada.'
-                : 'Esta dinámica es solo para quien ya tiene cuenta en la academia.'}
+                ? 'Te mandamos un correo para que pongas tu contraseña y vuelvas a entrar en la siguiente encuesta sin llenar nada.'
+                : 'Esta encuesta es solo para quien ya tiene cuenta en la academia.'}
             </p>
           </div>
         </>

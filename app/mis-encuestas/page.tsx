@@ -10,7 +10,7 @@ import { exigirPerfil, nombreVisible } from '@/lib/auth/sesion'
 import { ETIQUETA_ESTADO_ENCUESTA } from '@/lib/encuestas/comun'
 import { misEncuestas } from '@/lib/encuestas/consultas'
 
-export const metadata: Metadata = { title: 'Mis dinámicas' }
+export const metadata: Metadata = { title: 'Mis encuestas' }
 export const dynamic = 'force-dynamic'
 
 const VARIANTE = {
@@ -60,13 +60,13 @@ export default async function PaginaMisEncuestas() {
       </header>
 
       <Titulo apoyo={`Hola, ${nombreVisible(perfil)}. Aquí está lo que has contestado con nosotros.`}>
-        Mis dinámicas
+        Mis encuestas
       </Titulo>
 
       {encuestas.length === 0 ? (
         <Tarjeta className="border-dashed px-5 py-12 text-center">
           <p className="text-sm text-muted-foreground">
-            Todavía no has participado en ninguna dinámica con esta cuenta.
+            Todavía no has participado en ninguna encuesta con esta cuenta.
           </p>
         </Tarjeta>
       ) : (
@@ -102,7 +102,7 @@ export default async function PaginaMisEncuestas() {
 
       {/* La razón de ser de todo esto: la persona dejó su correo en un evento y
           ahora tiene cuenta. Este es el único lugar donde se le puede contar que
-          existe algo más que la dinámica a la que entró. */}
+          existe algo más que la encuesta a la que entró. */}
       <Tarjeta className="flex flex-col gap-3 px-5 py-6">
         <h2 className="text-lg font-medium">¿Quieres llevarte esto a tu equipo?</h2>
         <p className="text-sm text-muted-foreground text-balance">
