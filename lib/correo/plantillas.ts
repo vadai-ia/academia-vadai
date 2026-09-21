@@ -367,15 +367,22 @@ export type SesionParaCorreo = {
  *
  * Cada sesión trae sus ligas a Google Calendar y Outlook, que abren
  * prellenadas sin entrar a la plataforma; el botón grande descarga TODAS en
- * un .ics (Apple y cualquier otro), que sí pide entrar. Y se recuerda que la
- * liga de Zoom se activa en Mis cursos 15 minutos antes.
+ * un .ics (Apple y cualquier otro) por una URL firmada, que tampoco pide
+ * entrar: en el navegador del correo del teléfono no hay sesión. Y se recuerda
+ * que la liga de Zoom se activa en Mis cursos 15 minutos antes.
+ *
+ * Con `urlAcceso` (quien nunca ha entrado), el botón principal pasa a ser
+ * "Entrar a mi academia" —su liga de 30 días— y el .ics baja a secundario:
+ * el correo que abren el día de la sesión es el que los mete.
  */
 export function plantillaCalendario(opciones: {
   nombre?: string | null
   curso: string
   sesiones: SesionParaCorreo[]
-  /** URL del .ics con todas. */
+  /** URL del .ics con todas (firmada, lib/calendario/firma.ts). */
   urlTodas: string
+  /** Liga de acceso de 30 días; solo para quien nunca ha entrado. */
+  urlAcceso?: string | null
   base?: string | null
 }): Plantilla {
   const nombre = opciones.nombre?.trim() ?? ''
@@ -401,17 +408,27 @@ export function plantillaCalendario(opciones: {
     )
     .join('')
 
+  const acceso = opciones.urlAcceso
+    ? `
+    <p style="${parrafo}">
+      Todavía no has entrado a tu academia. Es un clic: eliges tu contraseña y quedas lista o listo para la sesión.
+    </p>
+    ${boton(opciones.urlAcceso, 'Entrar a mi academia')}
+    <p style="${chica}margin:-12px 0 22px;">Tu liga es personal y vale 30 días.</p>`
+    : ''
+
   const html = envoltura(
     `
     <p style="${parrafo}">${escapar(saludo)}</p>
+    ${acceso}
     <p style="${parrafo}">
       Estas son las ${opciones.sesiones.length} sesiones en vivo de <strong>${escapar(opciones.curso)}</strong>.
       Agrégalas a tu calendario hoy, para que ninguna se te pase.
     </p>
-    ${boton(opciones.urlTodas, 'Agregar todas a mi calendario')}
+    ${(acceso ? botonSecundario : boton)(opciones.urlTodas, 'Agregar todas a mi calendario')}
     <p style="${chica}margin:0 0 18px;">
-      Descarga un archivo de calendario con las ${opciones.sesiones.length} fechas (te pide entrar con tu correo). También puedes
-      agregarlas una por una aquí abajo.
+      Descarga un archivo de calendario con las ${opciones.sesiones.length} fechas. También puedes agregarlas una
+      por una aquí abajo.
     </p>
     <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="margin:0 0 18px;">
       ${filas}
@@ -430,7 +447,7 @@ export function plantillaCalendario(opciones: {
 
 Estas son las ${opciones.sesiones.length} sesiones en vivo de ${opciones.curso}. Agrégalas a tu calendario hoy, para que ninguna se te pase.
 
-Agregar todas a mi calendario (.ics, te pide entrar con tu correo):
+${opciones.urlAcceso ? `Todavía no has entrado a tu academia. Es un clic: eliges tu contraseña y quedas lista o listo para la sesión. Tu liga es personal y vale 30 días:\n${opciones.urlAcceso}\n\n` : ''}Agregar todas a mi calendario (.ics):
 ${opciones.urlTodas}
 
 ${opciones.sesiones.map((s) => `${s.titulo}\n${s.horario}\nGoogle Calendar: ${s.google}\nOutlook: ${s.outlook}`).join('\n\n')}

@@ -4,9 +4,13 @@ import { revalidatePath } from 'next/cache'
 import { redirect } from 'next/navigation'
 import { z } from 'zod'
 
+import { ultimosInicios } from '@/lib/admin/accesos'
 import { diaDeLaSemana, sumarDias } from '@/lib/admin/fechas'
+import { crearEnlacesDurables } from '@/lib/auth/enlace-durable'
+import { RUTAS } from '@/lib/auth/rutas'
 import { exigirAdmin } from '@/lib/auth/sesion'
 import { describirHorario, enlaceGoogle, enlaceOutlook } from '@/lib/calendario/enlaces'
+import { urlIcsDeCohorte } from '@/lib/calendario/firma'
 import { plantillaCalendario } from '@/lib/correo/plantillas'
 import { enviarCorreosEnLote } from '@/lib/correo/resend'
 import { crearClienteServidor } from '@/lib/supabase/server'
@@ -283,12 +287,16 @@ export async function enviarCalendarioPorCorreo(
       outlook: enlaceOutlook(datosSesion),
     }
   })
-  const urlTodas = `${base}/api/calendario/cohorte/${cohorteId}`
+  const urlTodas = urlIcsDeCohorte(base, cohorteId)
 
-  // A quién: la prueba, o todos los inscritos activos de la cohorte.
-  let destinatarios: Array<{ email: string; nombre: string | null }>
+  // A quién: la prueba, o todos los inscritos activos de la cohorte. Quien
+  // NUNCA ha entrado recibe además su liga de acceso (30 días): el correo de
+  // fechas es el que abren el día de la sesión, y desde ahí mismo entran.
+  let destinatarios: Array<{ email: string; nombre: string | null; urlAcceso: string | null }>
   if (para) {
-    destinatarios = [{ email: para, nombre: admin.full_name }]
+    // En la prueba el botón de acceso lleva al login: no se acuña una liga
+    // real para una dirección que no es la de un alumno.
+    destinatarios = [{ email: para, nombre: admin.full_name, urlAcceso: `${base}${RUTAS.login}` }]
   } else {
     const { data: inscripciones } = await supabase
       .from('enrollments')
@@ -297,12 +305,21 @@ export async function enviarCalendarioPorCorreo(
       .eq('status', 'active')
     const ids = (inscripciones ?? []).map((e) => e.user_id)
     const { data: perfiles } = ids.length
-      ? await supabase.from('profiles').select('email, full_name, role, status').in('user_id', ids)
+      ? await supabase.from('profiles').select('user_id, email, full_name, role, status').in('user_id', ids)
       : { data: [] }
-    destinatarios = (perfiles ?? [])
-      .filter((p) => p.role === 'alumno' && p.status === 'active')
-      .map((p) => ({ email: p.email, nombre: p.full_name }))
+    const alumnos = (perfiles ?? []).filter((p) => p.role === 'alumno' && p.status === 'active')
+
+    const inicios = await ultimosInicios()
+    const sinEntrar = alumnos.filter((p) => inicios.get(p.user_id) == null).map((p) => p.email)
+    const ligas = await crearEnlacesDurables({ emails: sinEntrar, creadoPor: admin.user_id })
+
+    destinatarios = alumnos.map((p) => ({
+      email: p.email,
+      nombre: p.full_name,
+      urlAcceso: ligas.get(p.email) ?? null,
+    }))
   }
+  const conAcceso = para ? 0 : destinatarios.filter((d) => d.urlAcceso).length
 
   const correos = destinatarios.map((d) => {
     const plantilla = plantillaCalendario({
@@ -310,6 +327,7 @@ export async function enviarCalendarioPorCorreo(
       curso: tituloCurso,
       sesiones: paraCorreo,
       urlTodas,
+      urlAcceso: d.urlAcceso,
       base,
     })
     return {
@@ -329,6 +347,7 @@ export async function enviarCalendarioPorCorreo(
       prueba: para || null,
       sesiones: sesiones.length,
       destinatarios: correos.length,
+      conLigaDeAcceso: conAcceso,
       enviados: resultado.enviados,
       fallidos: resultado.fallidos.length,
       motivo: resultado.motivo ?? null,
@@ -342,8 +361,9 @@ export async function enviarCalendarioPorCorreo(
   }
   return {
     aviso: para
-      ? `Prueba enviada a ${para} con las ${sesiones.length} sesiones.`
-      : `Las fechas salieron a ${resultado.enviados} alumno${resultado.enviados === 1 ? '' : 's'} de la cohorte.`,
+      ? `Prueba enviada a ${para} con las ${sesiones.length} sesiones (en la prueba, el botón de acceso lleva al login).`
+      : `Las fechas salieron a ${resultado.enviados} alumno${resultado.enviados === 1 ? '' : 's'} de la cohorte` +
+        (conAcceso > 0 ? `; ${conAcceso} con su liga de acceso, porque no han entrado.` : '.'),
   }
 }
 

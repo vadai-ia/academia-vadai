@@ -1,21 +1,35 @@
 import { NextResponse, type NextRequest } from 'next/server'
 
 import { generarIcsVarios } from '@/lib/calendario/enlaces'
+import { firmaValida } from '@/lib/calendario/firma'
 import { obtenerSesion } from '@/lib/auth/sesion'
 import { crearClienteServidor } from '@/lib/supabase/server'
+import { crearClienteServiceRole } from '@/lib/supabase/service-role'
+
+const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
 
 /**
  * Un solo .ics con TODAS las sesiones futuras de una cohorte: "agregar las
- * ocho a mi calendario" de un clic, desde el correo de fechas o desde la
- * plataforma. Con la sesión del alumno y la policy de `cohort_sessions`:
- * una cohorte ajena devuelve vacío, y vacío es 404.
+ * ocho a mi calendario" de un clic.
+ *
+ * Dos formas de abrirlo:
+ *   - Con sesión (desde la plataforma): la policy de `cohort_sessions` hace el
+ *     trabajo; una cohorte ajena devuelve vacío, y vacío es 404.
+ *   - Con la firma `?t=` (desde el correo de fechas, lib/calendario/firma.ts):
+ *     quien lee el correo en el teléfono no tiene sesión en ese navegador. Sin
+ *     firma válida y sin sesión, 401.
  */
-export async function GET(_req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
-  const sesion = await obtenerSesion()
-  if (sesion.tipo !== 'activo') return new NextResponse('Inicia sesión.', { status: 401 })
-
+export async function GET(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const { id } = await params
-  const supabase = await crearClienteServidor()
+  if (!UUID.test(id)) return new NextResponse('Sin sesiones.', { status: 404 })
+
+  const firmado = firmaValida(id, req.nextUrl.searchParams.get('t'))
+  if (!firmado) {
+    const sesion = await obtenerSesion()
+    if (sesion.tipo !== 'activo') return new NextResponse('Inicia sesión.', { status: 401 })
+  }
+
+  const supabase = firmado ? crearClienteServiceRole() : await crearClienteServidor()
   const [{ data: sesiones }, { data: cohorte }] = await Promise.all([
     supabase
       .from('cohort_sessions')

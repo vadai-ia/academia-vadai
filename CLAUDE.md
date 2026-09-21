@@ -54,6 +54,7 @@ En su lugar: `pnpm db:migrate` → `scripts/migrate.mjs`, que aplica los `.sql` 
   /(admin)       admin/* (cursos, alumnos, entregas, cohortes, posts, encuestas)
   /api/stripe/webhook
   /api/certificados/[folio]
+  /api/calendario/cohorte/[id]  # .ics con todas las sesiones; firmado (?t=) para abrirse desde el correo sin sesión
   /certificado/[folio]      # verificación pública
   /e/[codigo]               # encuesta en vivo, sin sesión (QR)
   /proyectar/[token]        # pantalla que se proyecta; exige sesión de admin (3-sep-2026)

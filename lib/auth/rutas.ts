@@ -55,6 +55,10 @@ const PREFIJOS_PUBLICOS = [
   // El reporte de errores del navegador (app/error.tsx). El error puede
   // ocurrir antes de entrar, y un reporte que rebota al login no llega.
   '/api/errores',
+  // El .ics con todas las sesiones de una cohorte (lib/calendario/firma.ts):
+  // se abre desde el correo de fechas, donde no hay sesión. Sin firma válida
+  // la ruta misma contesta 401.
+  '/api/calendario/cohorte/',
 ]
 
 export function esPublica(ruta: string): boolean {
