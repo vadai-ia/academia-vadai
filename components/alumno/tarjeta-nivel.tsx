@@ -153,8 +153,9 @@ export function TarjetaNivel({
           </ul>
           <p className="mt-3 text-xs text-muted-foreground">
             Llevas {actividad.lecciones} lección{actividad.lecciones === 1 ? '' : 'es'},{' '}
-            {actividad.comentarios} comentario{actividad.comentarios === 1 ? '' : 's'} y{' '}
-            {actividad.publicaciones} publicación{actividad.publicaciones === 1 ? '' : 'es'}.
+            {actividad.comentarios} comentario{actividad.comentarios === 1 ? '' : 's'},{' '}
+            {actividad.publicaciones} publicación{actividad.publicaciones === 1 ? '' : 'es'} y{' '}
+            {actividad.dinamicas} dinámica{actividad.dinamicas === 1 ? '' : 's'}.
           </p>
         </details>
       </div>

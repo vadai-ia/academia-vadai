@@ -398,6 +398,7 @@ function Fila({ inscrito: i, cursoId, empresas }: { inscrito: Inscrito; cursoId:
                   <li>{i.actividad.publicaciones} publicaciones</li>
                   <li>{i.actividad.comentarios} comentarios</li>
                   <li>{i.actividad.certificados} certificados</li>
+                  <li>{i.actividad.dinamicas} dinámicas</li>
                 </ul>
               </div>
             </div>

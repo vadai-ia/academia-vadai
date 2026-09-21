@@ -29,6 +29,7 @@ type FilaActividad = {
   publicaciones: number | null
   comentarios: number | null
   certificados: number | null
+  dinamicas: number | null
 }
 
 function actividadDe(f: FilaActividad): Actividad {
@@ -40,6 +41,7 @@ function actividadDe(f: FilaActividad): Actividad {
     publicaciones: f.publicaciones ?? 0,
     comentarios: f.comentarios ?? 0,
     certificados: f.certificados ?? 0,
+    dinamicas: f.dinamicas ?? 0,
   }
 }
 

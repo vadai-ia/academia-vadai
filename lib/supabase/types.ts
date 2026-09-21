@@ -403,6 +403,189 @@ export type Database = {
         }
         Relationships: []
       }
+      dynamic_boards: {
+        Row: {
+          id: string
+          dynamic_id: string
+          company_id: string | null
+          owner_user_id: string | null
+          version: number
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          dynamic_id: string
+          company_id?: string | null
+          owner_user_id?: string | null
+          version?: number
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          dynamic_id?: string
+          company_id?: string | null
+          owner_user_id?: string | null
+          version?: number
+          created_at?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      dynamic_cells: {
+        Row: {
+          id: string
+          board_id: string
+          column_id: string
+          row_id: string
+          numeric_value: number | null
+          text_value: string | null
+          updated_by: string | null
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          board_id: string
+          column_id: string
+          row_id: string
+          numeric_value?: number | null
+          text_value?: string | null
+          updated_by?: string | null
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          board_id?: string
+          column_id?: string
+          row_id?: string
+          numeric_value?: number | null
+          text_value?: string | null
+          updated_by?: string | null
+          created_at?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      dynamic_columns: {
+        Row: {
+          id: string
+          board_id: string
+          label: string
+          position: number
+          created_by: string | null
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          board_id: string
+          label: string
+          position?: number
+          created_by?: string | null
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          board_id?: string
+          label?: string
+          position?: number
+          created_by?: string | null
+          created_at?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      dynamic_rows: {
+        Row: {
+          id: string
+          dynamic_id: string
+          row_kind: 'criterio' | 'informativa'
+          label: string
+          weight: number | null
+          position: number
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          dynamic_id: string
+          row_kind: 'criterio' | 'informativa'
+          label: string
+          weight?: number | null
+          position?: number
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          dynamic_id?: string
+          row_kind?: 'criterio' | 'informativa'
+          label?: string
+          weight?: number | null
+          position?: number
+          created_at?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      dynamics: {
+        Row: {
+          id: string
+          course_id: string
+          cohort_id: string | null
+          kind: string
+          title: string
+          description: string | null
+          scale_min: number
+          scale_max: number
+          status: 'draft' | 'open' | 'closed'
+          closes_at: string | null
+          created_by: string | null
+          opened_at: string | null
+          closed_at: string | null
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          course_id: string
+          cohort_id?: string | null
+          kind?: string
+          title: string
+          description?: string | null
+          scale_min?: number
+          scale_max?: number
+          status?: 'draft' | 'open' | 'closed'
+          closes_at?: string | null
+          created_by?: string | null
+          opened_at?: string | null
+          closed_at?: string | null
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          course_id?: string
+          cohort_id?: string | null
+          kind?: string
+          title?: string
+          description?: string | null
+          scale_min?: number
+          scale_max?: number
+          status?: 'draft' | 'open' | 'closed'
+          closes_at?: string | null
+          created_by?: string | null
+          opened_at?: string | null
+          closed_at?: string | null
+          created_at?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       enrollments: {
         Row: {
           id: string
@@ -1109,6 +1292,7 @@ export type Database = {
           publicaciones: number | null
           comentarios: number | null
           certificados: number | null
+          dinamicas: number | null
         }
         Relationships: []
       }

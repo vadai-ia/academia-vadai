@@ -24,6 +24,11 @@ export const PUNTOS = {
   publicacion: 15,
   comentario: 5,
   certificado: 100,
+  // Una dinámica empresarial cerrada con al menos un proyecto calificado
+  // completo (M13). Vale como una tarea aprobada: es un entregable que valida
+  // una regla, no solo se entrega. Una vez por dinámica, no por proyecto, y se
+  // reparte a toda la empresa: el tablero es del equipo.
+  dinamica: 30,
 } as const
 
 export type Actividad = {
@@ -34,6 +39,7 @@ export type Actividad = {
   publicaciones: number
   comentarios: number
   certificados: number
+  dinamicas: number
 }
 
 export const ACTIVIDAD_VACIA: Actividad = {
@@ -44,6 +50,7 @@ export const ACTIVIDAD_VACIA: Actividad = {
   publicaciones: 0,
   comentarios: 0,
   certificados: 0,
+  dinamicas: 0,
 }
 
 export function sumarActividad(a: Actividad, b: Actividad): Actividad {
@@ -55,6 +62,7 @@ export function sumarActividad(a: Actividad, b: Actividad): Actividad {
     publicaciones: a.publicaciones + b.publicaciones,
     comentarios: a.comentarios + b.comentarios,
     certificados: a.certificados + b.certificados,
+    dinamicas: a.dinamicas + b.dinamicas,
   }
 }
 
@@ -66,7 +74,8 @@ export function puntosDe(a: Actividad): number {
     a.tareasAprobadas * PUNTOS.tareaAprobada +
     a.publicaciones * PUNTOS.publicacion +
     a.comentarios * PUNTOS.comentario +
-    a.certificados * PUNTOS.certificado
+    a.certificados * PUNTOS.certificado +
+    a.dinamicas * PUNTOS.dinamica
   )
 }
 
@@ -122,5 +131,6 @@ export const COMO_GANAR = [
   { que: 'Entregar una tarea', puntos: PUNTOS.tarea },
   { que: 'Aprobar un quiz', puntos: PUNTOS.quiz },
   { que: 'Que te aprueben una tarea', puntos: PUNTOS.tareaAprobada },
+  { que: 'Terminar una dinámica con tu empresa', puntos: PUNTOS.dinamica },
   { que: 'Terminar un curso y recibir tu certificado', puntos: PUNTOS.certificado },
 ] as const
