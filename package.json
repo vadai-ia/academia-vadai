@@ -37,7 +37,8 @@
     "test:encuestas": "node scripts/test-encuestas.mjs",
     "test:todo": "node scripts/test-todo.mjs",
     "check:curso": "node scripts/check-curso.mjs",
-    "curso:sembrar": "node scripts/seed-curso.mjs"
+    "curso:sembrar": "node scripts/seed-curso.mjs",
+    "qa:esconder": "node scripts/qa-esconder.mjs"
   },
   "dependencies": {
     "@react-pdf/renderer": "^4.6.1",

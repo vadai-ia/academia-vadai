@@ -4,8 +4,8 @@
 
 | | |
 |---|---|
-| Fecha | 20 de septiembre de 2026 a las 12:34 p.m. (CDMX) |
-| Commit | `b7204e1` en `main` |
+| Fecha | 20 de septiembre de 2026 a las 6:29 p.m. (CDMX) |
+| Commit | `c9580a3` en `main` |
 | Árbol | **con cambios sin commitear** |
 
 Se regenera con `pnpm qa`, que corre cada paso de verdad. Un checklist que
@@ -42,6 +42,7 @@ el commit, así que dice qué versión exacta pasó.
 | | Paso | Resultado |
 |---|---|---|
 | ✅ | Storage reconciliado (sin huérfanos ni colgantes) | sin huérfanos |
+| ✅ | Cursos QA archivados, fuera del panel del admin | ok |
 
 ## Producción
 

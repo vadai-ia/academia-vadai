@@ -138,3 +138,100 @@ export async function enviarCorreo(opciones: {
     return { ok: false, motivo }
   }
 }
+
+export type CorreoEnLote = { para: string; asunto: string; html: string; texto: string }
+
+export type ResultadoLote = {
+  /** Cuántos aceptó Resend. */
+  enviados: number
+  /** Direcciones QA que se cortaron aquí, sin intentarlo. */
+  omitidos: number
+  /** Los que Resend rechazó, o el lote entero si la petición falló. */
+  fallidos: string[]
+  motivo?: string
+}
+
+/** Tope del endpoint de lote de Resend. */
+const POR_LOTE = 100
+
+/**
+ * Manda muchos correos de una vez por `/emails/batch`.
+ *
+ * Es lo que hace posible "mandar recordatorio a todos los que no han entrado"
+ * en un clic. Uno por uno no se podía: Resend admite dos peticiones por
+ * segundo y una server action en Vercel tiene segundos, así que ochenta
+ * correos eran cuarenta segundos y un tope de diez por clic. En lote, ochenta
+ * correos son UNA petición.
+ *
+ * La guarda de direcciones QA aplica igual que en `enviarCorreo`: se filtran
+ * antes de armar el lote y cuentan como omitidos, no como fallos.
+ *
+ * Resend valida el lote completo: si una dirección viene mal formada rechaza
+ * las cien. Por eso un lote que falla se reporta entero como fallido, con el
+ * motivo, en vez de adivinar cuál fue.
+ */
+export async function enviarCorreosEnLote(correos: CorreoEnLote[]): Promise<ResultadoLote> {
+  const llave = process.env.RESEND_API_KEY
+  if (!llave) {
+    console.error(JSON.stringify({ operacion: 'enviarCorreosEnLote', error: 'falta RESEND_API_KEY' }))
+    return { enviados: 0, omitidos: 0, fallidos: correos.map((c) => c.para), motivo: 'Correo no configurado.' }
+  }
+
+  const reales = correos.filter((c) => !esDireccionQA(c.para))
+  const omitidos = correos.length - reales.length
+  if (omitidos > 0) {
+    console.log(JSON.stringify({ operacion: 'enviarCorreosEnLote:omitidos', cuantos: omitidos, motivo: 'QA' }))
+  }
+
+  let enviados = 0
+  const fallidos: string[] = []
+  let motivo: string | undefined
+
+  for (let i = 0; i < reales.length; i += POR_LOTE) {
+    const lote = reales.slice(i, i + POR_LOTE)
+    // Dos peticiones por segundo: entre lotes se espera, no dentro del lote.
+    if (i > 0) await new Promise((r) => setTimeout(r, 600))
+
+    try {
+      const respuesta = await fetch(`${API}/batch`, {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${llave}`, 'Content-Type': 'application/json' },
+        body: JSON.stringify(
+          lote.map((c) => ({
+            from: remitente(),
+            reply_to: responderA(),
+            to: [c.para.trim().toLowerCase()],
+            subject: c.asunto,
+            html: c.html,
+            text: c.texto,
+          }))
+        ),
+        signal: AbortSignal.timeout(20_000),
+      })
+
+      const cuerpo = (await respuesta.json().catch(() => null)) as
+        | { data?: Array<{ id?: string }>; message?: string }
+        | null
+
+      if (!respuesta.ok) {
+        motivo = cuerpo?.message ?? `HTTP ${respuesta.status}`
+        console.error(
+          JSON.stringify({ operacion: 'enviarCorreosEnLote', lote: i / POR_LOTE + 1, status: respuesta.status, error: motivo })
+        )
+        fallidos.push(...lote.map((c) => c.para))
+        continue
+      }
+
+      enviados += cuerpo?.data?.length ?? lote.length
+      console.log(
+        JSON.stringify({ operacion: 'enviarCorreosEnLote:ok', lote: i / POR_LOTE + 1, cuantos: lote.length })
+      )
+    } catch (error) {
+      motivo = error instanceof Error ? error.message : 'error desconocido'
+      console.error(JSON.stringify({ operacion: 'enviarCorreosEnLote', lote: i / POR_LOTE + 1, error: motivo }))
+      fallidos.push(...lote.map((c) => c.para))
+    }
+  }
+
+  return { enviados, omitidos, fallidos, motivo }
+}

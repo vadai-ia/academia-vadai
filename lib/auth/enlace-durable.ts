@@ -75,6 +75,57 @@ export async function crearEnlaceDurable(opciones: {
   return `${base}/acceso/${token}`
 }
 
+/**
+ * Un enlace por persona, para muchas personas, en un solo viaje a la base.
+ *
+ * Es la mitad del "mandar recordatorio a todos": ochenta inserts de uno en
+ * uno cabrían, pero uno solo cabe seguro en el tiempo de una server action.
+ * Devuelve correo -> URL; quien no tiene perfil simplemente no aparece.
+ */
+export async function crearEnlacesDurables(opciones: {
+  emails: string[]
+  creadoPor?: string | null
+  dias?: number
+}): Promise<Map<string, string>> {
+  const supabase = crearClienteServiceRole()
+  const emails = [...new Set(opciones.emails.map((e) => e.trim().toLowerCase()))]
+  const resultado = new Map<string, string>()
+  if (emails.length === 0) return resultado
+
+  const { data: perfiles, error: errorPerfiles } = await supabase
+    .from('profiles')
+    .select('user_id, email')
+    .in('email', emails)
+
+  if (errorPerfiles || !perfiles) {
+    registrar('crearEnlacesDurables:perfiles', { error: errorPerfiles?.message ?? 'sin datos' })
+    return resultado
+  }
+
+  const dias = opciones.dias ?? DIAS_DE_VIGENCIA
+  const expira = new Date(Date.now() + dias * 24 * 60 * 60 * 1000).toISOString()
+  const base = (process.env.NEXT_PUBLIC_APP_URL ?? '').replace(/\/+$/, '')
+
+  const filas = perfiles.map((p) => {
+    const token = randomBytes(32).toString('base64url')
+    resultado.set(p.email, `${base}/acceso/${token}`)
+    return {
+      user_id: p.user_id,
+      token_hash: hashDe(token),
+      expires_at: expira,
+      created_by: opciones.creadoPor ?? null,
+    }
+  })
+
+  const { error } = await supabase.from('access_links').insert(filas)
+  if (error) {
+    registrar('crearEnlacesDurables:fallo', { cuantos: filas.length, error: error.message })
+    return new Map()
+  }
+
+  return resultado
+}
+
 export type EnlaceResuelto =
   | { ok: true; userId: string; email: string; nombre: string | null }
   | { ok: false }

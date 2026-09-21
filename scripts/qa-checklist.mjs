@@ -91,6 +91,12 @@ const PASOS = [
     critico: false,
   },
   {
+    llave: 'esconder',
+    titulo: 'Cursos QA archivados, fuera del panel del admin',
+    comando: ['node', 'scripts/qa-esconder.mjs'],
+    seccion: 'Higiene',
+  },
+  {
     llave: 'prod',
     titulo: 'Smoke test del dominio en vivo',
     comando: ['node', 'scripts/check-produccion.mjs'],

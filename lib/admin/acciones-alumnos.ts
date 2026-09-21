@@ -4,7 +4,10 @@ import { revalidatePath } from 'next/cache'
 import { z } from 'zod'
 
 import { alumnosPendientesDeEntrar } from '@/lib/admin/accesos'
+import { crearEnlacesDurables } from '@/lib/auth/enlace-durable'
 import { exigirAdmin } from '@/lib/auth/sesion'
+import { plantillaRecordatorio } from '@/lib/correo/plantillas'
+import { enviarCorreosEnLote } from '@/lib/correo/resend'
 import { darDeAlta, enviarAccesoInicial } from '@/lib/stripe/provisioning'
 import { crearClienteServidor } from '@/lib/supabase/server'
 
@@ -165,18 +168,18 @@ export async function reenviarAcceso(datos: FormData): Promise<void> {
 }
 
 /**
- * Cuántos correos manda cada clic de "reenviar a quien falta".
+ * Manda el recordatorio a TODOS los alumnos que nunca han entrado, en un clic.
  *
- * Resend admite dos peticiones por segundo y una server action en Vercel tiene
- * segundos, no minutos. Diez correos con medio segundo entre cada uno caben
- * holgados; setenta y cinco no. El botón dice cuántos quedan y se vuelve a
- * dar clic: la ventana de 24 h de `alumnosPendientesDeEntrar()` garantiza
- * que el segundo clic no repita a nadie del primero.
+ * La primera versión iba de diez en diez: Resend admite dos peticiones por
+ * segundo y una server action en Vercel tiene segundos, así que ochenta
+ * correos de uno en uno no cabían. Con el endpoint de lote de Resend ochenta
+ * correos son una petición, y las ochenta ligas de 30 días un solo insert.
+ *
+ * Va la plantilla de recordatorio, no la bienvenida: esa ya está en su buzón.
+ * La ventana de 24 h de `alumnosPendientesDeEntrar()` evita que un doble clic
+ * mande dos recordatorios a la misma persona el mismo día.
  */
-const LOTE = 10
-
-/** Manda el acceso a los alumnos que nunca han entrado, de diez en diez. */
-export async function reenviarAccesoPendientes(
+export async function recordarAccesoPendientes(
   _previo: EstadoAccion,
   _datos: FormData
 ): Promise<EstadoAccion> {
@@ -184,34 +187,54 @@ export async function reenviarAccesoPendientes(
 
   const pendientes = await alumnosPendientesDeEntrar()
   if (pendientes.length === 0) {
-    return { aviso: 'Nadie está pendiente: todos los alumnos ya entraron o recibieron su liga hoy.' }
+    return { aviso: 'Nadie está pendiente: todos ya entraron o recibieron su recordatorio hoy.' }
   }
 
-  const lote = pendientes.slice(0, LOTE)
-  let enviados = 0
+  const enlaces = await crearEnlacesDurables({
+    emails: pendientes.map((p) => p.email),
+    creadoPor: admin.user_id,
+  })
 
-  for (const [i, p] of lote.entries()) {
-    const ok = await enviarAccesoInicial(p.email, undefined, p.cursos, p.nombre, admin.user_id)
-    if (ok) enviados++
-    if (i < lote.length - 1) await new Promise((r) => setTimeout(r, 600))
-  }
+  const base = process.env.NEXT_PUBLIC_APP_URL
+  const correos = pendientes.flatMap((p) => {
+    const url = enlaces.get(p.email)
+    if (!url) return []
+    const plantilla = plantillaRecordatorio({ url, cursos: p.cursos, nombre: p.nombre, base })
+    return [{ para: p.email, asunto: plantilla.asunto, html: plantilla.html, texto: plantilla.texto }]
+  })
+
+  const resultado = await enviarCorreosEnLote(correos)
 
   console.log(
     JSON.stringify({
-      operacion: 'reenviarAccesoPendientes',
+      operacion: 'recordarAccesoPendientes',
       porQuien: admin.email,
-      intentados: lote.length,
-      enviados,
-      quedan: pendientes.length - lote.length,
+      pendientes: pendientes.length,
+      conEnlace: correos.length,
+      enviados: resultado.enviados,
+      omitidos: resultado.omitidos,
+      fallidos: resultado.fallidos.length,
+      motivo: resultado.motivo ?? null,
     })
   )
   revalidatePath('/admin/alumnos')
 
-  const restan = pendientes.length - lote.length
-  const cola = restan > 0 ? ` Quedan ${restan}: vuelve a dar clic.` : ' No queda nadie pendiente.'
-  return enviados === lote.length
-    ? { aviso: `Se mandó el acceso a ${enviados}.${cola}` }
-    : { error: `Salieron ${enviados} de ${lote.length} correos; revisa el log de Resend.${cola}` }
+  const sinEnlace = pendientes.length - correos.length
+  if (resultado.fallidos.length > 0) {
+    const muestra = resultado.fallidos.slice(0, 5).join(', ')
+    const resto = resultado.fallidos.length > 5 ? ` y ${resultado.fallidos.length - 5} más` : ''
+    return {
+      error:
+        `Salieron ${resultado.enviados} recordatorios y fallaron ${resultado.fallidos.length}` +
+        ` (${muestra}${resto}). Motivo: ${resultado.motivo ?? 'sin detalle'}.`,
+    }
+  }
+
+  return {
+    aviso:
+      `Se mandó el recordatorio a ${resultado.enviados} persona${resultado.enviados === 1 ? '' : 's'}.` +
+      (sinEnlace > 0 ? ` ${sinEnlace} sin perfil, no se les pudo generar liga.` : ''),
+  }
 }
 
 /**

@@ -202,6 +202,90 @@ Equipo VADAI`
   return { asunto: 'Tu acceso a VADAI Academy está listo', html, texto }
 }
 
+/**
+ * Recordatorio para quien recibió su acceso y todavía no ha entrado.
+ *
+ * No es la bienvenida otra vez: esa ya la tiene en el buzón y no la abrió, o
+ * la abrió con la liga muerta. Este correo es corto, dice qué se está
+ * perdiendo —con el nombre de su curso— y da una sola cosa que hacer. La liga
+ * es la de 30 días, así que sirve aunque lo abra la semana que entra.
+ *
+ * Sale en lote desde /admin/alumnos ("Mandar recordatorio a los que nunca han
+ * entrado"), así que el texto tiene que funcionar para cualquiera de la lista
+ * sin que nadie lo edite.
+ */
+export function plantillaRecordatorio(opciones: {
+  url: string
+  cursos: string[]
+  nombre?: string | null
+  base?: string | null
+}): Plantilla {
+  const { url, cursos } = opciones
+  const nombre = opciones.nombre?.trim() ?? ''
+  const base = (opciones.base ?? '').replace(/\/+$/, '')
+  const urlLogin = base ? `${base}/login` : null
+
+  const saludo = nombre ? `Hola ${nombre},` : 'Hola,'
+  const queEspera =
+    cursos.length === 0
+      ? 'tu academia ya está lista'
+      : cursos.length === 1
+        ? `tu curso <strong>${escapar(enLista(cursos))}</strong> ya está listo`
+        : `tus cursos <strong>${escapar(enLista(cursos))}</strong> ya están listos`
+  const queEsperaTexto =
+    cursos.length === 0
+      ? 'tu academia ya está lista'
+      : cursos.length === 1
+        ? `tu curso ${enLista(cursos)} ya está listo`
+        : `tus cursos ${enLista(cursos)} ya están listos`
+
+  const parrafo = `margin:0 0 14px;font-size:15px;color:${TEXTO};line-height:1.65;`
+
+  const html = envoltura(
+    `
+    <p style="${parrafo}">${escapar(saludo)}</p>
+    <p style="${parrafo}">
+      Vimos que todavía no has entrado a la academia, y ${queEspera}: ahí van quedando las
+      grabaciones de cada sesión, los módulos y los archivos para descargar.
+    </p>
+    <p style="${parrafo}">
+      Entrar toma un minuto: da clic, elige tu contraseña y listo. Tu usuario es este correo.
+    </p>
+    ${boton(url, 'Entrar a mi academia')}
+    ${urlEnTexto(url)}
+    <p style="${parrafo};margin-top:18px;">
+      Esta liga te sirve durante 30 días, las veces que la necesites.${
+        urlLogin
+          ? ` Si ya tienes contraseña, entra directo en <a href="${urlLogin}" style="color:${CYAN};">${escapar(urlLogin.replace(/^https?:\/\//, ''))}</a>.`
+          : ''
+      }
+    </p>
+    <p style="${parrafo}">
+      Si algo no funciona, responde este correo y te ayudamos.
+    </p>
+    <p style="margin:0;font-size:15px;color:${TEXTO};line-height:1.65;">Equipo VADAI</p>
+  `,
+    'Tu curso ya te está esperando. Entrar toma un minuto.'
+  )
+
+  const texto = `${saludo}
+
+Vimos que todavía no has entrado a la academia, y ${queEsperaTexto}: ahí van quedando las grabaciones de cada sesión, los módulos y los archivos para descargar.
+
+Entrar toma un minuto: da clic, elige tu contraseña y listo. Tu usuario es este correo.
+${url}
+
+Esta liga te sirve durante 30 días, las veces que la necesites.${
+    urlLogin ? ` Si ya tienes contraseña, entra directo en ${urlLogin}` : ''
+  }
+
+Si algo no funciona, responde este correo y te ayudamos.
+
+Equipo VADAI`
+
+  return { asunto: 'Recuerda entrar a tu academia VADAI', html, texto }
+}
+
 /** "Olvidé mi contraseña". */
 export function plantillaRecuperacion(url: string): Plantilla {
   const html = envoltura(`

@@ -15,6 +15,11 @@ import { cn } from '@/lib/utils'
 
 export const metadata: Metadata = { title: 'Alumnos' }
 export const dynamic = 'force-dynamic'
+// El recordatorio en lote genera las ligas y manda el lote desde una server
+// action de esta página. Cabe en segundos, pero el default de Vercel es corto
+// y un corte a medias dejaría ligas creadas sin correo. 60 s vale en todos los
+// planes.
+export const maxDuration = 60
 
 /**
  * Dos filtros que se combinan, los dos en la URL —funcionan sin JavaScript,
