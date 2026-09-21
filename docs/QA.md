@@ -4,8 +4,8 @@
 
 | | |
 |---|---|
-| Fecha | 20 de septiembre de 2026 a las 7:55 p.m. (CDMX) |
-| Commit | `37921a4` en `main` |
+| Fecha | 20 de septiembre de 2026 a las 8:05 p.m. (CDMX) |
+| Commit | `3c06d28` en `main` |
 | Árbol | **con cambios sin commitear** |
 
 Se regenera con `pnpm qa`, que corre cada paso de verdad. Un checklist que

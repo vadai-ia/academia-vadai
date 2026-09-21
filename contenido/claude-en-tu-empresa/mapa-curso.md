@@ -7,6 +7,12 @@
 
 ## Las 8 sesiones
 
+> **Cambio del 20-sep-2026 (Alejandro).** El primer día es la **sesión de alineación de Total
+> Coach** (WIIFM, la IA hoy, diagnóstico personal, metodología de decisión, salas por empresa):
+> `sesion-1/laminas.md`, 55 láminas. El contexto del Módulo 0 y el tour del Módulo 1 recorren a
+> partir de la sesión 2. Pendiente: reacomodar la tabla de sesiones con Alejandro.
+
+
 | S | Semana | Tema | Quién | Módulo | Entregables que se abren |
 |---|---|---|---|---|---|
 | 1 | 1 · lun 21-sep | **Contexto del mundo (45 min) + arranque del tour de Claude** | Alejandro | M0 + M1 | Módulo 0 · "Tu puesto en el mapa" |

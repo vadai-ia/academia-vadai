@@ -258,9 +258,25 @@ async function main() {
   const empresasRes = await pedir('/admin/empresas', admin)
   afirmar(G2, 'la página de empresas abre', 200, empresasRes.status)
   const empresasHtml = await empresasRes.text()
-  const formEmpresa = leerFormularios(empresasHtml).find(
-    (f) => 'nombre' in f.campos || f.html.includes('name="nombre"')
-  )
+  // El de CREAR, por su botón. `leerFormularios` solo recoge formularios con
+  // `$ACTION_ID_` (acción directa) y el de crear va por `useActionState`
+  // (`$ACTION_REF_`); tomar "el primero con nombre" daba el de RENOMBRAR de la
+  // primera empresa real, que quedó renombrada y luego borrada por la limpieza.
+  const leerConRef = (html, contiene) => {
+    for (const bloque of html.matchAll(/<form\b[^>]*>([\s\S]*?)<\/form>/g)) {
+      if (!bloque[1].includes(contiene)) continue
+      const campos = {}
+      for (const et of bloque[1].matchAll(/<input\b[^>]*>/g)) {
+        const nombre = et[0].match(/name="([^"]*)"/)?.[1]
+        if (!nombre) continue
+        campos[nombre] = (et[0].match(/value="([^"]*)"/)?.[1] ?? '')
+          .replace(/&quot;/g, '"').replace(/&#x27;/g, "'").replace(/&amp;/g, '&')
+      }
+      return { campos, html: bloque[0] }
+    }
+    return null
+  }
+  const formEmpresa = leerConRef(empresasHtml, 'Crear empresa')
   afirmar(G2, 'trae el formulario para crear una', true, Boolean(formEmpresa))
   if (formEmpresa) {
     formEmpresa.campos.nombre = 'QA Empresa de prueba'
