@@ -37,6 +37,7 @@ export function Encabezado({
   perfil,
   navegacion = [],
   accion,
+  extra,
 }: {
   perfil: Perfil
   navegacion?: Destino[]
@@ -45,6 +46,8 @@ export function Encabezado({
    * vista. Lo usa el área de alumno para que el equipo vuelva a su panel.
    */
   accion?: ReactNode
+  /** Antes de `accion`: la campana de novedades del área de alumno. */
+  extra?: ReactNode
 }) {
   return (
     <header className="sticky top-0 z-30 border-b border-border bg-background/85 backdrop-blur-md">
@@ -60,6 +63,7 @@ export function Encabezado({
           </Link>
 
           <div className="flex min-w-0 items-center gap-2">
+            {extra}
             {accion}
             <MenuDeCuenta perfil={perfil} />
           </div>

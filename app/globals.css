@@ -383,3 +383,39 @@
     pointer-events: none;
   }
 }
+
+/* --- Gamificación y campana (20-sep-2026) ---------------------------------
+   Dos animaciones pequeñas, en CSS puro para que no dependan de JavaScript y
+   se apaguen solas con reduced-motion. El destello recorre la barra de nivel;
+   la campana se sacude una vez cuando hay algo nuevo. */
+@keyframes vadai-brillo {
+  from { transform: translateX(-100%); }
+  to { transform: translateX(350%); }
+}
+.vadai-brillo::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  width: 35%;
+  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.55), transparent);
+  animation: vadai-brillo 2.4s ease-in-out infinite;
+  pointer-events: none;
+}
+@keyframes vadai-campana {
+  0%, 100% { transform: rotate(0); }
+  15% { transform: rotate(-14deg); }
+  30% { transform: rotate(12deg); }
+  45% { transform: rotate(-8deg); }
+  60% { transform: rotate(6deg); }
+  75% { transform: rotate(-3deg); }
+}
+.vadai-campana {
+  transform-origin: 50% 0;
+  animation: vadai-campana 1.1s ease-in-out 0.4s 1;
+}
+@media (prefers-reduced-motion: reduce) {
+  .vadai-brillo::after,
+  .vadai-campana {
+    animation: none;
+  }
+}

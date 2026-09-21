@@ -3,6 +3,7 @@ import Link from 'next/link'
 
 import { RenderRico } from '@/components/alumno/render-rico'
 import { TarjetaCurso } from '@/components/alumno/tarjeta-curso'
+import { TarjetaNivel } from '@/components/alumno/tarjeta-nivel'
 import { Progreso, Seccion, Tarjeta, TarjetaEnlace } from '@/components/ui-vadai/superficie'
 import { Button } from '@/components/ui/button'
 import { resumenDelAlumno } from '@/lib/alumno/resumen'
@@ -146,6 +147,24 @@ export default async function PaginaInicio() {
           </p>
         </section>
       )}
+
+      {/* --- Tu nivel ------------------------------------------------------
+          Justo después de "retomar": lo segundo que se quiere ver es cómo
+          vas, y el número que sube es lo que hace que se quiera volver. Solo
+          cuando hay curso: sin curso no hay puntos que contar. */}
+      {cursos.length > 0 ? (
+        <TarjetaNivel
+          puntos={resumen.nivel.puntos}
+          nivel={resumen.nivel.nivel}
+          actividad={resumen.nivel.actividad}
+          porCurso={resumen.nivel.porCurso.flatMap((c) => {
+            const curso = cursos.find((x) => x.id === c.cursoId)
+            return curso
+              ? [{ ...c, cursoTitulo: curso.titulo, cursoSlug: curso.slug }]
+              : []
+          })}
+        />
+      ) : null}
 
       {/* --- Lo que caduca --------------------------------------------- */}
       {proximaSesion || anuncio ? (

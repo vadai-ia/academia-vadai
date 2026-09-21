@@ -243,8 +243,15 @@ async function main() {
       sesion({ id: SESION, courseId: IDS.curso, email: CORREO_QA, intento: INTENTO })
     )
 
+    // Curso base (20-sep-2026): mientras dura esta compra, el curso ajeno QA
+    // es "base" y el alta debe inscribir ahí también. Se apaga en cuanto se
+    // comprueba; el seed lo apaga igual por si esto revienta a medias.
+    await bd.query(`update academia.courses set is_default = true where id = $1`, [IDS.cursoAjeno])
+
     const respuesta = await enviar(compra)
     afirmar(G4, 'el webhook responde 200', 200, respuesta.status)
+
+    await bd.query(`update academia.courses set is_default = false where id = $1`, [IDS.cursoAjeno])
 
     const { rows: perfil } = await bd.query(
       `select user_id, role from academia.profiles where email = $1`,
@@ -263,6 +270,13 @@ async function main() {
     afirmar(G4, 'con origen stripe', 'stripe', inscripcion[0]?.source)
     afirmar(G4, 'de por vida (access_days null)', null, inscripcion[0]?.expires_at)
 
+    const { rows: base } = await bd.query(
+      `select status, source from academia.enrollments where user_id = $1 and course_id = $2`,
+      [perfil[0]?.user_id, IDS.cursoAjeno]
+    )
+    afirmar(G4, 'también quedó en el curso base', 1, base.length)
+    afirmar(G4, 'con el mismo origen', 'stripe', base[0]?.source)
+
     const { rows: pago } = await bd.query(
       `select status, amount, currency, user_id from academia.payments where stripe_session_id = $1`,
       [SESION]
@@ -278,12 +292,17 @@ async function main() {
     afirmar(G5, 'el reenvío se acepta', 200, repetido.status)
     afirmar(G5, 'y se marca duplicado', true, repetido.cuerpo?.duplicado === true)
 
+    // Solo se cuentan los cursos QA: el comprado y el base de arriba. Los
+    // cursos base REALES de producción ("Academia VADAI") también inscriben a
+    // este alumno QA, y cuántos haya no es asunto de esta prueba. El alumno se
+    // purga al final, con todo y esas inscripciones.
     const { rows: sinDuplicar } = await bd.query(
       `select count(*)::int n from academia.enrollments e
-         join academia.profiles p on p.user_id = e.user_id where p.email = $1`,
-      [CORREO_QA]
+         join academia.profiles p on p.user_id = e.user_id
+        where p.email = $1 and e.course_id = any($2::uuid[])`,
+      [CORREO_QA, [IDS.curso, IDS.cursoAjeno]]
     )
-    afirmar(G5, 'no duplicó la inscripción', 1, sinDuplicar[0].n)
+    afirmar(G5, 'no duplicó la inscripción', 2, sinDuplicar[0].n)
 
     // ==================================================================
     const G6 = 'REEMBOLSO'

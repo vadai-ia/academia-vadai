@@ -76,6 +76,8 @@ export const esquemaCurso = z.object({
   course_type: z.enum(TIPOS_CURSO),
   status: z.enum(ESTADOS_CURSO),
   certificate_enabled: z.coerce.boolean(),
+  /** Curso base: todo alumno lo recibe al darse de alta. */
+  is_default: z.coerce.boolean(),
 })
 
 export const esquemaIdDeCurso = z.object({

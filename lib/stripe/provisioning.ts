@@ -261,6 +261,15 @@ export async function darDeAlta(opciones: Opciones): Promise<ResultadoAlta> {
     return { ok: false, motivo: 'No se pudo crear la inscripción.' }
   }
 
+  // 4b. Los cursos base (decidido 20-sep-2026). "Academia VADAI" es donde se
+  //     aprende a usar la plataforma y lo tiene que tener TODO alumno, sin
+  //     que el admin lo marque cada vez ni lo pueda olvidar. Solo alumnos: el
+  //     equipo entra por su rol y un invitado de encuesta no compró nada.
+  const rolFinal = opciones.rol ?? (asciendeDeInvitado ? 'alumno' : rolPrevio)
+  if (rolFinal === 'alumno') {
+    await inscribirEnCursosBase(usuario.id, opciones.origen)
+  }
+
   // 5. El correo para definir contraseña, como paso aparte y no bloqueante.
   //    Si el SMTP está caído, el alumno ya tiene cuenta e inscripción; lo único
   //    que falta es que pueda entrar, y eso se reintenta desde el admin.
@@ -290,6 +299,51 @@ export async function darDeAlta(opciones: Opciones): Promise<ResultadoAlta> {
   })
 
   return { ok: true, userId: usuario.id, creado, invitado }
+}
+
+/**
+ * Inscribe a un alumno en todos los cursos base publicados.
+ *
+ * `ignoreDuplicates`: si ya tiene el curso —vigente, vencido o revocado— no
+ * se toca. Un alta que reiniciara vigencias o restaurara accesos revocados
+ * haría más de lo que promete. Un fallo aquí se reporta y no aborta el alta:
+ * la persona ya tiene su cuenta y el curso que compró.
+ */
+async function inscribirEnCursosBase(userId: string, origen: 'stripe' | 'manual'): Promise<void> {
+  const supabase = crearClienteServiceRole()
+
+  const { data: base, error } = await supabase
+    .from('courses')
+    .select('id, access_days')
+    .eq('is_default', true)
+    .eq('status', 'published')
+
+  if (error || !base || base.length === 0) {
+    if (error) registrar('cursosBase:lectura', { userId, error: error.message })
+    return
+  }
+
+  const filas = base.map((c) => ({
+    user_id: userId,
+    course_id: c.id,
+    cohort_id: null,
+    source: origen,
+    status: 'active' as const,
+    expires_at:
+      c.access_days != null
+        ? new Date(Date.now() + c.access_days * 24 * 60 * 60 * 1000).toISOString()
+        : null,
+  }))
+
+  const { error: errorAlta } = await supabase
+    .from('enrollments')
+    .upsert(filas, { onConflict: 'user_id,course_id', ignoreDuplicates: true })
+
+  if (errorAlta) {
+    registrar('cursosBase:inscripcionFallida', { userId, error: errorAlta.message })
+    return
+  }
+  registrar('cursosBase:ok', { userId, cursos: base.length })
 }
 
 /**

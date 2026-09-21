@@ -2,6 +2,7 @@ import type { Metadata } from 'next'
 import { notFound, redirect } from 'next/navigation'
 
 import { Comunidad } from '@/components/alumno/comunidad'
+import { Ranking } from '@/components/alumno/ranking'
 import { cursoDelAlumno } from '@/lib/alumno/consultas'
 import { esEquipo, exigirPerfil } from '@/lib/auth/sesion'
 import { feedDelCurso } from '@/lib/comunidad/posts'
@@ -41,8 +42,13 @@ export default async function PaginaComunidad({
           el título, el progreso y las pestañas, y la pestaña activa dice dónde
           estás. Repetirlo aquí era ruido y empujaba el contenido hacia abajo. */}
       <p className="text-sm text-muted-foreground">
-        Preguntas, avances y lo que quieras compartir con tu grupo.
+        Preguntas, avances y lo que quieras compartir con tu grupo. Cada publicación y cada
+        comentario suman puntos.
       </p>
+
+      {/* El ranking va arriba del feed: es lo que hace que participar tenga
+          consecuencia visible. Los puntos salen de lib/gamificacion. */}
+      <Ranking cursoId={curso.id} userId={perfil.user_id} />
 
       <Comunidad
         posts={posts}

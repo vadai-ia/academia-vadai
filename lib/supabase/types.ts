@@ -312,6 +312,7 @@ export type Database = {
           certificate_enabled: boolean
           created_at: string
           updated_at: string
+          is_default: boolean
         }
         Insert: {
           id?: string
@@ -329,6 +330,7 @@ export type Database = {
           certificate_enabled?: boolean
           created_at?: string
           updated_at?: string
+          is_default?: boolean
         }
         Update: {
           id?: string
@@ -346,6 +348,7 @@ export type Database = {
           certificate_enabled?: boolean
           created_at?: string
           updated_at?: string
+          is_default?: boolean
         }
         Relationships: []
       }
@@ -878,6 +881,7 @@ export type Database = {
           status: 'active' | 'suspended'
           created_at: string
           updated_at: string
+          notifications_seen_at: string | null
         }
         Insert: {
           user_id: string
@@ -888,6 +892,7 @@ export type Database = {
           status?: 'active' | 'suspended'
           created_at?: string
           updated_at?: string
+          notifications_seen_at?: string | null
         }
         Update: {
           user_id?: string
@@ -898,6 +903,7 @@ export type Database = {
           status?: 'active' | 'suspended'
           created_at?: string
           updated_at?: string
+          notifications_seen_at?: string | null
         }
         Relationships: []
       }
@@ -1032,6 +1038,20 @@ export type Database = {
       }
     }
     Views: {
+      actividad_por_curso: {
+        Row: {
+          user_id: string | null
+          course_id: string | null
+          lecciones: number | null
+          quizzes: number | null
+          tareas: number | null
+          tareas_aprobadas: number | null
+          publicaciones: number | null
+          comentarios: number | null
+          certificados: number | null
+        }
+        Relationships: []
+      }
       lesson_outline: {
         Row: {
           id: string | null

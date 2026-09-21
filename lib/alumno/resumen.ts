@@ -3,8 +3,10 @@ import 'server-only'
 import { misCursos, type CursoDelAlumno, type LeccionEnIndice } from '@/lib/alumno/consultas'
 import { cursoDelAlumno } from '@/lib/alumno/consultas'
 import { sesionesDelAlumno, type SesionDelAlumno } from '@/lib/alumno/sesiones'
+import { obtenerSesion } from '@/lib/auth/sesion'
 import { misCertificados, type CertificadoDelAlumno } from '@/lib/certificados/consultas'
 import { publicacionesParaAlumno, type AnuncioParaAlumno } from '@/lib/comunidad/posts'
+import { miNivel, type MiNivel } from '@/lib/gamificacion/consultas'
 
 export type Retomar = {
   curso: CursoDelAlumno
@@ -22,6 +24,8 @@ export type ResumenAlumno = {
   certificados: CertificadoDelAlumno[]
   leccionesHechas: number
   leccionesTotales: number
+  /** Puntos, nivel y lugar en cada grupo (lib/gamificacion). */
+  nivel: MiNivel
 }
 
 /**
@@ -41,12 +45,16 @@ export type ResumenAlumno = {
  * encadenarlos costaría medio segundo de más en la pantalla que más se abre.
  */
 export async function resumenDelAlumno(): Promise<ResumenAlumno> {
-  const [cursos, anuncios, entradas, sesiones, certificados] = await Promise.all([
+  const sesion = await obtenerSesion()
+  const userId = sesion.tipo === 'activo' ? sesion.perfil.user_id : ''
+
+  const [cursos, anuncios, entradas, sesiones, certificados, nivel] = await Promise.all([
     misCursos(),
     publicacionesParaAlumno('announcement'),
     publicacionesParaAlumno('blog'),
     sesionesDelAlumno(),
     misCertificados(),
+    miNivel(userId),
   ])
 
   const leccionesHechas = cursos.reduce((n, c) => n + c.completadas, 0)
@@ -65,6 +73,7 @@ export async function resumenDelAlumno(): Promise<ResumenAlumno> {
     certificados,
     leccionesHechas,
     leccionesTotales,
+    nivel,
   }
 }
 

@@ -1,10 +1,12 @@
 import Link from 'next/link'
 import type { ReactNode } from 'react'
 
+import { Campana } from '@/components/marca/campana'
 import { Encabezado } from '@/components/marca/encabezado'
 import { IconoBlog, IconoCursos, IconoPerfil } from '@/components/marca/iconos-navegacion'
 import { SaltarAlContenido } from '@/components/marca/saltar-al-contenido'
 import { esEquipo, exigirPerfil } from '@/lib/auth/sesion'
+import { notificacionesDelAlumno } from '@/lib/notificaciones/consultas'
 
 /**
  * Marco del área de alumno. `exigirPerfil` es la segunda barrera: el middleware
@@ -13,12 +15,16 @@ import { esEquipo, exigirPerfil } from '@/lib/auth/sesion'
 export default async function LayoutAlumno({ children }: { children: ReactNode }) {
   const perfil = await exigirPerfil()
   const equipo = esEquipo(perfil)
+  // La campana va en el layout: en cualquier pantalla del alumno se ve si hay
+  // algo nuevo, sin tener que volver al inicio.
+  const novedades = await notificacionesDelAlumno(perfil)
 
   return (
     <div className="relative flex min-h-dvh flex-col">
       <SaltarAlContenido />
       <Encabezado
         perfil={perfil}
+        extra={<Campana lista={novedades.lista} nuevas={novedades.nuevas} />}
         navegacion={[
           { href: '/mis-cursos', etiqueta: 'Inicio', icono: IconoCursos, exacto: true },
           { href: '/blog', etiqueta: 'Blog', icono: IconoBlog },

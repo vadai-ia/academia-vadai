@@ -113,6 +113,13 @@ En su lugar: `pnpm db:migrate` → `scripts/migrate.mjs`, que aplica los `.sql` 
   de VADAI: la tasa de rebote de nuestras pruebas se cobra sobre la reputación de envío de todos.
   El corte vive en `lib/correo/resend.ts`, no en las pruebas, para que no se pueda olvidar.
 - `quiz_questions.correct_option_id` NUNCA se expone al cliente. El alumno lee la vista `academia.quiz_questions_public`; la calificación es server-side.
+- **Cursos base** (`courses.is_default`, 20-sep-2026): todo alumno los recibe al darse de alta por
+  cualquier camino, además de lo que compre. Lo hace `darDeAlta()`; los cursos QA nunca son base.
+- **Los puntos de gamificación no se guardan**: se calculan de la vista `academia.actividad_por_curso`
+  con los pesos de `lib/gamificacion/reglas.ts` (única fuente). El ranking es por curso y la vista
+  solo enseña la actividad de los grupos donde está inscrito quien pregunta.
+- **Notificaciones internas sin tabla**: "nuevo" es lo publicado después de
+  `profiles.notifications_seen_at`. Abrir la campana lo sella.
 
 ## ANTI-PATTERNS — NO HACEMOS
 

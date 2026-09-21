@@ -246,6 +246,18 @@ async function main() {
   await fijarProgreso(tokenVigente, idVigente, IDS.leccionTexto, true)
   afirmar(G2, 'dos de cuatro', 50, porcentajeEn(await texto(rutaCurso, vigente)))
 
+  // Gamificación (20-sep-2026): dos lecciones son 20 puntos como mínimo. Se
+  // afirma "al menos": si otra suite le dejó un quiz o un comentario, sube.
+  const tablero = await texto('/mis-cursos', vigente)
+  const puntos = Number(tablero.match(/data-puntos="(\d+)"/)?.[1] ?? -1)
+  afirmar(G2, 'el tablero muestra su nivel', true, tablero.includes('Tu nivel'))
+  afirmar(G2, 'con al menos 20 puntos por dos lecciones', true, puntos >= 20)
+  afirmar(G2, 'y su lugar en el grupo', true, /#\d+<\/span>/.test(tablero))
+
+  const comunidad = await texto(`${rutaCurso}/comunidad`, vigente)
+  afirmar(G2, 'la comunidad trae el ranking del grupo', true, comunidad.includes('Ranking del grupo'))
+  afirmar(G2, 'y lo marca a él', true, comunidad.includes('(tú)'))
+
   // ======================================================================
   const G3 = 'ALUMNO VENCIDO — estructura sí, contenido no'
 

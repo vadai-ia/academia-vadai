@@ -99,6 +99,11 @@ export default async function PaginaCursos({
                     <Badge variant={VARIANTE[curso.status]} className="shrink-0">
                       {ETIQUETA_ESTADO_CURSO[curso.status]}
                     </Badge>
+                    {curso.is_default ? (
+                      <Badge className="shrink-0 bg-vadai-lima text-vadai-navy" title="Todo alumno lo recibe al darse de alta">
+                        Base
+                      </Badge>
+                    ) : null}
                   </span>
                   <span className="text-xs text-muted-foreground">
                     /{curso.slug} · {ETIQUETA_TIPO_CURSO[curso.course_type]} ·{' '}

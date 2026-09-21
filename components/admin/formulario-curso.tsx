@@ -202,6 +202,25 @@ export function FormularioCurso({ curso }: { curso?: Curso }) {
             Emitir certificado al completar
           </label>
         </div>
+
+        <div className="flex flex-col gap-2">
+          <Label htmlFor="is_default">Curso base</Label>
+          <label className="flex min-h-9 items-start gap-2 text-sm">
+            <input
+              id="is_default"
+              name="is_default"
+              type="checkbox"
+              value="true"
+              defaultChecked={curso?.is_default ?? false}
+              className="mt-1 size-4 accent-vadai-cyan"
+            />
+            <span>
+              Todo alumno lo recibe al darse de alta, además de lo que compre. Es para cursos
+              como &ldquo;Academia VADAI&rdquo;, donde se aprende a usar la plataforma. Solo
+              aplica si está publicado.
+            </span>
+          </label>
+        </div>
       </section>
 
       <section className="flex flex-col gap-4">

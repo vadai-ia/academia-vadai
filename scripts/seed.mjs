@@ -121,7 +121,12 @@ async function sembrarDatos(cliente, usuarios) {
            (id, slug, title, description, status, course_type, access_days, price_mxn, price_usd)
          values ($1, $2, $3, $4, 'published', 'cohort', null, 14999.00, 899.00)
          on conflict (id) do update
-           set slug = excluded.slug, title = excluded.title, status = excluded.status`,
+           set slug = excluded.slug, title = excluded.title, status = excluded.status,
+               -- Nunca base: un curso QA base inscribiría a cada alumno REAL
+               -- que se diera de alta. La suite de Stripe lo enciende un
+               -- momento para probarlo y lo apaga; esto lo garantiza aunque
+               -- esa suite reviente a medias.
+               is_default = false`,
         [curso.id, curso.slug, curso.title, curso.description]
       )
     }

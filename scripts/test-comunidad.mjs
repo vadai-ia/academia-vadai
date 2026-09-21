@@ -304,9 +304,37 @@ async function main() {
     afirmar(G5, 'con su contenido', true, misCursos.includes('Aviso importante'))
 
     const blog = await texto('/blog', alumno)
-    afirmar(G5, 'la entrada aparece en /blog', true, blog.includes(MARCA_BLOG))
+    // Se miran los TÍTULOS de las entradas (los <h2> de la lista), no la
+    // página entera: desde el 20-sep la campana del encabezado lista también
+    // los anuncios, y eso es correcto. Lo que no puede pasar es que el
+    // anuncio salga ENTRE las entradas del blog.
+    const titulosDelBlog = [...blog.matchAll(/<h2[^>]*>([\s\S]*?)<\/h2>/g)].map((m) => m[1])
+    afirmar(G5, 'la entrada aparece en /blog', true,
+      titulosDelBlog.some((t) => t.includes(MARCA_BLOG)))
     afirmar(G5, 'el borrador NO aparece', false, blog.includes('QA borrador sin publicar'))
-    afirmar(G5, 'el anuncio no se cuela al blog', false, blog.includes(MARCA_ANUNCIO))
+    afirmar(G5, 'el anuncio no se cuela al blog', false,
+      titulosDelBlog.some((t) => t.includes(MARCA_ANUNCIO)))
+
+    // Notificaciones internas (20-sep-2026): lo publicado después de la última
+    // vez que abrió la campana cuenta como nuevo, y la campana lo dice.
+    await bd.query(
+      `update academia.profiles set notifications_seen_at = now() - interval '2 hours' where email = $1`,
+      [correo.alumnoVigente]
+    )
+    const conNuevas = await texto('/blog', alumno)
+    const nuevas = Number(conNuevas.match(/data-nuevas="(\d+)"/)?.[1] ?? -1)
+    afirmar(G5, 'la campana cuenta lo publicado desde la última vez', true, nuevas >= 2)
+    afirmar(G5, 'y lista la entrada como nueva', true,
+      conNuevas.includes(MARCA_BLOG) && conNuevas.includes('Nuevo'))
+
+    const formVistas = leerFormulario(conNuevas, 'Marcar como vistas')
+    afirmar(G5, 'hay botón para marcarlas vistas sin JS', true, Boolean(formVistas))
+    if (formVistas) {
+      await enviar('/blog', formVistas, alumno)
+      const trasVer = await texto('/blog', alumno)
+      afirmar(G5, 'tras verlas, la campana queda en cero', '0',
+        trasVer.match(/data-nuevas="(\d+)"/)?.[1] ?? null)
+    }
 
     // ================================================================
     const G6 = 'AUDIENCIA'
