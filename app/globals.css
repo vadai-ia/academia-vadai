@@ -365,6 +365,22 @@
     display: none;
   }
 
+  /* Lo mismo para las filas de una dinámica empresarial (M13): el peso solo
+     aplica a un criterio, y aparece o se esconde siguiendo al `<select>` del
+     tipo de fila. Por eso el campo Peso NO lleva `required`: un `required`
+     oculto bloquea el envío sin decir por qué, y el servidor ya exige el
+     peso cuando la fila es un criterio. */
+  [data-tipo-fila] {
+    display: none;
+  }
+
+  form:has(select[name='row_kind'] option[value='criterio']:checked)
+    [data-tipo-fila='criterio'],
+  form:has(select[name='row_kind'] option[value='informativa']:checked)
+    [data-tipo-fila='informativa'] {
+    display: flex;
+  }
+
   form:has(select[name='question_type'] option[value='nube']:checked)
     [data-tipo-pregunta='nube'],
   form:has(select[name='question_type'] option[value='opcion']:checked)

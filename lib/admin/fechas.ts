@@ -32,6 +32,66 @@ export function utcACdmx(iso: string): { fecha: string; hora: string } {
   return { fecha: `${partes.year}-${partes.month}-${partes.day}`, hora: `${hora}:${partes.minute}` }
 }
 
+/**
+ * Convierte "2026-09-21" + "19:00" en CDMX al instante UTC correspondiente.
+ *
+ * Se calcula el desfase real de esa zona EN ESA FECHA, en vez de restar 6 horas
+ * fijas: México dejó el horario de verano en 2022, pero la biblioteca de zonas
+ * conoce la historia y una fecha pasada podría caer en -5. Restar a mano
+ * introduce un error de una hora que nadie nota hasta que alguien llega tarde.
+ *
+ * Vivía privada en acciones-cohortes.ts; se movió aquí (M13) porque la fecha
+ * límite de una dinámica se captura igual: en dos campos, en hora de CDMX.
+ */
+export function cdmxAUtc(fecha: string, hora: string): string | null {
+  const tentativa = new Date(`${fecha}T${hora}:00Z`)
+  if (Number.isNaN(tentativa.getTime())) return null
+
+  const formateador = new Intl.DateTimeFormat('en-US', {
+    timeZone: ZONA_CDMX,
+    hour12: false,
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+    hour: '2-digit',
+    minute: '2-digit',
+    second: '2-digit',
+  })
+
+  const partes = Object.fromEntries(
+    formateador.formatToParts(tentativa).map((p) => [p.type, p.value])
+  )
+
+  const comoSiFueraUtc = Date.UTC(
+    Number(partes.year),
+    Number(partes.month) - 1,
+    Number(partes.day),
+    Number(partes.hour === '24' ? '00' : partes.hour),
+    Number(partes.minute),
+    Number(partes.second)
+  )
+
+  const desfase = comoSiFueraUtc - tentativa.getTime()
+  return new Date(tentativa.getTime() - desfase).toISOString()
+}
+
+/**
+ * "jue 24 de sep, 19:00", en CDMX. SIN el literal "(CDMX)": lo pone cada
+ * pantalla junto al texto, para que quede fuera de un `tabular-nums` o dentro
+ * de un `<span>` más chico según el caso.
+ */
+export function fechaHoraCdmx(iso: string): string {
+  return new Intl.DateTimeFormat('es-MX', {
+    timeZone: ZONA_CDMX,
+    weekday: 'short',
+    day: 'numeric',
+    month: 'short',
+    hour: '2-digit',
+    minute: '2-digit',
+    hour12: false,
+  }).format(new Date(iso))
+}
+
 /** 0 = domingo … 6 = sábado, de una fecha "YYYY-MM-DD" como día de calendario. */
 export function diaDeLaSemana(fecha: string): number {
   return new Date(`${fecha}T12:00:00Z`).getUTCDay()

@@ -4,7 +4,7 @@ import { revalidatePath } from 'next/cache'
 import { redirect } from 'next/navigation'
 import { z } from 'zod'
 
-import { diaDeLaSemana, sumarDias } from '@/lib/admin/fechas'
+import { cdmxAUtc, diaDeLaSemana, sumarDias } from '@/lib/admin/fechas'
 import { crearEnlacesDurables } from '@/lib/auth/enlace-durable'
 import { RUTAS } from '@/lib/auth/rutas'
 import { exigirAdmin } from '@/lib/auth/sesion'
@@ -25,8 +25,6 @@ import type { EstadoAccion } from './tipos'
  * local, mostrando CDMX como referencia. Nunca se guarda texto de hora local:
  * eso se rompe solo en el cambio de horario.
  */
-
-const ZONA_CDMX = 'America/Mexico_City'
 
 const esquemaCohorte = z.object({
   course_id: z.uuid('Curso inválido.'),
@@ -56,45 +54,8 @@ const vacioANull = (v: FormDataEntryValue | null) => {
   return s === '' ? null : s
 }
 
-/**
- * Convierte "2026-09-21" + "19:00" en CDMX al instante UTC correspondiente.
- *
- * Se calcula el desfase real de esa zona EN ESA FECHA, en vez de restar 6 horas
- * fijas: México dejó el horario de verano en 2022, pero la biblioteca de zonas
- * conoce la historia y una fecha pasada podría caer en -5. Restar a mano
- * introduce un error de una hora que nadie nota hasta que alguien llega tarde.
- */
-function cdmxAUtc(fecha: string, hora: string): string | null {
-  const tentativa = new Date(`${fecha}T${hora}:00Z`)
-  if (Number.isNaN(tentativa.getTime())) return null
-
-  const formateador = new Intl.DateTimeFormat('en-US', {
-    timeZone: ZONA_CDMX,
-    hour12: false,
-    year: 'numeric',
-    month: '2-digit',
-    day: '2-digit',
-    hour: '2-digit',
-    minute: '2-digit',
-    second: '2-digit',
-  })
-
-  const partes = Object.fromEntries(
-    formateador.formatToParts(tentativa).map((p) => [p.type, p.value])
-  )
-
-  const comoSiFueraUtc = Date.UTC(
-    Number(partes.year),
-    Number(partes.month) - 1,
-    Number(partes.day),
-    Number(partes.hour === '24' ? '00' : partes.hour),
-    Number(partes.minute),
-    Number(partes.second)
-  )
-
-  const desfase = comoSiFueraUtc - tentativa.getTime()
-  return new Date(tentativa.getTime() - desfase).toISOString()
-}
+// `cdmxAUtc` (CDMX -> UTC) vive en lib/admin/fechas.ts desde M13: la fecha
+// límite de una dinámica se captura igual que la hora de una sesión.
 
 // ==========================================================================
 // Cohortes
