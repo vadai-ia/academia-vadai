@@ -24,6 +24,7 @@ const RAIZ = path.resolve(AQUI, '..')
 
 const SIN_PROD = process.argv.includes('--sin-prod')
 const SIN_BUILD = process.argv.includes('--sin-build')
+const SIN_CAPTURAS = process.argv.includes('--sin-capturas')
 
 /**
  * Los pasos, en el orden en que tiene sentido correrlos: primero lo que no
@@ -76,6 +77,18 @@ const PASOS = [
     titulo: 'Datos QA sembrados',
     comando: ['pnpm', 'db:seed'],
     seccion: 'Funcionalidad',
+  },
+  {
+    // Después del seed (necesita los cursos QA publicados) y antes de las
+    // suites (test-todo los vuelve a archivar al terminar). No reprueba: su
+    // resultado se MIRA en capturas/hoja-*.png, que es lo que ninguna
+    // aserción puede hacer.
+    llave: 'capturas',
+    titulo: 'Capturas en teléfono y escritorio, con auditoría de blancos',
+    comando: ['node', 'scripts/capturas.mjs', '--auditar'],
+    seccion: 'Funcionalidad',
+    critico: false,
+    saltar: SIN_CAPTURAS,
   },
   {
     llave: 'suites',
@@ -145,6 +158,9 @@ function resumir(llave, salida) {
 
   const prodMal = salida.match(/(\d+)\s+de\s+(\d+)\s+comprobaciones\s+FALLARON/i)
   if (prodMal) return `${prodMal[1]} de ${prodMal[2]} comprobaciones fallaron`
+
+  const capturas = salida.match(/(\d+)\s+pantallas,\s+(\d+)\s+hallazgos críticos,\s+(\d+)\s+avisos/)
+  if (capturas) return `${capturas[1]} pantallas · ${capturas[2]} críticos · ${capturas[3]} avisos`
 
   const huerfanos = salida.match(/(\d+)\s+huérfano\(s\)/)
   if (huerfanos) return `${huerfanos[1]} huérfano(s) por limpiar`
@@ -289,7 +305,11 @@ function escribirReporte(resultados, { fallas, avisos, sello, cuando }) {
     '  cargo real.',
     '- **Que un video de Bunny se reproduzca.** Se comprueba la firma del token,',
     '  no la reproducción.',
-    '- **Cómo se ve en un teléfono de verdad.**',
+    '- **Cómo se ve en un teléfono de verdad.** `pnpm capturas` fotografía cada',
+    '  pantalla a 390×844 con emulación táctil y a 1280×800, en los dos temas, y',
+    '  audita desbordes y blancos menores a 44 px; pero las fotos las tiene que',
+    '  MIRAR alguien (`capturas/hoja-*.png`), y lo que sigue sin firma es cómo se',
+    '  instala y cómo pinta la barra de estado un iPhone o un Android reales.',
     ''
   )
 

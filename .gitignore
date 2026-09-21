@@ -49,4 +49,7 @@ Thumbs.db
 
 # Salidas generadas de presentaciones (se publican como adjuntos, no en git)
 presentacion/salida/
+
+# Capturas de pantalla de `pnpm capturas` (se miran, no se versionan)
+/capturas/
 **/node_modules/

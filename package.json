@@ -38,7 +38,8 @@
     "test:todo": "node scripts/test-todo.mjs",
     "check:curso": "node scripts/check-curso.mjs",
     "curso:sembrar": "node scripts/seed-curso.mjs",
-    "qa:esconder": "node scripts/qa-esconder.mjs"
+    "qa:esconder": "node scripts/qa-esconder.mjs",
+    "capturas": "node scripts/capturas.mjs"
   },
   "dependencies": {
     "@react-pdf/renderer": "^4.6.1",
