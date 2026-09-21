@@ -283,7 +283,10 @@ async function main() {
         (await pedir('/mis-cursos', frasco)).status)
 
       const panel = await texto('/mis-cursos', frasco)
-      const formSalir = leerFormulario(panel, '$ACTION')
+      // Por su botón, no "el primer formulario con $ACTION": cuando el alumno
+      // tiene novedades, la campana pinta antes su "Marcar como vistas" y la
+      // prueba salía marcándolas en vez de cerrar sesión (21-sep-2026).
+      const formSalir = leerFormulario(panel, 'Cerrar sesi')
       afirmar(G5, 'hay botón de salir sin JS', true, Boolean(formSalir))
 
       if (formSalir) {
