@@ -20,6 +20,8 @@
  * rebote duro contra la reputación compartida (ver lib/correo/resend.ts).
  */
 
+import { createHash, randomBytes } from 'node:crypto'
+
 import { cargarEnv, conectarPostgres, exigir, linea, titulo } from './lib/entorno.mjs'
 
 const vars = cargarEnv()
@@ -90,22 +92,23 @@ async function crearUsuario(email) {
   return cuerpo
 }
 
-/** Enlace de acceso armado contra NUESTRO dominio, no el de Supabase. */
-async function enlaceDeAcceso(email) {
-  const res = await fetch(`${URL_BASE}/auth/v1/admin/generate_link`, {
-    method: 'POST',
-    headers: cabeceras,
-    body: JSON.stringify({ type: 'recovery', email }),
-  })
-
-  const cuerpo = await res.json().catch(() => null)
-  const token = cuerpo?.hashed_token ?? cuerpo?.properties?.hashed_token
-  if (!token) return null
-
-  return (
-    `${APP}/auth/confirmar?token_hash=${encodeURIComponent(token)}` +
-    `&type=recovery&proximo=${encodeURIComponent('/nueva-contrasena')}`
+/**
+ * Enlace de acceso de 30 días contra NUESTRO dominio, el mismo que manda el
+ * panel (lib/auth/enlace-durable.ts): se guarda el hash del token, un GET no
+ * lo gasta y el botón hace POST, que es cuando se pide el recovery de Supabase.
+ *
+ * Hasta el 21-sep-2026 esto era el recovery corto de Supabase —una hora, un
+ * solo uso— y "ya venció" era la queja de quien abría el correo más tarde.
+ */
+async function enlaceDeAcceso(bd, userId) {
+  const token = randomBytes(32).toString('base64url')
+  const hash = createHash('sha256').update(token).digest('hex')
+  const vence = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString()
+  await bd.query(
+    `insert into academia.access_links (user_id, token_hash, expires_at) values ($1, $2, $3)`,
+    [userId, hash, vence]
   )
+  return `${APP}/acceso/${token}`
 }
 
 const esQA = (email) => email.startsWith('qa-') && email.endsWith('@academia.vadai.com.mx')
@@ -137,7 +140,7 @@ async function mandarBienvenida(email, enlace) {
       text:
         `Ya tienes acceso a VADAI Academia.\n\n` +
         `Define tu contraseña aquí:\n${enlace}\n\n` +
-        `El enlace sirve una sola vez. Si vence, pide otro desde ` +
+        `El enlace vale 30 días. Si vence, pide otro desde ` +
         `"¿La olvidaste?" en ${APP}/login\n`,
     }),
   })
@@ -162,6 +165,7 @@ async function main() {
   linea('ok', 'auth.users', existente ? `ya existía (${usuario.id})` : `creado (${usuario.id})`)
 
   const bd = await conectarPostgres(vars)
+  let enlace = null
 
   try {
     // El perfil manda: sin fila aquí, estar autenticado no sirve de nada
@@ -182,11 +186,11 @@ async function main() {
 
     const perfil = rows[0]
     linea('ok', 'academia.profiles', `${perfil.role} · ${perfil.status}`)
+
+    enlace = await enlaceDeAcceso(bd, usuario.id)
   } finally {
     await bd.end().catch(() => {})
   }
-
-  const enlace = await enlaceDeAcceso(correo)
 
   if (!enlace) {
     linea('falla', 'enlace', 'no se pudo generar')
@@ -197,7 +201,7 @@ async function main() {
   if (!sinCorreo) await mandarBienvenida(correo, enlace)
 
   console.log('')
-  console.log('  Enlace para definir contraseña (un solo uso):')
+  console.log('  Enlace para definir contraseña (vale 30 días):')
   console.log('')
   console.log(`    ${enlace}`)
   console.log('')
