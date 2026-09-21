@@ -653,6 +653,7 @@ export type Database = {
           status: 'paid' | 'refunded'
           created_at: string
           updated_at: string
+          account_deleted_at: string | null
         }
         Insert: {
           id?: string
@@ -666,6 +667,7 @@ export type Database = {
           status?: 'paid' | 'refunded'
           created_at?: string
           updated_at?: string
+          account_deleted_at?: string | null
         }
         Update: {
           id?: string
@@ -679,6 +681,7 @@ export type Database = {
           status?: 'paid' | 'refunded'
           created_at?: string
           updated_at?: string
+          account_deleted_at?: string | null
         }
         Relationships: []
       }
@@ -934,6 +937,7 @@ export type Database = {
           updated_at: string
           notifications_seen_at: string | null
           company_id: string | null
+          last_sign_in_at: string | null
         }
         Insert: {
           user_id: string
@@ -946,6 +950,7 @@ export type Database = {
           updated_at?: string
           notifications_seen_at?: string | null
           company_id?: string | null
+          last_sign_in_at?: string | null
         }
         Update: {
           user_id?: string
@@ -958,6 +963,7 @@ export type Database = {
           updated_at?: string
           notifications_seen_at?: string | null
           company_id?: string | null
+          last_sign_in_at?: string | null
         }
         Relationships: []
       }
