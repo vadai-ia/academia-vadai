@@ -1,6 +1,7 @@
 import { NextResponse, type NextRequest } from 'next/server'
 import type { EmailOtpType } from '@supabase/supabase-js'
 
+import { registrarInicioDeSesion } from '@/lib/auth/inicio-de-sesion'
 import { RUTAS, rutaDeInicio } from '@/lib/auth/rutas'
 import { crearClienteServidor } from '@/lib/supabase/server'
 
@@ -26,12 +27,15 @@ export async function GET(request: NextRequest) {
   }
 
   const supabase = await crearClienteServidor()
-  const { error } = await supabase.auth.verifyOtp({ type: tipo, token_hash: tokenHash })
+  const { data, error } = await supabase.auth.verifyOtp({ type: tipo, token_hash: tokenHash })
 
   if (error) {
     console.error(JSON.stringify({ operacion: 'confirmarEnlace', tipo, error: error.message }))
     return NextResponse.redirect(`${origin}${RUTAS.login}?error=enlace`)
   }
+
+  // Nace una sesión: se sella el último acceso en el perfil (M14).
+  await registrarInicioDeSesion(supabase, data.user?.id)
 
   // Invitación y recuperación terminan igual: el usuario define su contraseña.
   if (tipo === 'invite' || tipo === 'recovery') {

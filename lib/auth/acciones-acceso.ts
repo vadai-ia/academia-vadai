@@ -3,6 +3,7 @@
 import { redirect } from 'next/navigation'
 
 import { marcarUsoDeEnlace, resolverEnlaceDurable } from '@/lib/auth/enlace-durable'
+import { registrarInicioDeSesion } from '@/lib/auth/inicio-de-sesion'
 import { RUTAS } from '@/lib/auth/rutas'
 import { generarEnlaceDeAcceso } from '@/lib/stripe/provisioning'
 import { crearClienteServidor } from '@/lib/supabase/server'
@@ -41,12 +42,14 @@ export async function entrarConEnlace(datos: FormData): Promise<void> {
 
   const tokenHash = new URL(absoluta).searchParams.get('token_hash') ?? ''
   const supabase = await crearClienteServidor()
-  const { error } = await supabase.auth.verifyOtp({ type: 'recovery', token_hash: tokenHash })
+  const { data, error } = await supabase.auth.verifyOtp({ type: 'recovery', token_hash: tokenHash })
   if (error) {
     console.error(JSON.stringify({ operacion: 'entrarConEnlace:verifyOtp', email: enlace.email, error: error.message }))
     redirect(`${RUTAS.login}?error=enlace`)
   }
 
+  // Nace una sesión: se sella el último acceso en el perfil (M14).
+  await registrarInicioDeSesion(supabase, data.user?.id)
   await marcarUsoDeEnlace(token)
   redirect(RUTAS.nuevaContrasena)
 }

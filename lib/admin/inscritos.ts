@@ -1,6 +1,5 @@
 import 'server-only'
 
-import { ultimosInicios } from '@/lib/admin/accesos'
 import { nivelDe, puntosDe, type Actividad, type Nivel } from '@/lib/gamificacion/reglas'
 import { crearClienteServidor } from '@/lib/supabase/server'
 
@@ -80,7 +79,7 @@ export async function inscritosDelCurso(
 ): Promise<{ visibles: Inscrito[]; resumen: ResumenInscritos }> {
   const supabase = await crearClienteServidor()
 
-  const [inscripciones, cohortes, empresas, outline, inicios, actividad] = await Promise.all([
+  const [inscripciones, cohortes, empresas, outline, actividad] = await Promise.all([
     supabase
       .from('enrollments')
       .select('user_id, status, expires_at, cohort_id, created_at')
@@ -88,7 +87,6 @@ export async function inscritosDelCurso(
     supabase.from('cohorts').select('id, name').eq('course_id', cursoId),
     supabase.from('companies').select('id, name'),
     supabase.from('lesson_outline').select('id').eq('course_id', cursoId),
-    ultimosInicios(),
     supabase.from('actividad_por_curso').select('*').eq('course_id', cursoId),
   ])
 
@@ -105,7 +103,7 @@ export async function inscritosDelCurso(
     userIds.length > 0
       ? supabase
           .from('profiles')
-          .select('user_id, full_name, email, company_id, role')
+          .select('user_id, full_name, email, company_id, role, last_sign_in_at')
           .in('user_id', userIds)
       : Promise.resolve({ data: [], error: null }),
     userIds.length > 0 && leccionIds.length > 0
@@ -171,7 +169,7 @@ export async function inscritosDelCurso(
         acceso: e.status === 'revoked' ? 'revocado' : vigente ? 'vigente' : 'vencido',
         expiraEn: e.expires_at,
         inscritoEn: e.created_at,
-        ultimoAcceso: inicios.get(e.user_id) ?? null,
+        ultimoAcceso: p.last_sign_in_at ?? null,
         hechas,
         total,
         porcentaje: total === 0 ? 0 : Math.round((hechas / total) * 100),

@@ -1,40 +1,19 @@
 import 'server-only'
 
-import { crearClienteServiceRole } from '@/lib/supabase/service-role'
 import { crearClienteServidor } from '@/lib/supabase/server'
 
 /**
  * ¿Quién ya entró y a quién le falta su acceso?
  *
  * Es la pregunta del panel la mañana de un lanzamiento: de cien personas
- * dadas de alta, ¿cuántas han abierto la puerta? Antes no se podía saber sin
- * entrar al dashboard de Supabase y leer `last_sign_in_at` fila por fila.
+ * dadas de alta, ¿cuántas han abierto la puerta?
  *
- * Ese dato vive en `auth.users`, que PostgREST no expone y que la Regla Cero
- * prohíbe replicar con un trigger propio. Se lee por la Admin API de Auth con
- * service role, que es su uso legítimo: no salta ninguna policy de `academia`
- * —la página que lo pide ya pasó por `exigirAdmin()`—, solo lee metadatos de
- * cuentas que el equipo administra.
+ * "¿Ya entró?" sale de `profiles.last_sign_in_at`, que la app sella al abrir
+ * sesión (lib/auth/inicio-de-sesion.ts). Hasta M14 se leía barriendo la Admin
+ * API de Auth con service role —hasta veinte llamadas por pregunta, y la lista
+ * de alumnos la hacía dos veces por carga—. Ahora es una columna: se filtra,
+ * se pagina y se ordena en Postgres, con el cliente del admin y su RLS.
  */
-
-/** user_id -> último inicio de sesión, o null si nunca ha entrado. */
-export async function ultimosInicios(): Promise<Map<string, string | null>> {
-  const supabase = crearClienteServiceRole()
-  const mapa = new Map<string, string | null>()
-
-  // 1000 por página es el tope de la API. Con 200 alumnos es un viaje.
-  for (let pagina = 1; pagina <= 20; pagina++) {
-    const { data, error } = await supabase.auth.admin.listUsers({ page: pagina, perPage: 1000 })
-    if (error) {
-      console.error(JSON.stringify({ operacion: 'ultimosInicios', pagina, error: error.message }))
-      break
-    }
-    for (const usuario of data.users) mapa.set(usuario.id, usuario.last_sign_in_at ?? null)
-    if (data.users.length < 1000) break
-  }
-
-  return mapa
-}
 
 export type UltimoEnlace = {
   enviadoEn: string
@@ -46,16 +25,21 @@ export type UltimoEnlace = {
 /**
  * user_id -> el enlace de acceso más reciente que se le mandó.
  *
- * Va por el cliente del admin, con su RLS: la policy de `access_links` deja
- * leer al equipo y a nadie más.
+ * Con `userIds` solo trae los de esas personas (la página de la lista, la
+ * ficha); sin él, todos. Va por el cliente del admin, con su RLS: la policy
+ * de `access_links` deja leer al equipo y a nadie más.
  */
-export async function ultimosEnlaces(): Promise<Map<string, UltimoEnlace>> {
+export async function ultimosEnlaces(userIds?: string[]): Promise<Map<string, UltimoEnlace>> {
+  if (userIds && userIds.length === 0) return new Map()
+
   const supabase = await crearClienteServidor()
-  const { data, error } = await supabase
+  let consulta = supabase
     .from('access_links')
     .select('user_id, created_at, expires_at, used_count, revoked_at')
     .order('created_at', { ascending: false })
+  if (userIds) consulta = consulta.in('user_id', userIds)
 
+  const { data, error } = await consulta
   if (error) {
     console.error(JSON.stringify({ operacion: 'ultimosEnlaces', error: error.message }))
     return new Map()
@@ -88,16 +72,19 @@ export type Pendiente = { userId: string; email: string; nombre: string | null; 
  */
 export async function alumnosPendientesDeEntrar(): Promise<Pendiente[]> {
   const supabase = await crearClienteServidor()
-  const [inicios, enlaces, perfiles] = await Promise.all([
-    ultimosInicios(),
-    ultimosEnlaces(),
-    supabase
-      .from('profiles')
-      .select('user_id, email, full_name, enrollments(status, created_at, courses(title))')
-      .eq('role', 'alumno')
-      .eq('status', 'active')
-      .order('created_at', { ascending: true }),
-  ])
+
+  const { data, error } = await supabase
+    .from('profiles')
+    .select('user_id, email, full_name, enrollments(status, created_at, courses(title))')
+    .eq('role', 'alumno')
+    .eq('status', 'active')
+    .is('last_sign_in_at', null)
+    .order('created_at', { ascending: true })
+
+  if (error) {
+    console.error(JSON.stringify({ operacion: 'alumnosPendientesDeEntrar', error: error.message }))
+    return []
+  }
 
   type Anidado = {
     user_id: string
@@ -106,15 +93,16 @@ export async function alumnosPendientesDeEntrar(): Promise<Pendiente[]> {
     enrollments: Array<{ status: string; created_at: string; courses: { title: string } | null }>
   }
 
+  const perfiles = ((data ?? []) as unknown as Anidado[]).filter(
+    (p) => !/^qa-.*@academia\.vadai\.com\.mx$/i.test(p.email)
+  )
+  const enlaces = await ultimosEnlaces(perfiles.map((p) => p.user_id))
   const hace24h = Date.now() - 24 * 60 * 60 * 1000
 
-  return ((perfiles.data ?? []) as unknown as Anidado[])
+  return perfiles
     .filter((p) => {
-      if (/^qa-.*@academia\.vadai\.com\.mx$/i.test(p.email)) return false
-      if (inicios.get(p.user_id)) return false
       const ultimo = enlaces.get(p.user_id)
-      if (ultimo && new Date(ultimo.enviadoEn).getTime() > hace24h) return false
-      return true
+      return !(ultimo && new Date(ultimo.enviadoEn).getTime() > hace24h)
     })
     .map((p) => {
       // Los cursos con inscripción activa, para que el correo los nombre igual

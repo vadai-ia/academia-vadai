@@ -1,6 +1,6 @@
 import 'server-only'
 
-import { ultimosEnlaces, ultimosInicios, type UltimoEnlace } from '@/lib/admin/accesos'
+import { ultimosEnlaces, type UltimoEnlace } from '@/lib/admin/accesos'
 import { crearClienteServidor } from '@/lib/supabase/server'
 
 export type AlumnoEnLista = {
@@ -57,11 +57,11 @@ export async function listarAlumnos(busqueda?: string): Promise<AlumnoEnLista[]>
   // El progreso se pide COMPLETO y se agrupa aquí, en vez de una consulta por
   // persona. Con 40 alumnos eso serían 40 viajes de red para pintar una tabla;
   // así es uno. `lesson_outline` da el total de lecciones por curso.
-  const [perfiles, progreso, outline, pagos, inicios, enlaces, empresas] = await Promise.all([
+  const [perfiles, progreso, outline, pagos, enlaces, empresas] = await Promise.all([
     supabase
       .from('profiles')
       .select(
-        'user_id, email, full_name, role, status, created_at, company_id, enrollments(course_id, expires_at, status, courses(title), cohorts(name))'
+        'user_id, email, full_name, role, status, created_at, company_id, last_sign_in_at, enrollments(course_id, expires_at, status, courses(title), cohorts(name))'
       )
       // Los `invitado` NO son alumnos: son gente que contestó una encuesta en un
       // evento y dejó su correo. Mezclarlos aquí llenaría el padrón de leads y
@@ -75,9 +75,8 @@ export async function listarAlumnos(busqueda?: string): Promise<AlumnoEnLista[]>
     supabase.from('lesson_progress').select('user_id, lesson_id, completed'),
     supabase.from('lesson_outline').select('id, course_id'),
     supabase.from('payments').select('email, amount, currency, created_at, courses(title)'),
-    // "¿Ya entró?" y "¿cuándo se le mandó acceso?": lo que se busca la mañana
-    // de un lanzamiento. Ver lib/admin/accesos.ts.
-    ultimosInicios(),
+    // "¿Cuándo se le mandó acceso?": lo que se busca la mañana de un
+    // lanzamiento. Ver lib/admin/accesos.ts. "¿Ya entró?" viene en el perfil.
     ultimosEnlaces(),
     supabase.from('companies').select('id, name'),
   ])
@@ -95,6 +94,7 @@ export async function listarAlumnos(busqueda?: string): Promise<AlumnoEnLista[]>
     status: string
     created_at: string | null
     company_id: string | null
+    last_sign_in_at: string | null
     enrollments: Array<{
       course_id: string
       expires_at: string | null
@@ -164,7 +164,7 @@ export async function listarAlumnos(busqueda?: string): Promise<AlumnoEnLista[]>
       rol: p.role,
       estado: p.status,
       creadoEn: p.created_at,
-      ultimoAcceso: inicios.get(p.user_id) ?? null,
+      ultimoAcceso: p.last_sign_in_at ?? null,
       empresa: p.company_id
         ? { id: p.company_id, nombre: nombreDeEmpresa.get(p.company_id) ?? 'Empresa' }
         : null,

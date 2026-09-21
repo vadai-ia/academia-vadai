@@ -4,7 +4,6 @@ import { revalidatePath } from 'next/cache'
 import { redirect } from 'next/navigation'
 import { z } from 'zod'
 
-import { ultimosInicios } from '@/lib/admin/accesos'
 import { diaDeLaSemana, sumarDias } from '@/lib/admin/fechas'
 import { crearEnlacesDurables } from '@/lib/auth/enlace-durable'
 import { RUTAS } from '@/lib/auth/rutas'
@@ -305,12 +304,14 @@ export async function enviarCalendarioPorCorreo(
       .eq('status', 'active')
     const ids = (inscripciones ?? []).map((e) => e.user_id)
     const { data: perfiles } = ids.length
-      ? await supabase.from('profiles').select('user_id, email, full_name, role, status').in('user_id', ids)
+      ? await supabase
+          .from('profiles')
+          .select('user_id, email, full_name, role, status, last_sign_in_at')
+          .in('user_id', ids)
       : { data: [] }
     const alumnos = (perfiles ?? []).filter((p) => p.role === 'alumno' && p.status === 'active')
 
-    const inicios = await ultimosInicios()
-    const sinEntrar = alumnos.filter((p) => inicios.get(p.user_id) == null).map((p) => p.email)
+    const sinEntrar = alumnos.filter((p) => p.last_sign_in_at == null).map((p) => p.email)
     const ligas = await crearEnlacesDurables({ emails: sinEntrar, creadoPor: admin.user_id })
 
     destinatarios = alumnos.map((p) => ({

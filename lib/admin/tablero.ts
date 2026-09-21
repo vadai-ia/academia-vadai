@@ -1,6 +1,5 @@
 import 'server-only'
 
-import { ultimosInicios } from '@/lib/admin/accesos'
 import {
   cohortesParaAgendar,
   proximasSesiones,
@@ -84,11 +83,10 @@ export async function tableroAdmin(): Promise<Tablero> {
     certificados,
     encuestas,
     padron,
-    inicios,
     sesiones,
     cohortes,
   ] = await Promise.all([
-    supabase.from('profiles').select('user_id, role, status'),
+    supabase.from('profiles').select('user_id, role, status, last_sign_in_at'),
     supabase.from('enrollments').select('user_id, course_id, status, expires_at'),
     supabase.from('courses').select('id, slug, title, status'),
     supabase.from('lesson_outline').select('id, course_id'),
@@ -101,7 +99,6 @@ export async function tableroAdmin(): Promise<Tablero> {
     supabase.from('certificates').select('id'),
     supabase.from('polls').select('status'),
     supabase.from('participants').select('id'),
-    ultimosInicios(),
     proximasSesiones(5),
     cohortesParaAgendar(),
   ])
@@ -121,7 +118,7 @@ export async function tableroAdmin(): Promise<Tablero> {
   let entraron = 0
   let activosSemana = 0
   for (const p of alumnado) {
-    const ultimo = inicios.get(p.user_id)
+    const ultimo = p.last_sign_in_at
     if (!ultimo) continue
     entraron += 1
     if (new Date(ultimo).getTime() >= haceSieteDias) activosSemana += 1

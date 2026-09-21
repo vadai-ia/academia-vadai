@@ -1,5 +1,6 @@
 import { NextResponse, type NextRequest } from 'next/server'
 
+import { registrarInicioDeSesion } from '@/lib/auth/inicio-de-sesion'
 import { RUTAS, rutaDeInicio } from '@/lib/auth/rutas'
 import { crearClienteServidor } from '@/lib/supabase/server'
 
@@ -62,6 +63,9 @@ export async function GET(request: NextRequest) {
   } = await supabase.auth.getUser()
 
   if (!user) return NextResponse.redirect(`${origin}${RUTAS.login}?error=google`)
+
+  // Nace una sesión: se sella el último acceso en el perfil (M14).
+  await registrarInicioDeSesion(supabase, user.id)
 
   const { data: perfil } = await supabase
     .from('profiles')

@@ -10,6 +10,7 @@ import { enviarCorreo } from '@/lib/correo/resend'
 import { generarEnlaceDeAcceso } from '@/lib/stripe/provisioning'
 import { crearClienteServidor } from '@/lib/supabase/server'
 
+import { registrarInicioDeSesion } from './inicio-de-sesion'
 import { traducirError } from './mensajes'
 import { RUTAS, rutaDeInicio } from './rutas'
 import type { EstadoFormulario } from './tipos'
@@ -83,6 +84,9 @@ export async function entrarConContrasena(
 
   let destino: string = RUTAS.sinAcceso
   if (user) {
+    // Nace una sesión: se sella el último acceso en el perfil (M14).
+    await registrarInicioDeSesion(supabase, user.id)
+
     const { data: perfil } = await supabase
       .from('profiles')
       .select('role, status')
