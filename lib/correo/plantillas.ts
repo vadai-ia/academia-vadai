@@ -391,6 +391,11 @@ export function plantillaCalendario(opciones: {
   const parrafo = `margin:0 0 14px;font-size:15px;color:${TEXTO};line-height:1.65;`
   const chica = `font-size:13px;color:${GRIS};`
 
+  // Si todas las sesiones comparten liga (lo normal: una sala de Zoom fija),
+  // va una sola vez y arriba; si no, cada sesión trae la suya.
+  const ligas = [...new Set(opciones.sesiones.map((s) => s.ligaUrl).filter((u): u is string => Boolean(u)))]
+  const ligaComun = ligas.length === 1 ? ligas[0] : null
+
   const filas = opciones.sesiones
     .map(
       (s) => `
@@ -403,6 +408,7 @@ export function plantillaCalendario(opciones: {
             <a href="${s.google}" style="color:${CYAN};">Google Calendar</a> ·
             <a href="${s.outlook}" style="color:${CYAN};">Outlook</a>
           </div>
+          ${s.ligaUrl && !ligaComun ? `<div style="${chica}margin-top:4px;word-break:break-all;">Entrar: <a href="${s.ligaUrl}" style="color:${CYAN};">${escapar(s.ligaUrl)}</a></div>` : ''}
         </td>
       </tr>`
     )
@@ -425,6 +431,14 @@ export function plantillaCalendario(opciones: {
       Estas son las ${opciones.sesiones.length} sesiones en vivo de <strong>${escapar(opciones.curso)}</strong>.
       Agrégalas a tu calendario hoy, para que ninguna se te pase.
     </p>
+    ${
+      ligaComun
+        ? `<p style="${parrafo}word-break:break-all;">
+      La liga de Zoom es la misma para todas las sesiones:<br>
+      <a href="${ligaComun}" style="color:${CYAN};">${escapar(ligaComun)}</a>
+    </p>`
+        : ''
+    }
     ${(acceso ? botonSecundario : boton)(opciones.urlTodas, 'Agregar todas a mi calendario')}
     <p style="${chica}margin:0 0 18px;">
       Descarga un archivo de calendario con las ${opciones.sesiones.length} fechas. También puedes agregarlas una
@@ -434,8 +448,8 @@ export function plantillaCalendario(opciones: {
       ${filas}
     </table>
     <p style="${parrafo}">
-      La liga para entrar a cada sesión se activa en <a href="${base}/mis-cursos" style="color:${CYAN};">tu academia</a>
-      15 minutos antes de empezar. Ahí mismo quedan después las grabaciones.
+      La liga para entrar también aparece en <a href="${base}/mis-cursos" style="color:${CYAN};">tu academia</a>
+      15 minutos antes de cada sesión. Ahí mismo quedan después las grabaciones.
     </p>
     <p style="${parrafo}">Si algo no funciona, responde este correo y te ayudamos.</p>
     <p style="margin:0;font-size:15px;color:${TEXTO};line-height:1.65;">Equipo VADAI</p>
@@ -447,12 +461,12 @@ export function plantillaCalendario(opciones: {
 
 Estas son las ${opciones.sesiones.length} sesiones en vivo de ${opciones.curso}. Agrégalas a tu calendario hoy, para que ninguna se te pase.
 
-${opciones.urlAcceso ? `Todavía no has entrado a tu academia. Es un clic: eliges tu contraseña y quedas lista o listo para la sesión. Tu liga es personal y vale 30 días:\n${opciones.urlAcceso}\n\n` : ''}Agregar todas a mi calendario (.ics):
+${opciones.urlAcceso ? `Todavía no has entrado a tu academia. Es un clic: eliges tu contraseña y quedas lista o listo para la sesión. Tu liga es personal y vale 30 días:\n${opciones.urlAcceso}\n\n` : ''}${ligaComun ? `Liga de Zoom, la misma para todas las sesiones:\n${ligaComun}\n\n` : ''}Agregar todas a mi calendario (.ics):
 ${opciones.urlTodas}
 
-${opciones.sesiones.map((s) => `${s.titulo}\n${s.horario}\nGoogle Calendar: ${s.google}\nOutlook: ${s.outlook}`).join('\n\n')}
+${opciones.sesiones.map((s) => `${s.titulo}\n${s.horario}\nGoogle Calendar: ${s.google}\nOutlook: ${s.outlook}${s.ligaUrl && !ligaComun ? `\nEntrar: ${s.ligaUrl}` : ''}`).join('\n\n')}
 
-La liga para entrar a cada sesión se activa en ${base}/mis-cursos 15 minutos antes de empezar. Ahí mismo quedan después las grabaciones.
+La liga para entrar también aparece en ${base}/mis-cursos 15 minutos antes de cada sesión. Ahí mismo quedan después las grabaciones.
 
 Si algo no funciona, responde este correo y te ayudamos.
 
