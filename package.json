@@ -35,6 +35,7 @@
     "test:comunidad": "node scripts/test-comunidad.mjs",
     "test:certificados": "node scripts/test-certificados.mjs",
     "test:encuestas": "node scripts/test-encuestas.mjs",
+    "test:dinamicas": "node scripts/test-dinamicas.mjs",
     "test:todo": "node scripts/test-todo.mjs",
     "check:curso": "node scripts/check-curso.mjs",
     "curso:sembrar": "node scripts/seed-curso.mjs",
