@@ -79,6 +79,16 @@ const PASOS = [
     seccion: 'Funcionalidad',
   },
   {
+    // El seed ya NO publica los cursos QA: respeta lo que haya, para que un
+    // `db:seed` suelto no los saque del archivo y los devuelva al panel del
+    // admin real. Publicarlos es deliberado y pasa aquí, justo antes de
+    // probar; el paso 'esconder' los archiva al terminar.
+    llave: 'mostrar',
+    titulo: 'Cursos QA publicados para las suites',
+    comando: ['node', 'scripts/qa-mostrar.mjs'],
+    seccion: 'Funcionalidad',
+  },
+  {
     // Después del seed (necesita los cursos QA publicados) y antes de las
     // suites (test-todo los vuelve a archivar al terminar). No reprueba: su
     // resultado se MIRA en capturas/hoja-*.png, que es lo que ninguna

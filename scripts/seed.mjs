@@ -126,7 +126,15 @@ async function sembrarDatos(cliente, usuarios) {
            (id, slug, title, description, status, course_type, access_days, price_mxn, price_usd)
          values ($1, $2, $3, $4, 'published', 'cohort', null, 14999.00, 899.00)
          on conflict (id) do update
-           set slug = excluded.slug, title = excluded.title, status = excluded.status,
+           -- El status NO se toca al re-sembrar (21-sep-2026, noche del
+           -- lanzamiento, segunda vez que pasa). Antes ponia published
+           -- siempre, asi que cualquier db:seed --incluido el de otra sesion
+           -- trabajando en paralelo-- resucitaba los cursos QA y reaparecian
+           -- en el panel del admin REAL, con la sala mirando. Archivado gana:
+           -- una vez escondidos, se quedan escondidos. Quien los necesita
+           -- publicados corre qa:mostrar a proposito, y test-todo los archiva
+           -- al terminar.
+           set slug = excluded.slug, title = excluded.title,
                -- Nunca base: un curso QA base inscribiría a cada alumno REAL
                -- que se diera de alta. La suite de Stripe lo enciende un
                -- momento para probarlo y lo apaga; esto lo garantiza aunque

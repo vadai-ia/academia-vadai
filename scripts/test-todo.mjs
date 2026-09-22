@@ -70,6 +70,12 @@ console.log('  SUITE COMPLETA — VADAI ACADEMIA')
 console.log(`  ${aCorrer.length} suite(s), en secuencia`)
 console.log('')
 
+// Las suites necesitan los cursos QA publicados, y el seed ya no los publica:
+// respeta lo que haya, para que un `db:seed` suelto no los devuelva al panel
+// del admin real. Publicarlos es deliberado y pasa aquí; abajo se archivan.
+const mostrado = spawnSync(process.execPath, [path.join(AQUI, 'qa-mostrar.mjs')], { stdio: 'inherit' })
+if (mostrado.status !== 0) console.log('  ✗  No se pudieron publicar los cursos QA: corre `pnpm qa:mostrar`.')
+
 const resultados = []
 
 for (const suite of aCorrer) {

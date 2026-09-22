@@ -137,10 +137,13 @@ En su lugar: `pnpm db:migrate` → `scripts/migrate.mjs`, que aplica los `.sql` 
   alumno; null = General. Las asigna solo el equipo (trigger de perfil). El importador crea las
   que trae la columna Empresa. Es la base del puntaje y las dinámicas por empresa.
 - **Agregar un curso a quien ya tiene cuenta SIEMPRE avisa por correo** (`plantillaNuevoCurso`).
-- **Los cursos QA se archivan fuera de las corridas.** El seed los publica y las suites los
-  necesitan así; `test-todo` y `pnpm qa` los vuelven a archivar al terminar. Si corres una suite
-  suelta, termina con `pnpm qa:esconder`: publicados salen en el panel del admin real y "se
-  desarchivan solos".
+- **Los cursos QA se archivan fuera de las corridas, y archivado gana.** El seed **NO** toca su
+  `status`: respeta el que encuentre. Publicarlos es deliberado —`pnpm qa:mostrar`—, y lo hacen
+  solos `test-todo` y `pnpm qa` antes de probar; los dos los archivan al terminar. Si corres una
+  suite suelta: `pnpm qa:mostrar` antes y `pnpm qa:esconder` después. Hasta el 21-sep-2026 el seed
+  los forzaba a `published` en cada corrida, así que un `pnpm db:seed` de cualquiera —incluida otra
+  sesión trabajando en paralelo sobre la misma base— los devolvía al panel del admin real. Alejandro
+  los archivó a mano cuatro veces y "se desarchivaban solos"; la última, con la sala enfrente.
 
 ## ANTI-PATTERNS — NO HACEMOS
 

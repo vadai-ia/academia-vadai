@@ -9,10 +9,16 @@
  * cohorte QA salía como "Próxima sesión en vivo" en el panel. La víspera del
  * lanzamiento Alejandro los archivó a mano desde el panel, y con razón.
  *
- * Este script hace eso mismo al final de cada corrida de `pnpm qa`: publica
- * el seed, prueban las suites, y al cerrar los cursos QA se archivan otra
- * vez. Archivado no es borrado: el siguiente `pnpm db:seed` los vuelve a
- * publicar para la siguiente corrida.
+ * Este script hace eso mismo al final de cada corrida de `pnpm qa`: se
+ * publican con `pnpm qa:mostrar`, prueban las suites, y al cerrar los cursos
+ * QA se archivan otra vez.
+ *
+ * ARCHIVADO GANA (21-sep-2026). El seed ya NO los vuelve a publicar: respeta
+ * el estado que encuentre. Antes lo forzaba a `published` en cada corrida, y
+ * un `pnpm db:seed` suelto --incluido el de otra sesion trabajando en
+ * paralelo sobre la misma base-- los devolvia al panel del admin real. Paso
+ * dos veces el dia del lanzamiento. Volver a publicarlos es ahora un acto
+ * deliberado: `pnpm qa:mostrar`.
  *
  * Solo toca los dos cursos con UUID fijo de scripts/lib/qa.mjs. Nunca por
  * patrón de slug ni por fecha.
@@ -33,7 +39,7 @@ try {
     [[CURSO_QA.id, CURSO_AJENO_QA.id]]
   )
   linea('ok', 'Cursos QA archivados'.padEnd(42), rows.map((r) => r.slug).join(', ') || 'ya lo estaban')
-  console.log('      El siguiente `pnpm db:seed` los vuelve a publicar para probar.\n')
+  console.log('      Se quedan asi: el seed ya no los desarchiva. Para probar, `pnpm qa:mostrar`.\n')
 } finally {
   await bd.end().catch(() => {})
 }
