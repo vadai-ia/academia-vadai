@@ -6,7 +6,7 @@ import { Pestanas, type Pestana } from '@/components/ui-vadai/pestanas'
 import { Tarjeta, Titulo } from '@/components/ui-vadai/superficie'
 import { misCursos } from '@/lib/alumno/consultas'
 import { esEquipo, exigirPerfil } from '@/lib/auth/sesion'
-import { feedDelCurso } from '@/lib/comunidad/posts'
+import { cursosPorActividad, feedDelCurso } from '@/lib/comunidad/posts'
 import { sellarCanal } from '@/lib/notificaciones/canales'
 
 /**
@@ -36,7 +36,10 @@ export default async function PaginaComunidadGeneral({
   const perfil = await exigirPerfil()
   const { curso: pedido, p, por } = await searchParams
 
-  const cursos = (await misCursos()).filter((c) => c.vigente)
+  // Ordenados por conversación más reciente, no por como vengan: quien abre
+  // "Comunidad" quiere ver donde está pasando algo. Con el orden de `misCursos`
+  // caías en el curso base, que suele estar vacío, y parecía que no había nada.
+  const cursos = await cursosPorActividad((await misCursos()).filter((c) => c.vigente))
 
   // Abrir la comunidad apaga su contador. Se sella aquí y no en el layout: el
   // layout corre en cada pantalla del alumno y apagaría el contador sin que

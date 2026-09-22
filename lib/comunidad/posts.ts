@@ -200,6 +200,43 @@ export async function feedDelCurso(
   return { posts, total, pagina, paginas, porPagina }
 }
 
+/**
+ * Ordena unos cursos por su conversación más reciente.
+ *
+ * Es lo que decide en qué comunidad abre `/comunidad` cuando alguien tiene
+ * varias. Sin esto caía en el primero que devolviera la consulta —el curso base,
+ * casi siempre vacío— y la sección parecía muerta aunque hubiera hilos activos
+ * al lado.
+ *
+ * Una sola consulta para todos los cursos: se piden las publicaciones visibles
+ * ordenadas por fecha y se toma la primera de cada curso.
+ */
+export async function cursosPorActividad<T extends { id: string }>(cursos: T[]): Promise<T[]> {
+  if (cursos.length < 2) return cursos
+
+  const supabase = await crearClienteServidor()
+  const { data, error } = await supabase
+    .from('community_posts')
+    .select('course_id, created_at')
+    .eq('status', 'visible')
+    .in('course_id', cursos.map((c) => c.id))
+    .order('created_at', { ascending: false })
+
+  if (error) {
+    console.error(JSON.stringify({ operacion: 'cursosPorActividad', error: error.message }))
+    return cursos
+  }
+
+  const ultima = new Map<string, string>()
+  for (const fila of data ?? []) {
+    if (!ultima.has(fila.course_id)) ultima.set(fila.course_id, fila.created_at)
+  }
+
+  // `toSorted` no: el arreglo llega de otra consulta y no se gana nada mutando
+  // fuera. Los cursos sin una sola publicación caen al final, no desaparecen.
+  return [...cursos].sort((a, b) => (ultima.get(b.id) ?? '').localeCompare(ultima.get(a.id) ?? ''))
+}
+
 export type AnuncioParaAlumno = {
   id: string
   titulo: string
