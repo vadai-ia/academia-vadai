@@ -55,6 +55,7 @@ export default async function PaginaComunidad({
         cursoId={curso.id}
         cursoSlug={slug}
         soyEquipo={esEquipo(perfil)}
+        ruta={`/curso/${slug}/comunidad`}
       />
     </div>
   )

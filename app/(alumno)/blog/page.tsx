@@ -3,12 +3,15 @@ import type { Metadata } from 'next'
 import { RenderRico } from '@/components/alumno/render-rico'
 import { exigirPerfil } from '@/lib/auth/sesion'
 import { publicacionesParaAlumno } from '@/lib/comunidad/posts'
+import { sellarCanal } from '@/lib/notificaciones/canales'
 
 export const metadata: Metadata = { title: 'Blog' }
 export const dynamic = 'force-dynamic'
 
 function fecha(iso: string): string {
+  // Zona fija: servidor y navegador tienen que decir lo mismo (React 418).
   return new Intl.DateTimeFormat('es-MX', {
+    timeZone: 'America/Mexico_City',
     day: 'numeric',
     month: 'long',
     year: 'numeric',
@@ -23,8 +26,11 @@ function fecha(iso: string): string {
  * entrada sería un clic de más sin nada que ganar.
  */
 export default async function PaginaBlog() {
-  await exigirPerfil()
+  const perfil = await exigirPerfil()
   const entradas = await publicacionesParaAlumno('blog')
+
+  // Abrir el blog apaga su contador en la navegación.
+  await sellarCanal(perfil, 'blog')
 
   return (
     <div className="flex max-w-2xl flex-col gap-8">

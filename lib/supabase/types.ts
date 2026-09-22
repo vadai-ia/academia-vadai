@@ -325,6 +325,33 @@ export type Database = {
         }
         Relationships: []
       }
+      community_reactions: {
+        Row: {
+          id: string
+          post_id: string | null
+          comment_id: string | null
+          user_id: string
+          emoji: '👍' | '👏' | '🚀' | '❤️' | '💡' | '🔥'
+          created_at: string
+        }
+        Insert: {
+          id?: string
+          post_id?: string | null
+          comment_id?: string | null
+          user_id: string
+          emoji: '👍' | '👏' | '🚀' | '❤️' | '💡' | '🔥'
+          created_at?: string
+        }
+        Update: {
+          id?: string
+          post_id?: string | null
+          comment_id?: string | null
+          user_id?: string
+          emoji?: '👍' | '👏' | '🚀' | '❤️' | '💡' | '🔥'
+          created_at?: string
+        }
+        Relationships: []
+      }
       companies: {
         Row: {
           id: string
@@ -400,6 +427,189 @@ export type Database = {
           created_at?: string
           updated_at?: string
           is_default?: boolean
+        }
+        Relationships: []
+      }
+      dynamic_boards: {
+        Row: {
+          id: string
+          dynamic_id: string
+          company_id: string | null
+          owner_user_id: string | null
+          version: number
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          dynamic_id: string
+          company_id?: string | null
+          owner_user_id?: string | null
+          version?: number
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          dynamic_id?: string
+          company_id?: string | null
+          owner_user_id?: string | null
+          version?: number
+          created_at?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      dynamic_cells: {
+        Row: {
+          id: string
+          board_id: string
+          column_id: string
+          row_id: string
+          numeric_value: number | null
+          text_value: string | null
+          updated_by: string | null
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          board_id: string
+          column_id: string
+          row_id: string
+          numeric_value?: number | null
+          text_value?: string | null
+          updated_by?: string | null
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          board_id?: string
+          column_id?: string
+          row_id?: string
+          numeric_value?: number | null
+          text_value?: string | null
+          updated_by?: string | null
+          created_at?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      dynamic_columns: {
+        Row: {
+          id: string
+          board_id: string
+          label: string
+          position: number
+          created_by: string | null
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          board_id: string
+          label: string
+          position?: number
+          created_by?: string | null
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          board_id?: string
+          label?: string
+          position?: number
+          created_by?: string | null
+          created_at?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      dynamic_rows: {
+        Row: {
+          id: string
+          dynamic_id: string
+          row_kind: 'criterio' | 'informativa'
+          label: string
+          weight: number | null
+          position: number
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          dynamic_id: string
+          row_kind: 'criterio' | 'informativa'
+          label: string
+          weight?: number | null
+          position?: number
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          dynamic_id?: string
+          row_kind?: 'criterio' | 'informativa'
+          label?: string
+          weight?: number | null
+          position?: number
+          created_at?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      dynamics: {
+        Row: {
+          id: string
+          course_id: string
+          cohort_id: string | null
+          kind: string
+          title: string
+          description: string | null
+          scale_min: number
+          scale_max: number
+          status: 'draft' | 'open' | 'closed'
+          closes_at: string | null
+          created_by: string | null
+          opened_at: string | null
+          closed_at: string | null
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          course_id: string
+          cohort_id?: string | null
+          kind?: string
+          title: string
+          description?: string | null
+          scale_min?: number
+          scale_max?: number
+          status?: 'draft' | 'open' | 'closed'
+          closes_at?: string | null
+          created_by?: string | null
+          opened_at?: string | null
+          closed_at?: string | null
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          course_id?: string
+          cohort_id?: string | null
+          kind?: string
+          title?: string
+          description?: string | null
+          scale_min?: number
+          scale_max?: number
+          status?: 'draft' | 'open' | 'closed'
+          closes_at?: string | null
+          created_by?: string | null
+          opened_at?: string | null
+          closed_at?: string | null
+          created_at?: string
+          updated_at?: string
         }
         Relationships: []
       }
@@ -938,6 +1148,8 @@ export type Database = {
           notifications_seen_at: string | null
           company_id: string | null
           last_sign_in_at: string | null
+          blog_seen_at: string | null
+          community_seen_at: string | null
         }
         Insert: {
           user_id: string
@@ -951,6 +1163,8 @@ export type Database = {
           notifications_seen_at?: string | null
           company_id?: string | null
           last_sign_in_at?: string | null
+          blog_seen_at?: string | null
+          community_seen_at?: string | null
         }
         Update: {
           user_id?: string
@@ -964,6 +1178,8 @@ export type Database = {
           notifications_seen_at?: string | null
           company_id?: string | null
           last_sign_in_at?: string | null
+          blog_seen_at?: string | null
+          community_seen_at?: string | null
         }
         Relationships: []
       }
@@ -1109,6 +1325,7 @@ export type Database = {
           publicaciones: number | null
           comentarios: number | null
           certificados: number | null
+          dinamicas: number | null
         }
         Relationships: []
       }

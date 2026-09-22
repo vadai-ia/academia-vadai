@@ -5,6 +5,9 @@ import type { Json } from '@/lib/supabase/types'
 
 import type { Autor } from './comentarios'
 
+import { SIN_REACCIONES, type ReaccionesDe } from '@/lib/comunidad/emojis'
+import { reaccionesDe } from '@/lib/comunidad/reacciones'
+
 export type ImagenDePost = { url: string; storage_path: string }
 
 export type ComentarioDePost = {
@@ -13,6 +16,7 @@ export type ComentarioDePost = {
   creadoEn: string
   autor: Autor
   esMio: boolean
+  reacciones: ReaccionesDe
 }
 
 export type PostDeComunidad = {
@@ -24,6 +28,7 @@ export type PostDeComunidad = {
   creadoEn: string
   autor: Autor
   esMio: boolean
+  reacciones: ReaccionesDe
   comentarios: ComentarioDePost[]
 }
 
@@ -121,6 +126,16 @@ export async function feedDelCurso(
   }
   const autores = await resolverAutores([...ids])
 
+  // Las reacciones de todo el feed en una sola consulta, no una por tarjeta.
+  const comentarioIds = filas.flatMap((p) =>
+    (p.community_comments ?? []).filter((c) => c.status === 'visible').map((c) => c.id)
+  )
+  const reacciones = await reaccionesDe(
+    filas.map((p) => p.id),
+    comentarioIds,
+    usuarioActual
+  )
+
   return filas.map((p) => ({
     id: p.id,
     titulo: p.title,
@@ -130,6 +145,7 @@ export async function feedDelCurso(
     creadoEn: p.created_at,
     autor: autores.get(p.user_id) ?? ANONIMO,
     esMio: p.user_id === usuarioActual,
+    reacciones: reacciones.posts.get(p.id) ?? SIN_REACCIONES,
     comentarios: (p.community_comments ?? [])
       .filter((c) => c.status === 'visible')
       .sort((a, b) => a.created_at.localeCompare(b.created_at))
@@ -139,6 +155,7 @@ export async function feedDelCurso(
         creadoEn: c.created_at,
         autor: autores.get(c.user_id) ?? ANONIMO,
         esMio: c.user_id === usuarioActual,
+        reacciones: reacciones.comentarios.get(c.id) ?? SIN_REACCIONES,
       })),
   }))
 }

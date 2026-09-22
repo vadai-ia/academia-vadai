@@ -3,9 +3,15 @@ import type { ReactNode } from 'react'
 
 import { Campana } from '@/components/marca/campana'
 import { Encabezado } from '@/components/marca/encabezado'
-import { IconoBlog, IconoCursos, IconoPerfil } from '@/components/marca/iconos-navegacion'
+import {
+  IconoBlog,
+  IconoComunidad,
+  IconoCursos,
+  IconoPerfil,
+} from '@/components/marca/iconos-navegacion'
 import { SaltarAlContenido } from '@/components/marca/saltar-al-contenido'
 import { esEquipo, exigirPerfil } from '@/lib/auth/sesion'
+import { novedadesDeCanales } from '@/lib/notificaciones/canales'
 import { notificacionesDelAlumno } from '@/lib/notificaciones/consultas'
 
 /**
@@ -17,7 +23,12 @@ export default async function LayoutAlumno({ children }: { children: ReactNode }
   const equipo = esEquipo(perfil)
   // La campana va en el layout: en cualquier pantalla del alumno se ve si hay
   // algo nuevo, sin tener que volver al inicio.
-  const novedades = await notificacionesDelAlumno(perfil)
+  // Las dos van juntas: no dependen entre sí y encadenarlas costaría un viaje
+  // de más en CADA pantalla del alumno.
+  const [novedades, canales] = await Promise.all([
+    notificacionesDelAlumno(perfil),
+    novedadesDeCanales(perfil),
+  ])
 
   return (
     <div className="relative flex min-h-dvh flex-col">
@@ -27,7 +38,13 @@ export default async function LayoutAlumno({ children }: { children: ReactNode }
         extra={<Campana lista={novedades.lista} nuevas={novedades.nuevas} />}
         navegacion={[
           { href: '/mis-cursos', etiqueta: 'Inicio', icono: IconoCursos, exacto: true },
-          { href: '/blog', etiqueta: 'Blog', icono: IconoBlog },
+          {
+            href: '/comunidad',
+            etiqueta: 'Comunidad',
+            icono: IconoComunidad,
+            novedades: canales.comunidad,
+          },
+          { href: '/blog', etiqueta: 'Blog', icono: IconoBlog, novedades: canales.blog },
           { href: '/perfil', etiqueta: 'Mi perfil', icono: IconoPerfil },
         ]}
         // Solo para quien puede entrar al panel: un enlace que rebota es peor que

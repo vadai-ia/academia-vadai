@@ -41,6 +41,11 @@ export type Destino = {
   icono: ReactNode
   /** Exacto para la raíz de una sección; por prefijo para sus hijas. */
   exacto?: boolean
+  /**
+   * Cuántas novedades hay sin ver en ese destino. 0 o ausente no pinta nada:
+   * un cero en un contador es ruido, y peor, se lee como si algo fallara.
+   */
+  novedades?: number
 }
 
 export function NavegacionPrincipal({ destinos }: { destinos: Destino[] }) {
@@ -79,6 +84,20 @@ export function NavegacionPrincipal({ destinos }: { destinos: Destino[] }) {
           >
             <span className="shrink-0">{d.icono}</span>
             {d.etiqueta}
+            {d.novedades && d.novedades > 0 ? (
+              <span
+                // El número va DENTRO del texto accesible, no solo en color:
+                // "Comunidad, 3 sin ver" se lee entero en un lector de pantalla.
+                aria-label={`${d.novedades} sin ver`}
+                className={cn(
+                  'inline-flex min-w-5 items-center justify-center rounded-full px-1.5',
+                  'text-xs font-medium tabular-nums',
+                  activa ? 'bg-primary text-primary-foreground' : 'bg-primary/15 text-primary'
+                )}
+              >
+                {d.novedades > 99 ? '99+' : d.novedades}
+              </span>
+            ) : null}
           </Link>
         )
       })}

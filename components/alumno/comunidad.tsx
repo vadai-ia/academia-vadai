@@ -4,6 +4,7 @@ import Image from 'next/image'
 import { useActionState } from 'react'
 import { useFormStatus } from 'react-dom'
 
+import { Reacciones } from '@/components/alumno/reacciones'
 import { RenderRico } from '@/components/alumno/render-rico'
 import { Avatar } from '@/components/ui-vadai/superficie'
 import { Badge } from '@/components/ui/badge'
@@ -150,10 +151,12 @@ function Comentar({ postId, cursoSlug }: { postId: string; cursoSlug: string }) 
 function Publicacion({
   post,
   cursoSlug,
+  ruta,
   soyEquipo,
 }: {
   post: PostDeComunidad
   cursoSlug: string
+  ruta: string
   soyEquipo: boolean
 }) {
   return (
@@ -245,6 +248,11 @@ function Publicacion({
         </div>
       ) : null}
 
+      {/* Reaccionar cuesta un toque; comentar cuesta escribir. Por eso la fila
+          va antes de los comentarios y siempre visible, aunque nadie haya
+          reaccionado: escondida hasta la primera reacción, no hay primera. */}
+      <Reacciones datos={post.reacciones} postId={post.id} ruta={ruta} />
+
       {post.comentarios.length > 0 ? (
         <ul className="flex flex-col gap-2 border-t border-border pt-3">
           {post.comentarios.map((c) => (
@@ -272,6 +280,14 @@ function Publicacion({
                 ) : null}
               </span>
               <p className="text-sm break-words whitespace-pre-wrap">{c.contenido}</p>
+              <div className="pt-0.5">
+                <Reacciones
+                  datos={c.reacciones}
+                  comentarioId={c.id}
+                  ruta={ruta}
+                  tamano="chico"
+                />
+              </div>
             </li>
           ))}
         </ul>
@@ -292,11 +308,14 @@ export function Comunidad({
   cursoId,
   cursoSlug,
   soyEquipo,
+  ruta,
 }: {
   posts: PostDeComunidad[]
   cursoId: string
   cursoSlug: string
   soyEquipo: boolean
+  /** Qué ruta revalidar al reaccionar: este mismo feed. */
+  ruta: string
 }) {
   return (
     <div className="flex flex-col gap-6">
@@ -312,9 +331,10 @@ export function Comunidad({
         <ul className="flex flex-col gap-4">
           {posts.map((post) => (
             <Publicacion
-              key={`${post.id}:${post.comentarios.length}`}
+              key={`${post.id}:${post.comentarios.length}:${post.reacciones.total}`}
               post={post}
               cursoSlug={cursoSlug}
+              ruta={ruta}
               soyEquipo={soyEquipo}
             />
           ))}
