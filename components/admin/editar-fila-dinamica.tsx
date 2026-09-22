@@ -54,14 +54,14 @@ export function EditarFilaDinamica({
   const campoPeso = (
     <>
       <Label htmlFor={`ed-peso-${fila.id}`}>Peso (%)</Label>
+      {/* Sin min/max/step: oculto por CSS cuando la fila es informativa, un
+          rango que falla ahí bloquea el envío sin decir por qué. El rango lo
+          valida el servidor (leerPeso). */}
       <Input
         id={`ed-peso-${fila.id}`}
         name="weight"
         type="number"
         inputMode="decimal"
-        min={0.01}
-        max={100}
-        step={0.01}
         defaultValue={fila.peso ?? ''}
         className="sm:max-w-32"
       />

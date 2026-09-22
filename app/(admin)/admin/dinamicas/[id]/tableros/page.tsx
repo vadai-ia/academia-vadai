@@ -20,6 +20,16 @@ export const metadata: Metadata = { title: 'Tableros de la dinámica' }
 
 const MAX_AVATARES = 5
 
+function plural(n: number, uno: string, varios: string): string {
+  return `${n} ${n === 1 ? uno : varios}`
+}
+
+/** "3 tableros · 1 con al menos un proyecto completo", sobre un subconjunto. */
+function apoyoDe(tableros: ReadonlyArray<ResumenTablero>): string {
+  const completos = tableros.filter((t) => t.mejor !== null).length
+  return `${plural(tableros.length, 'tablero', 'tableros')} · ${completos} con al menos un proyecto completo`
+}
+
 /**
  * Una tarjeta por tablero, entera clickeable: la empresa, cuántos proyectos,
  * quiénes editan, cuánto llevan y el mejor ponderado. Es lo que el admin mira
@@ -100,13 +110,13 @@ export default async function PaginaTableros({ params }: { params: Promise<{ id:
   const base = `/admin/dinamicas/${dinamica.id}/tableros`
   const porEmpresa = tableros.filter((t) => t.empresa !== null)
   const individuales = tableros.filter((t) => t.empresa === null)
-  const completos = tableros.filter((t) => t.mejor !== null).length
 
   return (
     <div className="flex flex-col gap-8">
       <Seccion
         titulo="Por empresa"
-        apoyo={`${tableros.length} tableros · ${completos} con al menos un proyecto completo`}
+        // Solo los de empresa: los individuales llevan su propio conteo abajo.
+        apoyo={apoyoDe(porEmpresa)}
         accion={
           // El sondeo de abajo es JavaScript; sin él, esto es lo que recarga.
           <a href={base} className="text-sm text-primary underline-offset-4 hover:underline">
@@ -140,7 +150,10 @@ export default async function PaginaTableros({ params }: { params: Promise<{ id:
       </Seccion>
 
       {individuales.length > 0 ? (
-        <Seccion titulo="Individuales" apoyo="Alumnos sin empresa (General)">
+        <Seccion
+          titulo="Individuales"
+          apoyo={`Alumnos sin empresa (General) · ${apoyoDe(individuales)}`}
+        >
           <ul className="grid gap-3 sm:grid-cols-2">
             {individuales.map((t) => (
               <TarjetaTablero key={t.id} tablero={t} base={base} />

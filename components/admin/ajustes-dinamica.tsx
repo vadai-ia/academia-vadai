@@ -102,6 +102,12 @@ function Ajustes({ dinamica, cursos }: { dinamica: DinamicaCompleta; cursos: Cur
             defaultValue={dinamica.course_id}
             className={claseSelect}
           >
+            {/* Si el curso de la dinámica ya no está entre los que se ofrecen
+                (archivado), el <select> caería al primero de la lista y
+                "Guardar cambios" la movería de curso sin que nadie lo pidiera. */}
+            {cursos.some((c) => c.id === dinamica.course_id) ? null : (
+              <option value={dinamica.course_id}>{dinamica.curso} (archivado)</option>
+            )}
             {cursos.map((c) => (
               <option key={c.id} value={c.id}>
                 {c.titulo}

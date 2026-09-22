@@ -7,6 +7,7 @@ import type { Tabla } from '@/lib/supabase/types'
 
 import {
   claveCelda,
+  contarCeldasDeCriterio,
   estadoEfectivo,
   ponderadoDeColumna,
   type EstadoDinamica,
@@ -417,7 +418,6 @@ export async function tablerosDeDinamica(dynamicId: string): Promise<ResumenTabl
   ])
 
   const filasOrdenadas = ordenarFilas(filas.data ?? []).map(aFila)
-  const criterios = new Set(filasOrdenadas.filter((f) => f.tipo === 'criterio').map((f) => f.id))
   const empresaPorId = new Map((empresas.data ?? []).map((e) => [e.id, e.name]))
   const columnasPorTablero = agrupar(columnas, (c) => c.board_id)
   const celdasPorTablero = agrupar(celdas, (c) => c.board_id)
@@ -426,6 +426,12 @@ export async function tablerosDeDinamica(dynamicId: string): Promise<ResumenTabl
   const resumenes = lista.map((t): ResumenTablero => {
     const suyas = columnasPorTablero.get(t.id) ?? []
     const celdasSuyas = celdasPorTablero.get(t.id) ?? []
+    // El mismo conteo que el tablero del admin y el Excel (comun.ts).
+    const { llenas, total } = contarCeldasDeCriterio(
+      filasOrdenadas,
+      suyas,
+      celdasSuyas.map((c) => ({ filaId: c.row_id, columnaId: c.column_id, numero: c.numeric_value }))
+    )
 
     let mejor: ResumenTablero['mejor'] = null
     for (const c of suyas) {
@@ -451,9 +457,8 @@ export async function tablerosDeDinamica(dynamicId: string): Promise<ResumenTabl
       empresa: t.company_id ? (empresaPorId.get(t.company_id) ?? 'Empresa eliminada') : null,
       dueno: t.owner_user_id ? (nombres.get(t.owner_user_id) ?? 'Alumno') : null,
       columnas: suyas.length,
-      llenas: celdasSuyas.filter((c) => c.numeric_value !== null && criterios.has(c.row_id))
-        .length,
-      total: suyas.length * criterios.size,
+      llenas,
+      total,
       mejor,
       editores: [...editores]
         .map((id) => nombres.get(id) ?? 'Alumno')

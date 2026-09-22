@@ -282,7 +282,7 @@ export async function guardarTablero(
     supabase.from('dynamic_rows').select('id, row_kind, label').eq('dynamic_id', dynamicId),
     supabase
       .from('dynamic_cells')
-      .select('row_id, column_id, numeric_value, text_value')
+      .select('row_id, column_id, numeric_value, text_value, updated_by')
       .eq('board_id', boardId),
   ])
 
@@ -292,7 +292,10 @@ export async function guardarTablero(
   const actualPorClave = new Map(
     (actuales.data ?? []).map((c) => [
       claveCelda(c.row_id, c.column_id),
-      c.numeric_value !== null ? String(c.numeric_value) : (c.text_value ?? ''),
+      {
+        valor: c.numeric_value !== null ? String(c.numeric_value) : (c.text_value ?? ''),
+        updated_by: c.updated_by,
+      },
     ])
   )
 
@@ -315,7 +318,12 @@ export async function guardarTablero(
     if (!valor.ok) return { error: `${fila.label}: ${valor.error}` }
 
     const clave = claveCelda(cambio.filaId, cambio.columnaId)
-    if ((actualPorClave.get(clave) ?? '') !== cambio.orig) pisadas += 1
+    // Pisada = la cambió OTRA persona. Si la guardé yo hace un momento con
+    // JavaScript, el `orig:` de mi pantalla quedó atrás pero nadie me pisó.
+    const actual = actualPorClave.get(clave)
+    if ((actual?.valor ?? '') !== cambio.orig && actual?.updated_by !== perfil.user_id) {
+      pisadas += 1
+    }
 
     if (valor.numero === null && valor.texto === null) {
       // Vaciar = borrar. Solo si había algo que borrar.

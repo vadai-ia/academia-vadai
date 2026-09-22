@@ -341,10 +341,14 @@ export function Tablero({
                       <th
                         key={c.id}
                         scope="col"
-                        id={`col-${c.id}`}
                         className="min-w-28 px-3 py-2.5 text-left align-top font-medium text-foreground sm:min-w-32"
                       >
-                        <span className="block text-sm text-pretty break-words">{c.etiqueta}</span>
+                        {/* El `id` va en el nombre solo: los `aria-labelledby`
+                            de las celdas lo leen, y en el <th> arrastrarían
+                            «Opciones de…» y las iniciales de quien lo agregó. */}
+                        <span id={`col-${c.id}`} className="block text-sm text-pretty break-words">
+                          {c.etiqueta}
+                        </span>
                         <span className="flex items-center justify-between gap-1">
                           {ajena ? (
                             <Iniciales
@@ -360,6 +364,8 @@ export function Tablero({
                               type="button"
                               variant="ghost"
                               size="icon-sm"
+                              // 28 px en táctil es poco; globals.css le da 44 bajo pointer: coarse.
+                              data-slot="icono-boton"
                               popoverTarget={`proyecto-${c.id}`}
                               aria-haspopup="dialog"
                               aria-label={`Opciones de ${c.etiqueta}`}
@@ -579,7 +585,10 @@ export function Tablero({
           <>
             <AvisoAccion estado={estadoGuardar} />
 
-            <div className="sticky bottom-0 z-10 -mx-5 flex flex-wrap items-center justify-between gap-3 border-t border-border bg-background/85 px-5 py-2 backdrop-blur-md sm:mx-0 sm:rounded-lg sm:border sm:px-3">
+            {/* Sin sangrado negativo (-mx-5): en móvil la barra a todo el ancho hacía
+                que la sección midiera 20 px más que su caja y, dentro del marco del
+                admin, la página entera desbordaba. Dentro del contenido, con borde. */}
+            <div className="sticky bottom-0 z-10 flex flex-wrap items-center justify-between gap-3 rounded-lg border border-border bg-background/85 px-3 py-2 backdrop-blur-md">
               <p
                 role="status"
                 aria-live="polite"
@@ -925,8 +934,12 @@ function Iniciales({
   verbo: string
   className?: string
 }) {
+  // `relative` siempre: el <span class="sr-only"> de adentro es position: absolute
+  // y, sin un ancestro posicionado DENTRO de la tabla, se ancla al raíz de la
+  // página; con la columna desplazada fuera de la vista ensanchaba el documento
+  // 15 px en el teléfono (auditoría de capturas, 21-sep-2026).
   return (
-    <span className={className} title={`${verbo} ${nombre}`}>
+    <span className={cn('relative', className)} title={`${verbo} ${nombre}`}>
       <span aria-hidden>{iniciales(nombre)}</span>
       <span className="sr-only">
         {verbo} {nombre}

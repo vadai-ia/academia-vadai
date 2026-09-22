@@ -124,14 +124,14 @@ export function NuevaFilaDinamica({
 
       <div data-tipo-fila="criterio" className="flex-col gap-1.5">
         <Label htmlFor="fila-peso">Peso (%)</Label>
+        {/* Sin min/max/step: el campo está oculto por CSS cuando la fila es
+            informativa, y un rango que falla ahí bloquea el envío sin decir
+            por qué. El rango lo valida el servidor (leerPeso). */}
         <Input
           id="fila-peso"
           name="weight"
           type="number"
           inputMode="decimal"
-          min={0.01}
-          max={100}
-          step={0.01}
           defaultValue={faltan > 0 ? faltan : ''}
           className="sm:max-w-32"
         />

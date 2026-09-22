@@ -3,10 +3,10 @@ import Link from 'next/link'
 import { notFound } from 'next/navigation'
 
 import { Tablero } from '@/components/dinamicas/tablero'
-import { RefrescoPeriodico } from '@/components/encuestas/refresco-periodico'
 import { Button } from '@/components/ui/button'
 import { Seccion } from '@/components/ui-vadai/superficie'
 import { exigirAdmin } from '@/lib/auth/sesion'
+import { contarCeldasDeCriterio } from '@/lib/dinamicas/comun'
 import { duenoDeTablero, obtenerTablero } from '@/lib/dinamicas/tablero'
 
 export const dynamic = 'force-dynamic'
@@ -50,8 +50,8 @@ export default async function PaginaTableroAdmin({
   // Un tablero de OTRA dinámica bajo esta URL no existe.
   if (!tablero || tablero.dinamicaId !== id) notFound()
 
-  const total = tablero.filas.length * tablero.columnas.length
-  const llenas = tablero.celdas.length
+  // Mismo conteo que la pestaña de tableros y el Excel: solo celdas de criterio.
+  const { llenas, total } = contarCeldasDeCriterio(tablero.filas, tablero.columnas, tablero.celdas)
   const nombres =
     tablero.editores.length > 0
       ? tablero.editores.map((e) => e.nombre).join(', ')
@@ -77,9 +77,11 @@ export default async function PaginaTableroAdmin({
         </p>
       ) : null}
 
+      {/* Sin <RefrescoPeriodico />: el propio tablero sondea su versión cada tres
+          segundos y se refresca cuando cambia. Un segundo reloj ciego encima
+          duplicaba las recargas y pisaba la guarda de no refrescar con un
+          guardado en vuelo. */}
       <Tablero tablero={tablero} puedeEscribir soyAdmin miUserId={perfil.user_id} />
-
-      <RefrescoPeriodico />
     </Seccion>
   )
 }

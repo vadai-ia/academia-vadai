@@ -171,7 +171,9 @@ export function ConstructorDinamica({ dinamica }: { dinamica: DinamicaCompleta }
         Pesos:{' '}
         <span className={cn('font-medium', !suman100 && 'text-destructive')}>{suma}</span> de 100
         {suman100
-          ? ' · listos para abrirla'
+          ? dinamica.estadoEfectivo === 'draft'
+            ? ' · listos para abrirla'
+            : ''
           : diferencia > 0
             ? ` · faltan ${diferencia} para poder abrirla`
             : ` · sobran ${-diferencia} para poder abrirla`}

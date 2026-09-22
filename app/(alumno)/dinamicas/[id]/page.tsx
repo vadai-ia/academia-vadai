@@ -127,7 +127,9 @@ export default async function PaginaDinamica({ params }: { params: Promise<{ id:
         </p>
       ) : null}
 
-      {!d.vigente ? <AccesoVencidoEnDinamica dinamica={d} empresa={empresa} /> : null}
+      {/* Excluyentes: con la dinámica cerrada, renovar no devuelve nada que
+          calificar, así que el banner de vencido sobra y se dice en una línea. */}
+      {!d.vigente && !cerrada ? <AccesoVencidoEnDinamica dinamica={d} empresa={empresa} /> : null}
 
       {cerrada ? (
         <Tarjeta className="flex flex-col gap-1.5 p-5">
@@ -140,6 +142,11 @@ export default async function PaginaDinamica({ params }: { params: Promise<{ id:
             ) : null}
             El tablero se queda tal cual para consultarlo.
           </p>
+          {!d.vigente ? (
+            <p className="text-sm text-muted-foreground">
+              Tu acceso al curso también venció; el tablero se queda para consultarlo.
+            </p>
+          ) : null}
           {tablero && completas === 0 ? (
             <p className="text-sm text-muted-foreground">
               Ningún proyecto quedó calificado completo, así que esta dinámica no sumó puntos.

@@ -6,6 +6,7 @@ import { crearClienteServidor } from '@/lib/supabase/server'
 import {
   ETIQUETA_ESTADO_DINAMICA,
   claveCelda,
+  contarCeldasDeCriterio,
   estadoEfectivo,
   ganadoras,
   ponderadoDeColumna,
@@ -351,6 +352,9 @@ export function libroDeDinamica(datos: DatosDinamica, fecha = new Date()): Buffe
     ...datos.tableros.map((t): Celda[] => {
       const mapa = mapaDeCeldas(t.celdas)
       const ganan = ganadoras(datos.filas, mapa, t.columnas)
+      // El mismo conteo que la pantalla de tableros: celdas de criterio con
+      // número sobre criterios × proyectos. Las informativas no se califican.
+      const { llenas, total } = contarCeldasDeCriterio(datos.filas, t.columnas, t.celdas)
       let mejor: number | null = null
       for (const c of t.columnas) {
         const p = ponderadoDeColumna(datos.filas, mapa, c.id)
@@ -360,9 +364,8 @@ export function libroDeDinamica(datos: DatosDinamica, fecha = new Date()): Buffe
         nombreDeTablero(t),
         t.editores.join(', '),
         t.columnas.length,
-        // Una celda vacía se borra (0028), así que "llenas" es contar filas.
-        t.celdas.length,
-        datos.filas.length * t.columnas.length,
+        llenas,
+        total,
         // Empate: todas, separadas por " / ". El número ordena, no decide solo.
         t.columnas
           .filter((c) => ganan.has(c.id))

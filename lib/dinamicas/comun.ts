@@ -261,3 +261,26 @@ export function iniciales(nombre: string): string {
       .toUpperCase() || '·'
   )
 }
+
+/**
+ * Cuánto lleva calificado un tablero, con UN solo criterio para la pestaña de
+ * tableros, el tablero del admin y el Excel: una celda cuenta como "llena" si
+ * es de una fila `criterio` y tiene número; el total es criterios × proyectos.
+ * Las informativas no se califican, así que no entran ni arriba ni abajo.
+ */
+export function contarCeldasDeCriterio(
+  filas: ReadonlyArray<Pick<FilaDinamica, 'id' | 'tipo'>>,
+  columnas: ReadonlyArray<Pick<ColumnaTablero, 'id'>>,
+  celdas: ReadonlyArray<Pick<CeldaTablero, 'filaId' | 'columnaId' | 'numero'>>
+): { llenas: number; total: number } {
+  const criterios = new Set<string>()
+  for (const f of filas) if (f.tipo === 'criterio') criterios.add(f.id)
+  const proyectos = new Set<string>()
+  for (const c of columnas) proyectos.add(c.id)
+
+  let llenas = 0
+  for (const c of celdas) {
+    if (c.numero !== null && criterios.has(c.filaId) && proyectos.has(c.columnaId)) llenas += 1
+  }
+  return { llenas, total: criterios.size * proyectos.size }
+}

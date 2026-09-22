@@ -86,9 +86,10 @@ export function fechaHoraCdmx(iso: string): string {
     weekday: 'short',
     day: 'numeric',
     month: 'short',
-    hour: '2-digit',
+    // Doce horas con "p.m.", como lo ve el alumno en su lista y en mis-cursos:
+    // el admin y el alumno tienen que leer la misma hora de la misma forma.
+    hour: 'numeric',
     minute: '2-digit',
-    hour12: false,
   }).format(new Date(iso))
 }
 

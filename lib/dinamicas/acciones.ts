@@ -350,6 +350,17 @@ export async function cerrarDinamica(
  * Reabre. Si la fecha límite ya pasó exige una nueva en el mismo formulario:
  * reabrir con la fecha vencida sería abrir una dinámica que ya está cerrada.
  * Vuelve a poner `opened_at`, así que la campana avisa otra vez.
+ *
+ * Repite las comprobaciones de `abrirDinamica` (≥1 criterio, pesos = 100): con
+ * la dinámica cerrada el admin pudo borrar o mover criterios, y la reapertura
+ * es la única puerta de vuelta a `open`.
+ *
+ * Una `open` con la fecha vencida es cerrada para todos, pero en la base sigue
+ * `open`: un update que no cambia el status pasa de largo por el trigger
+ * `dynamics_valida_transicion`, sin validar pesos ni sellar `opened_at`. Por
+ * eso primero se cierra de verdad y luego se abre: el trigger ve
+ * open→closed→open y sella `closed_at` y `opened_at` como en cualquier
+ * reapertura.
  */
 export async function reabrirDinamica(
   _previo: EstadoAccion,
@@ -361,11 +372,11 @@ export async function reabrirDinamica(
   if (!id) return { error: 'Falta la dinámica.' }
 
   const supabase = await crearClienteServidor()
-  const { data: actual } = await supabase
-    .from('dynamics')
-    .select('status, closes_at')
-    .eq('id', id)
-    .maybeSingle()
+  const [dinamica, filas] = await Promise.all([
+    supabase.from('dynamics').select('status, closes_at').eq('id', id).maybeSingle(),
+    supabase.from('dynamic_rows').select('row_kind, weight').eq('dynamic_id', id),
+  ])
+  const actual = dinamica.data
   if (!actual) return { error: 'Esa dinámica ya no existe.' }
   if (estadoEfectivo(actual) !== 'closed') {
     return {
@@ -373,6 +384,19 @@ export async function reabrirDinamica(
         actual.status === 'draft'
           ? 'La dinámica está en borrador: ábrela con «Abrir la dinámica».'
           : 'La dinámica ya está abierta.',
+    }
+  }
+
+  const criterios = (filas.data ?? [])
+    .filter((f) => f.row_kind === 'criterio')
+    .map((f) => ({ tipo: f.row_kind, peso: f.weight === null ? null : Number(f.weight) }))
+
+  if (criterios.length === 0) {
+    return { error: 'Agrega al menos un criterio con peso antes de reabrirla.' }
+  }
+  if (!pesosSuman100(criterios)) {
+    return {
+      error: `Los pesos suman ${sumaPesos(criterios)}, no 100. Ajusta los criterios antes de reabrirla.`,
     }
   }
 
@@ -389,8 +413,21 @@ export async function reabrirDinamica(
     return { error: 'Esa fecha ya pasó. Pon una en el futuro para reabrirla.' }
   }
 
-  // Una `open` con la fecha vencida ya es cerrada para todos; reabrirla es
-  // solo moverle la fecha. El trigger no interviene porque el status no cambia.
+  // Vencida por fecha pero `open` en la base: se cierra primero para que el
+  // trigger vea la transición completa (ver el comentario de arriba).
+  if (actual.status === 'open') {
+    const { error: errorCierre } = await supabase
+      .from('dynamics')
+      .update({ status: 'closed' })
+      .eq('id', id)
+      .eq('status', 'open')
+
+    if (errorCierre) {
+      registrarFallo('reabrirDinamica', { id, paso: 'cerrar' }, errorCierre.message)
+      return { error: mensajeDe(errorCierre, 'No se pudo reabrir la dinámica.') }
+    }
+  }
+
   const { error } = await supabase
     .from('dynamics')
     .update({ status: 'open', closes_at })
@@ -546,9 +583,16 @@ export async function actualizarFila(
 
   const supabase = await crearClienteServidor()
 
+  // La fila va atada a SU dinámica: el estado se leyó con el `dynamic_id` del
+  // formulario, y una fila de otra dinámica no debe colarse con ese estado.
   const [estado, actual] = await Promise.all([
     estadoDe(supabase, dynamicId),
-    supabase.from('dynamic_rows').select('row_kind, weight').eq('id', id).maybeSingle(),
+    supabase
+      .from('dynamic_rows')
+      .select('row_kind, weight')
+      .eq('id', id)
+      .eq('dynamic_id', dynamicId)
+      .maybeSingle(),
   ])
   if (estado === null) return { error: 'Esa dinámica ya no existe.' }
   if (!actual.data) return { error: 'Esa fila ya no existe.' }
@@ -561,7 +605,7 @@ export async function actualizarFila(
     return { error: `${CIERRALA} Mientras está abierta solo se cambia el nombre de la fila.` }
   }
 
-  const { error } = await supabase
+  const { data, error } = await supabase
     .from('dynamic_rows')
     .update({
       label: resultado.data.label,
@@ -569,11 +613,14 @@ export async function actualizarFila(
       weight: peso.peso,
     })
     .eq('id', id)
+    .eq('dynamic_id', dynamicId)
+    .select('id')
 
   if (error) {
     registrarFallo('actualizarFila', { id }, error.message)
     return { error: mensajeDe(error, 'No se pudo guardar la fila.') }
   }
+  if (!data || data.length === 0) return { error: 'Esa fila ya no existe.' }
 
   refrescar(dynamicId)
   return { aviso: 'Fila guardada.' }
@@ -596,10 +643,13 @@ export async function moverFila(datos: FormData): Promise<void> {
   const estado = await estadoDe(supabase, dynamicId)
   if (estado === null || estado === 'open') return
 
+  // Fila y vecina atadas a SU dinámica: el estado se leyó con el `dynamic_id`
+  // del formulario, y no se mueve nada que no cuelgue de ella.
   const { data: actual } = await supabase
     .from('dynamic_rows')
     .select('id, position')
     .eq('id', id)
+    .eq('dynamic_id', dynamicId)
     .maybeSingle()
   if (!actual) return
 
@@ -614,8 +664,16 @@ export async function moverFila(datos: FormData): Promise<void> {
 
   if (!vecina) return
 
-  await supabase.from('dynamic_rows').update({ position: vecina.position }).eq('id', actual.id)
-  await supabase.from('dynamic_rows').update({ position: actual.position }).eq('id', vecina.id)
+  await supabase
+    .from('dynamic_rows')
+    .update({ position: vecina.position })
+    .eq('id', actual.id)
+    .eq('dynamic_id', dynamicId)
+  await supabase
+    .from('dynamic_rows')
+    .update({ position: actual.position })
+    .eq('id', vecina.id)
+    .eq('dynamic_id', dynamicId)
 
   refrescar(dynamicId)
 }
@@ -630,9 +688,16 @@ export async function eliminarFila(_previo: EstadoAccion, datos: FormData): Prom
 
   const supabase = await crearClienteServidor()
 
+  // La fila va atada a SU dinámica: el estado se leyó con el `dynamic_id` del
+  // formulario, y una fila de otra dinámica no se borra con ese estado.
   const [estado, actual] = await Promise.all([
     estadoDe(supabase, dynamicId),
-    supabase.from('dynamic_rows').select('row_kind').eq('id', id).maybeSingle(),
+    supabase
+      .from('dynamic_rows')
+      .select('row_kind')
+      .eq('id', id)
+      .eq('dynamic_id', dynamicId)
+      .maybeSingle(),
   ])
   if (estado === null) return { error: 'Esa dinámica ya no existe.' }
   if (!actual.data) return { error: 'Esa fila ya no existe.' }
@@ -640,7 +705,12 @@ export async function eliminarFila(_previo: EstadoAccion, datos: FormData): Prom
     return { error: `${CIERRALA} Un criterio no se borra mientras está abierta.` }
   }
 
-  const { data, error } = await supabase.from('dynamic_rows').delete().eq('id', id).select('id')
+  const { data, error } = await supabase
+    .from('dynamic_rows')
+    .delete()
+    .eq('id', id)
+    .eq('dynamic_id', dynamicId)
+    .select('id')
 
   if (error) {
     registrarFallo('eliminarFila', { id }, error.message)
