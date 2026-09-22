@@ -40,6 +40,27 @@ export function mesesEntre(desde: string, hasta: string, tope = 6): string[] {
   return lista.slice(0, tope)
 }
 
+/** El mes de al lado, en cualquier dirección. 'YYYY-MM' → 'YYYY-MM'. */
+export function mesVecino(anioMes: string, pasos: number): string {
+  let anio = Number(anioMes.slice(0, 4))
+  let mes = Number(anioMes.slice(5, 7)) + pasos
+  while (mes > 12) {
+    mes -= 12
+    anio += 1
+  }
+  while (mes < 1) {
+    mes += 12
+    anio -= 1
+  }
+  return `${anio}-${String(mes).padStart(2, '0')}`
+}
+
+/** Un 'YYYY-MM' de verdad, o null. Para no confiar en lo que venga en la URL. */
+export function mesValido(valor: string | undefined | null): string | null {
+  if (!valor || !/^\d{4}-(0[1-9]|1[0-2])$/.test(valor)) return null
+  return valor
+}
+
 /** Las filas de un mes: 4 a 6 semanas, con relleno a los lados. */
 export function celdasDelMes(anioMes: string): Celda[][] {
   const primero = `${anioMes}-01`

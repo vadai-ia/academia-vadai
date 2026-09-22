@@ -184,7 +184,6 @@ export async function fijarPost(datos: FormData): Promise<void> {
   if (!esEquipo(perfil)) return
 
   const id = String(datos.get('id') ?? '')
-  const cursoSlug = String(datos.get('curso_slug') ?? '')
   const fijar = String(datos.get('fijar') ?? '') === 'si'
   if (!id) return
 
@@ -192,17 +191,31 @@ export async function fijarPost(datos: FormData): Promise<void> {
   const { error } = await supabase.from('community_posts').update({ pinned: fijar }).eq('id', id)
 
   if (error) registrar('fijarPost', { id, error: error.message })
-  revalidatePath(`/curso/${cursoSlug}/comunidad`)
+  revalidatePath(rutaDeVuelta(datos))
 }
 
-/** Moderación: ocultar es reversible; borrar rompería los hilos (§3.8). */
+/**
+ * A dónde volver tras moderar.
+ *
+ * El mismo feed se pinta en dos rutas desde que la comunidad es una sección
+ * propia (21-sep-2026): dentro del curso y en /comunidad. El formulario manda
+ * cuál, y se revalida esa; sin esto, moderar desde /comunidad dejaba la
+ * pantalla igual y parecía que el botón no había hecho nada.
+ */
+function rutaDeVuelta(datos: FormData): string {
+  const ruta = String(datos.get('ruta') ?? '')
+  if (ruta.startsWith('/')) return ruta
+  const cursoSlug = String(datos.get('curso_slug') ?? '')
+  return `/curso/${cursoSlug}/comunidad`
+}
+
+/** Moderación: ocultar es reversible y no rompe el hilo. */
 export async function moderarPost(datos: FormData): Promise<void> {
   const perfil = await exigirPerfil()
   if (!esEquipo(perfil)) return
 
   const id = String(datos.get('id') ?? '')
   const tipo = String(datos.get('tipo') ?? 'post')
-  const cursoSlug = String(datos.get('curso_slug') ?? '')
   if (!id) return
 
   const supabase = await crearClienteServidor()
@@ -210,7 +223,35 @@ export async function moderarPost(datos: FormData): Promise<void> {
   const { error } = await supabase.from(tabla).update({ status: 'hidden' }).eq('id', id)
 
   if (error) registrar('moderarPost', { id, tipo, error: error.message })
-  revalidatePath(`/curso/${cursoSlug}/comunidad`)
+  revalidatePath(rutaDeVuelta(datos))
+}
+
+/**
+ * Borrado de verdad, para el equipo (21-sep-2026).
+ *
+ * Ocultar basta para lo que estorba; esto es para lo que no debe quedar ni
+ * guardado —un insulto, un dato personal de alguien más, spam—. Alejandro lo
+ * pidió así: "podemos eliminar y ocultar cualquier comentario para poder ver si
+ * no hay alguno mala leche".
+ *
+ * Quién puede lo decide RLS (`community_*_delete_admin`), no este archivo.
+ * Borrar una publicación se lleva sus comentarios por la FK en cascada, y eso
+ * es lo que se quiere: un hilo entero que no debía existir.
+ */
+export async function eliminarComoEquipo(datos: FormData): Promise<void> {
+  const perfil = await exigirPerfil()
+  if (!esEquipo(perfil)) return
+
+  const id = String(datos.get('id') ?? '')
+  const tipo = String(datos.get('tipo') ?? 'post')
+  if (!id) return
+
+  const supabase = await crearClienteServidor()
+  const tabla = tipo === 'comentario' ? 'community_comments' : 'community_posts'
+  const { error } = await supabase.from(tabla).delete().eq('id', id)
+
+  if (error) registrar('eliminarComoEquipo', { id, tipo, error: error.message })
+  revalidatePath(rutaDeVuelta(datos))
 }
 
 /** El autor borra lo suyo: lógico, para no romper los comentarios que cuelgan. */
@@ -218,7 +259,6 @@ export async function eliminarPostPropio(datos: FormData): Promise<void> {
   const perfil = await exigirPerfil()
 
   const id = String(datos.get('id') ?? '')
-  const cursoSlug = String(datos.get('curso_slug') ?? '')
   if (!id) return
 
   const supabase = await crearClienteServidor()
@@ -229,5 +269,5 @@ export async function eliminarPostPropio(datos: FormData): Promise<void> {
     .eq('user_id', perfil.user_id)
 
   if (error) registrar('eliminarPostPropio', { id, error: error.message })
-  revalidatePath(`/curso/${cursoSlug}/comunidad`)
+  revalidatePath(rutaDeVuelta(datos))
 }

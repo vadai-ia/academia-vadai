@@ -21,11 +21,14 @@ export async function generateMetadata({
 
 export default async function PaginaComunidad({
   params,
+  searchParams,
 }: {
   params: Promise<{ slug: string }>
+  searchParams: Promise<{ p?: string; por?: string }>
 }) {
   const perfil = await exigirPerfil()
   const { slug } = await params
+  const { p, por } = await searchParams
 
   const curso = await cursoDelAlumno(slug)
   if (!curso) notFound()
@@ -34,7 +37,10 @@ export default async function PaginaComunidad({
   // El índice del curso sí se ve, y de ahí sale el CTA de recompra (§6.3).
   if (!curso.vigente) redirect(`/curso/${slug}`)
 
-  const posts = await feedDelCurso(curso.id, perfil.user_id)
+  const feed = await feedDelCurso(curso.id, perfil.user_id, {
+    pagina: Number(p) || 1,
+    porPagina: por === undefined ? 10 : Number(por),
+  })
 
   return (
     <div className="flex flex-col gap-6">
@@ -51,11 +57,15 @@ export default async function PaginaComunidad({
       <Ranking cursoId={curso.id} userId={perfil.user_id} />
 
       <Comunidad
-        posts={posts}
+        posts={feed.posts}
         cursoId={curso.id}
         cursoSlug={slug}
         soyEquipo={esEquipo(perfil)}
         ruta={`/curso/${slug}/comunidad`}
+        pagina={feed.pagina}
+        paginas={feed.paginas}
+        porPagina={feed.porPagina}
+        total={feed.total}
       />
     </div>
   )

@@ -81,24 +81,62 @@ async function resolverAutores(userIds: string[]): Promise<Map<string, Autor>> {
  *
  * Solo llegan los `visible`: lo oculto por el admin lo filtra RLS, no la UI.
  */
+/** Cuántas publicaciones por página puede pedir alguien. `0` = todas. */
+export const POR_PAGINA = [10, 25, 50, 100, 200, 0] as const
+
+export type FeedDeComunidad = {
+  posts: PostDeComunidad[]
+  /** Publicaciones visibles en total, para saber cuántas páginas hay. */
+  total: number
+  pagina: number
+  paginas: number
+  porPagina: number
+}
+
 export async function feedDelCurso(
   cursoId: string,
-  usuarioActual: string
-): Promise<PostDeComunidad[]> {
+  usuarioActual: string,
+  opciones: { pagina?: number; porPagina?: number } = {}
+): Promise<FeedDeComunidad> {
   const supabase = await crearClienteServidor()
 
-  const { data, error } = await supabase
-    .from('community_posts')
-    .select('id, user_id, title, content_rich, images, pinned, created_at, community_comments(id, user_id, content, created_at, status)')
-    .eq('course_id', cursoId)
-    .eq('status', 'visible')
-    .order('pinned', { ascending: false })
-    .order('created_at', { ascending: false })
+  // `0` significa "todas". Se traduce a un tope alto y no a "sin límite": una
+  // consulta sin techo es una bomba de relojería el día que el feed crezca.
+  const porPagina = opciones.porPagina && opciones.porPagina > 0 ? opciones.porPagina : 1000
+  const pedida = Math.max(1, opciones.pagina ?? 1)
+
+  const base = () =>
+    supabase
+      .from('community_posts')
+      .select(
+        'id, user_id, title, content_rich, images, pinned, created_at, community_comments(id, user_id, content, created_at, status)',
+        { count: 'exact' }
+      )
+      .eq('course_id', cursoId)
+      .eq('status', 'visible')
+      .order('pinned', { ascending: false })
+      .order('created_at', { ascending: false })
+
+  const desde = (pedida - 1) * porPagina
+  let { data, error, count } = await base().range(desde, desde + porPagina - 1)
+
+  // PostgREST responde 416 cuando el rango se pasa del final. Pasa al llegar
+  // por una URL vieja, o al bajar de 100 por página estando en la página 7.
+  if (error && (error.code === 'PGRST103' || /range/i.test(error.message))) {
+    const reintento = await base().range(0, porPagina - 1)
+    data = reintento.data
+    error = reintento.error
+    count = reintento.count
+  }
 
   if (error) {
     console.error(JSON.stringify({ operacion: 'feedDelCurso', cursoId, error: error.message }))
-    return []
+    return { posts: [], total: 0, pagina: 1, paginas: 1, porPagina }
   }
+
+  const total = count ?? 0
+  const paginas = Math.max(1, Math.ceil(total / porPagina))
+  const pagina = Math.min(pedida, paginas)
 
   type Anidado = {
     id: string
@@ -136,7 +174,7 @@ export async function feedDelCurso(
     usuarioActual
   )
 
-  return filas.map((p) => ({
+  const posts = filas.map((p) => ({
     id: p.id,
     titulo: p.title,
     contenido: p.content_rich,
@@ -158,6 +196,8 @@ export async function feedDelCurso(
         reacciones: reacciones.comentarios.get(c.id) ?? SIN_REACCIONES,
       })),
   }))
+
+  return { posts, total, pagina, paginas, porPagina }
 }
 
 export type AnuncioParaAlumno = {

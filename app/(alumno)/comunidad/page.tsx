@@ -31,10 +31,10 @@ export const metadata: Metadata = { title: 'Comunidad' }
 export default async function PaginaComunidadGeneral({
   searchParams,
 }: {
-  searchParams: Promise<{ curso?: string }>
+  searchParams: Promise<{ curso?: string; p?: string; por?: string }>
 }) {
   const perfil = await exigirPerfil()
-  const { curso: pedido } = await searchParams
+  const { curso: pedido, p, por } = await searchParams
 
   const cursos = (await misCursos()).filter((c) => c.vigente)
 
@@ -66,7 +66,10 @@ export default async function PaginaComunidadGeneral({
   const activo = cursos.find((c) => c.slug === pedido) ?? cursos[0]
   if (!activo) return null
 
-  const posts = await feedDelCurso(activo.id, perfil.user_id)
+  const feed = await feedDelCurso(activo.id, perfil.user_id, {
+    pagina: Number(p) || 1,
+    porPagina: por === undefined ? 10 : Number(por),
+  })
 
   const pestanas: Pestana[] = cursos.map((c) => ({
     href: c.slug === cursos[0]?.slug ? '/comunidad' : `/comunidad?curso=${c.slug}`,
@@ -84,11 +87,17 @@ export default async function PaginaComunidadGeneral({
       {cursos.length > 1 ? <Pestanas pestanas={pestanas} etiqueta="Comunidades de tus cursos" /> : null}
 
       <Comunidad
-        posts={posts}
+        posts={feed.posts}
         cursoId={activo.id}
         cursoSlug={activo.slug}
         soyEquipo={esEquipo(perfil)}
         ruta="/comunidad"
+        pagina={feed.pagina}
+        paginas={feed.paginas}
+        porPagina={feed.porPagina}
+        total={feed.total}
+        // Al pasar de página no se pierde de qué curso es la comunidad.
+        extra={cursos.length > 1 && activo.slug !== cursos[0]?.slug ? { curso: activo.slug } : {}}
       />
     </div>
   )

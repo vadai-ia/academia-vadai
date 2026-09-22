@@ -14,7 +14,7 @@ import { cursoDelAlumno } from '@/lib/alumno/consultas'
 import { sesionesDelAlumno } from '@/lib/alumno/sesiones'
 import { exigirPerfil } from '@/lib/auth/sesion'
 import { estadoDe, proximaOActual } from '@/lib/calendario/estado'
-import { hoyCdmx, partesCdmx } from '@/lib/calendario/mes'
+import { hoyCdmx, mesDe, mesValido, partesCdmx } from '@/lib/calendario/mes'
 
 /**
  * La pestaña "En vivo" de un curso.
@@ -40,11 +40,11 @@ export default async function PaginaEnVivo({
   searchParams,
 }: {
   params: Promise<{ slug: string }>
-  searchParams: Promise<{ vista?: string }>
+  searchParams: Promise<{ vista?: string; mes?: string }>
 }) {
   await exigirPerfil()
   const { slug } = await params
-  const { vista: pedida } = await searchParams
+  const { vista: pedida, mes: mesPedido } = await searchParams
 
   const [curso, sesiones] = await Promise.all([cursoDelAlumno(slug), sesionesDelAlumno(slug)])
   if (!curso) notFound()
@@ -63,6 +63,12 @@ export default async function PaginaEnVivo({
   // de "todas" solo tiene sentido cuando hay una sola.
   const cohortes = new Set(sesiones.map((s) => s.cohorteId))
   const proximas = sesiones.filter((s) => estadoDe(s.programadaEn, ahora) !== 'pasada')
+  // Qué mes se abre: el que pidan, o el de la sesión que toca. Abrir en el mes
+  // de hoy sería peor cuando el curso empieza el mes que viene: se vería un mes
+  // vacío y habría que adivinar hacia dónde avanzar.
+  const mes =
+    mesValido(mesPedido) ?? mesDe(actual ? partesCdmx(actual.programadaEn).fecha : hoy)
+
   const primera = sesiones[0]
   const ultima = sesiones[sesiones.length - 1]
 
@@ -108,6 +114,8 @@ export default async function PaginaEnVivo({
               hoy={hoy}
               ahora={ahora}
               cursoSlug={curso.slug}
+              mes={mes}
+              base={`${base}/en-vivo`}
             />
           )}
         </Seccion>

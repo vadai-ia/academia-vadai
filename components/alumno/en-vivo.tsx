@@ -13,7 +13,7 @@ import {
   etiquetaRelativa,
   horaCorta,
   mesDe,
-  mesesEntre,
+  mesVecino,
   nombreMes,
   partesCdmx,
   rangoHorario,
@@ -359,16 +359,68 @@ function Mes({
   )
 }
 
+/** ← y → para moverse de mes. Son enlaces: funcionan sin JavaScript. */
+function FlechaDeMes({
+  href,
+  hacia,
+  etiqueta,
+}: {
+  href: string
+  hacia: 'anterior' | 'siguiente'
+  etiqueta: string
+}) {
+  return (
+    <Link
+      href={href}
+      scroll={false}
+      aria-label={etiqueta}
+      title={etiqueta}
+      className="inline-flex size-10 items-center justify-center rounded-full border border-border text-muted-foreground transition-colors hover:bg-muted hover:text-foreground focus-visible:ring-3 focus-visible:ring-ring/50 focus-visible:outline-none sm:size-9"
+    >
+      <svg
+        viewBox="0 0 24 24"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="2"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        className="size-4"
+        aria-hidden
+      >
+        <path d={hacia === 'anterior' ? 'm15 18-6-6 6-6' : 'm9 18 6-6-6-6'} />
+      </svg>
+    </Link>
+  )
+}
+
+/**
+ * El calendario: UN SOLO MES, con flechas para recorrerlos.
+ *
+ * Antes se pintaban todos los meses del curso lado a lado. Con dos ya obligaba
+ * a barrer la pantalla de un lado al otro para encontrar la siguiente sesión, y
+ * en el teléfono se apilaban en una columna larguísima. Alejandro lo pidió así:
+ * "solo debe verse un mes y puede moverse con botones laterales... así la
+ * navegación es más atractiva para el alumno".
+ *
+ * El mes vive en la URL (`?mes=2026-10`), así que se comparte, el botón de
+ * atrás del navegador funciona y no hace falta una línea de JavaScript.
+ */
 export function CalendarioSesiones({
   sesiones,
   hoy,
   ahora,
   cursoSlug,
+  mes,
+  base,
 }: {
   sesiones: SesionDelAlumno[]
   hoy: string
   ahora: number
   cursoSlug: string
+  /** El mes que se está viendo, 'YYYY-MM'. */
+  mes: string
+  /** La ruta de la pestaña, para armar los enlaces de las flechas. */
+  base: string
 }) {
   const porDia = new Map<string, SesionDelAlumno[]>()
   for (const s of sesiones) {
@@ -376,27 +428,63 @@ export function CalendarioSesiones({
     porDia.set(dia, [...(porDia.get(dia) ?? []), s])
   }
 
-  const fechas = [...porDia.keys()].sort()
-  const primera = fechas[0] ?? hoy
-  const ultima = fechas[fechas.length - 1] ?? hoy
-  // El mes de hoy siempre entra mientras el curso corre: si no, alguien que
-  // abre a mitad de octubre vería septiembre y nada más.
-  const meses = mesesEntre(
-    mesDe(primera < hoy ? primera : hoy),
-    mesDe(ultima > hoy ? ultima : hoy)
-  )
+  const hrefMes = (m: string) => `${base}?mes=${m}`
+  const anterior = mesVecino(mes, -1)
+  const siguiente = mesVecino(mes, 1)
+
+  // Cuántas sesiones caen en el mes que se está viendo, y en los vecinos: es lo
+  // que evita que alguien se pierda dando flechazos al vacío.
+  const cuantasEn = (m: string) =>
+    sesiones.filter((s) => mesDe(partesCdmx(s.programadaEn).fecha) === m).length
+
+  const enEste = cuantasEn(mes)
+  const mesDeHoy = mesDe(hoy)
 
   return (
-    <div className="flex flex-col gap-6">
-      <div className="grid gap-6 lg:grid-cols-2">
-        {meses.map((m) => (
-          <Mes key={m} anioMes={m} porDia={porDia} hoy={hoy} ahora={ahora} />
-        ))}
+    <div className="flex flex-col gap-4">
+      {/* El encabezado del mes ES el control: nombre al centro, flechas a los
+          lados. Los blancos son de 44 px para el dedo. */}
+      <div className="flex items-center justify-between gap-3">
+        <FlechaDeMes
+          href={hrefMes(anterior)}
+          hacia="anterior"
+          etiqueta={`Ver ${nombreMes(anterior)}`}
+        />
+
+        <div className="flex min-w-0 flex-col items-center gap-0.5 text-center">
+          <h3 className="text-lg leading-tight font-medium tracking-tight">{nombreMes(mes)}</h3>
+          <span className="text-xs text-muted-foreground">
+            {enEste === 0
+              ? 'Sin sesiones este mes'
+              : `${enEste} sesión${enEste === 1 ? '' : 'es'}`}
+          </span>
+        </div>
+
+        <FlechaDeMes
+          href={hrefMes(siguiente)}
+          hacia="siguiente"
+          etiqueta={`Ver ${nombreMes(siguiente)}`}
+        />
       </div>
 
-      <p className="text-xs text-muted-foreground">
-        Toca un día con sesión para ver su horario, entrar y agregarla a tu calendario.
-      </p>
+      <Mes anioMes={mes} porDia={porDia} hoy={hoy} ahora={ahora} />
+
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <p className="text-xs text-muted-foreground">
+          Toca un día con sesión para ver su horario, entrar y agregarla a tu calendario.
+        </p>
+
+        {/* Solo cuando hace falta: estando en el mes de hoy, sobra. */}
+        {mes !== mesDeHoy ? (
+          <Link
+            href={hrefMes(mesDeHoy)}
+            scroll={false}
+            className="text-xs text-primary underline-offset-4 hover:underline"
+          >
+            Volver a {nombreMes(mesDeHoy)}
+          </Link>
+        ) : null}
+      </div>
 
       {/* Los detalles viven fuera de la tabla: el navegador los sube a la capa
           de arriba y no los recorta ninguna celda. */}
