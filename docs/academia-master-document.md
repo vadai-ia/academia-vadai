@@ -481,6 +481,19 @@ Hoy: 19-ago. 4.5 semanas efectivas. Cada milestone cierra con validación manual
 | Las gráficas del PDF se redibujan en vector, no se capturan | No hay navegador sin cabeza en el stack. `@react-pdf/renderer` trae primitivas SVG, y el acomodo sale de los mismos módulos puros que usa la proyección (`acomodarNube`, `matrizQr`): así el reporte muestra el mismo dibujo que vio la sala. Si el PDF calculara por su cuenta, habría dos versiones del mismo evento |
 | Rol nuevo `invitado` en `profiles` | Quien se registra desde el QR obtiene cuenta real para volver a la siguiente encuesta, pero no compró nada. Con `alumno` acabaría en /mis-cursos viendo un vacío que no le explica nada, y ensuciaría el padrón |
 
+### Decisión de M13 (21-sep-2026)
+
+| Decisión | Por qué |
+|----------|---------|
+| Dinámicas empresariales: la hoja de decisión de la sesión 1, colaborativa por empresa | El Excel se llenaba fuera de la plataforma y cada quien el suyo. Ahora vive en la academia y **toda la empresa edita el mismo tablero** (una calificación por celda, gana el último, firmada con quién la puso). Quien no tiene empresa trabaja el suyo. `dynamics.kind` nace con un solo valor para que los tipos siguientes sean una migración, no un rediseño |
+| El cierre por fecha se evalúa al leer, sin pg_cron | pg_cron crea objetos fuera de `academia` (Regla Cero). `academia.dinamica_abierta()` es la única definición de "abierta de verdad" y la usan RLS, la vista de puntos y el servidor |
+| La versión del tablero sí se mueve con cada celda | Al revés que en las encuestas: aquí son quince personas de una empresa y lo que se colabora es la celda. Sondeo de 3 s con ETag; `router.refresh()` como máximo uno por cliente por latido |
+| El tablero se crea con un POST, nunca en un GET | Los escáneres de correo y el propio sondeo hacen GET. Un 23505 al crearlo es un compañero que llegó antes: éxito |
+| Puntos por dinámica cerrada, calculados en la vista, 30 como una tarea aprobada | Doctrina de 0025: guardarlos sería una segunda verdad. Una vez por dinámica (sin farmeo) y a toda la empresa. Reabrir los quita hasta el siguiente cierre; es comportamiento, no bug |
+| Campana sin tabla nueva | `dynamics.opened_at` hace de `published_at`; reabrir vuelve a avisar |
+| `dynamic_boards.company_id` es `on delete restrict` | Borrar una empresa con tableros sería perder la matriz de un equipo en silencio. El panel avisa y el mensaje dice qué hacer antes |
+| "Dinámica" deja de nombrar a las encuestas | Dos cosas distintas con el mismo nombre en la misma barra. Las encuestas en vivo se llaman encuestas en toda pantalla de alumno y de sala |
+
 ## 12. FUERA DE ALCANCE (EXPLÍCITO)
 
 - Membresía/suscripciones activas (solo schema preparado)
@@ -488,6 +501,7 @@ Hoy: 19-ago. 4.5 semanas efectivas. Cada milestone cierra con validación manual
 - App móvil nativa (web responsive solamente)
 - Gamificación **de perfil** tipo Skool (puntos acumulados, niveles, leaderboard permanente)
   — *matizado el 2-sep-2026: la dinámica en vivo de M12 sí entra. Ver el registro de decisiones.*
+  — *matizado el 21-sep-2026: las dinámicas empresariales de M13 dan puntos de perfil (30 por dinámica cerrada), calculados, no guardados.*
 - Afiliados, cupones avanzados, upsells
 - Multi-idioma (solo español)
 - Notificaciones por email más allá de invite/reset de Supabase Auth
