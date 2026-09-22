@@ -8,6 +8,7 @@ import {
   IconoComunidad,
   IconoCursos,
   IconoPerfil,
+  IconoPuntos,
 } from '@/components/marca/iconos-navegacion'
 import { SaltarAlContenido } from '@/components/marca/saltar-al-contenido'
 import { esEquipo, exigirPerfil } from '@/lib/auth/sesion'
@@ -45,6 +46,7 @@ export default async function LayoutAlumno({ children }: { children: ReactNode }
             novedades: canales.comunidad,
           },
           { href: '/blog', etiqueta: 'Blog', icono: IconoBlog, novedades: canales.blog },
+          { href: '/puntos', etiqueta: 'Tus puntos', icono: IconoPuntos },
           { href: '/perfil', etiqueta: 'Mi perfil', icono: IconoPerfil },
         ]}
         // Solo para quien puede entrar al panel: un enlace que rebota es peor que

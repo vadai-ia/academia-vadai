@@ -461,13 +461,20 @@ function Publicacion({
 }
 
 /**
- * Cuántas por página y en cuál estás.
+ * Cuántas por página, y las flechas para moverse.
  *
- * Son enlaces, no un `<select>` con JavaScript: se comparten, funcionan sin JS
- * y el navegador recuerda dónde estabas al volver atrás. Cambiar el tamaño
- * siempre vuelve a la página 1, que es lo único que no confunde: quedarse en la
- * página 7 al bajar de 200 a 10 deja a alguien mirando el final de la lista sin
- * saber por qué.
+ * El tamaño es un `<select>` dentro de un `<form method="get">`: seis pastillas
+ * ocupaban media barra para algo que se toca una vez al año, y en el teléfono
+ * se amontonaban. El formulario es GET y funciona sin JavaScript; con JS, el
+ * selector se envía solo al cambiar y el botón "Ver" desaparece.
+ *
+ * Las flechas están SIEMPRE, no solo cuando hay varias páginas: un control que
+ * aparece y desaparece obliga a buscarlo cada vez. Cuando no aplican se ven
+ * apagadas y no se pueden tocar.
+ *
+ * Cambiar el tamaño siempre vuelve a la página 1, que es lo único que no
+ * confunde: quedarse en la página 7 al bajar de 200 a 10 deja a alguien mirando
+ * el final de la lista sin saber por qué.
  */
 function Paginacion({
   pagina,
@@ -484,97 +491,98 @@ function Paginacion({
   ruta: string
   extra: Record<string, string>
 }) {
-  const href = (p: number, por: number) => {
+  const href = (p: number) => {
     const params = new URLSearchParams(extra)
     if (p > 1) params.set('p', String(p))
-    if (por !== 10) params.set('por', String(por))
+    if (porPagina !== 10) params.set('por', String(porPagina))
     const cadena = params.toString()
     return cadena ? `${ruta}?${cadena}` : ruta
   }
 
-  const TAMANOS: Array<{ valor: number; etiqueta: string }> = [
-    { valor: 10, etiqueta: '10' },
-    { valor: 25, etiqueta: '25' },
-    { valor: 50, etiqueta: '50' },
-    { valor: 100, etiqueta: '100' },
-    { valor: 200, etiqueta: '200' },
+  const TAMANOS = [
+    { valor: 10, etiqueta: '10 por página' },
+    { valor: 25, etiqueta: '25 por página' },
+    { valor: 50, etiqueta: '50 por página' },
+    { valor: 100, etiqueta: '100 por página' },
+    { valor: 200, etiqueta: '200 por página' },
     { valor: 0, etiqueta: 'Todas' },
   ]
 
-  const clasePastilla = (activa: boolean) =>
-    cn(
-      'inline-flex min-h-8 min-w-9 items-center justify-center rounded-full px-2.5',
-      'text-sm font-medium transition-colors',
-      'focus-visible:ring-3 focus-visible:ring-ring/50 focus-visible:outline-none',
-      activa
-        ? 'bg-primary text-primary-foreground'
-        : 'text-muted-foreground hover:bg-muted hover:text-foreground'
-    )
-
   const claseFlecha = (habilitada: boolean) =>
     cn(
-      'inline-flex min-h-9 items-center gap-1.5 rounded-full border px-3 text-sm font-medium',
+      'inline-flex min-h-10 items-center gap-1.5 rounded-full border px-4 text-sm font-medium',
       'transition-colors focus-visible:ring-3 focus-visible:ring-ring/50 focus-visible:outline-none',
       habilitada
         ? 'border-border hover:bg-muted'
-        : 'pointer-events-none border-border/50 text-muted-foreground/50'
+        : 'pointer-events-none border-border/40 text-muted-foreground/40'
     )
 
   return (
     <nav
-      aria-label="Páginas de la comunidad"
-      className="flex flex-col gap-3 border-t border-border pt-4"
+      aria-label="Navegar las publicaciones"
+      className="flex flex-col gap-3 border-t border-border pt-4 sm:flex-row sm:items-center sm:justify-between"
     >
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <span className="text-sm text-muted-foreground">
+      <form method="get" className="flex items-center gap-2">
+        {Object.entries(extra).map(([nombre, valor]) => (
+          <input key={nombre} type="hidden" name={nombre} value={valor} />
+        ))}
+
+        <label htmlFor="com-por" className="text-sm text-muted-foreground">
+          Ver
+        </label>
+        <select
+          id="com-por"
+          name="por"
+          defaultValue={String(porPagina >= total && total > 0 ? porPagina : porPagina)}
+          className="h-9 rounded-lg border border-input bg-transparent px-3 text-sm outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 dark:bg-input/30"
+        >
+          {TAMANOS.map((t) => (
+            <option key={t.valor} value={t.valor}>
+              {t.etiqueta}
+            </option>
+          ))}
+        </select>
+
+        <Button type="submit" variant="outline" size="sm">
+          Aplicar
+        </Button>
+
+        <span className="hidden text-sm text-muted-foreground sm:inline">
           {total === 0
             ? 'Sin publicaciones'
-            : porPagina >= total
-              ? `${total} publicación${total === 1 ? '' : 'es'}`
-              : `Página ${pagina} de ${paginas} · ${total} publicaciones`}
+            : `${total} publicación${total === 1 ? '' : 'es'}`}
+        </span>
+      </form>
+
+      <div className="flex items-center justify-between gap-2 sm:justify-end">
+        <span className="text-sm text-muted-foreground tabular-nums">
+          {paginas > 1 ? `Página ${pagina} de ${paginas}` : null}
         </span>
 
-        <span className="flex items-center gap-1">
-          <span className="mr-1 text-xs text-muted-foreground">Ver</span>
-          {TAMANOS.map((t) => (
-            <Link
-              key={t.valor}
-              href={href(1, t.valor)}
-              scroll={false}
-              aria-current={t.valor === porPagina || (t.valor === 0 && porPagina >= total) ? 'true' : undefined}
-              className={clasePastilla(t.valor === porPagina)}
-            >
-              {t.etiqueta}
-            </Link>
-          ))}
-        </span>
-      </div>
-
-      {paginas > 1 ? (
-        <div className="flex items-center justify-between gap-3">
+        <div className="flex items-center gap-2">
           <Link
-            href={href(Math.max(1, pagina - 1), porPagina)}
+            href={href(Math.max(1, pagina - 1))}
             scroll={false}
             rel="prev"
             aria-disabled={pagina <= 1}
             tabIndex={pagina <= 1 ? -1 : undefined}
             className={claseFlecha(pagina > 1)}
           >
-            <span aria-hidden>←</span> Anteriores
+            <span aria-hidden>←</span> Anterior
           </Link>
 
           <Link
-            href={href(Math.min(paginas, pagina + 1), porPagina)}
+            href={href(Math.min(paginas, pagina + 1))}
             scroll={false}
             rel="next"
             aria-disabled={pagina >= paginas}
             tabIndex={pagina >= paginas ? -1 : undefined}
             className={claseFlecha(pagina < paginas)}
           >
-            Siguientes <span aria-hidden>→</span>
+            Siguiente <span aria-hidden>→</span>
           </Link>
         </div>
-      ) : null}
+      </div>
     </nav>
   )
 }
