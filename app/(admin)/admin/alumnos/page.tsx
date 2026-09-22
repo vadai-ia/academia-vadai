@@ -6,6 +6,7 @@ import { claseSelect } from '@/components/admin/estilos'
 import { Paginacion } from '@/components/admin/paginacion'
 import { ReenviarPendientes } from '@/components/admin/reenviar-pendientes'
 import { TablaAlumnos } from '@/components/admin/tabla-alumnos'
+import { AutoEnviar } from '@/components/ui-vadai/auto-enviar'
 import { Pestanas } from '@/components/ui-vadai/pestanas'
 import { Cifra, Tarjeta, Titulo } from '@/components/ui-vadai/superficie'
 import { Button } from '@/components/ui/button'
@@ -156,9 +157,13 @@ export default async function PaginaAlumnos({ searchParams }: { searchParams: Pr
             ))}
           </select>
         </label>
-        <Button type="submit" size="lg">
+        <Button type="submit" size="lg" data-aplicar>
           Buscar
         </Button>
+        {/* Con JavaScript, buscar y filtrar se aplican solos y el botón de
+            arriba se esconde. Sin él, el botón sigue siendo la forma de
+            hacerlo. */}
+        <AutoEnviar />
         {busqueda || empresaFiltro ? (
           <Button asChild variant="ghost" size="lg">
             <a href={verSuspendidos ? '/admin/alumnos?ver=suspendidos' : '/admin/alumnos'}>Limpiar</a>

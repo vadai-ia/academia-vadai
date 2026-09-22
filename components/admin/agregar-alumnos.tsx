@@ -8,6 +8,7 @@ import { SelectorDeEmpresa, type EmpresaOpcion } from '@/components/admin/dar-de
 import { Desplegable } from '@/components/admin/desplegable'
 import { claseResumen, claseSelect } from '@/components/admin/estilos'
 import { ListaSeleccionable } from '@/components/admin/lista-seleccionable'
+import { AutoEnviar } from '@/components/ui-vadai/auto-enviar'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
@@ -108,9 +109,10 @@ export function AgregarAlumnos({
                 autoComplete="off"
               />
             </label>
-            <Button type="submit" variant="outline">
+            <Button type="submit" variant="outline" data-aplicar>
               Buscar
             </Button>
+            <AutoEnviar />
           </form>
 
           {candidatos.length > 0 ? (

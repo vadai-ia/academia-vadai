@@ -1,6 +1,7 @@
 import Link from 'next/link'
 
 import { ConfirmarConModal } from '@/components/admin/confirmar-con-modal'
+import { AutoEnviar } from '@/components/ui-vadai/auto-enviar'
 import { Cifra, Progreso } from '@/components/ui-vadai/superficie'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
@@ -180,9 +181,10 @@ export function TablaInscritos({
             ))}
           </select>
         </label>
-        <Button type="submit" variant="outline" size="sm" className="h-9">
+        <Button type="submit" variant="outline" size="sm" className="h-9" data-aplicar>
           Aplicar
         </Button>
+        <AutoEnviar />
         {hayFiltro ? (
           <Button asChild variant="ghost" size="sm" className="h-9">
             <a href={`/admin/cursos/${cursoId}#inscritos`}>Limpiar</a>

@@ -6,6 +6,7 @@ import { useActionState } from 'react'
 import { useFormStatus } from 'react-dom'
 
 import { Reacciones } from '@/components/alumno/reacciones'
+import { AutoEnviar } from '@/components/ui-vadai/auto-enviar'
 import { RenderRico } from '@/components/alumno/render-rico'
 import { Avatar } from '@/components/ui-vadai/superficie'
 import { Badge } from '@/components/ui/badge'
@@ -465,8 +466,8 @@ function Publicacion({
  *
  * El tamaño es un `<select>` dentro de un `<form method="get">`: seis pastillas
  * ocupaban media barra para algo que se toca una vez al año, y en el teléfono
- * se amontonaban. El formulario es GET y funciona sin JavaScript; con JS, el
- * selector se envía solo al cambiar y el botón "Ver" desaparece.
+ * se amontonaban. Al elegir se aplica solo —`AutoEnviar` esconde el botón y
+ * envía—; sin JavaScript el botón sigue ahí y el formulario funciona igual.
  *
  * Las flechas están SIEMPRE, no solo cuando hay varias páginas: un control que
  * aparece y desaparece obliga a buscarlo cada vez. Cuando no aplican se ven
@@ -543,9 +544,10 @@ function Paginacion({
           ))}
         </select>
 
-        <Button type="submit" variant="outline" size="sm">
+        <Button type="submit" variant="outline" size="sm" data-aplicar>
           Aplicar
         </Button>
+        <AutoEnviar />
 
         <span className="hidden text-sm text-muted-foreground sm:inline">
           {total === 0
