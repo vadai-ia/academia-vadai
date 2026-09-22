@@ -89,10 +89,23 @@ export async function entrarAEncuesta(
   const entrada = await entrar(encuesta, resultado.data as DatosDeEntrada, {
     crearCuenta: true,
     darDeAlta: async (email, nombre) => {
+      // BUG CRÍTICO corregido el 21-sep-2026, en vivo, durante el lanzamiento:
+      // esto SIEMPRE mandaba `rol: 'invitado'` a `darDeAlta`, sin mirar si el
+      // correo ya tenía cuenta. `darDeAlta` documenta que un `rol` explícito
+      // FIJA el rol —es lo que pide el alta de equipo—, así que cada alumno
+      // real que entraba a una encuesta desde su teléfono (sin sesión abierta
+      // en ESE navegador, que es el caso normal de un QR) quedaba degradado a
+      // `invitado` y desaparecía de /admin/alumnos y del tablero. 115 cuentas
+      // lo sufrieron en la primera media hora del evento.
+      //
+      // El rol solo se fija en 'invitado' para quien todavía NO tiene cuenta;
+      // a quien ya la tiene se le da de alta SIN pasar `rol`, que es lo que
+      // conserva el que ya tenía (alumno, admin, lo que sea).
+      const yaTeniaCuenta = await tieneCuenta(email)
       const alta = await darDeAlta({
         email,
         nombre,
-        rol: 'invitado',
+        ...(yaTeniaCuenta ? {} : { rol: 'invitado' as const }),
         origen: 'manual',
         urlRedireccion: `${process.env.NEXT_PUBLIC_APP_URL ?? ''}/nueva-contrasena`,
       })
