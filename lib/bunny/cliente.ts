@@ -100,8 +100,19 @@ export type FirmaDeSubida = {
  * Bunny especifica: sha256(libraryId + apiKey + expiration + videoId), con
  * `expiration` en segundos UNIX. La llave entra en el hash pero nunca se
  * transmite: el navegador solo recibe el resultado.
+ *
+ * OCHO HORAS, NO UNA (22-sep-2026). La firma viaja en los headers de CADA
+ * trozo, así que no basta con que alcance para empezar: tiene que durar toda
+ * la subida. Con una hora, la primera grabación de sesión —tres horas de Zoom,
+ * varios GB— se habría cortado a media subida en cualquier conexión de menos
+ * de 15 Mbps de bajada, y el aviso habría sido un error genérico después de
+ * cincuenta minutos de espera.
+ *
+ * Alargarla no abre nada nuevo: la firma sirve para subir a UN video que ya
+ * existe en nuestra biblioteca y del que ya tenemos el GUID. Lo más que
+ * permitiría a quien la robara es reemplazar ese archivo.
  */
-export function firmarSubida(videoId: string, minutosDeVida = 60): FirmaDeSubida {
+export function firmarSubida(videoId: string, minutosDeVida = 8 * 60): FirmaDeSubida {
   const { libraryId, apiKey } = configuracion()
   const expiracion = Math.floor(Date.now() / 1000) + minutosDeVida * 60
 

@@ -25,7 +25,27 @@ import { guardarAvance } from '@/lib/alumno/acciones'
  */
 
 const CONTEXTO = 'player.js'
-const CADA_SEG = 15
+
+/** Nunca más seguido que esto, nunca más espaciado que aquello. */
+const MINIMO_SEG = 15
+const MAXIMO_SEG = 60
+
+/**
+ * Cada cuánto se guarda el avance, según lo que dure el video.
+ *
+ * Era fijo en 15 segundos, pensado para lecciones de cinco minutos. Con las
+ * grabaciones de sesión —tres horas— eso son 720 guardados por persona y por
+ * visualización, cada uno su propia llamada al servidor: ciento y pico de
+ * alumnos convertían una grabación en cien mil invocaciones, para un dato que
+ * solo sirve para retomar donde te quedaste.
+ *
+ * Proporcional: unos 240 guardados pase lo que pase. Una lección corta sigue
+ * guardando cada 15 segundos; una de tres horas, cada 45.
+ */
+function cadaCuanto(duracionSeg: number | null): number {
+  if (!duracionSeg || duracionSeg <= 0) return MINIMO_SEG
+  return Math.min(MAXIMO_SEG, Math.max(MINIMO_SEG, Math.round(duracionSeg / 240)))
+}
 
 type MensajePlayer = {
   context?: string
@@ -84,7 +104,7 @@ export function Reproductor({
         const duracion = Math.floor(datos.value?.duration ?? duracionSeg ?? 0)
         if (segundos <= 0) return
 
-        if (segundos - ultimoGuardado.current < CADA_SEG) return
+        if (segundos - ultimoGuardado.current < cadaCuanto(duracion || duracionSeg)) return
         ultimoGuardado.current = segundos
 
         void guardarAvance(leccionId, segundos, duracion || duracionSeg, cursoSlug).then(

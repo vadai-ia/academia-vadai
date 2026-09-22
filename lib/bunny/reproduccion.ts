@@ -36,11 +36,16 @@ export function firmarReproduccion(videoId: string): Reproduccion {
   const expira = Math.floor(Date.now() / 1000) + VIDA_SEG
   const token = createHash('sha256').update(`${llave}${videoId}${expira}`).digest('hex')
 
+  // `preload: false` desde el 22-sep-2026, con las grabaciones de sesión de
+  // tres horas a la vista. Precargar gastaba datos del alumno en cuanto abría
+  // la lección, aunque solo hubiera entrado a ver de qué iba; en un teléfono
+  // con plan medido eso es cobrarle por no ver nada. El costo es que el play
+  // tarda una fracción de segundo más en arrancar.
   const parametros = new URLSearchParams({
     token,
     expires: String(expira),
     autoplay: 'false',
-    preload: 'true',
+    preload: 'false',
   })
 
   return {
