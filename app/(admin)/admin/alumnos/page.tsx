@@ -122,6 +122,12 @@ export default async function PaginaAlumnos({ searchParams }: { searchParams: Pr
     <div className="flex flex-col gap-8">
       <Titulo apoyo={apoyo}>Alumnos</Titulo>
 
+      {aviso === 'reenviado' && correo ? (
+        <AvisoAccion estado={{ aviso: `Correo de acceso enviado a ${correo}. Su liga vale 30 días.` }} />
+      ) : null}
+      {aviso === 'sinCorreo' && correo ? (
+        <AvisoAccion estado={{ error: `No se pudo enviar el correo a ${correo}. Revisa que la dirección sea correcta.` }} />
+      ) : null}
       {aviso === 'eliminado' && correo ? (
         <AvisoAccion estado={{ aviso: `La cuenta de ${correo} se eliminó. Sus pagos, si los había, se conservan para la contabilidad.` }} />
       ) : null}
@@ -258,7 +264,9 @@ export default async function PaginaAlumnos({ searchParams }: { searchParams: Pr
             </p>
           </Tarjeta>
         ) : (
-          <TablaAlumnos filas={lista.filas} />
+          // `hrefDe({})` es esta misma vista con sus filtros: al reenviar se
+          // vuelve aquí, no a la lista sin filtrar.
+          <TablaAlumnos filas={lista.filas} volverA={hrefDe({})} />
         )}
 
         <Paginacion

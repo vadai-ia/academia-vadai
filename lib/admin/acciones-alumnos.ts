@@ -1,6 +1,7 @@
 'use server'
 
 import { revalidatePath } from 'next/cache'
+import { redirect } from 'next/navigation'
 import { z } from 'zod'
 
 import { alumnosPendientesDeEntrar } from '@/lib/admin/accesos'
@@ -190,6 +191,18 @@ export async function reenviarAcceso(datos: FormData): Promise<void> {
 
   console.log(JSON.stringify({ operacion: 'reenviarAcceso', email, enviado }))
   revalidatePath('/admin/alumnos')
+
+  // AVISA (23-sep-2026). Antes no devolvía nada: se apretaba el botón, la liga
+  // se creaba, el correo salía... y la pantalla quedaba idéntica. Alejandro
+  // llegó a pedir que "habilitaran" un botón que llevaba minutos funcionando,
+  // porque no había forma de saberlo. Un `redirect` con el resultado en la URL
+  // es lo más simple que sí se ve, y sirve igual sin JavaScript.
+  const destino = String(datos.get('volver_a') ?? '/admin/alumnos')
+  const base = destino.startsWith('/admin/alumnos') ? destino : '/admin/alumnos'
+  const union = base.includes('?') ? '&' : '?'
+  redirect(
+    `${base}${union}aviso=${enviado ? 'reenviado' : 'sinCorreo'}&correo=${encodeURIComponent(email)}`
+  )
 }
 
 /**

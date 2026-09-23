@@ -3,6 +3,7 @@ import Link from 'next/link'
 import { notFound } from 'next/navigation'
 
 import { CambiarEmpresa, DarAcceso, EnlaceDeAcceso } from '@/components/admin/acciones-de-alumno'
+import { AvisoAccion } from '@/components/admin/aviso-accion'
 import { ConfirmarConModal } from '@/components/admin/confirmar-con-modal'
 import { EliminarCuenta } from '@/components/admin/eliminar-cuenta'
 import { Avatar, Cifra, Progreso, Seccion, Tarjeta } from '@/components/ui-vadai/superficie'
@@ -46,9 +47,16 @@ export async function generateMetadata({ params }: { params: Promise<{ userId: s
  * NO lleva `loading.tsx`: el `notFound()` es control de acceso y un límite de
  * Suspense lo volvería un 200 (components/marca/esqueleto.tsx).
  */
-export default async function PaginaFicha({ params }: { params: Promise<{ userId: string }> }) {
+export default async function PaginaFicha({
+  params,
+  searchParams,
+}: {
+  params: Promise<{ userId: string }>
+  searchParams: Promise<{ aviso?: string; correo?: string }>
+}) {
   const perfil = await exigirAdmin()
   const { userId } = await params
+  const { aviso, correo } = await searchParams
   if (!UUID.test(userId)) notFound()
 
   const [ficha, empresas] = await Promise.all([fichaDeAlumno(userId), listarEmpresas()])
@@ -244,10 +252,18 @@ export default async function PaginaFicha({ params }: { params: Promise<{ userId
 
       {/* --- Acceso ----------------------------------------------------------- */}
       <Seccion titulo="Acceso" apoyo="Cómo entra y con qué correo">
+        {aviso === 'reenviado' && correo ? (
+          <AvisoAccion estado={{ aviso: `Correo de acceso enviado a ${correo}. Su liga vale 30 días.` }} />
+        ) : null}
+        {aviso === 'sinCorreo' && correo ? (
+          <AvisoAccion estado={{ error: `No se pudo enviar el correo a ${correo}. Revisa que la dirección sea correcta.` }} />
+        ) : null}
         <Tarjeta className="flex flex-col gap-4 p-5">
           <div className="flex flex-wrap items-start gap-3">
             <form action={reenviarAcceso}>
               <input type="hidden" name="email" value={ficha.email} />
+              {/* Reenviar desde la ficha se queda en la ficha, con su aviso. */}
+              <input type="hidden" name="volver_a" value={`/admin/alumnos/${userId}`} />
               <Button type="submit" variant="outline" size="sm">
                 Reenviar correo de acceso
               </Button>

@@ -23,7 +23,14 @@ const celda =
   'px-4 py-3 align-top max-sm:flex max-sm:items-center max-sm:justify-between max-sm:gap-3 max-sm:px-4 max-sm:py-1 ' +
   'max-sm:before:text-xs max-sm:before:text-muted-foreground max-sm:before:content-[attr(data-etiqueta)]'
 
-export function TablaAlumnos({ filas }: { filas: AlumnoEnLista[] }) {
+export function TablaAlumnos({
+  filas,
+  volverA = '/admin/alumnos',
+}: {
+  filas: AlumnoEnLista[]
+  /** La URL con los filtros puestos: reenviar no debe perder la búsqueda. */
+  volverA?: string
+}) {
   return (
     <Tarjeta className="overflow-hidden">
       <div className="overflow-x-auto">
@@ -111,10 +118,15 @@ export function TablaAlumnos({ filas }: { filas: AlumnoEnLista[] }) {
 
                   <td className="px-4 py-3 align-top max-sm:block max-sm:pt-2">
                     <span className="flex flex-wrap items-center justify-end gap-1.5 max-sm:justify-start">
+                      {/* `outline` y no `ghost`: en fantasma se leía como una
+                          etiqueta gris al lado de "Ver ficha", y se llegó a
+                          reportar como un botón que "no se puede apretar"
+                          cuando llevaba minutos funcionando (23-sep-2026). */}
                       {!a.ultimoAcceso && !equipo && a.estado === 'active' ? (
                         <form action={reenviarAcceso}>
                           <input type="hidden" name="email" value={a.email} />
-                          <Button type="submit" variant="ghost" size="sm">
+                          <input type="hidden" name="volver_a" value={volverA} />
+                          <Button type="submit" variant="outline" size="sm">
                             Reenviar acceso
                           </Button>
                         </form>
