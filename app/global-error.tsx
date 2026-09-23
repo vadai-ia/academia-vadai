@@ -51,7 +51,7 @@ export default function ErrorGlobal({
           <h1 style={{ fontSize: '1.5rem', fontWeight: 600, margin: 0 }}>Algo falló al cargar la página</h1>
           <p style={{ margin: 0, lineHeight: 1.6, color: '#3d4f63' }}>
             Recarga la página. Si vuelve a pasar, intenta con otro navegador (Chrome o Edge
-            actualizados) y escríbenos a hola@vadai.com.mx. Ya nos llegó el aviso del error.
+            actualizados) y escríbenos a ayuda@vadai.com.mx. Ya nos llegó el aviso del error.
           </p>
           <div style={{ display: 'flex', gap: '0.75rem', flexWrap: 'wrap' }}>
             <button

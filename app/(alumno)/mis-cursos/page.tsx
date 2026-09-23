@@ -228,7 +228,7 @@ export default async function PaginaInicio() {
             Todavía no tienes ningún curso asignado.
           </p>
           <a
-            href="mailto:hola@vadai.com.mx?subject=No%20veo%20mi%20curso"
+            href="mailto:ayuda@vadai.com.mx?subject=No%20veo%20mi%20curso"
             className="mt-2 inline-block text-sm text-primary underline-offset-4 hover:underline"
           >
             Si compraste uno, escríbenos

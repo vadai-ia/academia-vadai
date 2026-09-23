@@ -62,7 +62,7 @@ function envoltura(contenido: string, preheader?: string): string {
         <tr><td style="padding-top:24px;font-family:Inter,Arial,sans-serif;font-size:12px;color:${GRIS};line-height:1.6;">
           Si no esperabas este correo, puedes ignorarlo.<br>
           ¿Necesitas ayuda? Escríbenos a
-          <a href="mailto:hola@vadai.com.mx" style="color:${CYAN};">hola@vadai.com.mx</a>
+          <a href="mailto:ayuda@vadai.com.mx" style="color:${CYAN};">ayuda@vadai.com.mx</a>
         </td></tr>
       </table>
     </td></tr>
@@ -497,7 +497,7 @@ ${url}
 Este enlace vence en una hora.
 
 Si no lo pediste, puedes ignorar este correo.
-¿Necesitas ayuda? hola@vadai.com.mx`
+¿Necesitas ayuda? ayuda@vadai.com.mx`
 
   return { asunto: 'Cambia tu contraseña · VADAI Academia', html, texto }
 }

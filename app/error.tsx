@@ -58,8 +58,8 @@ export default function PaginaDeError({
         <p style={{ margin: 0, lineHeight: 1.6, color: '#3d4f63' }}>
           No es algo que hayas hecho mal. Casi siempre se resuelve recargando; si vuelve a pasar,
           intenta con otro navegador (Chrome o Edge actualizados) y escríbenos a{' '}
-          <a href="mailto:hola@vadai.com.mx" style={{ color: '#006E96' }}>
-            hola@vadai.com.mx
+          <a href="mailto:ayuda@vadai.com.mx" style={{ color: '#006E96' }}>
+            ayuda@vadai.com.mx
           </a>{' '}
           con la hora en que pasó. Ya nos llegó el aviso del error.
         </p>

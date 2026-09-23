@@ -42,7 +42,7 @@ export function AccesoVencido({ curso }: { curso: CursoDelAlumno }) {
         </div>
       ) : (
         <a
-          href="mailto:hola@vadai.com.mx?subject=Quiero%20renovar%20mi%20acceso"
+          href="mailto:ayuda@vadai.com.mx?subject=Quiero%20renovar%20mi%20acceso"
           className="text-sm text-primary underline-offset-4 hover:underline"
         >
           Escríbenos para renovar

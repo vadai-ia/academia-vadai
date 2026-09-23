@@ -63,7 +63,7 @@ function remitente(): string {
  * correo y te ayudamos": sin esta cabecera esa respuesta se perdería.
  */
 function responderA(): string {
-  return process.env.CORREO_RESPONDER_A ?? 'hola@vadai.com.mx'
+  return process.env.CORREO_RESPONDER_A ?? 'ayuda@vadai.com.mx'
 }
 
 export function correoConfigurado(): boolean {

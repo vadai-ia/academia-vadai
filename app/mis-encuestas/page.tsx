@@ -110,7 +110,7 @@ export default async function PaginaMisEncuestas() {
           usa todos los días. +40 empresas capacitadas y 4.9 de calificación.
         </p>
         <a
-          href="mailto:hola@vadai.com.mx?subject=Quiero%20informaci%C3%B3n%20de%20los%20cursos"
+          href="mailto:ayuda@vadai.com.mx?subject=Quiero%20informaci%C3%B3n%20de%20los%20cursos"
           className="text-sm text-primary underline-offset-4 hover:underline"
         >
           Cuéntanos de tu empresa →
