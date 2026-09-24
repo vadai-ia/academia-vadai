@@ -26,8 +26,8 @@ export type Sesion =
 /**
  * Resuelve quién está pidiendo la página.
  *
- * Usa getUser() y no getSession(): getSession lee la cookie sin validarla contra
- * el servidor de Auth, así que una cookie manipulada pasaría. getUser verifica.
+ * Usa getClaims() y no getSession(): getSession lee la cookie sin validarla,
+ * así que una cookie manipulada pasaría. getClaims verifica la firma en local.
  *
  * Envuelto en `cache()` de React, que memoriza por PETICIÓN — no entre
  * peticiones, así que no cachea sesiones ajenas ni sobrevive a un logout.
@@ -41,19 +41,27 @@ export type Sesion =
 export const obtenerSesion = cache(async function obtenerSesion(): Promise<Sesion> {
   const supabase = await crearClienteServidor()
 
-  const {
-    data: { user },
-  } = await supabase.auth.getUser()
+  // getClaims() en vez de getUser() (24-sep-2026): verifica la firma del token
+  // en local con la llave pública del proyecto (ES256 en su JWKS), así que una
+  // cookie manipulada sigue sin pasar, pero ya no hay un viaje al servidor de
+  // Auth por cada render. Con la base en Ohio, ese viaje era ~150 ms en cada
+  // página, antes de la primera consulta de datos.
+  const { data: claimsData, error } = await supabase.auth.getClaims()
+  const claims = error ? null : claimsData?.claims
+  const userId = claims?.sub
 
-  if (!user) return { tipo: 'anonimo' }
+  if (!userId) return { tipo: 'anonimo' }
 
   const { data: perfil } = await supabase
     .from('profiles')
     .select('*')
-    .eq('user_id', user.id)
+    .eq('user_id', userId)
     .maybeSingle()
 
-  if (!perfil) return { tipo: 'sinPerfil', email: user.email ?? null }
+  if (!perfil) {
+    const email = typeof claims.email === 'string' ? claims.email : null
+    return { tipo: 'sinPerfil', email }
+  }
   if (perfil.status === 'suspended') return { tipo: 'suspendido', perfil }
 
   return { tipo: 'activo', perfil }

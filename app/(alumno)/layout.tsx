@@ -1,5 +1,5 @@
 import Link from 'next/link'
-import type { ReactNode } from 'react'
+import { Suspense, type ReactNode } from 'react'
 
 import { Campana } from '@/components/marca/campana'
 import { Encabezado } from '@/components/marca/encabezado'
@@ -10,6 +10,7 @@ import {
   IconoPerfil,
   IconoPuntos,
 } from '@/components/marca/iconos-navegacion'
+import { BarraDeNavegacion } from '@/components/marca/barra-de-navegacion'
 import { SaltarAlContenido } from '@/components/marca/saltar-al-contenido'
 import { esEquipo, exigirPerfil } from '@/lib/auth/sesion'
 import { novedadesDeCanales } from '@/lib/notificaciones/canales'
@@ -34,6 +35,11 @@ export default async function LayoutAlumno({ children }: { children: ReactNode }
   return (
     <div className="relative flex min-h-dvh flex-col">
       <SaltarAlContenido />
+      {/* Sin señal entre el clic y la página nueva, la gente vuelve a apretar.
+          Suspense porque lee la URL y algunas rutas del árbol son estáticas. */}
+      <Suspense fallback={null}>
+        <BarraDeNavegacion />
+      </Suspense>
       <Encabezado
         perfil={perfil}
         extra={<Campana lista={novedades.lista} nuevas={novedades.nuevas} />}

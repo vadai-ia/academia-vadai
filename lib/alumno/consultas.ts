@@ -180,11 +180,11 @@ export async function misCursos(): Promise<CursoDelAlumno[]> {
   const filas = [...propias, ...ajenos]
   if (filas.length === 0) return []
 
-  const { data: outline } = await supabase.from('lesson_outline').select('*')
-  const { data: progreso } = await supabase
-    .from('lesson_progress')
-    .select('lesson_id, completed')
-    .eq('user_id', userId)
+  // Independientes entre sí: en paralelo son un viaje, no dos (24-sep-2026).
+  const [{ data: outline }, { data: progreso }] = await Promise.all([
+    supabase.from('lesson_outline').select('*'),
+    supabase.from('lesson_progress').select('lesson_id, completed').eq('user_id', userId),
+  ])
 
   const completadas = new Set(
     (progreso ?? []).filter((p) => p.completed).map((p) => p.lesson_id)
@@ -228,27 +228,29 @@ export const cursoDelAlumno = cache(async function cursoDelAlumno(
 ): Promise<CursoDelAlumno | null> {
   const supabase = await crearClienteServidor()
 
-  const { data: curso } = await supabase
-    .from('courses')
-    .select('*')
-    .eq('slug', slug)
-    .maybeSingle()
-
-  if (!curso) return null
-
+  // La sesión ya está memorizada por el layout: no cuesta viaje.
   const sesion = await obtenerSesion()
   if (sesion.tipo !== 'activo') return null
   const userId = sesion.perfil.user_id
 
-  // Filtrada por usuario: sin eso, a alguien del equipo RLS le devuelve las
-  // inscripciones de todos y `maybeSingle` revienta por traer más de una fila.
-  const { data: inscripcion } = await supabase
-    .from('enrollments')
-    .select('expires_at, status')
-    .eq('user_id', userId)
-    .eq('course_id', curso.id)
-    .eq('status', 'active')
+  // Curso e inscripción en UN viaje (24-sep-2026): antes eran dos encadenados
+  // —primero el curso para saber su id, después la inscripción—. La inscripción
+  // va embebida y filtrada por usuario; sin ese filtro, a alguien del equipo
+  // RLS le devolvería las inscripciones de todos.
+  const { data: fila } = await supabase
+    .from('courses')
+    .select('*, enrollments(expires_at, status)')
+    .eq('slug', slug)
+    .eq('enrollments.user_id', userId)
+    .eq('enrollments.status', 'active')
     .maybeSingle()
+
+  if (!fila) return null
+
+  const { enrollments, ...curso } = fila as Tabla<'courses'> & {
+    enrollments: Array<{ expires_at: string | null; status: string }> | null
+  }
+  const inscripcion = enrollments?.[0] ?? null
 
   // El equipo entra sin estar inscrito, y esto no es una excepción cosmética:
   // sin ella un admin no puede abrir una lección para moderar su hilo (§6.4) ni

@@ -39,12 +39,11 @@ export default async function PaginaComunidadGeneral({
   // Ordenados por conversación más reciente, no por como vengan: quien abre
   // "Comunidad" quiere ver donde está pasando algo. Con el orden de `misCursos`
   // caías en el curso base, que suele estar vacío, y parecía que no había nada.
-  const cursos = await cursosPorActividad((await misCursos()).filter((c) => c.vigente))
-
   // Abrir la comunidad apaga su contador. Se sella aquí y no en el layout: el
   // layout corre en cada pantalla del alumno y apagaría el contador sin que
-  // nadie hubiera leído nada.
-  await sellarCanal(perfil, 'comunidad')
+  // nadie hubiera leído nada. Va en paralelo con los cursos: no dependen.
+  const [cursosCrudos] = await Promise.all([misCursos(), sellarCanal(perfil, 'comunidad')])
+  const cursos = await cursosPorActividad(cursosCrudos.filter((c) => c.vigente))
 
   if (cursos.length === 0) {
     return (

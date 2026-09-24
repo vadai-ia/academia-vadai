@@ -31,9 +31,9 @@ export type SesionDelAlumno = {
  * y la página vuelve a pedirlo para pintarlas. Sin esto serían dos viajes a
  * Supabase por carga.
  */
-export const sesionesDelAlumno = cache(async function sesionesDelAlumno(
-  cursoSlug?: string
-): Promise<SesionDelAlumno[]> {
+export const sesionesDelAlumno = cache(async function sesionesDelAlumno(): Promise<
+  SesionDelAlumno[]
+> {
   const supabase = await crearClienteServidor()
 
   const { data, error } = await supabase
@@ -72,5 +72,14 @@ export const sesionesDelAlumno = cache(async function sesionesDelAlumno(
       grabacionLeccionId: s.recording_lesson_id,
       actualizadaEn: s.updated_at ?? s.created_at,
     }))
-    .filter((s) => !cursoSlug || s.cursoSlug === cursoSlug)
 })
+
+/**
+ * Las de UN curso. Filtra en memoria sobre la consulta memorizada: antes
+ * `sesionesDelAlumno(slug)` y `sesionesDelAlumno()` eran dos claves de caché
+ * distintas y la campana y el layout del curso disparaban la misma consulta
+ * dos veces por página (24-sep-2026).
+ */
+export async function sesionesDelCurso(cursoSlug: string): Promise<SesionDelAlumno[]> {
+  return (await sesionesDelAlumno()).filter((s) => s.cursoSlug === cursoSlug)
+}

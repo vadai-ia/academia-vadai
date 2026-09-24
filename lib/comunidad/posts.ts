@@ -162,17 +162,19 @@ export async function feedDelCurso(
     ids.add(p.user_id)
     for (const c of p.community_comments ?? []) ids.add(c.user_id)
   }
-  const autores = await resolverAutores([...ids])
-
-  // Las reacciones de todo el feed en una sola consulta, no una por tarjeta.
+  // Autores y reacciones solo dependen de las publicaciones ya en mano: en
+  // paralelo son un viaje, no dos encadenados (24-sep-2026).
   const comentarioIds = filas.flatMap((p) =>
     (p.community_comments ?? []).filter((c) => c.status === 'visible').map((c) => c.id)
   )
-  const reacciones = await reaccionesDe(
-    filas.map((p) => p.id),
-    comentarioIds,
-    usuarioActual
-  )
+  const [autores, reacciones] = await Promise.all([
+    resolverAutores([...ids]),
+    reaccionesDe(
+      filas.map((p) => p.id),
+      comentarioIds,
+      usuarioActual
+    ),
+  ])
 
   const posts = filas.map((p) => ({
     id: p.id,

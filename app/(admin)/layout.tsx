@@ -1,4 +1,4 @@
-import type { ReactNode } from 'react'
+import { Suspense, type ReactNode } from 'react'
 
 import { Encabezado } from '@/components/marca/encabezado'
 import {
@@ -8,6 +8,7 @@ import {
   IconoPanel,
   IconoPerfil,
 } from '@/components/marca/iconos-navegacion'
+import { BarraDeNavegacion } from '@/components/marca/barra-de-navegacion'
 import { SaltarAlContenido } from '@/components/marca/saltar-al-contenido'
 import { exigirAdmin } from '@/lib/auth/sesion'
 
@@ -18,6 +19,11 @@ export default async function LayoutAdmin({ children }: { children: ReactNode })
   return (
     <div className="relative flex min-h-dvh flex-col">
       <SaltarAlContenido />
+      {/* Sin señal entre el clic y la página nueva, la gente vuelve a apretar.
+          Suspense porque lee la URL y algunas rutas del árbol son estáticas. */}
+      <Suspense fallback={null}>
+        <BarraDeNavegacion />
+      </Suspense>
       <Encabezado
         perfil={perfil}
         navegacion={[

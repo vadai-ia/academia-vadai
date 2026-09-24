@@ -1,5 +1,7 @@
 import 'server-only'
 
+import { cache } from 'react'
+
 import { crearClienteServidor } from '@/lib/supabase/server'
 
 import {
@@ -43,7 +45,10 @@ function actividadDe(f: FilaActividad): Actividad {
   }
 }
 
-async function actividadVisible(): Promise<FilaActividad[]> {
+// `cache()`: /puntos la pedía tres veces en la misma petición —una para el
+// nivel y una por cada ranking de curso— y son la misma vista con la misma
+// sesión. Memorizada por petición, es un viaje (24-sep-2026).
+const actividadVisible = cache(async function actividadVisible(): Promise<FilaActividad[]> {
   const supabase = await crearClienteServidor()
   const { data, error } = await supabase.from('actividad_por_curso').select('*')
   if (error) {
@@ -51,7 +56,7 @@ async function actividadVisible(): Promise<FilaActividad[]> {
     return []
   }
   return (data ?? []) as FilaActividad[]
-}
+})
 
 /** Ordena de más a menos puntos; a puntos iguales, más lecciones; luego nombre. */
 function ordenar<T extends { puntos: number; actividad: Actividad; nombre: string }>(lista: T[]): T[] {

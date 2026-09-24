@@ -5,7 +5,7 @@ import { notFound } from 'next/navigation'
 import { Pestanas, type Pestana } from '@/components/ui-vadai/pestanas'
 import { Progreso } from '@/components/ui-vadai/superficie'
 import { cursoDelAlumno } from '@/lib/alumno/consultas'
-import { sesionesDelAlumno } from '@/lib/alumno/sesiones'
+import { sesionesDelCurso } from '@/lib/alumno/sesiones'
 import { exigirPerfil } from '@/lib/auth/sesion'
 import { estadoDe, proximaOActual } from '@/lib/calendario/estado'
 import { hoyCdmx, partesCdmx } from '@/lib/calendario/mes'
@@ -39,7 +39,7 @@ export default async function LayoutCurso({
   const { slug } = await params
 
   // Memorizados con cache(): las páginas vuelven a pedirlos y no cuestan otro viaje.
-  const [curso, sesiones] = await Promise.all([cursoDelAlumno(slug), sesionesDelAlumno(slug)])
+  const [curso, sesiones] = await Promise.all([cursoDelAlumno(slug), sesionesDelCurso(slug)])
   if (!curso) notFound()
 
   const base = `/curso/${curso.slug}`

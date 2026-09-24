@@ -9,7 +9,7 @@ import { IndiceCurso } from '@/components/alumno/indice-curso'
 import { Seccion, Tarjeta } from '@/components/ui-vadai/superficie'
 import { Button } from '@/components/ui/button'
 import { cursoDelAlumno } from '@/lib/alumno/consultas'
-import { sesionesDelAlumno } from '@/lib/alumno/sesiones'
+import { sesionesDelCurso } from '@/lib/alumno/sesiones'
 import { exigirPerfil } from '@/lib/auth/sesion'
 import { proximaOActual } from '@/lib/calendario/estado'
 import { hoyCdmx } from '@/lib/calendario/mes'
@@ -37,7 +37,7 @@ export default async function PaginaCurso({ params }: { params: Promise<{ slug: 
   if (!curso) notFound()
 
   const [sesiones, folio, elegibilidad] = await Promise.all([
-    sesionesDelAlumno(slug),
+    sesionesDelCurso(slug),
     certificadoDelCurso(curso.id),
     revisarElegibilidad(perfil.user_id, curso.id),
   ])

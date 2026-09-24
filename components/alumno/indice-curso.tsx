@@ -15,7 +15,8 @@ import { cn } from '@/lib/utils'
  * dentro de cada sesión sus respectivos submódulos".
  *
  * Cerrados, el curso entero cabe de un vistazo y cada módulo dice cuánto llevas
- * de él. Abierto viene SOLO el que estás viendo, y `<details>` lo resuelve sin
+ * de él. En Contenido vienen TODOS cerrados; en la lección, abierto solo el que
+ * estás viendo. `<details>` lo resuelve sin
  * una línea de JavaScript: funciona igual con el JS apagado y el navegador se
  * encarga del teclado.
  *
@@ -33,16 +34,21 @@ function duracionLegible(segundos: number | null): string {
   return `${Math.round(segundos / 60)} min`
 }
 
-/** Cuál módulo se abre solo: el de la lección que estás viendo, o donde te quedaste. */
+/**
+ * Cuál módulo se abre solo.
+ *
+ * En Contenido, NINGUNO (24-sep-2026). Antes se abría el que tuviera la
+ * primera lección pendiente, y como casi todos van por la Sesión 1, la Sesión
+ * 1 amanecía abierta para todo el mundo. Alejandro lo pidió así: "todo debe
+ * estar colapsado y yo debo decidir qué ampliar".
+ *
+ * En la lección se abre solo el módulo de la lección que estás viendo: con
+ * todo cerrado, la lección activa no se vería en el índice y no sabrías dónde
+ * estás parado.
+ */
 function moduloParaAbrir(curso: CursoDelAlumno, leccionActiva?: string): string | null {
-  if (leccionActiva) {
-    const conActiva = curso.modulos.find((m) => m.lecciones.some((l) => l.id === leccionActiva))
-    if (conActiva) return conActiva.id
-  }
-  const pendiente = curso.modulos.find((m) =>
-    m.lecciones.some((l) => l.desbloqueada && !l.completada)
-  )
-  return pendiente?.id ?? curso.modulos[0]?.id ?? null
+  if (!leccionActiva) return null
+  return curso.modulos.find((m) => m.lecciones.some((l) => l.id === leccionActiva))?.id ?? null
 }
 
 export function IndiceCurso({

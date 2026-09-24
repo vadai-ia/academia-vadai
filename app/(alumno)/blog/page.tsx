@@ -27,10 +27,10 @@ function fecha(iso: string): string {
  */
 export default async function PaginaBlog() {
   const perfil = await exigirPerfil()
-  const entradas = await publicacionesParaAlumno('blog')
 
-  // Abrir el blog apaga su contador en la navegación.
-  await sellarCanal(perfil, 'blog')
+  // Abrir el blog apaga su contador en la navegación. En paralelo con las
+  // entradas: no dependen entre sí.
+  const [entradas] = await Promise.all([publicacionesParaAlumno('blog'), sellarCanal(perfil, 'blog')])
 
   return (
     <div className="flex max-w-2xl flex-col gap-8">

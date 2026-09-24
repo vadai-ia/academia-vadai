@@ -43,11 +43,16 @@ export async function actualizarSesion(request: NextRequest) {
     }
   )
 
-  // getUser() valida contra el servidor de Auth. getSession() solo lee la
-  // cookie, así que una cookie manipulada pasaría: no se usa aquí.
-  const {
-    data: { user },
-  } = await supabase.auth.getUser()
+  // getClaims() verifica la FIRMA del token en local, con la llave pública que
+  // el proyecto publica en su JWKS (ES256). Una cookie manipulada no pasa,
+  // igual que con getUser(), pero sin el viaje al servidor de Auth que
+  // getUser() hacía en CADA petición (24-sep-2026). Con la base en Ohio y las
+  // funciones lejos, ese viaje era lo primero que pagaba cada clic. El
+  // refresco del token sigue ocurriendo: getClaims() pasa por getSession(),
+  // que renueva uno vencido y escribe la cookie nueva. getSession() a secas
+  // sigue sin usarse: lee la cookie sin verificarla.
+  const { data: claimsData } = await supabase.auth.getClaims()
+  const user = claimsData?.claims?.sub ? { id: claimsData.claims.sub } : null
 
   const ruta = request.nextUrl.pathname
 

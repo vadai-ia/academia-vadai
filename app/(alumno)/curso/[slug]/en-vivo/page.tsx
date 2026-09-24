@@ -11,7 +11,7 @@ import {
 } from '@/components/alumno/en-vivo'
 import { Seccion } from '@/components/ui-vadai/superficie'
 import { cursoDelAlumno } from '@/lib/alumno/consultas'
-import { sesionesDelAlumno } from '@/lib/alumno/sesiones'
+import { sesionesDelCurso } from '@/lib/alumno/sesiones'
 import { exigirPerfil } from '@/lib/auth/sesion'
 import { estadoDe, proximaOActual } from '@/lib/calendario/estado'
 import { hoyCdmx, mesDe, mesValido, partesCdmx } from '@/lib/calendario/mes'
@@ -46,7 +46,7 @@ export default async function PaginaEnVivo({
   const { slug } = await params
   const { vista: pedida, mes: mesPedido } = await searchParams
 
-  const [curso, sesiones] = await Promise.all([cursoDelAlumno(slug), sesionesDelAlumno(slug)])
+  const [curso, sesiones] = await Promise.all([cursoDelAlumno(slug), sesionesDelCurso(slug)])
   if (!curso) notFound()
 
   const base = `/curso/${curso.slug}`
