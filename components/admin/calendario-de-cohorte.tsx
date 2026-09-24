@@ -1,7 +1,7 @@
+import Link from 'next/link'
 import { ConfirmarConModal } from '@/components/admin/confirmar-con-modal'
 import { EnviarCalendario } from '@/components/admin/enviar-calendario'
 import { claseSelect } from '@/components/admin/estilos'
-import { ExpandirTodo } from '@/components/admin/expandir-todo'
 import { NuevaSesion } from '@/components/admin/nueva-sesion'
 import { SesionesEnSerie } from '@/components/admin/sesiones-en-serie'
 import { Badge } from '@/components/ui/badge'
@@ -60,7 +60,6 @@ export function CalendarioDeCohorte({
 }) {
   const ahora = Date.now()
   const proxima = cohorte.sesiones.find((s) => new Date(s.scheduled_at).getTime() >= ahora)
-  const selector = `details[data-sesion="${cohorte.id}"]`
   const acordeon = `sesiones-${cohorte.id}`
 
   return (
@@ -73,7 +72,20 @@ export function CalendarioDeCohorte({
         ) : (
           <h2 className="text-lg font-medium">Calendario</h2>
         )}
-        {cohorte.sesiones.length > 1 ? <ExpandirTodo selector={selector} /> : null}
+        {/* Enlaces, no un toggle de JS: los formularios de las sesiones
+            plegadas ya no viajan en el HTML, así que abrirlas todas es pedir
+            la página con `?sesion=todos` (24-sep-2026). */}
+        {cohorte.sesiones.length > 1 ? (
+          <span className="inline-flex items-center gap-1 text-xs">
+            <Link href="?sesion=todos" scroll={false} className="rounded-md px-2 py-1 text-primary hover:bg-primary/10">
+              Expandir todo
+            </Link>
+            <span aria-hidden className="text-muted-foreground">·</span>
+            <Link href="?" scroll={false} className="rounded-md px-2 py-1 text-primary hover:bg-primary/10">
+              Contraer todo
+            </Link>
+          </span>
+        ) : null}
       </div>
 
       {/* Lo que se puede hacer, como botones. Comparten `nombre`: abrir uno
@@ -101,13 +113,14 @@ export function CalendarioDeCohorte({
             const pasada = new Date(sesion.scheduled_at).getTime() < ahora
             const esProxima = proxima?.id === sesion.id
             const { fecha, hora } = utcACdmx(sesion.scheduled_at)
+            const abierta = sesionAbierta === 'todos' || sesion.id === sesionAbierta
 
             return (
               <li key={sesion.id}>
                 <details
                   id={`sesion-${sesion.id}`}
                   data-sesion={cohorte.id}
-                  open={sesion.id === sesionAbierta || undefined}
+                  open={abierta || undefined}
                   className={'group/sesion rounded-lg border ' + (esProxima ? 'border-primary/50' : 'border-border')}
                 >
                   <summary className="flex cursor-pointer list-none flex-wrap items-center justify-between gap-x-3 gap-y-2 px-4 py-3 select-none [&::-webkit-details-marker]:hidden">
@@ -125,15 +138,27 @@ export function CalendarioDeCohorte({
                     </span>
                     <span className="flex flex-wrap items-center gap-3">
                       <span className="text-sm text-muted-foreground">{enCdmx(sesion.scheduled_at)} CDMX</span>
-                      {/* El summary ya es el control; esto solo le dice a la
-                          vista que es un botón y qué va a hacer. */}
-                      <span aria-hidden className={cn(buttonVariants({ variant: 'outline', size: 'sm' }))}>
-                        <span className="group-open/sesion:hidden">Editar</span>
-                        <span className="hidden group-open/sesion:inline">Cerrar</span>
-                      </span>
+                      {/* Cerrada, "Editar" es un enlace: el formulario de esa
+                          sesión se pinta solo cuando se pide (24-sep-2026).
+                          Antes las ocho traían el suyo, con el selector de
+                          grabación de 34 lecciones cada una, aunque estuvieran
+                          plegadas. Abierta, el summary es el control. */}
+                      {abierta ? (
+                        <span aria-hidden className={cn(buttonVariants({ variant: 'outline', size: 'sm' }))}>
+                          Cerrar
+                        </span>
+                      ) : (
+                        <Link
+                          href={`?sesion=${sesion.id}#sesion-${sesion.id}`}
+                          className={cn(buttonVariants({ variant: 'outline', size: 'sm' }))}
+                        >
+                          Editar
+                        </Link>
+                      )}
                     </span>
                   </summary>
 
+                  {abierta ? (
                   <div className="flex flex-col gap-5 border-t border-border px-4 py-4">
                     <form action={actualizarSesion} className="flex flex-col gap-3">
                       <input type="hidden" name="id" value={sesion.id} />
@@ -230,6 +255,7 @@ export function CalendarioDeCohorte({
                       </ConfirmarConModal>
                     </div>
                   </div>
+                  ) : null}
                 </details>
               </li>
             )

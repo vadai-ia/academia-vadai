@@ -39,6 +39,8 @@ type Parametros = {
   sesion?: string
   /** Página de la tabla de inscritos (`?pagina=2`). */
   pagina?: string
+  /** El módulo del árbol que se pide abierto (`?modulo=<id>` o `todos`). */
+  modulo?: string
 }
 
 /**
@@ -124,7 +126,7 @@ export default async function PaginaCurso({
         </p>
       </header>
 
-      <ArbolCurso curso={curso} />
+      <ArbolCurso curso={curso} moduloAbierto={filtros.modulo ?? null} />
 
       <section className="flex flex-col gap-4 border-t border-border pt-8">
         <div className="flex flex-wrap items-baseline justify-between gap-2">

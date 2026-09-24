@@ -3,7 +3,6 @@ import Link from 'next/link'
 import { ConfirmarConModal } from '@/components/admin/confirmar-con-modal'
 import { EditarLeccion } from '@/components/admin/editar-leccion'
 import { EditarModulo } from '@/components/admin/editar-modulo'
-import { ExpandirTodo } from '@/components/admin/expandir-todo'
 import { NuevaLeccion } from '@/components/admin/nueva-leccion'
 import { NuevoModulo } from '@/components/admin/nuevo-modulo'
 import { Badge } from '@/components/ui/badge'
@@ -90,13 +89,42 @@ function PastillaEditar() {
   )
 }
 
-export function ArbolCurso({ curso }: { curso: CursoCompleto }) {
+/**
+ * Solo se pinta lo que está abierto (24-sep-2026).
+ *
+ * Con 16 módulos y 34 lecciones, pintar el panel de edición de cada lección y
+ * de cada módulo —aunque estuvieran plegados— eran 872 KB de HTML, más otro
+ * tanto en la carga de hidratación, cada vez que se entraba al curso. Un
+ * módulo cerrado ahora es solo su renglón; sus lecciones y formularios llegan
+ * cuando se abre, con `?modulo=<id>` (o `?modulo=todos` para verlos todos).
+ * Es el mismo patrón que `?sesion=` en el calendario.
+ */
+export function ArbolCurso({
+  curso,
+  moduloAbierto,
+}: {
+  curso: CursoCompleto
+  /** El id del módulo abierto, 'todos', o null. */
+  moduloAbierto: string | null
+}) {
+  const estaAbierto = (id: string) => moduloAbierto === 'todos' || moduloAbierto === id
+  const base = `/admin/cursos/${curso.id}`
   return (
     <div className="flex flex-col gap-5">
       <div className="flex flex-wrap items-baseline justify-between gap-2">
         <h2 className="text-lg font-medium">Contenido</h2>
         <span className="flex flex-wrap items-center gap-3">
-          {curso.modulos.length > 1 ? <ExpandirTodo selector="details[data-modulo]" /> : null}
+          {curso.modulos.length > 1 ? (
+            <span className="inline-flex items-center gap-1 text-xs">
+              <Link href={`${base}?modulo=todos`} scroll={false} className="rounded-md px-2 py-1 text-primary hover:bg-primary/10">
+                Expandir todo
+              </Link>
+              <span aria-hidden className="text-muted-foreground">·</span>
+              <Link href={base} scroll={false} className="rounded-md px-2 py-1 text-primary hover:bg-primary/10">
+                Contraer todo
+              </Link>
+            </span>
+          ) : null}
           <p className="text-sm text-muted-foreground">
             {curso.modulos.length} módulo(s) ·{' '}
             {curso.modulos.reduce((n, m) => n + m.lecciones.length, 0)} lección(es)
@@ -121,10 +149,13 @@ export function ArbolCurso({ curso }: { curso: CursoCompleto }) {
         clic lo toma el botón.
       */}
       <ul className="flex flex-col gap-3">
-        {curso.modulos.map((modulo, indiceModulo) => (
-          <li key={modulo.id}>
+        {curso.modulos.map((modulo, indiceModulo) => {
+          const abierto = estaAbierto(modulo.id)
+          return (
+          <li key={modulo.id} id={`modulo-${modulo.id}`}>
             <details
               data-modulo
+              open={abierto || undefined}
               className="group/modulo rounded-lg border border-border"
             >
               <summary className="flex cursor-pointer list-none flex-wrap items-center justify-between gap-2 px-3 py-2.5 select-none [&::-webkit-details-marker]:hidden">
@@ -136,7 +167,16 @@ export function ArbolCurso({ curso }: { curso: CursoCompleto }) {
                     ›
                   </span>
                   <span className="font-mono text-xs text-muted-foreground">{indiceModulo + 1}</span>
-                  <span className="truncate font-medium">{modulo.title}</span>
+                  {abierto ? (
+                    <span className="truncate font-medium">{modulo.title}</span>
+                  ) : (
+                    <Link
+                      href={`${base}?modulo=${modulo.id}#modulo-${modulo.id}`}
+                      className="truncate font-medium underline-offset-4 hover:underline"
+                    >
+                      {modulo.title}
+                    </Link>
+                  )}
                   <span className="text-xs text-muted-foreground">
                     {modulo.lecciones.length} lección(es)
                     {modulo.lecciones.some((l) => l.status === 'draft')
@@ -156,6 +196,8 @@ export function ArbolCurso({ curso }: { curso: CursoCompleto }) {
                 />
               </summary>
 
+              {abierto ? (
+                <>
               {modulo.lecciones.length > 0 ? (
                 <ul className="border-t border-border">
                   {modulo.lecciones.map((leccion, indiceLeccion) => {
@@ -253,9 +295,12 @@ export function ArbolCurso({ curso }: { curso: CursoCompleto }) {
                   </p>
                 </ConfirmarConModal>
               </div>
+                </>
+              ) : null}
             </details>
           </li>
-        ))}
+          )
+        })}
       </ul>
 
       <NuevoModulo cursoId={curso.id} reinicio={curso.modulos.length} />

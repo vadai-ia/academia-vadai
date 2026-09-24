@@ -6,7 +6,6 @@ import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { cambiarAcceso, extenderAcceso } from '@/lib/admin/acciones-alumnos'
-import { cambiarEmpresaDeAlumno } from '@/lib/admin/acciones-empresas'
 import type { Empresa } from '@/lib/admin/empresas'
 import { ORDENES, type FiltrosInscritos, type Inscrito, type ResumenInscritos } from '@/lib/admin/inscritos'
 
@@ -55,14 +54,14 @@ export function TablaInscritos({
   cursoId,
   inscritos,
   resumen,
-  empresas,
   filtros,
+  empresas,
 }: {
   cursoId: string
   inscritos: Inscrito[]
   resumen: ResumenInscritos
-  empresas: Empresa[]
   filtros: FiltrosInscritos
+  empresas: Empresa[]
 }) {
   const hayFiltro = Boolean(filtros.q || filtros.acceso || filtros.empresa)
   const porcentajeEntraron = resumen.total === 0 ? 0 : Math.round((resumen.entraron / resumen.total) * 100)
@@ -204,7 +203,7 @@ export function TablaInscritos({
             </thead>
             <tbody>
               {inscritos.map((i) => (
-                <Fila key={i.userId} inscrito={i} cursoId={cursoId} empresas={empresas} />
+                <Fila key={i.userId} inscrito={i} cursoId={cursoId} />
               ))}
             </tbody>
           </table>
@@ -214,7 +213,7 @@ export function TablaInscritos({
   )
 }
 
-function Fila({ inscrito: i, cursoId, empresas }: { inscrito: Inscrito; cursoId: string; empresas: Empresa[] }) {
+function Fila({ inscrito: i, cursoId }: { inscrito: Inscrito; cursoId: string }) {
 
   return (
     <tr className="border-t border-border align-middle hover:bg-muted/40">
@@ -228,26 +227,10 @@ function Fila({ inscrito: i, cursoId, empresas }: { inscrito: Inscrito; cursoId:
         </div>
       </td>
       <td className="px-3 py-2">
-        <form action={cambiarEmpresaDeAlumno} className="flex items-center gap-1">
-          <input type="hidden" name="user_id" value={i.userId} />
-          <input type="hidden" name="course_id" value={cursoId} />
-          <select
-            name="company_id"
-            defaultValue={i.empresa?.id ?? ''}
-            aria-label={`Empresa de ${i.nombre || i.email}`}
-            className={`${claseSelect} h-8 max-w-40`}
-          >
-            <option value="">General</option>
-            {empresas.map((e) => (
-              <option key={e.id} value={e.id}>
-                {e.nombre}
-              </option>
-            ))}
-          </select>
-          <Button type="submit" variant="ghost" size="sm" className="h-8 px-2" aria-label="Guardar empresa">
-            ✓
-          </Button>
-        </form>
+        {/* Solo texto. El selector con las 19 empresas iba en CADA fila: con
+            50 filas eran 969 opciones de HTML para un cambio que se hace una
+            vez al año, desde la ficha (24-sep-2026). */}
+        <span className="text-sm">{i.empresa?.nombre ?? <span className="text-muted-foreground">General</span>}</span>
       </td>
       <td className="px-3 py-2">
         <div className="flex flex-col gap-0.5">

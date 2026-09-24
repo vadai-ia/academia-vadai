@@ -336,7 +336,7 @@ async function main() {
   afirmar(G2, 'aparece el curso sembrado', true, listado.includes('Curso de prueba'))
   afirmar(G2, 'aparece el curso ajeno', true, listado.includes('Curso ajeno'))
 
-  const detalle = await (await pedir(`/admin/cursos/${IDS.curso}`, admin)).text()
+  const detalle = await (await pedir(`/admin/cursos/${IDS.curso}?modulo=todos`, admin)).text()
   afirmar(G2, 'aparecen los dos módulos', true,
     detalle.includes('Fundamentos') && detalle.includes('Implementaci'))
   afirmar(G2, 'aparecen las lecciones', true, detalle.includes('Video de bienvenida'))
@@ -667,6 +667,8 @@ async function main() {
   }
 
   // --- el módulo ---
+  // Desde el 24-sep-2026 el árbol solo pinta el módulo abierto: los formularios
+  // de módulos y lecciones se piden con ?modulo=todos.
   const moduloAntes = await leerModulo(IDS.modulo1)
   const formModulo = leerFormularioCompleto(detalle, `value="${IDS.modulo1}"`, 'Título del módulo')
   afirmar(G7, 'el árbol trae el formulario de renombrar módulo', true, Boolean(formModulo))
@@ -682,7 +684,7 @@ async function main() {
 
   // --- la lección ---
   const leccionAntes = await leerLeccion(IDS.leccionVideo)
-  const arbol = await (await pedir(`/admin/cursos/${IDS.curso}`, admin)).text()
+  const arbol = await (await pedir(`/admin/cursos/${IDS.curso}?modulo=todos`, admin)).text()
   const formLeccion = leerFormularioCompleto(arbol, `value="${IDS.leccionVideo}"`, 'name="lesson_type"')
   afirmar(G7, 'cada lección trae su formulario de edición', true, Boolean(formLeccion))
   afirmar(G7, 'con título, tipo y estado', true,
