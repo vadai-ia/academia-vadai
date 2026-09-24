@@ -1,31 +1,17 @@
 'use client'
 
-import { useActionState, useState, useTransition } from 'react'
-import { useFormStatus } from 'react-dom'
+import { useState, useTransition } from 'react'
 
-import { Desplegable } from '@/components/admin/desplegable'
+import { SubidaAdjunto } from '@/components/admin/subida-adjunto'
 import { Button } from '@/components/ui/button'
-import { Input } from '@/components/ui/input'
-import { eliminarAdjunto, subirAdjunto, urlDeDescarga } from '@/lib/admin/acciones'
+import { eliminarAdjunto, urlDeDescarga } from '@/lib/admin/acciones'
 import type { Adjunto } from '@/lib/admin/consultas'
-import { SIN_ESTADO } from '@/lib/admin/tipos'
-
-import { AvisoAccion } from './aviso-accion'
 
 function tamanoLegible(bytes: number | null): string {
   if (bytes === null) return ''
   if (bytes < 1024) return `${bytes} B`
   if (bytes < 1024 * 1024) return `${Math.round(bytes / 1024)} KB`
   return `${(bytes / (1024 * 1024)).toFixed(1)} MB`
-}
-
-function BotonSubir() {
-  const { pending } = useFormStatus()
-  return (
-    <Button type="submit" disabled={pending}>
-      {pending ? 'Subiendo…' : 'Subir'}
-    </Button>
-  )
 }
 
 /**
@@ -67,8 +53,6 @@ export function Adjuntos({
   leccionId: string
   cursoId: string
 }) {
-  const [estado, accion] = useActionState(subirAdjunto, SIN_ESTADO)
-
   return (
     <section className="flex flex-col gap-4">
       <div className="flex flex-col gap-1">
@@ -121,25 +105,11 @@ export function Adjuntos({
         </ul>
       )}
 
-      <Desplegable etiqueta="Subir adjunto" variante="contorno" abierto={Boolean(estado.error || estado.aviso)}>
-        <form key={adjuntos.length} action={accion} className="flex flex-col gap-2">
-          <input type="hidden" name="lesson_id" value={leccionId} />
-          <input type="hidden" name="course_id" value={cursoId} />
-
-          <div className="flex flex-col gap-2 sm:flex-row">
-            <Input
-              name="archivo"
-              type="file"
-              aria-label="Archivo a subir"
-              required
-              className="file:mr-3 file:text-sm"
-            />
-            <BotonSubir />
-          </div>
-
-          <AvisoAccion estado={estado} />
-        </form>
-      </Desplegable>
+      {/* La subida va directo del navegador a Supabase (24-sep-2026): un PDF
+          de más de 1 MB reventaba el límite de la server action antes de que
+          hubiera un mensaje que dar. `key` remonta el formulario limpio cada
+          vez que cambia la lista. */}
+      <SubidaAdjunto leccionId={leccionId} cursoId={cursoId} reinicio={adjuntos.length} />
     </section>
   )
 }
