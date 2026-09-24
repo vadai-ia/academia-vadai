@@ -7,6 +7,7 @@ import { ArbolCurso } from '@/components/admin/arbol-curso'
 import { CalendarioDeCohorte } from '@/components/admin/calendario-de-cohorte'
 import { FormularioCurso } from '@/components/admin/formulario-curso'
 import { NuevaCohorte } from '@/components/admin/nueva-cohorte'
+import { Paginacion } from '@/components/admin/paginacion'
 import { TablaInscritos } from '@/components/admin/tabla-inscritos'
 import { Badge } from '@/components/ui/badge'
 import { cohortesDelCurso, leccionesLigables, obtenerCohorte } from '@/lib/admin/cohortes'
@@ -36,7 +37,17 @@ type Parametros = {
   buscar?: string
   /** La sesión que se pide ver abierta para editar (`?sesion=<id>`). */
   sesion?: string
+  /** Página de la tabla de inscritos (`?pagina=2`). */
+  pagina?: string
 }
+
+/**
+ * Inscritos por página (24-sep-2026). La tabla pintaba a los 188 de una vez,
+ * cada uno con sus formularios: era la mayor parte de un HTML de 11 MB. Con
+ * cincuenta cabe una empresa entera en una página y la pantalla baja a
+ * cientos de KB.
+ */
+const INSCRITOS_POR_PAGINA = 50
 
 export default async function PaginaCurso({
   params,
@@ -66,6 +77,10 @@ export default async function PaginaCurso({
   const calendarios = (await Promise.all(cohortes.map((c) => obtenerCohorte(c.id)))).filter(
     (c): c is NonNullable<typeof c> => c !== null
   )
+
+  const paginas = Math.max(1, Math.ceil(visibles.length / INSCRITOS_POR_PAGINA))
+  const pagina = Math.min(Math.max(1, Number(filtros.pagina) || 1), paginas)
+  const desde = (pagina - 1) * INSCRITOS_POR_PAGINA
 
   return (
     <div className="flex flex-col gap-10">
@@ -211,10 +226,26 @@ export default async function PaginaCurso({
 
         <TablaInscritos
           cursoId={curso.id}
-          inscritos={visibles}
+          inscritos={visibles.slice(desde, desde + INSCRITOS_POR_PAGINA)}
           resumen={resumen}
           empresas={empresas}
           filtros={filtros}
+        />
+
+        <Paginacion
+          pagina={pagina}
+          paginas={paginas}
+          total={visibles.length}
+          porPagina={INSCRITOS_POR_PAGINA}
+          hrefDe={(p) => {
+            // Conserva los filtros de la tabla; sin ellos, pasar de página
+            // devolvería a la lista completa.
+            const params = new URLSearchParams()
+            for (const [k, val] of Object.entries(filtros)) if (val) params.set(k, String(val))
+            if (p > 1) params.set('pagina', String(p))
+            const cadena = params.toString()
+            return `/admin/cursos/${curso.id}${cadena ? `?${cadena}` : ''}#inscritos`
+          }}
         />
 
         {curso.status === 'archived' ? (

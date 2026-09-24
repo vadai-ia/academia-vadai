@@ -1,12 +1,11 @@
 import Link from 'next/link'
 
-import { ConfirmarConModal } from '@/components/admin/confirmar-con-modal'
 import { AutoEnviar } from '@/components/ui-vadai/auto-enviar'
 import { Cifra, Progreso } from '@/components/ui-vadai/superficie'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
-import { cambiarAcceso, cambiarCorreoDeAlumno, extenderAcceso, quitarDelCurso } from '@/lib/admin/acciones-alumnos'
+import { cambiarAcceso, extenderAcceso } from '@/lib/admin/acciones-alumnos'
 import { cambiarEmpresaDeAlumno } from '@/lib/admin/acciones-empresas'
 import type { Empresa } from '@/lib/admin/empresas'
 import { ORDENES, type FiltrosInscritos, type Inscrito, type ResumenInscritos } from '@/lib/admin/inscritos'
@@ -47,17 +46,6 @@ function fecha(iso: string | null): string {
   }).format(new Date(iso))
 }
 
-function fechaLarga(iso: string | null): string {
-  if (!iso) return '—'
-  return new Intl.DateTimeFormat('es-MX', {
-    day: 'numeric',
-    month: 'long',
-    year: 'numeric',
-    hour: 'numeric',
-    minute: '2-digit',
-    timeZone: 'America/Mexico_City',
-  }).format(new Date(iso))
-}
 
 const claseSelect =
   'h-9 rounded-md border border-input bg-transparent px-2 text-sm ' +
@@ -227,7 +215,6 @@ export function TablaInscritos({
 }
 
 function Fila({ inscrito: i, cursoId, empresas }: { inscrito: Inscrito; cursoId: string; empresas: Empresa[] }) {
-  const idFicha = `ficha-${i.userId}`
 
   return (
     <tr className="border-t border-border align-middle hover:bg-muted/40">
@@ -300,13 +287,16 @@ function Fila({ inscrito: i, cursoId, empresas }: { inscrito: Inscrito; cursoId:
       </td>
       <td className="px-3 py-2">
         <div className="flex items-center justify-end gap-1">
-          <button
-            type="button"
-            popoverTarget={idFicha}
+          {/* La ficha completa vive en su propia página (M14). Antes se pintaba
+              aquí un popover con cinco formularios y un selector de empresas POR
+              FILA: con 188 inscritos, 11 MB de HTML que nadie abría
+              (24-sep-2026). */}
+          <Link
+            href={`/admin/alumnos/${i.userId}`}
             className="rounded-md px-2 py-1 text-sm font-medium text-primary hover:bg-primary/10"
           >
-            Ver
-          </button>
+            Ver ficha
+          </Link>
           <form action={cambiarAcceso}>
             <input type="hidden" name="user_id" value={i.userId} />
             <input type="hidden" name="course_id" value={cursoId} />
@@ -325,182 +315,6 @@ function Fila({ inscrito: i, cursoId, empresas }: { inscrito: Inscrito; cursoId:
           </form>
         </div>
 
-        {/* La ficha: el popover se centra solo (posición fija, inset auto). */}
-        <div
-          id={idFicha}
-          popover="auto"
-          className="m-auto w-[min(40rem,calc(100vw-2rem))] max-h-[85vh] overflow-y-auto rounded-[12px] border border-border bg-card p-0 text-left text-foreground shadow-[0_8px_32px_rgba(0,0,0,0.14)]"
-        >
-          <div className="flex items-start justify-between gap-4 border-b border-border px-5 py-4">
-            <div className="flex min-w-0 flex-col">
-              <span className="text-lg font-medium">{i.nombre || '(sin nombre)'}</span>
-              <span className="truncate text-sm text-muted-foreground">{i.email}</span>
-            </div>
-            <button
-              type="button"
-              popoverTarget={idFicha}
-              popoverTargetAction="hide"
-              className="rounded-md px-2 py-1 text-sm text-muted-foreground hover:bg-muted"
-              aria-label="Cerrar"
-            >
-              ✕
-            </button>
-          </div>
-
-          <div className="grid gap-5 px-5 py-4 sm:grid-cols-2">
-            <dl className="flex flex-col gap-2 text-sm">
-              <div className="flex justify-between gap-3">
-                <dt className="text-muted-foreground">Empresa</dt>
-                <dd className="font-medium">{i.empresa?.nombre ?? 'General'}</dd>
-              </div>
-              <div className="flex justify-between gap-3">
-                <dt className="text-muted-foreground">Generación</dt>
-                <dd className="font-medium">{i.grupo ?? 'Sin generación'}</dd>
-              </div>
-              <div className="flex justify-between gap-3">
-                <dt className="text-muted-foreground">Acceso</dt>
-                <dd className="font-medium">
-                  {ETIQUETA_ACCESO[i.acceso]}
-                  {i.expiraEn ? ` · vence ${fechaLarga(i.expiraEn)}` : ''}
-                </dd>
-              </div>
-              <div className="flex justify-between gap-3">
-                <dt className="text-muted-foreground">Inscrito</dt>
-                <dd className="font-medium">{fechaLarga(i.inscritoEn)}</dd>
-              </div>
-              <div className="flex justify-between gap-3">
-                <dt className="text-muted-foreground">Última vez que entró</dt>
-                <dd className="font-medium">{i.ultimoAcceso ? fechaLarga(i.ultimoAcceso) : 'Nunca'}</dd>
-              </div>
-            </dl>
-
-            <div className="flex flex-col gap-3">
-              <div className="flex flex-col gap-1">
-                <div className="flex items-baseline justify-between text-sm">
-                  <span className="text-muted-foreground">Avance</span>
-                  <span className="font-medium tabular-nums">
-                    {i.hechas} de {i.total} · {i.porcentaje}%
-                  </span>
-                </div>
-                <Progreso porcentaje={i.porcentaje} />
-              </div>
-              <div className="rounded-lg bg-muted/50 p-3 text-sm">
-                <div className="flex items-baseline justify-between">
-                  <span className="text-muted-foreground">Puntos</span>
-                  <span className="font-semibold text-primary tabular-nums">{i.puntos}</span>
-                </div>
-                <div className="mt-0.5 text-xs text-muted-foreground">
-                  Nivel {i.nivel.numero} · {i.nivel.nombre}
-                  {i.nivel.siguiente ? ` · faltan ${i.nivel.faltan} para ${i.nivel.siguiente.nombre}` : ''}
-                </div>
-                <ul className="mt-2 grid grid-cols-2 gap-x-3 gap-y-0.5 text-xs text-muted-foreground tabular-nums">
-                  <li>{i.actividad.lecciones} lecciones</li>
-                  <li>{i.actividad.quizzes} quizzes</li>
-                  <li>{i.actividad.tareas} tareas</li>
-                  <li>{i.actividad.publicaciones} publicaciones</li>
-                  <li>{i.actividad.comentarios} comentarios</li>
-                  <li>{i.actividad.certificados} certificados</li>
-                </ul>
-              </div>
-            </div>
-          </div>
-
-          <div className="flex flex-col gap-3 border-t border-border px-5 py-4">
-            <form action={cambiarEmpresaDeAlumno} className="flex flex-wrap items-center gap-2">
-              <input type="hidden" name="user_id" value={i.userId} />
-              <input type="hidden" name="course_id" value={cursoId} />
-              <label className="text-sm text-muted-foreground" htmlFor={`${idFicha}-empresa`}>
-                Empresa
-              </label>
-              <select id={`${idFicha}-empresa`} name="company_id" defaultValue={i.empresa?.id ?? ''} className={claseSelect}>
-                <option value="">General</option>
-                {empresas.map((e) => (
-                  <option key={e.id} value={e.id}>
-                    {e.nombre}
-                  </option>
-                ))}
-              </select>
-              <input
-                type="text"
-                name="company_nueva"
-                placeholder="…o una nueva"
-                autoComplete="off"
-                aria-label="Empresa nueva"
-                className="h-9 w-40 rounded-md border border-input bg-transparent px-2 text-sm"
-              />
-              <Button type="submit" variant="outline" size="sm">
-                Guardar
-              </Button>
-            </form>
-
-            <form action={extenderAcceso} className="flex flex-wrap items-center gap-2">
-              <input type="hidden" name="user_id" value={i.userId} />
-              <input type="hidden" name="course_id" value={cursoId} />
-              <label className="text-sm text-muted-foreground" htmlFor={`${idFicha}-dias`}>
-                Extender
-              </label>
-              <input
-                id={`${idFicha}-dias`}
-                type="number"
-                name="dias"
-                min={1}
-                max={3650}
-                defaultValue={30}
-                className="h-9 w-20 rounded-md border border-input bg-transparent px-2 text-sm"
-              />
-              <span className="text-sm text-muted-foreground">días desde hoy</span>
-              <Button type="submit" variant="outline" size="sm">
-                Extender
-              </Button>
-            </form>
-
-            <div className="flex flex-wrap items-center gap-2 pt-1">
-              <Button asChild variant="ghost" size="sm">
-                <Link href={`/admin/alumnos/${i.userId}`}>Ver ficha completa →</Link>
-              </Button>
-              <ConfirmarConModal
-                idModal={`correo-${i.userId}`}
-                accion={cambiarCorreoDeAlumno}
-                campos={{ user_id: i.userId }}
-                boton={{ texto: 'Cambiar correo', etiquetaAccesible: `Cambiar el correo de ${i.nombre || i.email}` }}
-                titulo={`Cambiar el correo de ${i.nombre || i.email}`}
-                confirmar={{ texto: 'Cambiar y avisarle', enCurso: 'Cambiando…' }}
-              >
-                <p>
-                  Ahora entra con <span className="font-medium text-foreground">{i.email}</span>. Escribe el
-                  correo nuevo:
-                </p>
-                <input
-                  type="email"
-                  name="nuevo_email"
-                  required
-                  autoComplete="off"
-                  placeholder="nuevo@correo.com"
-                  className="h-10 w-full rounded-md border border-input bg-transparent px-3 text-sm text-foreground"
-                />
-                <p>
-                  Al correo nuevo le llega el mensaje para crear su contraseña, con liga de 30 días. Sus
-                  cursos, avance y puntos siguen igual.
-                </p>
-              </ConfirmarConModal>
-              <ConfirmarConModal
-                idModal={`quitar-${i.userId}`}
-                accion={quitarDelCurso}
-                campos={{ user_id: i.userId, course_id: cursoId }}
-                boton={{ texto: 'Quitar del curso', etiquetaAccesible: `Quitar a ${i.nombre || i.email} del curso`, tono: 'destructivo' }}
-                titulo={`¿Quitar a ${i.nombre || i.email} de este curso?`}
-                confirmar={{ texto: 'Sí, quitar', enCurso: 'Quitando…', tono: 'destructivo' }}
-              >
-                <p>Deja de ver el curso desde este momento. Su cuenta y sus otros cursos siguen igual.</p>
-                <p>
-                  <span className="font-medium text-foreground">Su avance no se borra</span>: si lo vuelves
-                  a agregar, lo encuentra donde lo dejó. Para un reembolso usa &ldquo;Revocar&rdquo;, que
-                  deja constancia.
-                </p>
-              </ConfirmarConModal>
-            </div>
-          </div>
-        </div>
       </td>
     </tr>
   )

@@ -114,15 +114,17 @@ export function ArbolCurso({ curso }: { curso: CursoCompleto }) {
         Cada módulo es un <details> (20-sep-2026): con ocho módulos y veintitrés
         lecciones el árbol completo ya no cabía en una pantalla. Cerrado enseña
         número, título y cuántas lecciones; abierto, sus lecciones y al pie los
-        botones de editar, agregar y eliminar. El primero abre solo. Los botones
-        de orden viven en el <summary> y no lo pliegan: el clic lo toma el botón.
+        botones de editar, agregar y eliminar. Ninguno abre solo (24-sep-2026):
+        el primero abría por defecto y, con dieciséis, la Sesión 1 amanecía
+        desplegada cada vez que se entraba al curso; quien edita decide cuál
+        abrir. Los botones de orden viven en el <summary> y no lo pliegan: el
+        clic lo toma el botón.
       */}
       <ul className="flex flex-col gap-3">
         {curso.modulos.map((modulo, indiceModulo) => (
           <li key={modulo.id}>
             <details
               data-modulo
-              open={indiceModulo === 0}
               className="group/modulo rounded-lg border border-border"
             >
               <summary className="flex cursor-pointer list-none flex-wrap items-center justify-between gap-2 px-3 py-2.5 select-none [&::-webkit-details-marker]:hidden">
