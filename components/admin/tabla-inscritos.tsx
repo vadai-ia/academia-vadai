@@ -46,6 +46,11 @@ function fecha(iso: string | null): string {
 }
 
 
+/** El mismo aspecto que un Button fantasma chico, en una décima del HTML. */
+const botonPlano =
+  'inline-flex h-8 items-center rounded-md px-2 text-sm font-medium text-foreground/80 ' +
+  'transition-colors hover:bg-muted focus-visible:ring-3 focus-visible:ring-ring/50 focus-visible:outline-none'
+
 const claseSelect =
   'h-9 rounded-md border border-input bg-transparent px-2 text-sm ' +
   'outline-none focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50'
@@ -280,21 +285,24 @@ function Fila({ inscrito: i, cursoId }: { inscrito: Inscrito; cursoId: string })
           >
             Ver ficha
           </Link>
+          {/* Botones planos, no el <Button> de shadcn: ese arrastra 1,087
+              caracteres de clases por botón, y aquí hay dos por fila. En una
+              tabla, eso pesaba más que los datos (24-sep-2026). */}
           <form action={cambiarAcceso}>
             <input type="hidden" name="user_id" value={i.userId} />
             <input type="hidden" name="course_id" value={cursoId} />
             <input type="hidden" name="revocar" value={i.acceso === 'revocado' ? 'no' : 'si'} />
-            <Button type="submit" variant="ghost" size="sm" className="h-8">
+            <button type="submit" className={botonPlano}>
               {i.acceso === 'revocado' ? 'Restaurar' : 'Revocar'}
-            </Button>
+            </button>
           </form>
           <form action={extenderAcceso}>
             <input type="hidden" name="user_id" value={i.userId} />
             <input type="hidden" name="course_id" value={cursoId} />
             <input type="hidden" name="dias" value="30" />
-            <Button type="submit" variant="ghost" size="sm" className="h-8" title="Extiende la vigencia 30 días desde hoy">
+            <button type="submit" className={botonPlano} title="Extiende la vigencia 30 días desde hoy">
               +30 días
-            </Button>
+            </button>
           </form>
         </div>
 

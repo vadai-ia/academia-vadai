@@ -1,5 +1,7 @@
 import 'server-only'
 
+import { cache } from 'react'
+
 import { crearClienteServidor } from '@/lib/supabase/server'
 import type { Tabla } from '@/lib/supabase/types'
 
@@ -54,8 +56,13 @@ export async function listarCursos(): Promise<CursoEnLista[]> {
   })
 }
 
-/** Curso con su árbol completo, ya ordenado por `position`. */
-export async function obtenerCurso(id: string): Promise<CursoCompleto | null> {
+/**
+ * Curso con su árbol completo, ya ordenado por `position`.
+ *
+ * Con `cache()`: la página del curso y su `generateMetadata` lo piden en la
+ * misma petición, y sin memoria por petición era el árbol entero dos veces.
+ */
+export const obtenerCurso = cache(async function obtenerCurso(id: string): Promise<CursoCompleto | null> {
   const supabase = await crearClienteServidor()
 
   const { data, error } = await supabase
@@ -85,7 +92,7 @@ export async function obtenerCurso(id: string): Promise<CursoCompleto | null> {
     .sort((a, b) => a.position - b.position)
 
   return { ...resto, modulos }
-}
+})
 
 export async function obtenerLeccion(
   id: string

@@ -129,10 +129,13 @@ export async function listarAlumnos(filtros: FiltrosAlumnos = {}): Promise<Pagin
     const desde = (pagina - 1) * POR_PAGINA
     let c = supabase
       .from('profiles')
-      .select(
-        'user_id, email, full_name, role, status, created_at, company_id, last_sign_in_at, enrollments(course_id, expires_at, status, courses(title), cohorts(name))',
-        { count: 'exact' }
-      )
+      // Sin las inscripciones anidadas (24-sep-2026): con `enrollments(...,
+      // courses(title), cohorts(name))` dentro, PostgREST tardaba cinco veces
+      // más en el servidor que pedir los 25 perfiles y luego sus inscripciones
+      // en una consulta aparte, en paralelo con el resto de esta página.
+      .select('user_id, email, full_name, role, status, created_at, company_id, last_sign_in_at', {
+        count: 'exact',
+      })
       // Los `invitado` NO son alumnos: son gente que contestó una encuesta en un
       // evento y dejó su correo. Mezclarlos aquí llenaría el padrón de leads.
       // En cuanto uno compra o se le da de alta deja de ser invitado y aparece
@@ -165,6 +168,11 @@ export async function listarAlumnos(filtros: FiltrosAlumnos = {}): Promise<Pagin
     return count ?? 0
   }
 
+  // Estas dos no dependen de qué página se pida: arrancan junto con la lista
+  // y no esperan a que termine (24-sep-2026). Antes eran una ola aparte.
+  const outlineP = supabase.from('lesson_outline').select('id, course_id')
+  const empresasP = supabase.from('companies').select('id, name')
+
   let pagina = paginaPedida
   let respuesta = await consultar(pagina)
   if (respuesta.error && pagina > 1) {
@@ -189,13 +197,15 @@ export async function listarAlumnos(filtros: FiltrosAlumnos = {}): Promise<Pagin
     created_at: string | null
     company_id: string | null
     last_sign_in_at: string | null
-    enrollments: Array<{
-      course_id: string
-      expires_at: string | null
-      status: string
-      courses: { title: string } | null
-      cohorts: { name: string } | null
-    }>
+  }
+
+  type Inscripcion = {
+    user_id: string
+    course_id: string
+    expires_at: string | null
+    status: string
+    courses: { title: string } | null
+    cohorts: { name: string } | null
   }
 
   const perfiles = (data ?? []) as unknown as Anidado[]
@@ -204,14 +214,25 @@ export async function listarAlumnos(filtros: FiltrosAlumnos = {}): Promise<Pagin
   // Solo lo de esta página. `lesson_outline` (lecciones publicadas por curso)
   // es chica y da el total contra el que se mide el avance.
   const vacio = Promise.resolve({ data: [] as never[] })
-  const [progreso, outline, enlaces, empresas] = await Promise.all([
+  const [progreso, outline, enlaces, empresas, inscripciones] = await Promise.all([
     ids.length
       ? supabase.from('lesson_progress').select('user_id, lesson_id').eq('completed', true).in('user_id', ids)
       : vacio,
-    supabase.from('lesson_outline').select('id, course_id'),
+    outlineP,
     ultimosEnlaces(ids),
-    supabase.from('companies').select('id, name'),
+    empresasP,
+    ids.length
+      ? supabase
+          .from('enrollments')
+          .select('user_id, course_id, expires_at, status, courses(title), cohorts(name)')
+          .in('user_id', ids)
+      : vacio,
   ])
+
+  const inscripcionesDe = new Map<string, Inscripcion[]>()
+  for (const e of ((inscripciones.data ?? []) as unknown as Inscripcion[])) {
+    inscripcionesDe.set(e.user_id, [...(inscripcionesDe.get(e.user_id) ?? []), e])
+  }
 
   const cursoDeLeccion = new Map<string, string>()
   const totalPorCurso = new Map<string, number>()
@@ -244,7 +265,7 @@ export async function listarAlumnos(filtros: FiltrosAlumnos = {}): Promise<Pagin
       ? { id: p.company_id, nombre: nombreDeEmpresa.get(p.company_id) ?? 'Empresa' }
       : null,
     enlace: enlaces.get(p.user_id) ?? null,
-    inscripciones: (p.enrollments ?? []).map((e) => {
+    inscripciones: (inscripcionesDe.get(p.user_id) ?? []).map((e) => {
       const total = totalPorCurso.get(e.course_id) ?? 0
       const hechas = hechasPor.get(`${p.user_id}::${e.course_id}`) ?? 0
       return {

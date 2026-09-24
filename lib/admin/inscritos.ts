@@ -2,6 +2,7 @@ import 'server-only'
 
 import { nivelDe, puntosDe, type Actividad, type Nivel } from '@/lib/gamificacion/reglas'
 import { crearClienteServidor } from '@/lib/supabase/server'
+import type { Tabla } from '@/lib/supabase/types'
 
 /**
  * Los inscritos de UN curso, con todo lo que el admin quiere ver de cada uno:
@@ -79,48 +80,52 @@ export async function inscritosDelCurso(
 ): Promise<{ visibles: Inscrito[]; resumen: ResumenInscritos }> {
   const supabase = await crearClienteServidor()
 
-  const [inscripciones, cohortes, empresas, outline, actividad] = await Promise.all([
+  // Una sola ola (24-sep-2026). Antes eran dos: primero las inscripciones y,
+  // con sus ids, los perfiles y el progreso. El perfil ahora viene embebido
+  // por la FK de `enrollments.user_id`, y el progreso se pide por curso con
+  // un join a `lessons → modules`: ninguna consulta espera a otra.
+  const [inscripciones, cohortes, empresas, outline, actividad, progreso] = await Promise.all([
     supabase
       .from('enrollments')
-      .select('user_id, status, expires_at, cohort_id, created_at')
+      .select(
+        'user_id, status, expires_at, cohort_id, created_at, profiles(user_id, full_name, email, company_id, role, last_sign_in_at)'
+      )
       .eq('course_id', cursoId),
     supabase.from('cohorts').select('id, name').eq('course_id', cursoId),
     supabase.from('companies').select('id, name'),
     supabase.from('lesson_outline').select('id').eq('course_id', cursoId),
     supabase.from('actividad_por_curso').select('*').eq('course_id', cursoId),
+    supabase
+      .from('lesson_progress')
+      .select('user_id, lesson_id, lessons!inner(modules!inner(course_id))')
+      .eq('completed', true)
+      .eq('lessons.modules.course_id', cursoId),
   ])
 
-  const fallo = inscripciones.error ?? cohortes.error ?? empresas.error ?? outline.error ?? actividad.error
+  const fallo =
+    inscripciones.error ??
+    cohortes.error ??
+    empresas.error ??
+    outline.error ??
+    actividad.error ??
+    progreso.error
   if (fallo) {
     console.error(JSON.stringify({ operacion: 'inscritosDelCurso', cursoId, error: fallo.message }))
     return { visibles: [], resumen: resumenVacio() }
   }
 
-  const userIds = (inscripciones.data ?? []).map((e) => e.user_id)
   const leccionIds = (outline.data ?? []).map((l) => l.id).filter((id): id is string => Boolean(id))
+  // Solo cuentan las lecciones publicadas (las del outline), como siempre.
+  const publicadas = new Set(leccionIds)
 
-  const [perfiles, progreso] = await Promise.all([
-    userIds.length > 0
-      ? supabase
-          .from('profiles')
-          .select('user_id, full_name, email, company_id, role, last_sign_in_at')
-          .in('user_id', userIds)
-      : Promise.resolve({ data: [], error: null }),
-    userIds.length > 0 && leccionIds.length > 0
-      ? supabase
-          .from('lesson_progress')
-          .select('user_id, lesson_id, completed')
-          .in('lesson_id', leccionIds)
-          .in('user_id', userIds)
-      : Promise.resolve({ data: [], error: null }),
-  ])
-
-  const perfil = new Map((perfiles.data ?? []).map((p) => [p.user_id, p]))
   const nombreDeEmpresa = new Map((empresas.data ?? []).map((e) => [e.id, e.name]))
   const nombreDeGrupo = new Map((cohortes.data ?? []).map((c) => [c.id, c.name]))
   const hechasDe = new Map<string, number>()
-  for (const f of progreso.data ?? []) {
-    if (f.completed) hechasDe.set(f.user_id, (hechasDe.get(f.user_id) ?? 0) + 1)
+  // Los tipos generados no describen los joins: se tipan a mano, como en el
+  // resto del panel.
+  type Hecha = Pick<Tabla<'lesson_progress'>, 'user_id' | 'lesson_id'>
+  for (const f of (progreso.data ?? []) as unknown as Hecha[]) {
+    if (publicadas.has(f.lesson_id)) hechasDe.set(f.user_id, (hechasDe.get(f.user_id) ?? 0) + 1)
   }
   const actividadDe = new Map<string, Actividad>()
   for (const f of actividad.data ?? []) {
@@ -148,8 +153,19 @@ export async function inscritosDelCurso(
     certificados: 0,
   }
 
-  const todos: Inscrito[] = (inscripciones.data ?? []).flatMap((e) => {
-    const p = perfil.get(e.user_id)
+  type InscripcionConPerfil = Pick<
+    Tabla<'enrollments'>,
+    'user_id' | 'status' | 'expires_at' | 'cohort_id' | 'created_at'
+  > & {
+    profiles: Pick<
+      Tabla<'profiles'>,
+      'user_id' | 'full_name' | 'email' | 'company_id' | 'role' | 'last_sign_in_at'
+    > | null
+  }
+  const filas = (inscripciones.data ?? []) as unknown as InscripcionConPerfil[]
+
+  const todos: Inscrito[] = filas.flatMap((e) => {
+    const p = e.profiles
     // Sin perfil no es de la academia (Regla Cero); el equipo no es alumno.
     if (!p || p.role !== 'alumno') return []
     const vigente = e.status === 'active' && (!e.expires_at || new Date(e.expires_at).getTime() > ahora)

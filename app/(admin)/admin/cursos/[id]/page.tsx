@@ -10,7 +10,7 @@ import { NuevaCohorte } from '@/components/admin/nueva-cohorte'
 import { Paginacion } from '@/components/admin/paginacion'
 import { TablaInscritos } from '@/components/admin/tabla-inscritos'
 import { Badge } from '@/components/ui/badge'
-import { cohortesDelCurso, leccionesLigables, obtenerCohorte } from '@/lib/admin/cohortes'
+import { calendariosDelCurso, leccionesLigables } from '@/lib/admin/cohortes'
 import { obtenerCurso } from '@/lib/admin/consultas'
 import { listarEmpresas } from '@/lib/admin/empresas'
 import { candidatosParaCurso, inscritosDelCurso } from '@/lib/admin/inscritos'
@@ -45,11 +45,11 @@ type Parametros = {
 
 /**
  * Inscritos por página (24-sep-2026). La tabla pintaba a los 188 de una vez,
- * cada uno con sus formularios: era la mayor parte de un HTML de 11 MB. Con
- * cincuenta cabe una empresa entera en una página y la pantalla baja a
- * cientos de KB.
+ * cada uno con sus formularios: era la mayor parte de un HTML de 11 MB.
+ * Veinticinco, como en /admin/alumnos: es lo que cabe en una pantalla sin
+ * desplazarse, y con el buscador y el filtro de empresa se llega a cualquiera.
  */
-const INSCRITOS_POR_PAGINA = 50
+const INSCRITOS_POR_PAGINA = 25
 
 export default async function PaginaCurso({
   params,
@@ -62,23 +62,25 @@ export default async function PaginaCurso({
   const { id } = await params
   const filtros = await searchParams
 
-  const curso = await obtenerCurso(id)
-  if (!curso) notFound()
-
-  // Independientes entre sí: en serie serían cinco viajes encadenados.
-  const [cohortes, { visibles, resumen }, candidatos, empresas, ligables] = await Promise.all([
-    cohortesDelCurso(curso.id),
-    inscritosDelCurso(curso.id, filtros),
-    candidatosParaCurso(curso.id, filtros.buscar ?? ''),
+  // TODO en una sola ronda (24-sep-2026): el id de la URL es el id del curso,
+  // así que nada tiene que esperar al curso para arrancar. Antes eran cinco
+  // rondas encadenadas —curso, luego el resto, luego perfiles y progreso, luego
+  // cada cohorte, luego los títulos de sus grabaciones— y cada ronda es un
+  // viaje a la base. Si el curso no existe, las demás vuelven vacías y se
+  // descartan con el notFound().
+  const [curso, cohortes, { visibles, resumen }, candidatos, empresas, ligables] = await Promise.all([
+    obtenerCurso(id),
+    // Las sesiones de cada cohorte vienen aquí mismo, para editarlas sin ir a
+    // la cohorte (pedido 21-sep-2026). Casi siempre es una; si son varias,
+    // cada una va en su propio bloque plegable.
+    calendariosDelCurso(id),
+    inscritosDelCurso(id, filtros),
+    candidatosParaCurso(id, filtros.buscar ?? ''),
     listarEmpresas(),
-    leccionesLigables(curso.id),
+    leccionesLigables(id),
   ])
-  // Las sesiones de cada cohorte, para editarlas aquí sin ir a la cohorte
-  // (pedido 21-sep-2026). Casi siempre es una cohorte; si son varias, cada
-  // una va en su propio bloque plegable.
-  const calendarios = (await Promise.all(cohortes.map((c) => obtenerCohorte(c.id)))).filter(
-    (c): c is NonNullable<typeof c> => c !== null
-  )
+  if (!curso) notFound()
+  const calendarios = cohortes
 
   const paginas = Math.max(1, Math.ceil(visibles.length / INSCRITOS_POR_PAGINA))
   const pagina = Math.min(Math.max(1, Number(filtros.pagina) || 1), paginas)

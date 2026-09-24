@@ -45,31 +45,31 @@ function BotonesDeOrden({
   ultimo: boolean
   etiqueta: string
 }) {
+  // UN formulario con dos botones de envío, no dos formularios (24-sep-2026):
+  // el botón que se aprieta manda su `direccion`. Con 16 módulos y 34
+  // lecciones eran 100 formularios solo para las flechas.
   return (
-    <div className="flex items-center">
-      {(['arriba', 'abajo'] as const).map((direccion) => {
-        const deshabilitado = direccion === 'arriba' ? primero : ultimo
-        return (
-          <form key={direccion} action={accion}>
-            <input type="hidden" name="id" value={id} />
-            <input type="hidden" name="padre" value={padre} />
-            <input type="hidden" name="course_id" value={cursoId} />
-            <input type="hidden" name="direccion" value={direccion} />
-            <Button
-              type="submit"
-              variant="ghost"
-              size="icon"
-              className="size-7"
-              disabled={deshabilitado}
-              aria-label={`Mover ${etiqueta} ${direccion}`}
-              title={`Mover ${direccion}`}
-            >
-              {direccion === 'arriba' ? '↑' : '↓'}
-            </Button>
-          </form>
-        )
-      })}
-    </div>
+    <form action={accion} className="flex items-center">
+      <input type="hidden" name="id" value={id} />
+      <input type="hidden" name="padre" value={padre} />
+      <input type="hidden" name="course_id" value={cursoId} />
+      {(['arriba', 'abajo'] as const).map((direccion) => (
+        <Button
+          key={direccion}
+          type="submit"
+          name="direccion"
+          value={direccion}
+          variant="ghost"
+          size="icon"
+          className="size-7"
+          disabled={direccion === 'arriba' ? primero : ultimo}
+          aria-label={`Mover ${etiqueta} ${direccion}`}
+          title={`Mover ${direccion}`}
+        >
+          {direccion === 'arriba' ? '↑' : '↓'}
+        </Button>
+      ))}
+    </form>
   )
 }
 

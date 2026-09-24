@@ -53,6 +53,55 @@ export async function cohortesDelCurso(cursoId: string): Promise<CohorteEnLista[
   })
 }
 
+/** Una cohorte con su lista Y su calendario: lo que pinta la página del curso. */
+export type CohorteCompleta = CohorteConSesiones & { totalSesiones: number }
+
+/**
+ * Las cohortes de un curso con sus sesiones, en UNA consulta (24-sep-2026).
+ *
+ * La página del curso pedía `cohortesDelCurso` y después, por cada cohorte,
+ * `obtenerCohorte` —que a su vez pedía los títulos de las grabaciones—: tres
+ * rondas encadenadas para pintar un calendario. El título de la grabación
+ * entra aquí como join anidado por la FK `recording_lesson_id`; con ocho
+ * sesiones PostgREST lo resuelve sin despeinarse.
+ */
+export async function calendariosDelCurso(cursoId: string): Promise<CohorteCompleta[]> {
+  const supabase = await crearClienteServidor()
+
+  const { data, error } = await supabase
+    .from('cohorts')
+    .select('*, courses!inner(id, title, slug), cohort_sessions(*, lessons(title)), enrollments(count)')
+    .eq('course_id', cursoId)
+    .order('starts_on', { ascending: false })
+
+  if (error) {
+    console.error(JSON.stringify({ operacion: 'calendariosDelCurso', cursoId, error: error.message }))
+    return []
+  }
+
+  type Anidada = Cohorte & {
+    courses: { id: string; title: string; slug: string }
+    cohort_sessions: Array<Sesion & { lessons: { title: string } | null }>
+    enrollments: Array<{ count: number }>
+  }
+
+  return (data as unknown as Anidada[]).map((c) => {
+    const { courses, cohort_sessions, enrollments, ...resto } = c
+    const sesiones = (cohort_sessions ?? [])
+      .map(({ lessons, ...s }) => ({ ...s, grabacionTitulo: lessons?.title ?? null }))
+      .sort((a, b) => a.scheduled_at.localeCompare(b.scheduled_at))
+    return {
+      ...resto,
+      cursoId: courses.id,
+      cursoTitulo: courses.title,
+      cursoSlug: courses.slug,
+      inscritos: enrollments?.[0]?.count ?? 0,
+      totalSesiones: sesiones.length,
+      sesiones,
+    }
+  })
+}
+
 export type CohorteAgendable = { id: string; nombre: string; cursoTitulo: string }
 
 /**
