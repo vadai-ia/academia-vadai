@@ -181,6 +181,14 @@ En su lugar: `pnpm db:migrate` → `scripts/migrate.mjs`, que aplica los `.sql` 
 - Una suite solo borra **lo suyo**, por marca exacta y nunca por patrón amplio (`like 'QA %'`
   también casa lo que siembra el seed). Y afirma **propiedades**, no números fijos: "el admin ve
   todos los perfiles que existen", no "ve 4" — lo segundo se rompe al dar de alta a alguien
+- **En policies y vistas, `is_admin()` e `is_superadmin()` van SIEMPRE como `(select academia.is_admin())`**
+  (decidido 24-sep-2026, migración 0031). Son `security definer` —tienen que serlo para leer
+  `profiles` sin recursión—, así que Postgres no las inlinea: a pelo se evalúan **una vez por
+  fila** (una búsqueda en `profiles` cada una) y leer 188 inscripciones costaba 67 ms; envueltas
+  son un InitPlan que se evalúa una vez por consulta, y cuestan 0.9 ms. Las que reciben una columna
+  (`has_enrollment(course_id)`) no pueden ser InitPlan; en vistas se escriben como
+  `course_id in (select … where user_id = (select auth.uid()))`. Se comprueba con
+  `explain analyze` como el rol `authenticated` con los claims puestos, no como `postgres`
 
 ## MILESTONES — DISCIPLINA
 
