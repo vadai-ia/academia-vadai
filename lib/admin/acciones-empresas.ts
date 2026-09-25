@@ -58,6 +58,10 @@ export async function renombrarEmpresa(datos: FormData): Promise<void> {
 /**
  * Borra la empresa. Sus alumnos NO se borran: quedan en "General" (la clave
  * foránea es `on delete set null`). Por eso pide confirmación y lo dice.
+ *
+ * Lo que sí la detiene son sus tableros de dinámicas (M13): ahí la clave
+ * foránea es `restrict`, porque borrar una empresa con tableros sería perder la
+ * matriz de un equipo en silencio. El 23503 se traduce a qué hacer antes.
  */
 export async function eliminarEmpresa(_previo: EstadoAccion, datos: FormData): Promise<EstadoAccion> {
   await exigirAdmin()
@@ -70,6 +74,11 @@ export async function eliminarEmpresa(_previo: EstadoAccion, datos: FormData): P
   const { error } = await supabase.from('companies').delete().eq('id', id)
 
   if (error) {
+    if (error.code === '23503') {
+      return {
+        error: `"${fila?.name ?? 'La empresa'}" tiene tableros en una dinámica. Descarga su Excel o borra los tableros antes de borrar la empresa.`,
+      }
+    }
     console.error(JSON.stringify({ operacion: 'eliminarEmpresa', id, error: error.message }))
     return { error: 'No se pudo borrar la empresa.' }
   }

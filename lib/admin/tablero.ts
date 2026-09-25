@@ -6,6 +6,7 @@ import {
   type CohorteAgendable,
   type SesionProxima,
 } from '@/lib/admin/cohortes'
+import { estaAbierta } from '@/lib/dinamicas/comun'
 import { crearClienteServidor } from '@/lib/supabase/server'
 
 /**
@@ -51,6 +52,8 @@ export type Tablero = {
   entregasPendientes: number
   certificadosEmitidos: number
   encuestas: { enVivo: number; total: number; padron: number }
+  /** `abiertas` es el estado efectivo: una abierta con fecha límite vencida no cuenta. */
+  dinamicas: { abiertas: number; total: number; tableros: number }
   sesiones: SesionProxima[]
   cohortes: CohorteAgendable[]
 }
@@ -70,6 +73,8 @@ export async function tableroAdmin(): Promise<Tablero> {
     certificados,
     encuestas,
     padron,
+    dinamicas,
+    tablerosDeDinamicas,
     sesiones,
     cohortes,
   ] = await Promise.all([
@@ -82,6 +87,8 @@ export async function tableroAdmin(): Promise<Tablero> {
     supabase.from('certificates').select('id'),
     supabase.from('polls').select('status'),
     supabase.from('participants').select('id'),
+    supabase.from('dynamics').select('status, closes_at'),
+    supabase.from('dynamic_boards').select('id'),
     proximasSesiones(5),
     cohortesParaAgendar(),
   ])
@@ -161,6 +168,11 @@ export async function tableroAdmin(): Promise<Tablero> {
   // --- encuestas -------------------------------------------------------------
   const listaEncuestas = encuestas.data ?? []
 
+  // --- dinámicas -------------------------------------------------------------
+  // "Abierta" es la misma regla que academia.dinamica_abierta(): el cierre por
+  // fecha es perezoso y se evalúa al leer.
+  const listaDinamicas = dinamicas.data ?? []
+
   return {
     personas: alumnado.length,
     conAccesoVigente: alumnado.filter((p) => conVigente.has(p.user_id)).length,
@@ -175,6 +187,11 @@ export async function tableroAdmin(): Promise<Tablero> {
       enVivo: listaEncuestas.filter((e) => e.status === 'live').length,
       total: listaEncuestas.length,
       padron: padron.data?.length ?? 0,
+    },
+    dinamicas: {
+      abiertas: listaDinamicas.filter((d) => estaAbierta(d, ahora)).length,
+      total: listaDinamicas.length,
+      tableros: tablerosDeDinamicas.data?.length ?? 0,
     },
     sesiones,
     cohortes,

@@ -83,6 +83,11 @@ export const IDS = {
   cursoAjeno: U(20),
   moduloAjeno: U(21),
   leccionAjena: U(22),
+
+  // Dinámicas empresariales (M13, test-dinamicas.mjs): la empresa QA de las
+  // cuentas qa-din-* y el id fijo con el que se prueba el check de escala.
+  empresaDinamicas: U(23),
+  dinamica: U(24),
 }
 
 export const CURSO_QA = {

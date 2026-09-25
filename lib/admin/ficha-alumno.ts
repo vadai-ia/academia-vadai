@@ -141,6 +141,7 @@ export const fichaDeAlumno = cache(async function fichaDeAlumno(userId: string):
   for (const f of actividad.data ?? []) {
     if (!f.course_id) continue
     actividadPorCurso.set(f.course_id, {
+      ...ACTIVIDAD_VACIA,
       lecciones: f.lecciones ?? 0,
       quizzes: f.quizzes ?? 0,
       tareas: f.tareas ?? 0,
@@ -148,6 +149,7 @@ export const fichaDeAlumno = cache(async function fichaDeAlumno(userId: string):
       publicaciones: f.publicaciones ?? 0,
       comentarios: f.comentarios ?? 0,
       certificados: f.certificados ?? 0,
+      dinamicas: f.dinamicas ?? 0,
     })
   }
 

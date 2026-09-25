@@ -9,6 +9,7 @@ import { sesionesDelCurso } from '@/lib/alumno/sesiones'
 import { exigirPerfil } from '@/lib/auth/sesion'
 import { estadoDe, proximaOActual } from '@/lib/calendario/estado'
 import { hoyCdmx, partesCdmx } from '@/lib/calendario/mes'
+import { contarDinamicasAbiertas } from '@/lib/dinamicas/consultas-alumno'
 
 /**
  * Marco de un curso: encabezado con progreso y fila de pestañas.
@@ -43,6 +44,7 @@ export default async function LayoutCurso({
   if (!curso) notFound()
 
   const base = `/curso/${curso.slug}`
+  const abiertas = await contarDinamicasAbiertas(curso.id)
 
   // La insignia dice lo único que urge saber desde cualquier pestaña: si la
   // sesión está pasando o si es hoy. Sin contador: un "8" no significa nada.
@@ -58,6 +60,9 @@ export default async function LayoutCurso({
 
   const pestanas: Pestana[] = [
     { href: base, etiqueta: 'Contenido', exacto: true },
+    // Habilitada aunque el acceso haya vencido: leer una dinámica es
+    // estructura del curso; puntuar es lo que exige acceso vigente.
+    { href: `${base}/dinamicas`, etiqueta: 'Dinámicas', insignia: abiertas },
     // Con el acceso vencido las sesiones ya no se leen (la policy las esconde),
     // así que la pestaña se pinta apagada con su motivo en vez de desaparecer.
     ...(sesiones.length > 0 || !curso.vigente

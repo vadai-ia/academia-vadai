@@ -72,7 +72,7 @@ export default async function PaginaEncuestaPublica({
       <div className="flex flex-1 flex-col justify-center gap-6">
         {encuesta.status === 'closed' ? (
           <Espera
-            titulo="Esta dinámica ya terminó"
+            titulo="Esta encuesta ya terminó"
             detalle="Gracias por participar. Los resultados se quedaron en la pantalla de adelante."
           />
         ) : !participante ? (

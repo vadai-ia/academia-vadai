@@ -81,7 +81,7 @@ export function esDeAdmin(ruta: string): boolean {
  * `invitado` no va a /mis-cursos. Nació contestando una encuesta en un evento y
  * no ha comprado nada: ahí solo vería un estado vacío que le pide escribirnos
  * porque "no aparece su curso", y nunca compró ninguno. Su lugar es la lista de
- * las dinámicas en las que participó.
+ * las encuestas en las que participó.
  */
 export function rutaDeInicio(role: string | null | undefined): string {
   if (role === 'admin' || role === 'superadmin') return RUTAS.admin

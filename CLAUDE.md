@@ -50,8 +50,8 @@ En su lugar: `pnpm db:migrate` → `scripts/migrate.mjs`, que aplica los `.sql` 
 ```
 /app
   /(auth)        login, reset
-  /(alumno)      mis-cursos, curso/[slug], curso/[slug]/en-vivo, comunidad, blog, perfil
-  /(admin)       admin/* (cursos, alumnos, alumnos/[userId] ficha, entregas, cohortes, posts, encuestas)
+  /(alumno)      mis-cursos, curso/[slug], curso/[slug]/en-vivo, curso/[slug]/dinamicas, comunidad, blog, perfil, dinamicas
+  /(admin)       admin/* (cursos, alumnos, alumnos/[userId] ficha, entregas, cohortes, posts, encuestas, dinamicas)
   /api/stripe/webhook
   /api/certificados/[folio]
   /api/calendario/cohorte/[id]  # .ics con todas las sesiones; firmado (?t=) para abrirse desde el correo sin sesión
@@ -60,8 +60,11 @@ En su lugar: `pnpm db:migrate` → `scripts/migrate.mjs`, que aplica los `.sql` 
   /proyectar/[token]        # pantalla que se proyecta; exige sesión de admin (3-sep-2026)
   /acceso/[token]           # liga del correo de bienvenida, 30 días, sin sesión
   /api/encuestas/*          # sondeo de estado y de resultados
+  /api/dinamicas/*          # sondeo del tablero; exige sesión (no es prefijo público)
+  /api/reportes/dinamicas/* # Excel de una dinámica; solo equipo
 /lib             lógica de negocio (NUNCA en componentes)
   /encuestas     encuestas en vivo: códigos, consultas y acciones
+  /dinamicas     dinámicas empresariales: comun (ponderado), consultas, acciones, tablero, exportación
   /supabase      clients (browser, server, service-role)
   /bunny         firma de tokens, upload
   /stripe        webhook handlers
@@ -137,6 +140,12 @@ En su lugar: `pnpm db:migrate` → `scripts/migrate.mjs`, que aplica los `.sql` 
   alumno; null = General. Las asigna solo el equipo (trigger de perfil). El importador crea las
   que trae la columna Empresa. Es la base del puntaje y las dinámicas por empresa.
 - **Agregar un curso a quien ya tiene cuenta SIEMPRE avisa por correo** (`plantillaNuevoCurso`).
+- **Dinámicas empresariales** (M13, 21-sep-2026): una calificación compartida por celda, gana el
+  último y queda firmada con `updated_by`; el tablero se crea con un POST, nunca en un GET; "abierta
+  de verdad" es `academia.dinamica_abierta()` (status open y fecha límite nula o futura, evaluada al
+  leer: no hay pg_cron); los puntos (30 por dinámica cerrada con un proyecto completo) se calculan en
+  la vista, no se guardan; `dynamic_boards.company_id` es `restrict`. La palabra "dinámica" ya no
+  nombra a las encuestas en ninguna pantalla.
 - **Los cursos QA se archivan fuera de las corridas, y archivado gana.** El seed **NO** toca su
   `status`: respeta el que encuentre. Publicarlos es deliberado —`pnpm qa:mostrar`—, y lo hacen
   solos `test-todo` y `pnpm qa` antes de probar; los dos los archivan al terminar. Si corres una

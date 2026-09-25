@@ -62,6 +62,8 @@ const SESIONES = {
       `/curso/${CURSO_QA.slug}/${IDS.leccionVideo}`,
       `/curso/${CURSO_QA.slug}/${IDS.leccionQuiz}`,
       `/curso/${CURSO_QA.slug}/comunidad`,
+      `/curso/${CURSO_QA.slug}/dinamicas`,
+      '/dinamicas',
       `/curso/${CURSO_QA.slug}/en-vivo`,
       '/en-vivo',
       '/perfil',
@@ -78,6 +80,7 @@ const SESIONES = {
       '/admin/alumnos',
       '/admin/empresas',
       '/admin/encuestas',
+      '/admin/dinamicas',
       '/admin/entregas',
       '/admin/publicaciones',
     ],
@@ -502,7 +505,8 @@ async function main() {
 
     for (const sesion of sesionesPedidas) {
       const { email, rutas } = SESIONES[sesion]
-      const rutasDeEsta = rutasPedidas ? rutas.filter((r) => rutasPedidas.includes(r)) : rutas
+      // --rutas manda: sirve para fotografiar una pantalla con un id que el seed no conoce.
+      const rutasDeEsta = rutasPedidas ?? rutas
       if (rutasDeEsta.length === 0) continue
 
       await cdp.enviar('Network.clearBrowserCookies')

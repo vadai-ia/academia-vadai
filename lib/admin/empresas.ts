@@ -11,14 +11,24 @@ import { crearClienteServidor } from '@/lib/supabase/server'
  * columna Empresa, y las reúsa si ya existen.
  */
 
-export type Empresa = { id: string; nombre: string; alumnos: number }
+export type Empresa = {
+  id: string
+  nombre: string
+  alumnos: number
+  /**
+   * Tableros de dinámicas a su nombre (M13). La clave foránea es `restrict`:
+   * con uno solo, la empresa no se puede borrar, y el modal lo advierte antes.
+   */
+  tableros: number
+}
 
-/** Todas, con cuántos alumnos tiene cada una. Ordenadas por nombre. */
+/** Todas, con cuántos alumnos y cuántos tableros tiene cada una. Ordenadas por nombre. */
 export async function listarEmpresas(): Promise<Empresa[]> {
   const supabase = await crearClienteServidor()
-  const [empresas, perfiles] = await Promise.all([
+  const [empresas, perfiles, tableros] = await Promise.all([
     supabase.from('companies').select('id, name').order('name'),
     supabase.from('profiles').select('company_id').eq('role', 'alumno').eq('status', 'active'),
+    supabase.from('dynamic_boards').select('company_id').not('company_id', 'is', null),
   ])
 
   if (empresas.error) {
@@ -31,7 +41,17 @@ export async function listarEmpresas(): Promise<Empresa[]> {
     if (p.company_id) cuenta.set(p.company_id, (cuenta.get(p.company_id) ?? 0) + 1)
   }
 
-  return (empresas.data ?? []).map((e) => ({ id: e.id, nombre: e.name, alumnos: cuenta.get(e.id) ?? 0 }))
+  const conTablero = new Map<string, number>()
+  for (const t of tableros.data ?? []) {
+    if (t.company_id) conTablero.set(t.company_id, (conTablero.get(t.company_id) ?? 0) + 1)
+  }
+
+  return (empresas.data ?? []).map((e) => ({
+    id: e.id,
+    nombre: e.name,
+    alumnos: cuenta.get(e.id) ?? 0,
+    tableros: conTablero.get(e.id) ?? 0,
+  }))
 }
 
 /**

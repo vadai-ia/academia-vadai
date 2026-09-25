@@ -7,6 +7,7 @@ import {
   IconoBlog,
   IconoComunidad,
   IconoCursos,
+  IconoDinamicas,
   IconoPerfil,
   IconoPuntos,
 } from '@/components/marca/iconos-navegacion'
@@ -45,6 +46,8 @@ export default async function LayoutAlumno({ children }: { children: ReactNode }
         extra={<Campana lista={novedades.lista} nuevas={novedades.nuevas} />}
         navegacion={[
           { href: '/mis-cursos', etiqueta: 'Inicio', icono: IconoCursos, exacto: true },
+          // Segunda a propósito: es lo que se toca durante la sesión.
+          { href: '/dinamicas', etiqueta: 'Dinámicas', icono: IconoDinamicas },
           {
             href: '/comunidad',
             etiqueta: 'Comunidad',

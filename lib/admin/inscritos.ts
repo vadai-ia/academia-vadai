@@ -1,6 +1,6 @@
 import 'server-only'
 
-import { nivelDe, puntosDe, type Actividad, type Nivel } from '@/lib/gamificacion/reglas'
+import { ACTIVIDAD_VACIA, nivelDe, puntosDe, type Actividad, type Nivel } from '@/lib/gamificacion/reglas'
 import { crearClienteServidor } from '@/lib/supabase/server'
 import type { Tabla } from '@/lib/supabase/types'
 
@@ -131,6 +131,7 @@ export async function inscritosDelCurso(
   for (const f of actividad.data ?? []) {
     if (!f.user_id) continue
     actividadDe.set(f.user_id, {
+      ...ACTIVIDAD_VACIA,
       lecciones: f.lecciones ?? 0,
       quizzes: f.quizzes ?? 0,
       tareas: f.tareas ?? 0,
@@ -138,20 +139,13 @@ export async function inscritosDelCurso(
       publicaciones: f.publicaciones ?? 0,
       comentarios: f.comentarios ?? 0,
       certificados: f.certificados ?? 0,
+      dinamicas: f.dinamicas ?? 0,
     })
   }
 
   const ahora = Date.now()
   const total = leccionIds.length
-  const vacia: Actividad = {
-    lecciones: 0,
-    quizzes: 0,
-    tareas: 0,
-    tareasAprobadas: 0,
-    publicaciones: 0,
-    comentarios: 0,
-    certificados: 0,
-  }
+  const vacia: Actividad = ACTIVIDAD_VACIA
 
   type InscripcionConPerfil = Pick<
     Tabla<'enrollments'>,

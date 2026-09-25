@@ -177,17 +177,23 @@ async function main() {
   const rutaCursoAlumno = `/curso/${CURSO_QA.slug}`
   const rutaEnVivo = `${rutaCursoAlumno}/en-vivo`
 
-  // El día CDMX en que cae la sesión futura del seed (dentro de una semana).
-  // Se calcula igual que la página: con `en-CA` en la zona de México, no con
-  // getDate(), que daría el día del servidor.
+  const bd = await conectarPostgres(vars)
+
+  // El día CDMX en que cae la sesión futura del seed. Se lee de la base y no
+  // se calcula como "hoy + 7 días": el seed la fija el día que corre, y esta
+  // suite puede correr una semana después (24-sep-2026: el seed era del 21 y
+  // la suite esperaba el 2 de octubre). Se convierte igual que la página: con
+  // `en-CA` en la zona de México, no con getDate().
+  const { rows: sesionFutura } = await bd.query(
+    'select scheduled_at from academia.cohort_sessions where id = $1',
+    [IDS.sesionFutura]
+  )
   const fechaFutura = new Intl.DateTimeFormat('en-CA', {
     timeZone: 'America/Mexico_City',
     year: 'numeric',
     month: '2-digit',
     day: '2-digit',
-  }).format(new Date(Date.now() + 7 * 24 * 60 * 60 * 1000))
-
-  const bd = await conectarPostgres(vars)
+  }).format(new Date(sesionFutura[0]?.scheduled_at ?? Date.now()))
 
   try {
     // ====================================================================
@@ -201,8 +207,11 @@ async function main() {
     const paginaCohorte = await texto(rutaCohorte, admin)
     afirmar(G1, 'muestra las dos sesiones', true,
       paginaCohorte.includes('Ya ocurri') && paginaCohorte.includes('xima'))
-    afirmar(G1, 'muestra el link de Meet', true, paginaCohorte.includes('meet.google.com'))
-    afirmar(G1, 'ofrece ligar grabación', true, paginaCohorte.includes('Sin grabación ligada'))
+    // Cerradas por default (24-sep-2026): la liga y el selector de grabación
+    // solo se pintan en la sesión abierta; ?sesion=todos las abre.
+    const cohorteAbierta = await texto(`${rutaCohorte}?sesion=todos`, admin)
+    afirmar(G1, 'muestra el link de Meet', true, cohorteAbierta.includes('meet.google.com'))
+    afirmar(G1, 'ofrece ligar grabación', true, cohorteAbierta.includes('Sin grabación ligada'))
 
     // ====================================================================
     // Lo delicado: capturar en CDMX y guardar el UTC correcto.
@@ -305,7 +314,7 @@ async function main() {
     // La grabación ligada (§3.10).
     const G4 = 'GRABACIÓN LIGADA'
 
-    const formularioGrabacion = leerFormularios(await texto(rutaCohorte, admin)).find(
+    const formularioGrabacion = leerFormularios(await texto(`${rutaCohorte}?sesion=todos`, admin)).find(
       (f) => 'recording_lesson_id' in f.campos && f.campos.id === IDS.sesionPasada
     )
     afirmar(G4, 'existe el formulario de grabación', true, Boolean(formularioGrabacion))
