@@ -347,6 +347,50 @@ export async function cerrarDinamica(
 }
 
 /**
+ * La devuelve a borrador: la esconde de todos los alumnos, como si no se
+ * hubiera abierto nunca.
+ *
+ * Es la salida de "la abrí sin querer". Cerrarla NO la esconde —una cerrada
+ * se sigue viendo en /dinamicas y en la pestaña del curso—, y el 25-sep-2026
+ * eso hizo que una alumna preguntara en la comunidad si la iban a reabrir.
+ *
+ * Solo mientras NADIE haya calificado. La condición no es de qué estado
+ * viene, sino si hay trabajo adentro: esconder una dinámica con
+ * calificaciones le quitaría a las empresas lo que llenaron sin decirles
+ * nada. Eso lo decide el trigger de `academia_0032`, y su mensaje —que dice
+ * cuántas calificaciones hay— vuelve tal cual por `mensajeDe`. Aquí no se
+ * repite la cuenta: el botón ni siquiera se ofrece cuando hay celdas.
+ */
+export async function volverABorrador(
+  _previo: EstadoAccion,
+  datos: FormData
+): Promise<EstadoAccion> {
+  await exigirAdmin()
+
+  const id = String(datos.get('id') ?? '')
+  if (!id) return { error: 'Falta la dinámica.' }
+
+  const supabase = await crearClienteServidor()
+  const { data, error } = await supabase
+    .from('dynamics')
+    .update({ status: 'draft' })
+    .eq('id', id)
+    .neq('status', 'draft')
+    .select('id')
+
+  if (error) {
+    registrarFallo('volverABorrador', { id }, error.message)
+    return { error: mensajeDe(error, 'No se pudo volver a borrador.') }
+  }
+  if (!data || data.length === 0) return { error: 'La dinámica ya está en borrador.' }
+
+  refrescar(id)
+  return {
+    aviso: 'De vuelta en borrador. Los alumnos dejan de verla; al abrirla otra vez se les avisa.',
+  }
+}
+
+/**
  * Reabre. Si la fecha límite ya pasó exige una nueva en el mismo formulario:
  * reabrir con la fecha vencida sería abrir una dinámica que ya está cerrada.
  * Vuelve a poner `opened_at`, así que la campana avisa otra vez.

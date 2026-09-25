@@ -20,6 +20,7 @@ import {
   cerrarDinamica,
   eliminarDinamica,
   reabrirDinamica,
+  volverABorrador,
 } from '@/lib/dinamicas/acciones'
 import { pesosSuman100, sumaPesos, TOPE_DESCRIPCION, TOPE_TITULO } from '@/lib/dinamicas/comun'
 import type { DinamicaCompleta } from '@/lib/dinamicas/consultas'
@@ -277,6 +278,36 @@ function Abrir({ dinamica, base, ahora }: { dinamica: DinamicaCompleta; base: st
   )
 }
 
+/**
+ * "La abrí sin querer": la esconde de todos, como si no se hubiera abierto.
+ *
+ * Solo se ofrece mientras nadie haya calificado. Con trabajo adentro el camino
+ * es cerrarla, y por eso este formulario ni aparece: ofrecer un botón que va a
+ * ser rechazado es peor que no ofrecerlo.
+ *
+ * Va en su propio `<form>` —no como segundo botón del de cerrar o reabrir—
+ * porque cada acción de servidor es la de su formulario.
+ */
+function VolverABorrador({ dinamica }: { dinamica: DinamicaCompleta }) {
+  const [estado, accion] = useActionState(volverABorrador, SIN_ESTADO)
+
+  if (dinamica.totalCeldas > 0) return null
+
+  return (
+    <form action={accion} className="flex flex-col gap-2 border-t border-border pt-4">
+      <input type="hidden" name="id" value={dinamica.id} />
+      <div>
+        <BotonDeEstado texto="Volver a borrador" enCurso="Volviendo…" variant="outline" />
+      </div>
+      <p className="text-xs text-muted-foreground">
+        Si la abriste sin querer. Deja de verse en la academia y vuelve a quedar como antes de
+        abrirla; todavía puedes porque ninguna empresa ha calificado nada.
+      </p>
+      <AvisoAccion estado={estado} />
+    </form>
+  )
+}
+
 function Cerrar({ dinamica }: { dinamica: DinamicaCompleta }) {
   const [estado, accion] = useActionState(cerrarDinamica, SIN_ESTADO)
 
@@ -426,6 +457,9 @@ export function AjustesDinamica({
         ) : (
           <Reabrir dinamica={dinamica} ahora={ahora} />
         )}
+
+        {/* Hermano, nunca dentro: un <form> no va adentro de otro. */}
+        {dinamica.estadoEfectivo === 'draft' ? null : <VolverABorrador dinamica={dinamica} />}
       </Seccion>
 
       <Seccion
