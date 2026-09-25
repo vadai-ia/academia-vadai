@@ -352,11 +352,17 @@ async function main() {
     cursoConAlumnos.includes('id="inscritos"') && cursoConAlumnos.includes(correo.alumnoVigente))
   afirmar(G2, 'con avance y puntos por persona', true,
     cursoConAlumnos.includes('>Avance<') && cursoConAlumnos.includes('>Puntos<'))
-  afirmar(G2, 'y la ficha de cada uno', true, cursoConAlumnos.includes('id="ficha-'))
-  // Las sesiones se editan desde el curso (21-sep-2026).
+  // La ficha es un enlace a /admin/alumnos/<id> (24-sep-2026), no un popover
+  // por renglón: con 188 inscritos los popovers eran 11 MB de HTML.
+  afirmar(G2, 'y la ficha de cada uno', true,
+    /href="\/admin\/alumnos\/[0-9a-f-]{36}"/.test(cursoConAlumnos) && cursoConAlumnos.includes('>Ver ficha<'))
+  // Las sesiones se editan desde el curso (21-sep-2026). Cada sesión sale
+  // cerrada y solo la abierta pinta su formulario (24-sep-2026): ?sesion=todos
+  // las abre todas.
+  const cursoConSesiones = await (await pedir(`/admin/cursos/${IDS.curso}?sesion=todos`, admin)).text()
   afirmar(G2, 'el curso trae el calendario de su cohorte editable', true,
     cursoConAlumnos.includes('id="sesiones"') &&
-      cursoConAlumnos.includes(`value="${IDS.sesionFutura}"`) &&
+      cursoConSesiones.includes(`value="${IDS.sesionFutura}"`) &&
       cursoConAlumnos.includes('name="titulo_base"'))
   const filtrado = await (await pedir(`/admin/cursos/${IDS.curso}?acceso=vencido`, admin)).text()
   afirmar(G2, 'el filtro por acceso deja solo al vencido', true,
@@ -396,7 +402,9 @@ async function main() {
 
   // Sesiones editables (20-sep-2026): el formulario trae lo que ya tiene.
   const cohortePagina = await (await pedir(`/admin/cohortes/${IDS.cohorte}`, admin)).text()
-  const formSesion = leerFormularios(cohortePagina).find(
+  // Cerradas no pintan su formulario (24-sep-2026): se piden abiertas.
+  const cohorteEditable = await (await pedir(`/admin/cohortes/${IDS.cohorte}?sesion=todos`, admin)).text()
+  const formSesion = leerFormularios(cohorteEditable).find(
     (f) => f.campos.id === IDS.sesionFutura && 'title' in f.campos && 'fecha' in f.campos
   )
   afirmar(G2, 'cada sesión trae su formulario de edición', true, Boolean(formSesion))
@@ -546,7 +554,7 @@ async function main() {
   afirmar(G5, 'eliminar cohorte pide confirmación', true,
     cohortePagina.includes(`id="eliminar-cohorte-${IDS.cohorte}"`) && cohortePagina.includes('popover="auto"'))
   afirmar(G5, 'eliminar sesión pide confirmación', true,
-    cohortePagina.includes(`id="eliminar-sesion-${IDS.sesionFutura}"`))
+    conSesion.includes(`id="eliminar-sesion-${IDS.sesionFutura}"`))
   afirmar(G5, 'eliminar módulo pide confirmación', true, detalle.includes('id="eliminar-modulo-'))
   afirmar(G5, 'eliminar lección pide confirmación', true,
     leccion.includes(`id="eliminar-leccion-${IDS.leccionVideo}"`))
@@ -746,10 +754,14 @@ async function main() {
   const antes = await posicionesDeModulos()
   const primeroAntes = antes[0]?.title ?? ''
 
+  // Las dos flechas son UN formulario con dos botones de envío (24-sep-2026);
+  // la dirección la manda el botón que se aprieta, no un campo oculto, así que
+  // aquí se agrega como lo haría el navegador.
   const formularios = leerFormularios(detalle)
   const bajar = formularios.find(
-    (f) => f.campos.id === antes[0]?.id && f.campos.direccion === 'abajo'
+    (f) => f.campos.id === antes[0]?.id && f.campos.padre === IDS.curso && f.html.includes('value="abajo"')
   )
+  if (bajar) bajar.campos.direccion = 'abajo'
 
   afirmar(G3, 'se encontró el formulario de mover', true, Boolean(bajar))
 
@@ -770,9 +782,12 @@ async function main() {
     // Se deja como estaba, para que el script sea re-corrible.
     const detalle2 = await (await pedir(`/admin/cursos/${IDS.curso}`, admin)).text()
     const subir = leerFormularios(detalle2).find(
-      (f) => f.campos.id === antes[0]?.id && f.campos.direccion === 'arriba'
+      (f) => f.campos.id === antes[0]?.id && f.campos.padre === IDS.curso && f.html.includes('value="arriba"')
     )
-    if (subir) await enviarFormulario(`/admin/cursos/${IDS.curso}`, subir, admin)
+    if (subir) {
+      subir.campos.direccion = 'arriba'
+      await enviarFormulario(`/admin/cursos/${IDS.curso}`, subir, admin)
+    }
 
     const restaurado = await posicionesDeModulos()
     afirmar(G3, 'el orden se restauró', primeroAntes, restaurado[0]?.title ?? '')
