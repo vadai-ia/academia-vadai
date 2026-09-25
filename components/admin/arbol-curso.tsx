@@ -151,6 +151,25 @@ export function ArbolCurso({
       <ul className="flex flex-col gap-3">
         {curso.modulos.map((modulo, indiceModulo) => {
           const abierto = estaAbierto(modulo.id)
+          const borradores = modulo.lecciones.filter((l) => l.status === 'draft').length
+          // Lo que se ve en la fila, abierto o cerrado.
+          const encabezado = (
+            <>
+              <span
+                aria-hidden
+                className="text-muted-foreground transition-transform group-open/modulo:rotate-90"
+              >
+                ›
+              </span>
+              <span className="font-mono text-xs text-muted-foreground">{indiceModulo + 1}</span>
+              <span className="truncate font-medium">{modulo.title}</span>
+              <span className="text-xs text-muted-foreground">
+                {modulo.lecciones.length} lección(es)
+                {borradores > 0 ? ` · ${borradores} en borrador` : ''}
+              </span>
+            </>
+          )
+          const claseFila = 'flex min-w-0 flex-1 flex-wrap items-center gap-2 px-3 py-2.5'
           return (
           <li key={modulo.id} id={`modulo-${modulo.id}`}>
             <details
@@ -158,32 +177,28 @@ export function ArbolCurso({
               open={abierto || undefined}
               className="group/modulo rounded-lg border border-border"
             >
-              <summary className="flex cursor-pointer list-none flex-wrap items-center justify-between gap-2 px-3 py-2.5 select-none [&::-webkit-details-marker]:hidden">
-                <div className="flex min-w-0 items-center gap-2">
-                  <span
-                    aria-hidden
-                    className="text-muted-foreground transition-transform group-open/modulo:rotate-90"
+              {/*
+                Cerrado, TODA la fila es el enlace que lo abre (25-sep-2026): el
+                cuerpo no viene en el HTML hasta que se pide con ?modulo=, así
+                que plegar el <details> a mano no enseñaba nada y el chevron
+                parecía roto: solo el título, que era el enlace, hacía algo.
+                `scroll={false}` abre el módulo donde está, sin brincar al ancla
+                (que sigue en el href para la carga sin JavaScript, donde la
+                página vuelve a cargar desde arriba). Abierto, la fila es el
+                <summary> de siempre: cierra al instante, sin ir al servidor.
+              */}
+              <summary className="flex cursor-pointer list-none items-center justify-between gap-2 pr-3 select-none [&::-webkit-details-marker]:hidden">
+                {abierto ? (
+                  <span className={claseFila}>{encabezado}</span>
+                ) : (
+                  <Link
+                    href={`${base}?modulo=${modulo.id}#modulo-${modulo.id}`}
+                    scroll={false}
+                    className={`${claseFila} rounded-l-lg transition-colors hover:bg-muted/40`}
                   >
-                    ›
-                  </span>
-                  <span className="font-mono text-xs text-muted-foreground">{indiceModulo + 1}</span>
-                  {abierto ? (
-                    <span className="truncate font-medium">{modulo.title}</span>
-                  ) : (
-                    <Link
-                      href={`${base}?modulo=${modulo.id}#modulo-${modulo.id}`}
-                      className="truncate font-medium underline-offset-4 hover:underline"
-                    >
-                      {modulo.title}
-                    </Link>
-                  )}
-                  <span className="text-xs text-muted-foreground">
-                    {modulo.lecciones.length} lección(es)
-                    {modulo.lecciones.some((l) => l.status === 'draft')
-                      ? ` · ${modulo.lecciones.filter((l) => l.status === 'draft').length} en borrador`
-                      : ''}
-                  </span>
-                </div>
+                    {encabezado}
+                  </Link>
+                )}
 
                 <BotonesDeOrden
                   id={modulo.id}

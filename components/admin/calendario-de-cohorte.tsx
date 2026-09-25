@@ -150,6 +150,7 @@ export function CalendarioDeCohorte({
                       ) : (
                         <Link
                           href={`?sesion=${sesion.id}#sesion-${sesion.id}`}
+                          scroll={false}
                           className={cn(buttonVariants({ variant: 'outline', size: 'sm' }))}
                         >
                           Editar
