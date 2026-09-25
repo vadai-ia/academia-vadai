@@ -39,7 +39,7 @@ export function TarjetaCurso({ curso }: { curso: CursoDelAlumno }) {
         ) : (
           <span
             aria-hidden
-            className="flex size-full items-center justify-center bg-gradient-to-br from-secondary to-primary/30 text-5xl font-medium text-primary-foreground/80"
+            className="flex size-full items-center justify-center bg-gradient-to-br from-vadai-navy via-vadai-azul to-vadai-cyan text-5xl font-medium text-white/90"
           >
             {curso.titulo.trim().charAt(0).toUpperCase()}
           </span>
@@ -75,7 +75,7 @@ export function TarjetaCurso({ curso }: { curso: CursoDelAlumno }) {
             </span>
 
             {terminado ? (
-              <span className="font-medium text-exito">· Completado</span>
+              <span className="rounded-full bg-accent px-2 py-0.5 font-medium text-accent-foreground">Completado</span>
             ) : curso.totalLecciones > 0 ? (
               <span className="tabular-nums">· {curso.porcentaje}%</span>
             ) : null}

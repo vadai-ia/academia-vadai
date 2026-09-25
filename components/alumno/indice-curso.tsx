@@ -113,7 +113,7 @@ function Modulo({
       <summary
         className={cn(
           'flex cursor-pointer list-none items-center gap-2.5 select-none',
-          'transition-colors hover:bg-muted/60',
+          'transition-colors hover:bg-primary/5',
           'focus-visible:ring-3 focus-visible:ring-ring/50 focus-visible:outline-none',
           '[&::-webkit-details-marker]:hidden',
           compacto ? 'px-3 py-2.5' : 'px-4 py-3'
@@ -160,7 +160,7 @@ function EstadoModulo({ numero, completo }: { numero: number; completo: boolean 
   if (completo) {
     return (
       <span
-        className="flex size-6 shrink-0 items-center justify-center rounded-full bg-exito/15 text-exito"
+        className="flex size-6 shrink-0 items-center justify-center rounded-full bg-accent text-accent-foreground"
         aria-label="Módulo completo"
       >
         <Palomita />
@@ -169,7 +169,7 @@ function EstadoModulo({ numero, completo }: { numero: number; completo: boolean 
   }
   return (
     <span
-      className="flex size-6 shrink-0 items-center justify-center rounded-full border border-border text-xs font-medium tabular-nums text-muted-foreground"
+      className="flex size-6 shrink-0 items-center justify-center rounded-full bg-primary/10 text-xs font-medium tabular-nums text-primary"
       aria-hidden
     >
       {numero}
@@ -263,7 +263,7 @@ function Estado({ leccion }: { leccion: LeccionEnIndice }) {
   if (leccion.completada) {
     return (
       <span
-        className="flex size-6 shrink-0 items-center justify-center rounded-full bg-exito/15 text-exito"
+        className="flex size-6 shrink-0 items-center justify-center rounded-full bg-accent text-accent-foreground"
         aria-label="Completada"
       >
         <Palomita />
@@ -273,7 +273,7 @@ function Estado({ leccion }: { leccion: LeccionEnIndice }) {
 
   return (
     <span
-      className="flex size-6 shrink-0 items-center justify-center rounded-full border border-border text-muted-foreground"
+      className="flex size-6 shrink-0 items-center justify-center rounded-full bg-primary/10 text-primary"
       aria-hidden
     >
       <IconoTipo tipo={leccion.tipo} />

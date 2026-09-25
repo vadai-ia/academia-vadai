@@ -126,7 +126,7 @@ export default async function PaginaLeccion({
         <div className="flex flex-wrap items-end justify-between gap-x-6 gap-y-3">
           <div className="flex min-w-0 flex-col gap-1">
             {modulo ? (
-              <p className="text-xs font-medium tracking-wider text-muted-foreground uppercase">
+              <p className="text-xs font-medium tracking-wider text-primary uppercase">
                 {modulo.titulo}
               </p>
             ) : null}
@@ -141,7 +141,7 @@ export default async function PaginaLeccion({
             <div className="flex w-full max-w-xs flex-col gap-1.5 sm:w-56">
               <div className="flex items-baseline justify-between gap-2 text-sm">
                 <span className="text-muted-foreground">Tu avance</span>
-                <span className="font-medium tabular-nums">{curso.porcentaje}%</span>
+                <span className="font-medium text-primary tabular-nums">{curso.porcentaje}%</span>
               </div>
               <Progreso
                 porcentaje={curso.porcentaje}

@@ -74,7 +74,7 @@ export function Pestanas({
             'text-[0.95rem] font-medium whitespace-nowrap transition-colors',
             'focus-visible:ring-3 focus-visible:ring-ring/50 focus-visible:outline-none',
             activa
-              ? 'border-primary text-foreground'
+              ? 'border-primary text-primary'
               : 'border-transparent text-muted-foreground hover:border-border hover:text-foreground'
           )
 

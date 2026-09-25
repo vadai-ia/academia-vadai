@@ -71,7 +71,7 @@ export default async function PaginaPuntos() {
           </div>
 
           <div className="flex flex-col items-start gap-1 sm:items-end">
-            <span className="rounded-full bg-primary/12 px-3 py-1 text-sm font-medium text-primary">
+            <span className="rounded-full bg-accent px-3 py-1 text-sm font-medium text-accent-foreground">
               Nivel {nivel.nivel.numero} · {nivel.nivel.nombre}
             </span>
             {nivel.nivel.siguiente ? (

@@ -48,7 +48,7 @@ export function EstaSesion({
           <h2 id="esta-sesion" className="min-w-0 truncate text-sm font-medium">
             {modulo.titulo}
           </h2>
-          <span className="shrink-0 text-xs text-muted-foreground tabular-nums">
+          <span className="shrink-0 text-xs font-medium text-primary tabular-nums">
             {hechas} de {modulo.lecciones.length}
           </span>
         </div>

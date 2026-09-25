@@ -43,7 +43,7 @@ export function CertificadoDelCurso({
 
   if (emitido) {
     return (
-      <section className="flex flex-col gap-4 rounded-lg border border-exito/40 bg-exito/5 p-5">
+      <section className="flex flex-col gap-4 rounded-lg border border-accent/60 bg-accent/10 p-5">
         <div className="flex flex-col gap-1">
           <h2 className="font-semibold">Curso completado</h2>
           <p className="text-sm text-muted-foreground">
@@ -67,7 +67,7 @@ export function CertificadoDelCurso({
     return (
       <form
         action={accion}
-        className="flex flex-col gap-4 rounded-lg border border-exito/40 bg-exito/5 p-5"
+        className="flex flex-col gap-4 rounded-lg border border-accent/60 bg-accent/10 p-5"
       >
         <input type="hidden" name="curso_id" value={cursoId} />
 

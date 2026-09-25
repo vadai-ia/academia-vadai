@@ -58,12 +58,12 @@ export default async function PaginaCurso({ params }: { params: Promise<{ slug: 
       {curso.vigente && siguiente ? (
         <Tarjeta className="flex flex-wrap items-center justify-between gap-4 p-5">
           <div className="flex min-w-0 flex-col gap-0.5">
-            <span className="text-xs tracking-wider text-muted-foreground uppercase">
+            <span className="text-xs font-medium tracking-wider text-primary uppercase">
               {curso.completadas === 0 ? 'Empieza por aquí' : 'Continúa donde te quedaste'}
             </span>
             <span className="truncate font-medium">{siguiente.titulo}</span>
           </div>
-          <Button asChild size="lg">
+          <Button asChild variant="acento" size="lg" className="h-10 px-5 text-[0.95rem]">
             <Link href={`/curso/${curso.slug}/${siguiente.id}`}>
               {curso.completadas === 0 ? 'Empezar el curso' : 'Continuar'}
             </Link>

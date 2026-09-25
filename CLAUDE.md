@@ -312,6 +312,16 @@ cierre): nada se duplica en el DOM. El cierre —"Marcar como completada" en lim
 lima de la pantalla, con Anterior y Siguiente al lado— va **al final del contenido** y
 antes de los comentarios. El texto de lectura es de 16 px (`render-rico.tsx`), no de 14.
 
+**El color de marca va como acento, sobre fondos claros** (decidido 25-sep-2026: "que se
+sienta mucho más atractivo e interactivo"). Tres papeles, siempre por token: **cyan/azul
+(`primary`)** para lo que orienta y se toca —icono de tipo de lección, número de módulo,
+eyebrow, pestaña activa, porcentaje de avance, avatares—; **lima (`accent`)** para lo
+logrado y la acción principal —lección o módulo completado (disco lima con palomita navy),
+"Completada", nivel, certificado, el CTA de cada pantalla, la barra al 100 %—; **`exito`**
+solo para resultados de calificación (quiz o tarea aprobada). El color va en discos,
+pastillas, bordes y barras, nunca en planos grandes: el único plano de marca es el hero de
+Mis cursos.
+
 - **Los colores van por token semántico, nunca a mano.** `text-primary`, no
   `text-vadai-cyan`: el cyan da 6.4:1 sobre navy pero 2.6:1 sobre el fondo claro,
   así que reprueba AA en cuanto alguien cambia de tema. Cada token se define una

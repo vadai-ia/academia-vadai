@@ -64,7 +64,7 @@ export function BotonCompletada({
     return (
       <span className="flex flex-wrap items-center gap-3">
         <span
-          className="inline-flex h-10 items-center gap-2 rounded-[10px] border border-exito/40 bg-exito/10 px-4 text-[0.95rem] font-medium text-exito"
+          className="inline-flex h-10 items-center gap-2 rounded-[10px] bg-accent px-4 text-[0.95rem] font-medium text-accent-foreground"
           role="status"
         >
           <Palomita />

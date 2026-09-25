@@ -118,7 +118,7 @@ export default async function LayoutCurso({
             <div className="flex w-full max-w-xs flex-col gap-1.5 sm:w-56">
               <div className="flex items-baseline justify-between gap-2 text-sm">
                 <span className="text-muted-foreground">Tu avance</span>
-                <span className="font-medium tabular-nums">{curso.porcentaje}%</span>
+                <span className="font-medium text-primary tabular-nums">{curso.porcentaje}%</span>
               </div>
               <Progreso
                 porcentaje={curso.porcentaje}

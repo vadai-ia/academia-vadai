@@ -192,12 +192,25 @@ export function Avatar({
       .join('')
       .toUpperCase() || '·'
 
+  // Tres tonos de marca, elegidos por el nombre y no al azar: la misma
+  // persona siempre sale del mismo color, y en un hilo se distinguen entre sí
+  // (25-sep-2026). Los tres cumplen AA en los dos temas.
+  const TONOS = [
+    'bg-primary/15 text-primary',
+    'bg-accent text-accent-foreground',
+    'bg-secondary text-secondary-foreground',
+  ] as const
+  let suma = 0
+  for (const c of nombre) suma = (suma + c.charCodeAt(0)) % TONOS.length
+  const tono = TONOS[suma] ?? TONOS[0]
+
   return (
     <span
       aria-hidden
       className={cn(
         'inline-flex shrink-0 items-center justify-center rounded-full',
-        'bg-secondary font-medium text-secondary-foreground select-none',
+        'font-medium select-none',
+        tono,
         className
       )}
       style={{ width: tamano, height: tamano, fontSize: Math.round(tamano * 0.38) }}
@@ -228,8 +241,12 @@ export function Progreso({
       aria-valuemax={100}
       aria-label={etiqueta ?? `${valor}% completado`}
     >
+      {/* Al 100 % se pone lima: lo logrado es lima en toda la plataforma. */}
       <span
-        className="block h-full rounded-full bg-primary transition-[width] duration-500"
+        className={cn(
+          'block h-full rounded-full transition-[width,background-color] duration-500',
+          valor >= 100 ? 'bg-accent' : 'bg-primary'
+        )}
         style={{ width: `${valor}%` }}
       />
     </div>
