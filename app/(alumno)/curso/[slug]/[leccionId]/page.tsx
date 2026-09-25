@@ -3,21 +3,41 @@ import Link from 'next/link'
 import { notFound, redirect } from 'next/navigation'
 
 import { AdjuntosAlumno } from '@/components/alumno/adjuntos-alumno'
-import { BotonCompletada } from '@/components/alumno/boton-completada'
-import { IndiceCurso } from '@/components/alumno/indice-curso'
-import { Quiz } from '@/components/alumno/quiz'
+import { CierreDeLeccion } from '@/components/alumno/cierre-de-leccion'
 import { Comentarios } from '@/components/alumno/comentarios'
-import { Tarea } from '@/components/alumno/tarea'
+import { EstaSesion } from '@/components/alumno/esta-sesion'
+import { Quiz } from '@/components/alumno/quiz'
 import { RenderRico } from '@/components/alumno/render-rico'
 import { Reproductor } from '@/components/alumno/reproductor'
-import { Button } from '@/components/ui/button'
+import { Tarea } from '@/components/alumno/tarea'
+import { Progreso } from '@/components/ui-vadai/superficie'
 import { contenidoDeLeccion, cursoDelAlumno, vecinas } from '@/lib/alumno/consultas'
 import { quizParaAlumno } from '@/lib/alumno/quiz'
 import { tareaParaAlumno } from '@/lib/alumno/tarea'
 import { esEquipo, exigirPerfil } from '@/lib/auth/sesion'
-import { comentariosDeLeccion } from '@/lib/comunidad/comentarios'
 import { firmarReproduccion, reproduccionConfigurada } from '@/lib/bunny/reproduccion'
+import { comentariosDeLeccion } from '@/lib/comunidad/comentarios'
 
+/**
+ * La lección, en "modo lección" (25-sep-2026).
+ *
+ * Vive FUERA del marco del curso (`(marco)/layout.tsx`, con el título del
+ * curso, su avance y las pestañas): en el teléfono ese marco más el
+ * encabezado de la lección dejaban el video a media pantalla. Aquí el
+ * encabezado es propio y corto —vuelta al curso, sesión, título, avance— y lo
+ * primero que se ve es el video.
+ *
+ * El orden en el teléfono es el orden de leer: video, material, texto, el
+ * cierre (marcar y seguir), la sesión y al final los comentarios. En
+ * escritorio las mismas piezas se reparten en dos columnas: a la derecha, y
+ * pegada, solo lo que orienta (material y ESTA sesión); nunca el índice
+ * completo, que ya vive en Contenido. Sin duplicar nada en el DOM: la columna
+ * es `display: contents` bajo `lg` y sus hijos toman su lugar por `order`.
+ *
+ * NO lleva `loading.tsx`: el `redirect()` de abajo es control de acceso y un
+ * límite de Suspense haría que la respuesta saliera 200. Ver
+ * components/marca/esqueleto.tsx.
+ */
 export const dynamic = 'force-dynamic'
 
 export async function generateMetadata({
@@ -28,6 +48,15 @@ export async function generateMetadata({
   const { leccionId } = await params
   const leccion = await contenidoDeLeccion(leccionId)
   return { title: leccion?.titulo ?? 'Lección' }
+}
+
+function duracionLegible(segundos: number | null): string | null {
+  if (!segundos || segundos <= 0) return null
+  const minutos = Math.round(segundos / 60)
+  if (minutos < 60) return `${minutos} min`
+  const horas = Math.floor(minutos / 60)
+  const resto = minutos % 60
+  return resto === 0 ? `${horas} h` : `${horas} h ${resto} min`
 }
 
 export default async function PaginaLeccion({
@@ -57,12 +86,20 @@ export default async function PaginaLeccion({
   if (!curso) notFound()
   if (!leccion) redirect(`/curso/${slug}`)
 
-  const { anterior, siguiente, indice, total } = vecinas(curso, leccionId)
+  const { anterior, siguiente } = vecinas(curso, leccionId)
 
-  // En qué módulo estás. Con dieciséis módulos, "Lección 12 de 40" no ubica a
-  // nadie; "Sesión 3 · lección 2 de 4" sí (21-sep-2026).
+  // En qué sesión estás. Con dieciséis módulos, "Lección 12 de 40" no ubica a
+  // nadie; el título del módulo arriba y "Lección 2 de 4" sí (21-sep-2026).
   const modulo = curso.modulos.find((m) => m.lecciones.some((l) => l.id === leccionId))
+  const enIndice = modulo?.lecciones.find((l) => l.id === leccionId)
   const enModulo = modulo ? modulo.lecciones.findIndex((l) => l.id === leccionId) + 1 : 0
+  const meta = [
+    modulo && enModulo > 0 ? `Lección ${enModulo} de ${modulo.lecciones.length}` : null,
+    duracionLegible(leccion.duracionSeg),
+    enIndice && !enIndice.obligatoria ? 'Opcional' : null,
+  ]
+    .filter(Boolean)
+    .join(' · ')
 
   // Estas sí necesitan saber de qué tipo es la lección, y son excluyentes.
   const quiz = leccion.tipo === 'quiz' ? await quizParaAlumno(leccion.id) : null
@@ -77,122 +114,117 @@ export default async function PaginaLeccion({
       : null
 
   return (
-    <div className="flex flex-col gap-8 lg:flex-row lg:items-start lg:gap-10">
-      <div className="flex min-w-0 flex-1 flex-col gap-6">
-        <header className="flex flex-col gap-2">
-          <Link
-            href={`/curso/${slug}`}
-            className="text-sm text-primary underline-offset-4 hover:underline"
-          >
-            ← {curso.titulo}
-          </Link>
+    <article className="flex flex-col gap-6">
+      <header className="flex flex-col gap-3">
+        <Link
+          href={`/curso/${slug}`}
+          className="inline-flex w-fit items-center gap-1.5 text-sm text-muted-foreground underline-offset-4 hover:text-foreground hover:underline"
+        >
+          <span aria-hidden>←</span> {curso.titulo}
+        </Link>
+
+        <div className="flex flex-wrap items-end justify-between gap-x-6 gap-y-3">
+          <div className="flex min-w-0 flex-col gap-1">
+            {modulo ? (
+              <p className="text-xs font-medium tracking-wider text-muted-foreground uppercase">
+                {modulo.titulo}
+              </p>
+            ) : null}
+            <h1 className="text-2xl leading-tight font-medium tracking-tight text-balance sm:text-[1.75rem]">
+              {leccion.titulo}
+            </h1>
+            {meta ? <p className="text-sm text-muted-foreground">{meta}</p> : null}
+          </div>
+
+          {/* El avance del curso también aquí: es donde se gana. */}
+          {curso.totalLecciones > 0 ? (
+            <div className="flex w-full max-w-xs flex-col gap-1.5 sm:w-56">
+              <div className="flex items-baseline justify-between gap-2 text-sm">
+                <span className="text-muted-foreground">Tu avance</span>
+                <span className="font-medium tabular-nums">{curso.porcentaje}%</span>
+              </div>
+              <Progreso
+                porcentaje={curso.porcentaje}
+                etiqueta={`${curso.completadas} de ${curso.totalLecciones} lecciones completadas`}
+              />
+            </div>
+          ) : null}
+        </div>
+      </header>
+
+      <div className="flex flex-col gap-8 lg:grid lg:grid-cols-[minmax(0,1fr)_19rem] lg:items-start lg:gap-x-10 lg:gap-y-8">
+        {/* 1 · El video, o lo que va en su lugar. */}
+        <div className="order-1 lg:col-start-1">
+          {leccion.bunnyVideoId && reproduccion ? (
+            <Reproductor
+              urlIframe={reproduccion.urlIframe}
+              leccionId={leccion.id}
+              cursoSlug={slug}
+              duracionSeg={leccion.duracionSeg}
+              yaCompletada={leccion.completada}
+              titulo={leccion.titulo}
+              className="-mx-5 sm:mx-0"
+            />
+          ) : leccion.bunnyVideoId ? (
+            <p className="rounded-[10px] border border-destructive/40 bg-destructive/10 px-4 py-3 text-sm text-destructive">
+              El video no está disponible por un problema de configuración. Avísanos.
+            </p>
+          ) : leccion.tipo === 'video' ? (
+            // Una lección de video sin video todavía no es un error: es el lugar
+            // reservado para la grabación de una sesión que aún no ocurre (M14).
+            // Sin esto la pantalla salía en blanco y parecía rota.
+            <p className="rounded-[10px] border border-dashed border-border px-4 py-8 text-center text-sm text-muted-foreground">
+              El video se publica aquí en cuanto esté listo. Te avisamos en la campana.
+            </p>
+          ) : null}
+        </div>
+
+        {/* La columna derecha. Bajo `lg` no existe como caja: sus piezas se
+            reparten por `order` —el material bajo el video, la sesión después
+            del cierre—. En `lg` es una columna pegada que se desplaza sola. */}
+        <aside
+          aria-label="Material y sesión"
+          className="max-lg:contents lg:sticky lg:top-6 lg:col-start-2 lg:row-start-1 lg:row-span-3 lg:flex lg:max-h-[calc(100dvh-3rem)] lg:flex-col lg:gap-6 lg:self-start lg:overflow-y-auto"
+        >
+          <AdjuntosAlumno adjuntos={leccion.adjuntos} className="order-2 lg:order-none" />
           {modulo ? (
-            <p className="text-xs font-medium tracking-wider text-muted-foreground uppercase">
-              {modulo.titulo}
-            </p>
+            <EstaSesion
+              curso={curso}
+              modulo={modulo}
+              leccionActiva={leccion.id}
+              className="order-4 lg:order-none"
+            />
           ) : null}
-          <h1 className="text-xl font-semibold tracking-tight text-balance sm:text-2xl">
-            {leccion.titulo}
-          </h1>
-          {modulo && enModulo > 0 ? (
-            <p className="text-xs text-muted-foreground">
-              Lección {enModulo} de {modulo.lecciones.length} de este módulo
-              {indice >= 0 ? ` · ${indice + 1} de ${total} del curso` : ''}
-            </p>
-          ) : indice >= 0 ? (
-            <p className="text-xs text-muted-foreground">
-              Lección {indice + 1} de {total}
-            </p>
-          ) : null}
-        </header>
+        </aside>
 
-        {leccion.bunnyVideoId && reproduccion ? (
-          <Reproductor
-            urlIframe={reproduccion.urlIframe}
+        {/* 3 · Lo que hay que ver o hacer, y al final el cierre. */}
+        <div className="order-3 flex flex-col gap-8 lg:col-start-1">
+          {leccion.descripcion ? <RenderRico contenido={leccion.descripcion} /> : null}
+
+          {quiz ? <Quiz quiz={quiz} leccionId={leccion.id} cursoSlug={slug} /> : null}
+
+          {tarea ? <Tarea tarea={tarea} leccionId={leccion.id} cursoSlug={slug} /> : null}
+
+          <CierreDeLeccion
             leccionId={leccion.id}
             cursoSlug={slug}
-            duracionSeg={leccion.duracionSeg}
-            yaCompletada={leccion.completada}
-            titulo={leccion.titulo}
+            completada={leccion.completada}
+            esVideo={Boolean(leccion.bunnyVideoId && reproduccion)}
+            anterior={anterior}
+            siguiente={siguiente}
           />
-        ) : leccion.bunnyVideoId ? (
-          <p className="rounded-lg border border-destructive/40 bg-destructive/10 px-4 py-3 text-sm text-destructive">
-            El video no está disponible por un problema de configuración. Avísanos.
-          </p>
-        ) : leccion.tipo === 'video' ? (
-          // Una lección de video sin video todavía no es un error: es el lugar
-          // reservado para la grabación de una sesión que aún no ocurre (M14).
-          // Sin esto la pantalla salía en blanco y parecía rota.
-          <p className="rounded-[10px] border border-dashed border-border px-4 py-6 text-center text-sm text-muted-foreground">
-            El video se publica aquí en cuanto esté listo. Te avisamos en la campana.
-          </p>
-        ) : null}
-
-        {leccion.descripcion ? <RenderRico contenido={leccion.descripcion} /> : null}
-
-        {quiz ? <Quiz quiz={quiz} leccionId={leccion.id} cursoSlug={slug} /> : null}
-
-        {tarea ? <Tarea tarea={tarea} leccionId={leccion.id} cursoSlug={slug} /> : null}
-
-        <AdjuntosAlumno adjuntos={leccion.adjuntos} />
-
-        <div className="flex flex-col gap-4 border-t border-border pt-6 sm:flex-row sm:items-start sm:justify-between">
-          <BotonCompletada
-            leccionId={leccion.id}
-            cursoSlug={slug}
-            completadaInicial={leccion.completada}
-          />
-
-          {/* Ya completada, "Siguiente" es lo que toca: se pinta como la acción
-              principal para que el camino a seguir no haya que buscarlo. */}
-          <div className="flex shrink-0 gap-2">
-            {anterior ? (
-              <Button asChild variant="ghost" size="sm">
-                <Link href={`/curso/${slug}/${anterior.id}`}>← Anterior</Link>
-              </Button>
-            ) : null}
-            {siguiente ? (
-              <Button asChild variant={leccion.completada ? 'default' : 'outline'} size="sm">
-                <Link href={`/curso/${slug}/${siguiente.id}`}>Siguiente →</Link>
-              </Button>
-            ) : null}
-          </div>
         </div>
 
-        <Comentarios
-          comentarios={comentarios}
-          leccionId={leccion.id}
-          cursoSlug={slug}
-          soyEquipo={esEquipo(perfil)}
-        />
+        {/* 5 · La conversación, al final: no es parte de terminar. */}
+        <div className="order-5 lg:col-start-1">
+          <Comentarios
+            comentarios={comentarios}
+            leccionId={leccion.id}
+            cursoSlug={slug}
+            soyEquipo={esEquipo(perfil)}
+          />
+        </div>
       </div>
-
-      {/* El índice: en el teléfono va cerrado tras su propio botón —si no,
-          empuja los comentarios cuarenta renglones hacia abajo—; en escritorio
-          se queda pegado y se desplaza solo él. */}
-      <aside className="w-full shrink-0 lg:sticky lg:top-6 lg:max-h-[calc(100dvh-3rem)] lg:w-80 lg:overflow-y-auto">
-        <details className="rounded-[10px] border border-border lg:hidden">
-          <summary className="flex cursor-pointer list-none items-center justify-between gap-2 px-4 py-3 text-sm font-medium select-none [&::-webkit-details-marker]:hidden">
-            Índice del curso
-            <span className="text-xs text-muted-foreground tabular-nums">
-              {curso.completadas} de {curso.totalLecciones}
-            </span>
-          </summary>
-          <div className="border-t border-border p-3">
-            <IndiceCurso curso={curso} leccionActiva={leccion.id} compacto />
-          </div>
-        </details>
-
-        <div className="hidden lg:block">
-          <p className="mb-2 flex items-baseline justify-between gap-2 text-sm font-medium">
-            Índice del curso
-            <span className="text-xs text-muted-foreground tabular-nums">
-              {curso.completadas} de {curso.totalLecciones}
-            </span>
-          </p>
-          <IndiceCurso curso={curso} leccionActiva={leccion.id} compacto />
-        </div>
-      </aside>
-    </div>
+    </article>
   )
 }

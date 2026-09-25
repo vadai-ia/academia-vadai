@@ -51,6 +51,8 @@ En su lugar: `pnpm db:migrate` → `scripts/migrate.mjs`, que aplica los `.sql` 
 /app
   /(auth)        login, reset
   /(alumno)      mis-cursos, curso/[slug], curso/[slug]/en-vivo, curso/[slug]/dinamicas, comunidad, blog, perfil, dinamicas
+                 # curso/[slug]/(marco)/ = el marco del curso (título, avance, pestañas) para Contenido,
+                 # En vivo, Comunidad y Dinámicas; curso/[slug]/[leccionId] va FUERA: modo lección (25-sep-2026)
   /(admin)       admin/* (cursos, alumnos, alumnos/[userId] ficha, entregas, cohortes, posts, encuestas, dinamicas)
   /api/stripe/webhook
   /api/certificados/[folio]
@@ -298,6 +300,17 @@ que estás: abiertos todos, dieciséis módulos son una lista plana de cuarenta
 renglones donde nadie se ubica. Los primitivos viven en
 `components/ui-vadai/superficie.tsx`; una pantalla nueva se arma con esos, no con
 clases sueltas.
+
+**La lección va fuera del marco del curso** (decidido 25-sep-2026). `curso/[slug]/(marco)/`
+envuelve Contenido, En vivo, Comunidad y Dinámicas con el título del curso, el avance y
+las pestañas; `[leccionId]` queda fuera, con un encabezado corto (← curso, sesión, título,
+avance), el video primero —de borde a borde en teléfono— y a la derecha **solo la sesión
+actual** y el material, nunca el índice completo, que vive en Contenido: "que se vean
+todas las sesiones y módulos a la derecha no hace sentido". En teléfono la misma
+estructura se reordena con `order` (material bajo el video, la sesión después del
+cierre): nada se duplica en el DOM. El cierre —"Marcar como completada" en lima, la única
+lima de la pantalla, con Anterior y Siguiente al lado— va **al final del contenido** y
+antes de los comentarios. El texto de lectura es de 16 px (`render-rico.tsx`), no de 14.
 
 - **Los colores van por token semántico, nunca a mano.** `text-primary`, no
   `text-vadai-cyan`: el cyan da 6.4:1 sobre navy pero 2.6:1 sobre el fondo claro,

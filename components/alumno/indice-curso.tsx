@@ -141,7 +141,7 @@ function Modulo({
         <ul className="flex flex-col border-t border-border">
           {modulo.lecciones.map((leccion) => (
             <li key={leccion.id}>
-              <Renglon
+              <RenglonDeLeccion
                 leccion={leccion}
                 cursoSlug={cursoSlug}
                 activa={leccion.id === leccionActiva}
@@ -195,7 +195,7 @@ function Chevron() {
   )
 }
 
-function Renglon({
+export function RenglonDeLeccion({
   leccion,
   cursoSlug,
   activa,

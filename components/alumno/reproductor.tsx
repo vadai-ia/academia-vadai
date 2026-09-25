@@ -1,8 +1,10 @@
 'use client'
 
-import { useEffect, useRef, useState } from 'react'
+import { useRouter } from 'next/navigation'
+import { useEffect, useRef } from 'react'
 
 import { guardarAvance } from '@/lib/alumno/acciones'
+import { cn } from '@/lib/utils'
 
 /**
  * Player de Bunny con autocompletado al 90% (§3.3).
@@ -22,6 +24,12 @@ import { guardarAvance } from '@/lib/alumno/acciones'
  * Quién decide que la lección está completa es el SERVIDOR. Aquí solo se reporta
  * cuántos segundos van; si el cliente pudiera declarar "ya terminé", completar
  * el curso entero sería una sola petición.
+ *
+ * Cuando el servidor la da por completa, la página se refresca: el bloque de
+ * cierre (`cierre-de-leccion.tsx`) pasa a "Completada" y la barra del curso
+ * avanza. Antes este componente pintaba su propio "Lección completada" en
+ * chico bajo el video mientras el botón de abajo seguía diciendo "Marcar como
+ * completada": dos verdades en la misma pantalla (25-sep-2026).
  */
 
 const CONTEXTO = 'player.js'
@@ -60,6 +68,7 @@ export function Reproductor({
   duracionSeg,
   yaCompletada,
   titulo,
+  className,
 }: {
   urlIframe: string
   leccionId: string
@@ -67,10 +76,12 @@ export function Reproductor({
   duracionSeg: number | null
   yaCompletada: boolean
   titulo: string
+  className?: string
 }) {
+  const router = useRouter()
   const iframe = useRef<HTMLIFrameElement>(null)
   const ultimoGuardado = useRef(0)
-  const [completada, setCompletada] = useState(yaCompletada)
+  const completada = useRef(yaCompletada)
 
   useEffect(() => {
     function alRecibir(evento: MessageEvent) {
@@ -109,7 +120,10 @@ export function Reproductor({
 
         void guardarAvance(leccionId, segundos, duracion || duracionSeg, cursoSlug).then(
           (resultado) => {
-            if (resultado.completada) setCompletada(true)
+            if (resultado.completada && !completada.current) {
+              completada.current = true
+              router.refresh()
+            }
           }
         )
       }
@@ -117,31 +131,26 @@ export function Reproductor({
 
     window.addEventListener('message', alRecibir)
     return () => window.removeEventListener('message', alRecibir)
-  }, [leccionId, cursoSlug, duracionSeg])
+  }, [leccionId, cursoSlug, duracionSeg, router])
 
   return (
-    <div className="flex flex-col gap-2">
-      <div className="relative aspect-video w-full overflow-hidden rounded-lg border border-border bg-black">
-        <iframe
-          ref={iframe}
-          src={urlIframe}
-          title={titulo}
-          loading="lazy"
-          allow="accelerometer; gyroscope; autoplay; encrypted-media; picture-in-picture; fullscreen"
-          allowFullScreen
-          className="absolute inset-0 size-full"
-        />
-      </div>
-
-      {completada ? (
-        <p className="text-xs text-exito" role="status">
-          Lección completada
-        </p>
-      ) : (
-        <p className="text-xs text-muted-foreground">
-          Se marca sola cuando llegues al 90% del video.
-        </p>
+    // En el teléfono el video va de borde a borde, sin marco: cada píxel de
+    // ancho es imagen. A partir de `sm` recupera el radio y el borde de las
+    // demás superficies.
+    <div
+      className={cn(
+        'relative aspect-video overflow-hidden bg-black sm:rounded-[10px] sm:border sm:border-border',
+        className
       )}
+    >
+      <iframe
+        ref={iframe}
+        src={urlIframe}
+        title={titulo}
+        allow="accelerometer; gyroscope; autoplay; encrypted-media; picture-in-picture; fullscreen"
+        allowFullScreen
+        className="absolute inset-0 size-full"
+      />
     </div>
   )
 }

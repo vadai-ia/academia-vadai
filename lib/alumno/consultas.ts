@@ -375,8 +375,8 @@ export function vecinas(curso: CursoDelAlumno, leccionId: string) {
   const planas = curso.modulos.flatMap((m) => m.lecciones)
   const i = planas.findIndex((l) => l.id === leccionId)
   return {
-    anterior: i > 0 ? planas[i - 1] : null,
-    siguiente: i >= 0 && i < planas.length - 1 ? planas[i + 1] : null,
+    anterior: i > 0 ? (planas[i - 1] ?? null) : null,
+    siguiente: i >= 0 && i < planas.length - 1 ? (planas[i + 1] ?? null) : null,
     indice: i,
     total: planas.length,
   }

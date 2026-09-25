@@ -16,9 +16,11 @@ import { PUNTOS } from '@/lib/gamificacion/reglas'
  * marcarla, y ya marcada seguía pareciendo un botón que había que apretar, así
  * que la gente la desmarcaba sin querer.
  *
- * Ahora son dos estados que se ven distintos:
- *   - Pendiente: un botón grande con un círculo vacío —la forma universal de
- *     "falta esto"— y debajo, en chico, qué gana al apretarlo.
+ * Dos estados que se ven distintos:
+ *   - Pendiente: un botón grande en el lima de la marca —el color de los CTAs,
+ *     y el único botón lima de la pantalla (25-sep-2026)— con un círculo vacío,
+ *     la forma universal de "falta esto". Qué gana al apretarlo lo dice el
+ *     bloque que lo contiene (`cierre-de-leccion.tsx`), no el botón.
  *   - Hecha: ya no es un botón. Es una placa verde con palomita que dice
  *     "Completada", y deshacer queda en una liga discreta al lado.
  *
@@ -62,7 +64,7 @@ export function BotonCompletada({
     return (
       <span className="flex flex-wrap items-center gap-3">
         <span
-          className="inline-flex items-center gap-2 rounded-[10px] border border-exito/40 bg-exito/10 px-3 py-2 text-sm font-medium text-exito"
+          className="inline-flex h-10 items-center gap-2 rounded-[10px] border border-exito/40 bg-exito/10 px-4 text-[0.95rem] font-medium text-exito"
           role="status"
         >
           <Palomita />
@@ -83,7 +85,7 @@ export function BotonCompletada({
         {festejo ? (
           <span
             role="status"
-            className="inline-flex animate-in items-center gap-1 rounded-full bg-vadai-lima px-2.5 py-1 text-sm font-semibold text-vadai-navy duration-500 zoom-in slide-in-from-bottom-2"
+            className="inline-flex animate-in items-center gap-1 rounded-full bg-accent px-2.5 py-1 text-sm font-medium text-accent-foreground duration-500 zoom-in slide-in-from-bottom-2"
           >
             +{PUNTOS.leccion} puntos
           </span>
@@ -93,21 +95,17 @@ export function BotonCompletada({
   }
 
   return (
-    <span className="flex flex-col gap-1.5">
-      <Button
-        type="button"
-        size="lg"
-        disabled={pendiente}
-        onClick={() => alternar(true)}
-        className="w-full sm:w-auto"
-      >
-        <Circulo />
-        {pendiente ? 'Guardando…' : 'Marcar como completada'}
-      </Button>
-      <span className="text-xs text-muted-foreground">
-        Suma {PUNTOS.leccion} puntos y avanza tu barra del curso.
-      </span>
-    </span>
+    <Button
+      type="button"
+      variant="acento"
+      size="lg"
+      disabled={pendiente}
+      onClick={() => alternar(true)}
+      className="h-10 w-full px-5 text-[0.95rem] sm:w-auto"
+    >
+      <Circulo />
+      {pendiente ? 'Guardando…' : 'Marcar como completada'}
+    </Button>
   )
 }
 
