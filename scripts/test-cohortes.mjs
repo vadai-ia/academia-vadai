@@ -184,16 +184,21 @@ async function main() {
   // suite puede correr una semana después (24-sep-2026: el seed era del 21 y
   // la suite esperaba el 2 de octubre). Se convierte igual que la página: con
   // `en-CA` en la zona de México, no con getDate().
-  const { rows: sesionFutura } = await bd.query(
-    'select scheduled_at from academia.cohort_sessions where id = $1',
-    [IDS.sesionFutura]
+  const { rows: sesiones } = await bd.query(
+    'select id, scheduled_at from academia.cohort_sessions where id = any($1)',
+    [[IDS.sesionFutura, IDS.sesionPasada]]
   )
-  const fechaFutura = new Intl.DateTimeFormat('en-CA', {
-    timeZone: 'America/Mexico_City',
-    year: 'numeric',
-    month: '2-digit',
-    day: '2-digit',
-  }).format(new Date(sesionFutura[0]?.scheduled_at ?? Date.now()))
+  const cuandoFue = (id) => sesiones.find((s) => s.id === id)?.scheduled_at ?? Date.now()
+  const enCdmx = (opciones) =>
+    new Intl.DateTimeFormat('en-CA', { timeZone: 'America/Mexico_City', ...opciones })
+  const fechaFutura = enCdmx({ year: 'numeric', month: '2-digit', day: '2-digit' }).format(
+    new Date(cuandoFue(IDS.sesionFutura))
+  )
+  // El mes CDMX de cada una, que es el que pinta el calendario ('YYYY-MM').
+  const mesDeLaSesion = (id) =>
+    enCdmx({ year: 'numeric', month: '2-digit' }).format(new Date(cuandoFue(id)))
+  const mesFutura = mesDeLaSesion(IDS.sesionFutura)
+  const mesPasada = mesDeLaSesion(IDS.sesionPasada)
 
   try {
     // ====================================================================
@@ -282,9 +287,16 @@ async function main() {
     afirmar(G3, 'Contenido anuncia la próxima', true, cursoAlumno.includes('Próxima sesión en vivo'))
     afirmar(G3, 'Contenido ya no trae ligas de Meet', false, cursoAlumno.includes('meet.google.com'))
 
-    const enVivo = await texto(rutaEnVivo, vigente)
-    afirmar(G3, 've sus dos sesiones', true,
-      (enVivo.match(/data-sesion="/g) ?? []).length >= 2)
+    // El calendario pinta UN mes. Con las sesiones del seed a ±7 días, la última
+    // semana de cada mes caen en meses distintos y no salen las dos en la misma
+    // cuadrícula; para eso están las flechas. Se afirma entonces la propiedad
+    // —cada una sale en su mes y la lista las junta—, no que quepan en la rejilla:
+    // contarlas en la vista por default fallaba uno de cada cuatro días.
+    const enVivo = await texto(`${rutaEnVivo}?mes=${mesFutura}`, vigente)
+    const enVivoPasada = await texto(`${rutaEnVivo}?mes=${mesPasada}`, vigente)
+    afirmar(G3, 've cada sesión en el mes que le toca', true,
+      enVivo.includes(`data-sesion="${IDS.sesionFutura}"`) &&
+        enVivoPasada.includes(`data-sesion="${IDS.sesionPasada}"`))
     afirmar(G3, 'la futura cae en su día de CDMX', true,
       enVivo.includes(`data-fecha="${fechaFutura}"`))
     afirmar(G3, 'recibe el link de Meet', true, enVivo.includes('meet.google.com/qa-futura'))
@@ -297,6 +309,8 @@ async function main() {
     const enVivoLista = await texto(`${rutaEnVivo}?vista=lista`, vigente)
     afirmar(G3, 'la vista de lista guarda las pasadas', true,
       enVivoLista.includes('Sesiones anteriores'))
+    afirmar(G3, 'y la lista sí junta las dos', true,
+      enVivoLista.includes('Ya ocurri') && enVivoLista.includes('xima'))
     afirmar(G3, 'el selector dice en cuál estás', true, enVivoLista.includes('aria-current="true"'))
 
     // La campana avisa de la sesión futura: el seed la sembró hace un momento,
