@@ -42,7 +42,8 @@
     "qa:mostrar": "node scripts/qa-mostrar.mjs",
     "seed:dinamica": "node scripts/seed-dinamica.mjs",
     "qa:esconder": "node scripts/qa-esconder.mjs",
-    "capturas": "node scripts/capturas.mjs"
+    "capturas": "node scripts/capturas.mjs",
+    "iconos": "python scripts/generar-iconos.py"
   },
   "dependencies": {
     "@react-pdf/renderer": "^4.6.1",

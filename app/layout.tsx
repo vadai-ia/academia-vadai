@@ -15,11 +15,12 @@ export const metadata: Metadata = {
   description: 'Academia online de VADAI: IA aplicada para dueños de negocio.',
   // Plataforma privada: el acceso es un producto pagado, no hay nada que indexar.
   robots: { index: false, follow: false },
-  // Cuatro tamaños porque el navegador elige, y a 16 px el sello completo —con
-  // su anillo de texto— es puré gris. Los chicos llevan solo el monograma; los
-  // grandes, el sello entero, donde el anillo sí se lee.
+  // Cuatro tamaños porque el navegador elige el que le acomoda. El arte es el
+  // monograma VA —negro y cyan— dentro de un anillo lima, que se lee igual de
+  // bien a 16 px que a 512 (favicon nuevo, 26-sep-2026). Los cinco PNG se
+  // generan del original de branding con `pnpm iconos`.
   //
-  // El fondo blanco va HORNEADO en el PNG, no puesto con CSS: la pestaña la
+  // El disco blanco va HORNEADO en el PNG, no puesto con CSS: la pestaña la
   // pinta el navegador y ahí no llega ninguna hoja de estilos. El arte es negro
   // sobre transparente, así que sin disco desaparece.
   icons: {
