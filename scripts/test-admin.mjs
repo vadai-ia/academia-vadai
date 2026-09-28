@@ -748,6 +748,32 @@ async function main() {
     arbol.includes(`id="eliminar-leccion-${IDS.leccionVideo}"`))
 
   // ======================================================================
+  // El ranking de puntos para el equipo (26-sep-2026): el top 5 en el panel y
+  // la tabla completa con filtros y páginas en /admin/puntos. Se afirman
+  // propiedades, no lugares: el ranking cambia con cada lección completada.
+  const G8 = 'RANKING DE PUNTOS'
+
+  afirmar(G8, 'el panel trae el ranking y su tabla desplegable', true,
+    panelHtml.includes('Ranking de alumnos') && panelHtml.includes('group/ranking'))
+  const rankingRes = await pedir('/admin/puntos', admin)
+  const rankingHtml = await rankingRes.text()
+  afirmar(G8, 'la tabla completa abre', 200, rankingRes.status)
+  afirmar(G8, 'trae filtros de curso, empresa, orden y por página', true,
+    ['name="q"', 'name="curso"', 'name="empresa"', 'name="orden"', 'name="por"'].every((c) => rankingHtml.includes(c)))
+  afirmar(G8, 'trae el reparto por nivel', true, rankingHtml.includes('Cuántos hay en cada nivel'))
+  const idsQa = (await Promise.all(USUARIOS_QA.map((u) => idPorCorreo(u.email)))).filter(Boolean)
+  afirmar(G8, 'ninguna cuenta qa-* compite por un premio', true,
+    idsQa.every((id) => !rankingHtml.includes(`href="/admin/alumnos/${id}"`)))
+  const porDiez = await (await pedir('/admin/puntos?por=10', admin)).text()
+  const filasDiez = (porDiez.match(/aria-label="Lugar \d+"/g) ?? []).length
+  // Cada renglón pinta su lugar dos veces (escritorio y teléfono).
+  afirmar(G8, 'por=10 enseña a lo más diez', true, filasDiez <= 20)
+  afirmar(G8, 'una página que no existe no truena', 200,
+    (await pedir('/admin/puntos?pagina=999&nivel=9&orden=inventado', admin)).status)
+  afirmar(G8, 'el alumno no entra al ranking del equipo', '/mis-cursos',
+    rutaDestino(await pedir('/admin/puntos', alumno)))
+
+  // ======================================================================
   // Lo más delicado que escribí en M3: el intercambio de posiciones.
   const G3 = 'REORDENAR (server action real, sin JavaScript)'
 

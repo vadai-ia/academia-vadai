@@ -8,6 +8,7 @@ import {
   IconoEncuestas,
   IconoPanel,
   IconoPerfil,
+  IconoPuntos,
 } from '@/components/marca/iconos-navegacion'
 import { BarraDeNavegacion } from '@/components/marca/barra-de-navegacion'
 import { SaltarAlContenido } from '@/components/marca/saltar-al-contenido'
@@ -31,6 +32,7 @@ export default async function LayoutAdmin({ children }: { children: ReactNode })
           { href: '/admin', etiqueta: 'Panel', icono: IconoPanel, exacto: true },
           { href: '/admin/cursos', etiqueta: 'Cursos', icono: IconoCursos },
           { href: '/admin/alumnos', etiqueta: 'Alumnos', icono: IconoPerfil },
+          { href: '/admin/puntos', etiqueta: 'Puntos', icono: IconoPuntos },
           { href: '/admin/empresas', etiqueta: 'Empresas', icono: IconoEmpresas },
           { href: '/admin/encuestas', etiqueta: 'Encuestas', icono: IconoEncuestas },
           { href: '/admin/dinamicas', etiqueta: 'Dinámicas', icono: IconoDinamicas },

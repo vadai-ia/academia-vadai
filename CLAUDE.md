@@ -53,7 +53,7 @@ En su lugar: `pnpm db:migrate` → `scripts/migrate.mjs`, que aplica los `.sql` 
   /(alumno)      mis-cursos, curso/[slug], curso/[slug]/en-vivo, curso/[slug]/dinamicas, comunidad, blog, perfil, dinamicas
                  # curso/[slug]/(marco)/ = el marco del curso (título, avance, pestañas) para Contenido,
                  # En vivo, Comunidad y Dinámicas; curso/[slug]/[leccionId] va FUERA: modo lección (25-sep-2026)
-  /(admin)       admin/* (cursos, alumnos, alumnos/[userId] ficha, entregas, cohortes, posts, encuestas, dinamicas)
+  /(admin)       admin/* (cursos, alumnos, alumnos/[userId] ficha, puntos, entregas, cohortes, posts, encuestas, dinamicas)
   /api/stripe/webhook
   /api/certificados/[folio]
   /api/calendario/cohorte/[id]  # .ics con todas las sesiones; firmado (?t=) para abrirse desde el correo sin sesión
@@ -135,7 +135,10 @@ En su lugar: `pnpm db:migrate` → `scripts/migrate.mjs`, que aplica los `.sql` 
   cualquier camino, además de lo que compre. Lo hace `darDeAlta()`; los cursos QA nunca son base.
 - **Los puntos de gamificación no se guardan**: se calculan de la vista `academia.actividad_por_curso`
   con los pesos de `lib/gamificacion/reglas.ts` (única fuente). El ranking es por curso y la vista
-  solo enseña la actividad de los grupos donde está inscrito quien pregunta.
+  solo enseña la actividad de los grupos donde está inscrito quien pregunta. El equipo lo ve en
+  `/admin/puntos` (`lib/admin/puntos.ts`, 26-sep-2026): mismos pesos, sin cuentas `qa-*` ni cursos
+  archivados, y el **lugar se calcula antes de filtrar** — filtrar por empresa enseña en qué lugar
+  va cada quien en el ranking completo, no un ranking nuevo de esa empresa.
 - **Notificaciones internas sin tabla**: "nuevo" es lo publicado después de
   `profiles.notifications_seen_at`. Abrir la campana lo sella.
 - **Empresas** (`academia.companies`, `profiles.company_id`; 20-sep-2026): de dónde viene cada

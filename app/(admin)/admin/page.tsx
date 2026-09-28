@@ -3,6 +3,8 @@ import Link from 'next/link'
 import type { ReactNode } from 'react'
 
 import { NuevaSesion } from '@/components/admin/nueva-sesion'
+import { TablaPuntos } from '@/components/admin/tabla-puntos'
+import { TopPuntos } from '@/components/admin/top-puntos'
 import {
   Cifra,
   Progreso,
@@ -12,6 +14,7 @@ import {
   Titulo,
 } from '@/components/ui-vadai/superficie'
 import { Button } from '@/components/ui/button'
+import { topDePuntos } from '@/lib/admin/puntos'
 import { tableroAdmin } from '@/lib/admin/tablero'
 import { exigirAdmin, nombreVisible } from '@/lib/auth/sesion'
 
@@ -78,7 +81,8 @@ const SECCIONES = [
  * acceso abren el listado ya filtrado, y la sesión se agenda aquí mismo.
  */
 export default async function PaginaAdmin() {
-  const [perfil, t] = await Promise.all([exigirAdmin(), tableroAdmin()])
+  const [perfil, t, ranking] = await Promise.all([exigirAdmin(), tableroAdmin(), topDePuntos(25)])
+  const top5 = ranking.alumnos.slice(0, 5)
 
   const porcentajeEntraron = t.personas === 0 ? 0 : Math.round((t.entraron / t.personas) * 100)
   const [siguiente, ...despues] = t.sesiones
@@ -281,6 +285,60 @@ export default async function PaginaAdmin() {
                 )}
               </TarjetaEnlace>
             ))}
+          </div>
+        )}
+      </Seccion>
+
+      {/* --- Ranking de puntos (26-sep-2026) ------------------------------
+          Los cinco que van arriba, en tarjetas que se leen desde el fondo de
+          la sala, y abajo la tabla de los primeros 25 en un <details>: cerrada
+          no estorba, abierta dice de dónde sale cada punto. La completa, con
+          filtros y páginas, vive en /admin/puntos. */}
+      <Seccion
+        titulo="Ranking de alumnos"
+        apoyo={
+          ranking.total > 0
+            ? `Los 5 con más puntos de la academia, camino a los premios · ${ranking.total} en el ranking`
+            : 'Los 5 con más puntos de la academia, camino a los premios'
+        }
+        accion={
+          <Button asChild variant="outline" size="sm">
+            <Link href="/admin/puntos">Ver la tabla completa</Link>
+          </Button>
+        }
+      >
+        {ranking.fallo ? (
+          <Tarjeta className="border-destructive/40 bg-destructive/5 px-5 py-6 text-sm text-destructive">
+            No se pudo leer el ranking en este momento. Recarga la página.
+          </Tarjeta>
+        ) : top5.length === 0 ? (
+          <Tarjeta className="border-dashed px-5 py-8 text-center">
+            <p className="text-sm text-muted-foreground">
+              Todavía nadie está en el ranking. Aparece quien tenga un curso activo.
+            </p>
+          </Tarjeta>
+        ) : (
+          <div className="flex flex-col gap-3">
+            <TopPuntos alumnos={top5} />
+
+            <details className="group/ranking">
+              <summary className="inline-flex w-fit cursor-pointer list-none items-center gap-2 rounded-lg px-3 py-2 text-sm font-medium text-primary transition-colors select-none hover:bg-primary/5 focus-visible:ring-3 focus-visible:ring-ring/50 focus-visible:outline-none [&::-webkit-details-marker]:hidden">
+                <span aria-hidden className="transition-transform group-open/ranking:rotate-90">›</span>
+                <span className="group-open/ranking:hidden">
+                  Ver cómo va cada uno (los primeros {ranking.alumnos.length})
+                </span>
+                <span className="hidden group-open/ranking:inline">Ocultar la tabla</span>
+              </summary>
+              <div className="mt-3 flex flex-col gap-3">
+                <TablaPuntos filas={ranking.alumnos} />
+                <Link
+                  href="/admin/puntos"
+                  className="w-fit text-sm text-primary underline-offset-4 hover:underline"
+                >
+                  Ver a los {ranking.total} con filtros por curso, empresa y nivel →
+                </Link>
+              </div>
+            </details>
           </div>
         )}
       </Seccion>
