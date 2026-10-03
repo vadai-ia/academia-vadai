@@ -50,6 +50,7 @@ export type PorEmpresa = {
 }
 
 export type ResumenInscritos = {
+  /** Los de la pestaña (una generación, «sin generación» o el curso entero si no tiene). */
   total: number
   vigentes: number
   entraron: number
@@ -58,6 +59,8 @@ export type ResumenInscritos = {
   puntosPromedio: number
   lecciones: number
   porEmpresa: PorEmpresa[]
+  /** Todos los inscritos del curso, de todas las generaciones: «N en el curso». */
+  enCurso: number
   /** Inscritos activos sin generación en un curso por generaciones (M16). */
   sinGeneracion: number
   /** Inscritos por generación, para la insignia de cada pestaña. */
@@ -213,9 +216,16 @@ export async function inscritosDelCurso(
     ]
   })
 
-  // --- resumen (sobre TODOS, no sobre lo filtrado) ---------------------------
+  // --- resumen: de la PESTAÑA, no de lo filtrado ---------------------------
+  // La pestaña es el universo: una generación, «sin generación», o el curso
+  // entero si no tiene generaciones. Antes del M16 era el curso entero, y en
+  // la pestaña de la Generación 2 —0 alumnos— la tarjeta enseñaba los de la 1.
+  // La búsqueda y los filtros solo acotan la tabla, nunca estas cifras.
+  const deLaPestana = todos.filter((i) =>
+    filtros.gen === 'sin' ? i.cohorteId === null : filtros.gen ? i.cohorteId === filtros.gen : true
+  )
   const porEmpresaMapa = new Map<string | null, PorEmpresa>()
-  for (const i of todos) {
+  for (const i of deLaPestana) {
     const clave = i.empresa?.id ?? null
     const acumulado = porEmpresaMapa.get(clave) ?? {
       id: clave,
@@ -235,19 +245,20 @@ export async function inscritosDelCurso(
     .map((e) => ({ ...e, avance: Math.round(e.avance / e.n), puntos: Math.round(e.puntos / e.n) }))
     .sort((a, b) => b.n - a.n)
 
+  const n = deLaPestana.length
   const resumen: ResumenInscritos = {
-    total: todos.length,
-    vigentes: todos.filter((i) => i.acceso === 'vigente').length,
-    entraron: todos.filter((i) => i.ultimoAcceso).length,
-    avancePromedio:
-      todos.length === 0 ? 0 : Math.round(todos.reduce((n, i) => n + i.porcentaje, 0) / todos.length),
-    terminaron: todos.filter((i) => i.total > 0 && i.hechas >= i.total).length,
-    puntosPromedio:
-      todos.length === 0 ? 0 : Math.round(todos.reduce((n, i) => n + i.puntos, 0) / todos.length),
+    total: n,
+    vigentes: deLaPestana.filter((i) => i.acceso === 'vigente').length,
+    entraron: deLaPestana.filter((i) => i.ultimoAcceso).length,
+    avancePromedio: n === 0 ? 0 : Math.round(deLaPestana.reduce((s, i) => s + i.porcentaje, 0) / n),
+    terminaron: deLaPestana.filter((i) => i.total > 0 && i.hechas >= i.total).length,
+    puntosPromedio: n === 0 ? 0 : Math.round(deLaPestana.reduce((s, i) => s + i.puntos, 0) / n),
     // Las de la generación que se está viendo (en un curso sin generaciones,
     // todas): es el número que acompaña al avance en la cabecera.
     lecciones: leccionesDe.get(filtros.gen && filtros.gen !== 'sin' ? filtros.gen : null)?.size ?? 0,
     porEmpresa,
+    // Estos dos son del curso entero: alimentan las pestañas y «N en el curso».
+    enCurso: todos.length,
     sinGeneracion: todos.filter((i) => i.cohorteId === null && i.acceso !== 'revocado').length,
     porGeneracion: todos.reduce((m, i) => {
       if (i.cohorteId) m.set(i.cohorteId, (m.get(i.cohorteId) ?? 0) + 1)
@@ -313,6 +324,7 @@ function resumenVacio(): ResumenInscritos {
     puntosPromedio: 0,
     lecciones: 0,
     porEmpresa: [],
+    enCurso: 0,
     sinGeneracion: 0,
     porGeneracion: new Map(),
   }

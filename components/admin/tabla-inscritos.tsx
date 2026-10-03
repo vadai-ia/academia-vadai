@@ -201,7 +201,13 @@ export function TablaInscritos({
       {/* --- Tabla ------------------------------------------------------------ */}
       {inscritos.length === 0 ? (
         <p className="rounded-lg border border-dashed border-border px-5 py-8 text-center text-sm text-muted-foreground">
-          {hayFiltro ? 'Nadie coincide con ese filtro.' : 'Nadie tiene este curso todavía.'}
+          {hayFiltro
+            ? 'Nadie coincide con ese filtro.'
+            : filtros.gen === 'sin'
+              ? 'Todos los inscritos tienen generación.'
+              : filtros.gen
+                ? 'Nadie en esta generación todavía.'
+                : 'Nadie tiene este curso todavía.'}
         </p>
       ) : (
         <div className="max-h-[70vh] overflow-auto rounded-[10px] border border-border">

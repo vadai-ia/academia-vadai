@@ -247,14 +247,15 @@ export default async function PaginaCurso({
             </h2>
             <p className="text-sm text-muted-foreground">
               {vista === 'sin'
-                ? `${resumen.sinGeneracion} sin generación · ${resumen.total} en el curso`
+                ? `${resumen.sinGeneracion} sin generación · ${resumen.enCurso} en el curso`
                 : generacion
-                  ? `${generacion.inscritos} en esta generación · ${resumen.total} en el curso`
-                  : `${resumen.total} inscrito${resumen.total === 1 ? '' : 's'}`}
+                  ? `${generacion.inscritos} en esta generación · ${resumen.enCurso} en el curso`
+                  : `${resumen.enCurso} inscrito${resumen.enCurso === 1 ? '' : 's'}`}
             </p>
           </div>
 
-          {vista === 'sin' ? (
+          {/* Solo si hay alguien: con cero, el aviso rojo era una alarma falsa. */}
+          {vista === 'sin' && resumen.sinGeneracion > 0 ? (
             <p className="rounded-md border border-destructive/40 bg-destructive/5 px-4 py-3 text-sm">
               Estas personas tienen el curso pero ninguna generación: no ven contenido, sesiones ni
               comunidad hasta que les asignes una. Márcalas y elige la generación abajo.
@@ -310,7 +311,7 @@ export default async function PaginaCurso({
               }
               propuesta={cohortId ?? porOmision?.id ?? ''}
               empresas={empresas}
-              reinicio={resumen.total}
+              reinicio={resumen.enCurso}
             />
           )}
         </section>
