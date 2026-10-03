@@ -12,19 +12,20 @@ export type SesionDelAlumno = {
   programadaEn: string
   meetUrl: string | null
   cohorteId: string
-  cohorteNombre: string
+  generacion: string
   cursoSlug: string
+  cursoTitulo: string
   grabacionLeccionId: string | null
   /** Cuándo se agendó o se cambió por última vez: es lo que avisa la campana. */
   actualizadaEn: string
 }
 
 /**
- * Sesiones en vivo de la cohorte del alumno (§3.10).
+ * Sesiones en vivo de la generación del alumno (§3.10).
  *
- * No hace falta filtrar por cohorte a mano: la policy de `cohort_sessions` exige
+ * No hace falta filtrar por generación a mano: la policy de `cohort_sessions` exige
  * `pertenece_a_cohorte`, que además de la pertenencia comprueba la vigencia. Un
- * alumno de otra cohorte del mismo curso no ve estas sesiones, y uno con acceso
+ * alumno de otra generación del mismo curso no ve estas sesiones, y uno con acceso
  * vencido no ve ninguna.
  *
  * Va con `cache()`: el layout del curso lo pide para la insignia de la pestaña
@@ -38,7 +39,7 @@ export const sesionesDelAlumno = cache(async function sesionesDelAlumno(): Promi
 
   const { data, error } = await supabase
     .from('cohort_sessions')
-    .select('*, cohorts!inner(name, courses!inner(slug))')
+    .select('*, cohorts!inner(name, courses!inner(slug, title))')
     .order('scheduled_at', { ascending: true })
 
   if (error) {
@@ -56,7 +57,7 @@ export const sesionesDelAlumno = cache(async function sesionesDelAlumno(): Promi
     cohort_id: string
     created_at: string
     updated_at: string
-    cohorts: { name: string; courses: { slug: string } }
+    cohorts: { name: string; courses: { slug: string; title: string } }
   }
 
   return (data as unknown as Anidada[])
@@ -67,8 +68,9 @@ export const sesionesDelAlumno = cache(async function sesionesDelAlumno(): Promi
       programadaEn: s.scheduled_at,
       meetUrl: s.meet_url,
       cohorteId: s.cohort_id,
-      cohorteNombre: s.cohorts.name,
+      generacion: s.cohorts.name,
       cursoSlug: s.cohorts.courses.slug,
+      cursoTitulo: s.cohorts.courses.title,
       grabacionLeccionId: s.recording_lesson_id,
       actualizadaEn: s.updated_at ?? s.created_at,
     }))

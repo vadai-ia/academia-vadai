@@ -119,9 +119,9 @@ export default async function PaginaFicha({
                   <Link href={`/admin/cursos/${i.cursoId}`} className="font-medium underline-offset-4 hover:underline">
                     {i.cursoTitulo}
                   </Link>
-                  {i.cohorte ? (
+                  {i.generacion ? (
                     <Badge variant="secondary" className="text-[11px]">
-                      {i.cohorte}
+                      {i.generacion}
                     </Badge>
                   ) : null}
                   {i.acceso !== 'vigente' ? (

@@ -7,6 +7,7 @@ import { z } from 'zod'
 import { cdmxAUtc } from '@/lib/admin/fechas'
 import type { EstadoAccion } from '@/lib/admin/tipos'
 import { exigirAdmin } from '@/lib/auth/sesion'
+import { generacionObligatoria } from '@/lib/admin/generaciones'
 import { crearClienteServidor } from '@/lib/supabase/server'
 
 import {
@@ -81,6 +82,7 @@ function refrescar(id: string) {
 
 const esquemaDinamica = z.object({
   course_id: z.uuid('Elige el curso al que pertenece.'),
+  /** Vacía = «la abierta» en cursos por generaciones; ninguna en los demás (M16). */
   cohort_id: z
     .string()
     .trim()
@@ -156,6 +158,9 @@ export async function crearDinamica(
 
   const resultado = leerDinamica(datos)
   if (!resultado.success) return { error: primerError(resultado) }
+  const generacion = await generacionObligatoria(resultado.data.course_id, resultado.data.cohort_id)
+  if ('error' in generacion) return { error: generacion.error }
+  resultado.data.cohort_id = generacion.id
 
   const supabase = await crearClienteServidor()
   const { data, error } = await supabase
@@ -196,6 +201,9 @@ export async function actualizarConfiguracion(
 
   const resultado = leerDinamica(datos)
   if (!resultado.success) return { error: primerError(resultado) }
+  const generacion = await generacionObligatoria(resultado.data.course_id, resultado.data.cohort_id)
+  if ('error' in generacion) return { error: generacion.error }
+  resultado.data.cohort_id = generacion.id
 
   const escala = esquemaEscala.safeParse({
     scale_min: datos.get('scale_min'),

@@ -8,6 +8,9 @@ import { Input } from '@/components/ui/input'
 import { cambiarAcceso, extenderAcceso } from '@/lib/admin/acciones-alumnos'
 import type { Empresa } from '@/lib/admin/empresas'
 import { ORDENES, type FiltrosInscritos, type Inscrito, type ResumenInscritos } from '@/lib/admin/inscritos'
+import type { EstadoGeneracion } from '@/lib/generaciones'
+
+import { FORMULARIO_CAMBIO } from './asignar-generacion'
 
 /**
  * La tabla de inscritos de un curso.
@@ -61,14 +64,21 @@ export function TablaInscritos({
   resumen,
   filtros,
   empresas,
+  generaciones = [],
 }: {
   cursoId: string
   inscritos: Inscrito[]
   resumen: ResumenInscritos
   filtros: FiltrosInscritos
   empresas: Empresa[]
+  /** Las del curso (M16): con alguna, cada fila lleva su casilla para cambiarla. */
+  generaciones?: Array<{ id: string; nombre: string; estado: EstadoGeneracion }>
 }) {
   const hayFiltro = Boolean(filtros.q || filtros.acceso || filtros.empresa)
+  const conCasilla = generaciones.length > 0
+  // La pestaña viaja con los filtros: sin esto, «Aplicar» o «Limpiar» volvían
+  // a la generación por omisión.
+  const pestana = filtros.gen ? `?gen=${filtros.gen}` : ''
   const porcentajeEntraron = resumen.total === 0 ? 0 : Math.round((resumen.entraron / resumen.total) * 100)
 
   return (
@@ -115,7 +125,7 @@ export function TablaInscritos({
                     <tr key={e.id ?? 'general'} className="border-t border-border">
                       <td className="py-1.5 pr-4">
                         <Link
-                          href={`/admin/cursos/${cursoId}?empresa=${e.id ?? 'general'}#inscritos`}
+                          href={`/admin/cursos/${cursoId}${pestana ? `${pestana}&` : '?'}empresa=${e.id ?? 'general'}#inscritos`}
                           className="font-medium underline-offset-4 hover:text-primary hover:underline"
                         >
                           {e.nombre}
@@ -136,6 +146,7 @@ export function TablaInscritos({
 
       {/* --- Filtros ------------------------------------------------------- */}
       <form method="get" action={`/admin/cursos/${cursoId}#inscritos`} className="flex flex-wrap items-end gap-2">
+        {filtros.gen ? <input type="hidden" name="gen" value={filtros.gen} /> : null}
         <label className="flex min-w-48 flex-1 flex-col gap-1">
           <span className="text-xs font-medium text-muted-foreground">Buscar</span>
           <Input name="q" type="search" defaultValue={filtros.q ?? ''} placeholder="Nombre o correo…" className="h-9" />
@@ -179,7 +190,7 @@ export function TablaInscritos({
         <AutoEnviar />
         {hayFiltro ? (
           <Button asChild variant="ghost" size="sm" className="h-9">
-            <a href={`/admin/cursos/${cursoId}#inscritos`}>Limpiar</a>
+            <a href={`/admin/cursos/${cursoId}${pestana}#inscritos`}>Limpiar</a>
           </Button>
         ) : null}
         <span className="ml-auto text-xs text-muted-foreground tabular-nums">
@@ -197,6 +208,11 @@ export function TablaInscritos({
           <table className="w-full min-w-[56rem] text-sm">
             <thead className="sticky top-0 z-10 bg-card text-xs text-muted-foreground shadow-[0_1px_0_var(--border)]">
               <tr className="text-left">
+                {conCasilla ? (
+                  <th className="w-8 px-2 py-2.5">
+                    <span className="sr-only">Marcar para cambiar de generación</span>
+                  </th>
+                ) : null}
                 <th className="px-3 py-2.5 font-medium">Alumno</th>
                 <th className="px-3 py-2.5 font-medium">Empresa</th>
                 <th className="px-3 py-2.5 font-medium">Acceso</th>
@@ -208,7 +224,7 @@ export function TablaInscritos({
             </thead>
             <tbody>
               {inscritos.map((i) => (
-                <Fila key={i.userId} inscrito={i} cursoId={cursoId} />
+                <Fila key={i.userId} inscrito={i} cursoId={cursoId} conCasilla={conCasilla} />
               ))}
             </tbody>
           </table>
@@ -218,16 +234,29 @@ export function TablaInscritos({
   )
 }
 
-function Fila({ inscrito: i, cursoId }: { inscrito: Inscrito; cursoId: string }) {
-
+function Fila({ inscrito: i, cursoId, conCasilla }: { inscrito: Inscrito; cursoId: string; conCasilla: boolean }) {
   return (
     <tr className="border-t border-border align-middle hover:bg-muted/40">
+      {conCasilla ? (
+        <td className="px-2 py-2">
+          {/* Pertenece al formulario de «Cambiar de generación», que vive
+              fuera de la tabla: `form=` lo liga sin JavaScript (M16). */}
+          <input
+            type="checkbox"
+            name="user_ids"
+            value={i.userId}
+            form={FORMULARIO_CAMBIO}
+            aria-label={`Marcar a ${i.nombre || i.email} para cambiar de generación`}
+            className="size-4 accent-primary"
+          />
+        </td>
+      ) : null}
       <td className="px-3 py-2">
         <div className="flex min-w-0 flex-col">
           <span className="truncate font-medium">{i.nombre || '(sin nombre)'}</span>
           <span className="truncate text-xs text-muted-foreground">
             {i.email}
-            {i.grupo ? ` · ${i.grupo}` : ''}
+            {i.generacion ? ` · ${i.generacion}` : conCasilla ? ' · sin generación' : ''}
           </span>
         </div>
       </td>

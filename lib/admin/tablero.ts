@@ -1,11 +1,11 @@
 import 'server-only'
 
 import {
-  cohortesParaAgendar,
+  generacionesParaAgendar,
   proximasSesiones,
-  type CohorteAgendable,
+  type GeneracionAgendable,
   type SesionProxima,
-} from '@/lib/admin/cohortes'
+} from '@/lib/admin/generaciones'
 import { estaAbierta } from '@/lib/dinamicas/comun'
 import { crearClienteServidor } from '@/lib/supabase/server'
 
@@ -55,7 +55,7 @@ export type Tablero = {
   /** `abiertas` es el estado efectivo: una abierta con fecha límite vencida no cuenta. */
   dinamicas: { abiertas: number; total: number; tableros: number }
   sesiones: SesionProxima[]
-  cohortes: CohorteAgendable[]
+  generaciones: GeneracionAgendable[]
 }
 
 export async function tableroAdmin(): Promise<Tablero> {
@@ -76,7 +76,7 @@ export async function tableroAdmin(): Promise<Tablero> {
     dinamicas,
     tablerosDeDinamicas,
     sesiones,
-    cohortes,
+    generaciones,
   ] = await Promise.all([
     supabase.from('profiles').select('user_id, role, status, last_sign_in_at'),
     supabase.from('enrollments').select('user_id, course_id, status, expires_at'),
@@ -90,7 +90,7 @@ export async function tableroAdmin(): Promise<Tablero> {
     supabase.from('dynamics').select('status, closes_at'),
     supabase.from('dynamic_boards').select('id'),
     proximasSesiones(5),
-    cohortesParaAgendar(),
+    generacionesParaAgendar(),
   ])
 
   for (const [nombre, r] of Object.entries({ perfiles, inscripciones, cursos, outline, progreso })) {
@@ -194,6 +194,6 @@ export async function tableroAdmin(): Promise<Tablero> {
       tableros: tablerosDeDinamicas.data?.length ?? 0,
     },
     sesiones,
-    cohortes,
+    generaciones,
   }
 }

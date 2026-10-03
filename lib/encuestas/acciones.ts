@@ -7,6 +7,7 @@ import { z } from 'zod'
 import type { EstadoAccion } from '@/lib/admin/tipos'
 import { exigirAdmin } from '@/lib/auth/sesion'
 import { LETRAS } from '@/lib/quiz/comun'
+import { generacionObligatoria } from '@/lib/admin/generaciones'
 import { crearClienteServidor } from '@/lib/supabase/server'
 
 import { generarJoinCode, generarProjectionToken } from './codigo'
@@ -30,6 +31,7 @@ function primerError(resultado: { error?: { issues: Array<{ message: string }> }
 
 const esquemaEncuesta = z.object({
   course_id: z.uuid('Elige el curso al que pertenece.'),
+  /** Vacía = «la abierta» en cursos por generaciones; ninguna en los demás (M16). */
   cohort_id: z
     .string()
     .trim()
@@ -66,6 +68,9 @@ export async function crearEncuesta(
     description: datos.get('description') ?? '',
   })
   if (!resultado.success) return { error: primerError(resultado) }
+  const generacion = await generacionObligatoria(resultado.data.course_id, resultado.data.cohort_id)
+  if ('error' in generacion) return { error: generacion.error }
+  resultado.data.cohort_id = generacion.id
 
   const supabase = await crearClienteServidor()
   let creada: string | null = null
@@ -117,6 +122,9 @@ export async function actualizarEncuesta(
     description: datos.get('description') ?? '',
   })
   if (!resultado.success) return { error: primerError(resultado) }
+  const generacion = await generacionObligatoria(resultado.data.course_id, resultado.data.cohort_id)
+  if ('error' in generacion) return { error: generacion.error }
+  resultado.data.cohort_id = generacion.id
 
   const supabase = await crearClienteServidor()
   const { error } = await supabase

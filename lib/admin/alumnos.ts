@@ -1,6 +1,7 @@
 import 'server-only'
 
 import { ultimosEnlaces, type UltimoEnlace } from '@/lib/admin/accesos'
+import { esPorGeneraciones, estadoDeGeneracion, type EstadoGeneracion } from '@/lib/generaciones'
 import { crearClienteServidor } from '@/lib/supabase/server'
 
 export type AlumnoEnLista = {
@@ -396,27 +397,44 @@ export async function listarPagos(): Promise<PagoEnLista[]> {
   }))
 }
 
-/** Cursos y cohortes publicados, para el formulario de alta manual. */
-export async function opcionesDeAlta(): Promise<
-  Array<{ id: string; titulo: string; cohortes: Array<{ id: string; nombre: string }> }>
-> {
+export type OpcionDeCurso = {
+  id: string
+  titulo: string
+  /** `course_type = 'cohort'`: toda inscripción, dinámica y encuesta lleva generación. */
+  porGeneraciones: boolean
+  /** La más reciente primero; `estado` dice cuál está abierta a inscripciones. */
+  generaciones: Array<{ id: string; nombre: string; estado: EstadoGeneracion }>
+}
+
+/** Cursos vivos con sus generaciones, para alta manual, dinámicas, encuestas y anuncios. */
+export async function opcionesDeAlta(): Promise<OpcionDeCurso[]> {
   const supabase = await crearClienteServidor()
 
   const { data } = await supabase
     .from('courses')
-    .select('id, title, status, cohorts(id, name)')
+    .select('id, title, status, course_type, cohorts(id, name, starts_on, ends_on, open_for_enrollment)')
     .neq('status', 'archived')
     .order('title')
 
   type Anidado = {
     id: string
     title: string
-    cohorts: Array<{ id: string; name: string }>
+    course_type: string
+    cohorts: Array<{
+      id: string
+      name: string
+      starts_on: string | null
+      ends_on: string | null
+      open_for_enrollment: boolean
+    }>
   }
 
   return ((data ?? []) as unknown as Anidado[]).map((c) => ({
     id: c.id,
     titulo: c.title,
-    cohortes: (c.cohorts ?? []).map((h) => ({ id: h.id, nombre: h.name })),
+    porGeneraciones: esPorGeneraciones(c.course_type),
+    generaciones: [...(c.cohorts ?? [])]
+      .sort((a, b) => (b.starts_on ?? '').localeCompare(a.starts_on ?? ''))
+      .map((g) => ({ id: g.id, nombre: g.name, estado: estadoDeGeneracion(g) })),
   }))
 }

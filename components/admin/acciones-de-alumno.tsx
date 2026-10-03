@@ -61,9 +61,9 @@ export function EnlaceDeAcceso({ email }: { email: string }) {
  * Da acceso a más cursos a alguien que ya tiene cuenta.
  *
  * Los cursos se eligen en una lista de casillas: un toque marca, otro desmarca,
- * igual con ratón que con dedo. Un curso sin grupos es un renglón suelto; uno
- * con grupos es un bloque donde cada grupo es un renglón, así un solo control
- * resuelve curso Y grupo sin depender de JavaScript.
+ * igual con ratón que con dedo. Un curso sin generaciones es un renglón suelto;
+ * uno con generaciones es un bloque donde cada una es un renglón, así un solo
+ * control resuelve curso Y generación sin depender de JavaScript.
  *
  * Solo lista lo que la persona NO tiene. El aviso vive FUERA del desplegable:
  * cuando se le da el último curso que le faltaba el formulario deja de

@@ -14,6 +14,7 @@ import { Textarea } from '@/components/ui/textarea'
 import { Seccion } from '@/components/ui-vadai/superficie'
 import { fechaHoraCdmx, utcACdmx } from '@/lib/admin/fechas'
 import { SIN_ESTADO } from '@/lib/admin/tipos'
+import { ETIQUETA_ESTADO } from '@/lib/generaciones'
 import {
   abrirDinamica,
   actualizarConfiguracion,
@@ -118,21 +119,26 @@ function Ajustes({ dinamica, cursos }: { dinamica: DinamicaCompleta; cursos: Cur
         </div>
 
         <div className="flex flex-col gap-1.5">
-          <Label htmlFor="aj-cohorte">Cohorte</Label>
+          <Label htmlFor="aj-generacion">Generación</Label>
           <select
-            id="aj-cohorte"
+            id="aj-generacion"
             name="cohort_id"
             defaultValue={dinamica.cohort_id ?? ''}
             className={claseSelect}
           >
-            <option value="">Todo el curso</option>
-            {cursos.flatMap((c) =>
-              c.cohortes.map((h) => (
-                <option key={h.id} value={h.id}>
-                  {h.nombre} · {c.titulo}
-                </option>
-              ))
-            )}
+            <option value="">Según el curso: la generación abierta</option>
+            {cursos
+              .filter((c) => c.porGeneraciones && c.generaciones.length > 0)
+              .map((c) => (
+                <optgroup key={c.id} label={c.titulo}>
+                  {c.generaciones.map((h) => (
+                    <option key={h.id} value={h.id}>
+                      {h.nombre}
+                      {h.estado !== 'en_curso' ? ` · ${ETIQUETA_ESTADO[h.estado]}` : ''}
+                    </option>
+                  ))}
+                </optgroup>
+              ))}
           </select>
         </div>
       </div>

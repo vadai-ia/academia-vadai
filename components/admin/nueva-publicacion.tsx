@@ -34,7 +34,7 @@ export function NuevaPublicacion({
   cursos,
   reinicio,
 }: {
-  cursos: Array<{ id: string; titulo: string }>
+  cursos: Array<{ id: string; titulo: string; generaciones: Array<{ id: string; nombre: string }> }>
   reinicio: number
 }) {
   const [estado, accion] = useActionState(crearPublicacion, SIN_ESTADO)
@@ -58,13 +58,27 @@ export function NuevaPublicacion({
 
           <div className="flex flex-col gap-1.5">
             <Label htmlFor="pub-audiencia">Para quién</Label>
-            <select id="pub-audiencia" name="audience_course_id" className={claseSelect}>
+            {/* Todos, un curso completo (todas sus generaciones) o una sola
+                generación (M16). Un valor con prefijo, que el servidor reparte
+                en `audience_course_id` / `audience_cohort_id`. */}
+            <select id="pub-audiencia" name="audiencia" className={claseSelect}>
               <option value="">Todos los alumnos</option>
-              {cursos.map((c) => (
-                <option key={c.id} value={c.id}>
-                  Solo {c.titulo}
-                </option>
-              ))}
+              {cursos.map((c) =>
+                c.generaciones.length === 0 ? (
+                  <option key={c.id} value={`curso:${c.id}`}>
+                    Solo {c.titulo}
+                  </option>
+                ) : (
+                  <optgroup key={c.id} label={c.titulo}>
+                    <option value={`curso:${c.id}`}>Todas sus generaciones</option>
+                    {c.generaciones.map((g) => (
+                      <option key={g.id} value={`gen:${g.id}`}>
+                        Solo {g.nombre}
+                      </option>
+                    ))}
+                  </optgroup>
+                )
+              )}
             </select>
           </div>
 

@@ -197,7 +197,7 @@ export default async function PaginaInicio() {
                   descripcion: proximaSesion.descripcion,
                   inicio: proximaSesion.programadaEn,
                   ligaUrl: proximaSesion.meetUrl,
-                  curso: proximaSesion.cohorteNombre,
+                  curso: proximaSesion.cursoTitulo,
                 }}
               />
               <Link

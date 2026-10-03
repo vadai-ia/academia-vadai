@@ -14,8 +14,10 @@ import { darDeAlta, enviarAccesoInicial } from '@/lib/stripe/provisioning'
 import { crearClienteServidor } from '@/lib/supabase/server'
 import { crearClienteServiceRole } from '@/lib/supabase/service-role'
 
-import { PAR, enLista, leerPares, revisarSeleccion } from './seleccion-de-cursos'
+import { PAR, enLista, generacionDeAlta, leerPares, revisarSeleccion } from './seleccion-de-cursos'
 import type { EstadoAccion } from './tipos'
+
+import type { LlamadaRpc } from '@/lib/alumno/catalogo'
 
 /**
  * Alta manual de alumnos (§3.1-A).
@@ -34,11 +36,11 @@ const esquema = z.object({
     .transform((v) => v.toLowerCase()),
   nombre: z.string().trim().max(160),
   // Dos formas de decir a qué cursos. /admin/alumnos manda la lista de casillas
-  // (`accesos`, pares curso|grupo, uno o varios). La página de un curso manda ese
-  // curso fijo (`course_id` + `cohort_id`).
+  // (`accesos`, pares curso|generación, uno o varios). La página de un curso
+  // manda ese curso fijo (`course_id` + `cohort_id`).
   accesos: z.array(z.string().regex(PAR, 'Selección inválida.')),
   course_id: z.union([z.uuid('Curso inválido.'), z.literal('')]),
-  cohort_id: z.union([z.uuid('Grupo inválido.'), z.literal('')]),
+  cohort_id: z.union([z.uuid('Generación inválida.'), z.literal('')]),
   /** Vacío = General (sin empresa). */
   company_id: z.union([z.uuid('Empresa inválida.'), z.literal('')]),
 })
@@ -390,7 +392,10 @@ async function crearInscripciones(pares: Par[]): Promise<ResultadoInscripciones>
 
   const [personas, cursos, cohortes, previas] = await Promise.all([
     supabase.from('profiles').select('user_id, full_name, email').in('user_id', userIds),
-    supabase.from('courses').select('id, title, access_days, status').in('id', cursoIds),
+    supabase
+      .from('courses')
+      .select('id, title, access_days, status, course_type, cohorts(id, open_for_enrollment, ends_on)')
+      .in('id', cursoIds),
     cohorteIds.length > 0
       ? supabase.from('cohorts').select('id, course_id').in('id', cohorteIds)
       : Promise.resolve({ data: [], error: null }),
@@ -414,18 +419,33 @@ async function crearInscripciones(pares: Par[]): Promise<ResultadoInscripciones>
     return { ok: false, error: 'Una de las cuentas ya no existe.' }
   }
 
-  const cursoPorId = new Map((cursos.data ?? []).map((c) => [c.id, c]))
+  type CursoConGeneraciones = {
+    id: string
+    title: string
+    access_days: number | null
+    status: string
+    course_type: string
+    cohorts: Array<{ id: string; open_for_enrollment: boolean; ends_on: string | null }>
+  }
+  const listaCursos = (cursos.data ?? []) as unknown as CursoConGeneraciones[]
+  const cursoPorId = new Map(listaCursos.map((c) => [c.id, c]))
   if (cursoIds.some((id) => !cursoPorId.has(id))) {
     return { ok: false, error: 'Uno de los cursos ya no existe.' }
   }
 
-  // El grupo tiene que ser de ESE curso: el valor viaja en el formulario y
-  // cualquiera puede editarlo.
+  // La generación tiene que ser de ESE curso: el valor viaja en el formulario y
+  // cualquiera puede editarlo. Sin generación en un curso por generaciones, cae
+  // en la abierta; sin abierta, hay que elegir (M16).
   const cursoDeCohorte = new Map((cohortes.data ?? []).map((c) => [c.id, c.course_id]))
   for (const par of pares) {
     if (par.cohorteId !== null && cursoDeCohorte.get(par.cohorteId) !== par.cursoId) {
-      return { ok: false, error: 'Uno de los grupos no pertenece a su curso.' }
+      return { ok: false, error: 'Una de las generaciones no es de su curso.' }
     }
+    const curso = cursoPorId.get(par.cursoId)
+    if (!curso) continue
+    const generacion = generacionDeAlta(curso, par.cohorteId)
+    if ('error' in generacion) return { ok: false, error: generacion.error }
+    par.cohorteId = generacion.id
   }
 
   const yaInscrito = new Set((previas.data ?? []).map((e) => `${e.user_id}::${e.course_id}`))
@@ -469,7 +489,7 @@ async function crearInscripciones(pares: Par[]): Promise<ResultadoInscripciones>
     // "la persona ya sabe entrar". Pero si nadie te avisa, el curso nuevo no
     // existe hasta que entres por otra razón. Un correo por persona que nombra
     // todos sus cursos nuevos, en lote: veinte personas son una petición.
-    const tituloDeCurso = new Map((cursos.data ?? []).map((c) => [c.id, c.title]))
+    const tituloDeCurso = new Map(listaCursos.map((c) => [c.id, c.title]))
     const cursosDe = new Map<string, string[]>()
     for (const par of creadas) {
       const titulo = tituloDeCurso.get(par.cursoId)
@@ -498,7 +518,7 @@ async function crearInscripciones(pares: Par[]): Promise<ResultadoInscripciones>
     creadas,
     omitidas,
     avisados,
-    tituloDe: new Map((cursos.data ?? []).map((c) => [c.id, c.title])),
+    tituloDe: new Map(listaCursos.map((c) => [c.id, c.title])),
     nombreDe,
   }
 }
@@ -604,7 +624,7 @@ export async function darAccesoACursos(_previo: EstadoAccion, datos: FormData): 
 
 const esquemaInscribir = z.object({
   course_id: z.uuid('Curso inválido.'),
-  cohort_id: z.union([z.uuid('Grupo inválido.'), z.literal('')]),
+  cohort_id: z.union([z.uuid('Generación inválida.'), z.literal('')]),
   user_ids: z.array(z.uuid('Cuenta inválida.')).min(1, 'Elige al menos a una persona.'),
 })
 
@@ -875,4 +895,65 @@ export async function extenderAcceso(datos: FormData): Promise<void> {
   }
 
   revalidatePath('/admin/alumnos')
+}
+
+// ==========================================================================
+// Cambiar de generación (M16)
+// ==========================================================================
+
+const esquemaCambio = z.object({
+  course_id: z.uuid('Curso inválido.'),
+  cohort_id: z.uuid('Elige la generación.'),
+  user_ids: z.array(z.uuid('Cuenta inválida.')).min(1, 'Elige al menos a una persona.'),
+})
+
+/**
+ * Pasa a una o varias personas a otra generación del mismo curso, o les asigna
+ * una si estaban «sin generación». Lo hace `academia_mover_de_generacion`, que
+ * valida que el curso sea por generaciones y que la generación sea del curso.
+ *
+ * Ven la nueva, dejan de ver la anterior; su progreso y sus puntos no se
+ * tocan (decisión 4, 3-oct-2026).
+ */
+export async function cambiarDeGeneracion(_previo: EstadoAccion, datos: FormData): Promise<EstadoAccion> {
+  await exigirAdmin()
+
+  const resultado = esquemaCambio.safeParse({
+    course_id: datos.get('course_id'),
+    cohort_id: datos.get('cohort_id'),
+    user_ids: datos.getAll('user_ids').filter((v): v is string => typeof v === 'string'),
+  })
+  if (!resultado.success) {
+    return { error: resultado.error.issues[0]?.message ?? 'Revisa los datos.' }
+  }
+  const { course_id: cursoId, cohort_id: generacion } = resultado.data
+
+  const supabase = await crearClienteServidor()
+  const rpc = (supabase.rpc as unknown as LlamadaRpc).bind(supabase)
+  let movidos = 0
+  for (const userId of new Set(resultado.data.user_ids)) {
+    const { error } = await rpc('academia_mover_de_generacion', {
+      alumno: userId,
+      curso: cursoId,
+      generacion,
+    })
+    if (error) {
+      console.error(JSON.stringify({ operacion: 'cambiarDeGeneracion', userId, cursoId, generacion, error: error.message }))
+      return {
+        error:
+          (movidos > 0 ? `Se cambió a ${movidos}, pero falló uno: ` : '') +
+          (error.code === '22023' ? error.message : 'No se pudo cambiar de generación.'),
+      }
+    }
+    movidos += 1
+  }
+
+  revalidatePath(`/admin/cursos/${cursoId}`)
+  revalidatePath('/admin/alumnos')
+  return {
+    aviso:
+      movidos === 1
+        ? 'Cambio hecho: ve la nueva generación y deja de ver la anterior.'
+        : `${movidos} personas cambiadas de generación.`,
+  }
 }

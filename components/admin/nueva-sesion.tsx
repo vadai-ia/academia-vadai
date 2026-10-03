@@ -11,8 +11,9 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
-import { crearSesion } from '@/lib/admin/acciones-cohortes'
+import { crearSesion } from '@/lib/admin/acciones-generaciones'
 import { SIN_ESTADO } from '@/lib/admin/tipos'
+import { ETIQUETA_ESTADO, type EstadoGeneracion } from '@/lib/generaciones'
 
 function Boton() {
   const { pending } = useFormStatus()
@@ -23,7 +24,7 @@ function Boton() {
   )
 }
 
-export type CohorteParaAgendar = { id: string; nombre: string; cursoTitulo: string }
+export type GeneracionParaAgendar = { id: string; nombre: string; cursoTitulo: string; estado: EstadoGeneracion }
 
 /**
  * El botón "Agendar sesión" y, detrás, su formulario (M14: antes el formulario
@@ -38,19 +39,19 @@ export type CohorteParaAgendar = { id: string; nombre: string; cursoTitulo: stri
  * El panel se abre solo cuando la acción contestó algo (error o "Sesión
  * agendada."): así el resultado se ve aunque no haya JavaScript.
  *
- * Tres lugares lo usan. La cohorte y el curso pasan `cohorteId` y el campo va
- * oculto. El panel principal pasa `cohortes` y la cohorte se elige en un
- * <select>: desde ahí se agenda la sesión de la semana sin ir a buscar el
- * curso, la cohorte y luego el formulario.
+ * Dos lugares lo usan. El curso pasa `cohorteId` y el campo va oculto. El
+ * panel principal pasa `generaciones` y se elige en un <select>: desde ahí se
+ * agenda la sesión de la semana sin ir a buscar el curso, la generación y
+ * luego el formulario.
  */
 export function NuevaSesion({
   cohorteId,
-  cohortes,
+  generaciones,
   reinicio,
   nombre,
 }: {
   cohorteId?: string
-  cohortes?: CohorteParaAgendar[]
+  generaciones?: GeneracionParaAgendar[]
   reinicio: number
   /** Acordeón: los desplegables con el mismo nombre se cierran entre sí. */
   nombre?: string
@@ -75,15 +76,16 @@ export function NuevaSesion({
               id={`sesion-cohorte-${sufijo}`}
               name="cohort_id"
               required
-              defaultValue={cohortes?.length === 1 ? cohortes[0]?.id : ''}
+              defaultValue={generaciones?.length === 1 ? generaciones[0]?.id : ''}
               className={claseSelect}
             >
               <option value="" disabled>
                 Elige la generación
               </option>
-              {(cohortes ?? []).map((c) => (
+              {(generaciones ?? []).map((c) => (
                 <option key={c.id} value={c.id}>
                   {c.cursoTitulo} · {c.nombre}
+                  {c.estado !== 'en_curso' ? ` · ${ETIQUETA_ESTADO[c.estado]}` : ''}
                 </option>
               ))}
             </select>

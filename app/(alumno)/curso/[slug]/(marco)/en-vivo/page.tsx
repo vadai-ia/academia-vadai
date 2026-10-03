@@ -59,7 +59,7 @@ export default async function PaginaEnVivo({
   const hoy = hoyCdmx(ahora)
   const actual = proximaOActual(sesiones, ahora)
 
-  // Todas comparten cohorte salvo que alguien del equipo esté en dos: el .ics
+  // Todas comparten generación salvo que alguien del equipo esté en dos: el .ics
   // de "todas" solo tiene sentido cuando hay una sola.
   const cohortes = new Set(sesiones.map((s) => s.cohorteId))
   const proximas = sesiones.filter((s) => estadoDe(s.programadaEn, ahora) !== 'pasada')

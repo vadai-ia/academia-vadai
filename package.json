@@ -25,6 +25,7 @@
     "check:bunny": "node scripts/check-bunny.mjs",
     "test:alumno": "node scripts/test-alumno.mjs",
     "test:cohortes": "node scripts/test-cohortes.mjs",
+    "test:generaciones": "node scripts/test-generaciones.mjs",
     "test:stripe": "node scripts/test-stripe.mjs",
     "check:resend": "node scripts/check-resend.mjs",
     "check:prod": "node scripts/check-produccion.mjs",

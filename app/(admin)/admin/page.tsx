@@ -168,7 +168,7 @@ export default async function PaginaAdmin() {
                   <span className="text-xl font-medium">{siguiente.titulo}</span>
                   <span className="text-sm text-muted-foreground">
                     {fechaSesion(siguiente.empiezaEn)} (CDMX) · {siguiente.cursoTitulo} ·{' '}
-                    {siguiente.cohorte}
+                    {siguiente.generacion}
                   </span>
                 </div>
                 <div className="flex flex-wrap items-center gap-2">
@@ -184,7 +184,7 @@ export default async function PaginaAdmin() {
                     </span>
                   )}
                   <Button asChild variant="outline" size="sm">
-                    <Link href={`/admin/cohortes/${siguiente.cohorteId}?sesion=${siguiente.id}#sesion-${siguiente.id}`}>
+                    <Link href={`/admin/cursos/${siguiente.cursoId}?gen=${siguiente.cohorteId}&sesion=${siguiente.id}#sesion-${siguiente.id}`}>
                       Editar
                     </Link>
                   </Button>
@@ -198,14 +198,14 @@ export default async function PaginaAdmin() {
                       <span className="flex min-w-0 flex-wrap items-baseline gap-x-2">
                         <span className="font-medium">{s.titulo}</span>
                         <span className="text-muted-foreground">
-                          {s.cursoTitulo} · {s.cohorte}
+                          {s.cursoTitulo} · {s.generacion}
                         </span>
                       </span>
                       <span className="flex items-baseline gap-3 text-muted-foreground">
                         <span>{fechaSesion(s.empiezaEn)}</span>
                         {s.ligaUrl ? null : <span className="text-xs text-destructive">sin liga</span>}
                         <Link
-                          href={`/admin/cohortes/${s.cohorteId}?sesion=${s.id}#sesion-${s.id}`}
+                          href={`/admin/cursos/${s.cursoId}?gen=${s.cohorteId}&sesion=${s.id}#sesion-${s.id}`}
                           className="text-xs text-primary underline-offset-4 hover:underline"
                         >
                           Editar
@@ -223,8 +223,8 @@ export default async function PaginaAdmin() {
             </p>
           )}
 
-          {t.cohortes.length > 0 ? (
-            <NuevaSesion cohortes={t.cohortes} reinicio={t.sesiones.length} />
+          {t.generaciones.length > 0 ? (
+            <NuevaSesion generaciones={t.generaciones} reinicio={t.sesiones.length} />
           ) : (
             <p className="text-sm text-muted-foreground">
               Para agendar sesiones primero crea una generación en el curso.

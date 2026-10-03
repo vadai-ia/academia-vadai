@@ -9,18 +9,18 @@ import { Button, buttonVariants } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
-import { actualizarSesion, eliminarSesion, ligarGrabacion } from '@/lib/admin/acciones-cohortes'
-import type { CohorteConSesiones } from '@/lib/admin/cohortes'
+import { actualizarSesion, eliminarSesion, ligarGrabacion } from '@/lib/admin/acciones-generaciones'
+import type { GeneracionConSesiones } from '@/lib/admin/generaciones'
 import { utcACdmx, ZONA_CDMX } from '@/lib/admin/fechas'
 import { cn } from '@/lib/utils'
 
 /**
- * El calendario de una cohorte: sus sesiones, cada una editable, más agendar
- * (una o la serie) y mandar las fechas por correo.
+ * El calendario de una generación: sus sesiones, cada una editable, más
+ * agendar (una o la serie) y mandar las fechas por correo.
  *
- * Es UN componente porque se ve en dos lugares (21-sep-2026): en la página de
- * la cohorte, y también dentro del curso, donde Alejandro quiere agregar,
- * cambiar y borrar sesiones sin ir a buscar la cohorte.
+ * Desde M16 vive solo dentro del curso, en la pestaña de su generación (la
+ * página propia de la generación desapareció). `prefijo` es lo que va antes de
+ * `sesion=` en los enlaces: `?gen=<id>&`, para no perder la pestaña.
  *
  * M14: lo que se puede hacer va como botones ARRIBA de la lista —agendar una,
  * agendar la serie, mandar las fechas— y cada uno abre su formulario (y cierra
@@ -43,20 +43,23 @@ function enCdmx(iso: string): string {
   }).format(new Date(iso))
 }
 
-export function CalendarioDeCohorte({
-  cohorte,
+export function CalendarioDeGeneracion({
+  generacion: cohorte,
   ligables,
   correoAdmin,
   compacto = false,
   sesionAbierta,
+  prefijo = '?',
 }: {
-  cohorte: CohorteConSesiones
+  generacion: GeneracionConSesiones
   ligables: Array<{ id: string; titulo: string; modulo: string }>
   correoAdmin: string
   /** Dentro del curso: sin el título "Calendario", que ya lo pone el marco. */
   compacto?: boolean
   /** La sesión que la URL pide ver abierta (`?sesion=<id>`). */
   sesionAbierta?: string | null
+  /** Lo que precede a `sesion=` en los enlaces (`?gen=<id>&`). */
+  prefijo?: string
 }) {
   const ahora = Date.now()
   const proxima = cohorte.sesiones.find((s) => new Date(s.scheduled_at).getTime() >= ahora)
@@ -77,11 +80,11 @@ export function CalendarioDeCohorte({
             la página con `?sesion=todos` (24-sep-2026). */}
         {cohorte.sesiones.length > 1 ? (
           <span className="inline-flex items-center gap-1 text-xs">
-            <Link href="?sesion=todos" scroll={false} className="rounded-md px-2 py-1 text-primary hover:bg-primary/10">
+            <Link href={`${prefijo}sesion=todos`} scroll={false} className="rounded-md px-2 py-1 text-primary hover:bg-primary/10">
               Expandir todo
             </Link>
             <span aria-hidden className="text-muted-foreground">·</span>
-            <Link href="?" scroll={false} className="rounded-md px-2 py-1 text-primary hover:bg-primary/10">
+            <Link href={prefijo.replace(/[?&]$/, '') || '?'} scroll={false} className="rounded-md px-2 py-1 text-primary hover:bg-primary/10">
               Contraer todo
             </Link>
           </span>

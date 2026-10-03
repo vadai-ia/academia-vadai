@@ -95,6 +95,7 @@ async function asegurarUsuarios() {
 async function sembrarDatos(cliente, usuarios) {
   const ayer = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString()
   const enUnaSemana = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString()
+  const enSeisSemanas = new Date(Date.now() + 42 * 24 * 60 * 60 * 1000).toISOString()
   const haceUnaSemana = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString()
 
   await cliente.query('begin')
@@ -119,12 +120,13 @@ async function sembrarDatos(cliente, usuarios) {
       )
     }
 
-    // Cursos
+    // Cursos. El QA es por generaciones (M16); el ajeno no tiene generaciones y
+    // sirve para probar que un curso evergreen sigue viéndose por curso.
     for (const curso of [CURSO_QA, CURSO_AJENO_QA]) {
       await cliente.query(
         `insert into academia.courses
            (id, slug, title, description, status, course_type, access_days, price_mxn, price_usd)
-         values ($1, $2, $3, $4, 'published', 'cohort', null, 14999.00, 899.00)
+         values ($1, $2, $3, $4, 'published', $5, null, 14999.00, 899.00)
          on conflict (id) do update
            -- El status NO se toca al re-sembrar (21-sep-2026, noche del
            -- lanzamiento, segunda vez que pasa). Antes ponia published
@@ -139,19 +141,39 @@ async function sembrarDatos(cliente, usuarios) {
                -- que se diera de alta. La suite de Stripe lo enciende un
                -- momento para probarlo y lo apaga; esto lo garantiza aunque
                -- esa suite reviente a medias.
-               is_default = false`,
-        [curso.id, curso.slug, curso.title, curso.description]
+               is_default = false,
+               course_type = excluded.course_type`,
+        [curso.id, curso.slug, curso.title, curso.description, curso.id === CURSO_AJENO_QA.id ? 'evergreen' : 'cohort']
       )
     }
 
-    // Módulos
+    // Generaciones ANTES que los módulos (M16): en un curso por generaciones
+    // cada módulo pertenece a una. La primera está abierta a inscripciones (es
+    // donde caen las compras y las altas de las suites); la segunda, en
+    // curso, con lo suyo: un módulo, una lección, una sesión y un post que los
+    // alumnos QA —inscritos en la primera— no deben ver nunca.
     await cliente.query(
-      `insert into academia.modules (id, course_id, title, position) values
-         ($1, $2, 'Módulo 1 · Fundamentos', 1),
-         ($3, $2, 'Módulo 2 · Implementación', 2),
-         ($4, $5, 'Módulo ajeno', 1)
-       on conflict (id) do update set title = excluded.title, position = excluded.position`,
-      [IDS.modulo1, IDS.curso, IDS.modulo2, IDS.moduloAjeno, IDS.cursoAjeno]
+      `insert into academia.cohorts (id, course_id, name, starts_on, ends_on, open_for_enrollment)
+       values
+         ($1, $2, 'QA · Generación de prueba', current_date - 7,  current_date + 30, true),
+         ($3, $2, 'QA · Generación 2',         current_date + 40, current_date + 70, false)
+       on conflict (id) do update
+         set name = excluded.name, starts_on = excluded.starts_on, ends_on = excluded.ends_on,
+             open_for_enrollment = excluded.open_for_enrollment`,
+      [IDS.cohorte, IDS.curso, IDS.cohorte2]
+    )
+
+    // Módulos: dos en la primera generación, uno en la segunda, uno en el
+    // curso ajeno (sin generación, porque ese curso no tiene).
+    await cliente.query(
+      `insert into academia.modules (id, course_id, cohort_id, title, position) values
+         ($1, $2, $6, 'Módulo 1 · Fundamentos', 1),
+         ($3, $2, $6, 'Módulo 2 · Implementación', 2),
+         ($7, $2, $8, 'Módulo Gen 2 · Solo para la segunda', 1),
+         ($4, $5, null, 'Módulo ajeno', 1)
+       on conflict (id) do update
+         set title = excluded.title, position = excluded.position, cohort_id = excluded.cohort_id`,
+      [IDS.modulo1, IDS.curso, IDS.modulo2, IDS.moduloAjeno, IDS.cursoAjeno, IDS.cohorte, IDS.moduloGen2, IDS.cohorte2]
     )
 
     // Lecciones: una de cada tipo, más una en borrador y una del curso ajeno.
@@ -166,7 +188,8 @@ async function sembrarDatos(cliente, usuarios) {
          ($4, $5, 'Lección 3 · Quiz de repaso',      1, 'quiz',       'published', null, null, null),
          ($6, $5, 'Lección 4 · Tarea práctica',      2, 'assignment', 'published', null, null, null),
          ($7, $5, 'Lección 5 · Borrador',            3, 'text',       'draft',     null, null, null),
-         ($8, $9, 'Lección del curso ajeno',         1, 'video',      'published', 'qa-bunny-guid-9999', 300, null)
+         ($8, $9, 'Lección del curso ajeno',         1, 'video',      'published', 'qa-bunny-guid-9999', 300, null),
+         ($10, $11, 'Lección de la Generación 2',    1, 'video',      'published', 'qa-bunny-guid-0002', 300, null)
        on conflict (id) do update
          set title = excluded.title, status = excluded.status, lesson_type = excluded.lesson_type`,
       [
@@ -176,6 +199,7 @@ async function sembrarDatos(cliente, usuarios) {
         IDS.leccionTarea,
         IDS.leccionBorrador,
         IDS.leccionAjena, IDS.moduloAjeno,
+        IDS.leccionGen2, IDS.moduloGen2,
       ]
     )
 
@@ -196,29 +220,24 @@ async function sembrarDatos(cliente, usuarios) {
       [IDS.adjunto, IDS.leccionVideo]
     )
 
-    // Cohorte con una sesión futura y una pasada.
-    await cliente.query(
-      `insert into academia.cohorts (id, course_id, name, starts_on, ends_on)
-       values ($1, $2, 'QA · Cohorte de prueba', current_date - 7, current_date + 30)
-       on conflict (id) do update set name = excluded.name`,
-      [IDS.cohorte, IDS.curso]
-    )
-
+    // Sesiones: una futura y una pasada en la primera generación, una en la
+    // segunda (que los alumnos QA no deben ver).
     await cliente.query(
       `insert into academia.cohort_sessions (id, cohort_id, title, scheduled_at, meet_url)
        values
          ($1, $2, 'Sesión 1 · Ya ocurrió',  $3, 'https://meet.google.com/qa-pasada'),
-         ($4, $2, 'Sesión 2 · Próxima',     $5, 'https://meet.google.com/qa-futura')
+         ($4, $2, 'Sesión 2 · Próxima',     $5, 'https://meet.google.com/qa-futura'),
+         ($6, $7, 'Sesión Gen 2 · Arranque', $8, 'https://meet.google.com/qa-gen2')
        on conflict (id) do update set title = excluded.title, scheduled_at = excluded.scheduled_at`,
-      [IDS.sesionPasada, IDS.cohorte, haceUnaSemana, IDS.sesionFutura, enUnaSemana]
+      [IDS.sesionPasada, IDS.cohorte, haceUnaSemana, IDS.sesionFutura, enUnaSemana, IDS.sesionGen2, IDS.cohorte2, enSeisSemanas]
     )
 
-    // La cohorte QA es del seed: cualquier sesión que no sea una de sus dos es
-    // un residuo de una prueba que abortó (el 20-sep quedaron ocho de
+    // Las generaciones QA son del seed: cualquier sesión que no sea una de las
+    // suyas es un residuo de una prueba que abortó (el 20-sep quedaron ocho de
     // "agendar varias") y confundiría a la siguiente corrida.
     await cliente.query(
-      `delete from academia.cohort_sessions where cohort_id = $1 and id <> all($2::uuid[])`,
-      [IDS.cohorte, [IDS.sesionFutura, IDS.sesionPasada]]
+      `delete from academia.cohort_sessions where cohort_id = any($1::uuid[]) and id <> all($2::uuid[])`,
+      [[IDS.cohorte, IDS.cohorte2], [IDS.sesionFutura, IDS.sesionPasada, IDS.sesionGen2]]
     )
 
     // Quiz con respuesta correcta: la prueba de fuga de correct_option_id.
@@ -265,7 +284,18 @@ async function sembrarDatos(cliente, usuarios) {
       [IDS.pago, usuarios.alumnoVigente.id, usuarios.alumnoVigente.email, IDS.curso]
     )
 
-    // Inscripciones: una vigente y una vencida, ambas en la misma cohorte.
+    // Una publicación por generación (M16). La conexión es de servicio, así
+    // que el trigger respeta la generación que se le da.
+    await cliente.query(
+      `insert into academia.community_posts (id, course_id, cohort_id, user_id, title, content_rich, images, pinned, status)
+       values
+         ($1, $2, $3, $5, 'QA · Publicación de la Generación de prueba', null, '[]'::jsonb, false, 'visible'),
+         ($4, $2, $6, $5, 'QA · Publicación de la Generación 2',         null, '[]'::jsonb, false, 'visible')
+       on conflict (id) do update set title = excluded.title, cohort_id = excluded.cohort_id, status = 'visible'`,
+      [IDS.postGen1, IDS.curso, IDS.cohorte, IDS.postGen2, usuarios.admin.id, IDS.cohorte2]
+    )
+
+    // Inscripciones: una vigente y una vencida, ambas en la primera generación.
     await cliente.query(
       `insert into academia.enrollments
          (user_id, course_id, cohort_id, source, expires_at, status)

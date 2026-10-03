@@ -252,6 +252,42 @@ async function main() {
   afirmar(A, 'stripe_events inalcanzable', 0, await contar(t.alumnoVigente, 'stripe_events?select=event_id'))
   afirmar(A, 'certificados ajenos invisibles', 0, await contar(t.alumnoVigente, 'certificates?select=id'))
 
+  // --- generaciones (M16): lo de la Generación 2 no existe para él ---------
+  // Los conteos de arriba (2 módulos, 4 lecciones, 2 sesiones) ya lo prueban:
+  // el seed siembra un módulo, una lección y una sesión más en la segunda
+  // generación. Aquí se afirma por id y lo que pasa al escribir.
+  afirmar(A, 'generaciones visibles (solo la suya)', 1, await contar(t.alumnoVigente, 'cohorts?select=id'))
+  afirmar(A, 'el módulo de la Generación 2 no existe para él', 0,
+    await contar(t.alumnoVigente, `modules?select=id&id=eq.${IDS.moduloGen2}`))
+  afirmar(A, 'ni su lección', 0, await contar(t.alumnoVigente, `lessons?select=id&id=eq.${IDS.leccionGen2}`))
+  afirmar(A, 'ni su sesión', 0, await contar(t.alumnoVigente, `cohort_sessions?select=id&id=eq.${IDS.sesionGen2}`))
+  const muro = await filas(t.alumnoVigente, 'community_posts?select=id,cohort_id')
+  afirmar(A, 'publicaciones: solo las de su generación', true,
+    muro.some((p) => p.id === IDS.postGen1) && muro.every((p) => p.cohort_id === IDS.cohorte))
+
+  const TITULO_SELLADO = 'QA · post sellado por la base'
+  const publica = await escribir('POST', t.alumnoVigente, 'community_posts', {
+    course_id: IDS.curso, user_id: idVigente, title: TITULO_SELLADO, pinned: false, status: 'visible',
+  })
+  afirmar(A, 'publicar sin decir generación permitido', true, publica.ok)
+  const sellado = await filas(t.alumnoVigente,
+    `community_posts?select=id,cohort_id&title=eq.${encodeURIComponent(TITULO_SELLADO)}`)
+  afirmar(A, 'y queda sellado con la suya', IDS.cohorte, sellado[0]?.cohort_id)
+  const mueve = await escribir('PATCH', t.alumnoVigente, `community_posts?id=eq.${sellado[0]?.id}`, {
+    cohort_id: IDS.cohorte2,
+  })
+  afirmar(A, 'moverlo a otra generación bloqueado', 0, mueve.afectadas)
+  await bd.query('delete from academia.community_posts where title = $1', [TITULO_SELLADO])
+
+  const copia = await escribir('POST', t.alumnoVigente, 'rpc/academia_copiar_generacion', {
+    origen: IDS.cohorte, destino: IDS.cohorte2,
+  })
+  afirmar(A, 'copiar una generación es del equipo', false, copia.ok)
+  const mover = await escribir('POST', t.alumnoVigente, 'rpc/academia_mover_de_generacion', {
+    alumno: idVigente, curso: IDS.curso, generacion: IDS.cohorte2,
+  })
+  afirmar(A, 'cambiarse de generación es del equipo', false, mover.ok)
+
   // ======================================================================
   // ALUMNO CON ACCESO VENCIDO — estructura sí, contenido no
   // ======================================================================

@@ -27,6 +27,9 @@ export type CursoDelCatalogo = {
   lecciones: number
   modulos: number
   inscrito: boolean
+  /** La generación abierta a inscripciones, si el curso es por generaciones (M16). */
+  generacionAbierta: string | null
+  generacionInicia: string | null
 }
 
 export type Catalogo = {
@@ -51,6 +54,8 @@ type Fila = {
   lecciones: number
   modulos: number
   inscrito: boolean
+  generacion_abierta?: string | null
+  generacion_inicia?: string | null
 }
 
 /**
@@ -103,6 +108,8 @@ export async function catalogo(): Promise<Catalogo> {
       lecciones: f.lecciones,
       modulos: f.modulos,
       inscrito: f.inscrito,
+      generacionAbierta: f.generacion_abierta ?? null,
+      generacionInicia: f.generacion_inicia ?? null,
     })),
   }
 }

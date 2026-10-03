@@ -90,6 +90,10 @@ export const esquemaIdDeCurso = z.object({
 
 export const esquemaModulo = z.object({
   course_id: z.uuid('Curso inválido.'),
+  /** Vacío en cursos sin generaciones; la base exige una en los demás (M16). */
+  cohort_id: z
+    .union([z.uuid('Generación inválida.'), z.literal('')])
+    .transform((v) => (v === '' ? null : v)),
   title: z.string().trim().min(2, 'El título necesita al menos 2 caracteres.').max(160),
 })
 

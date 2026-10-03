@@ -10,6 +10,7 @@ import { exigirPerfil } from '@/lib/auth/sesion'
 import { estadoDe, proximaOActual } from '@/lib/calendario/estado'
 import { hoyCdmx, partesCdmx } from '@/lib/calendario/mes'
 import { contarDinamicasAbiertas } from '@/lib/dinamicas/consultas-alumno'
+import { rangoDeGeneracion } from '@/lib/generaciones'
 
 /**
  * Marco de un curso: encabezado con progreso y fila de pestañas.
@@ -44,7 +45,8 @@ export default async function LayoutCurso({
   if (!curso) notFound()
 
   const base = `/curso/${curso.slug}`
-  const abiertas = await contarDinamicasAbiertas(curso.id)
+  const abiertas = await contarDinamicasAbiertas(curso.id, curso.generacion?.id ?? null)
+  const rango = curso.generacion ? rangoDeGeneracion(curso.generacion.inicia, curso.generacion.termina) : ''
 
   // La insignia dice lo único que urge saber desde cualquier pestaña: si la
   // sesión está pasando o si es hoy. Sin contador: un "8" no significa nada.
@@ -100,6 +102,19 @@ export default async function LayoutCurso({
             <h1 className="text-[1.75rem] leading-tight font-medium tracking-tight text-balance">
               {curso.titulo}
             </h1>
+            {/* La generación, discreta (M16): dice de qué grupo es lo que ves
+                aquí —contenido, sesiones, comunidad—, sin competir con el título. */}
+            {curso.generacion ? (
+              <p className="text-sm text-muted-foreground">
+                <span className="font-medium text-foreground/80">{curso.generacion.nombre}</span>
+                {rango ? ` · ${rango}` : ''}
+              </p>
+            ) : curso.sinGeneracion ? (
+              <p className="text-sm text-destructive">
+                Todavía no estás en una generación de este curso. Escríbenos y te asignamos la
+                tuya.
+              </p>
+            ) : null}
             {curso.vigente && curso.diasRestantes !== null ? (
               <p className="text-sm text-muted-foreground">
                 Te quedan {curso.diasRestantes} día{curso.diasRestantes === 1 ? '' : 's'} de acceso.

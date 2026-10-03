@@ -22,13 +22,23 @@ function Boton() {
 }
 
 /** El botón "Nuevo módulo" al pie del árbol y, detrás, su formulario (M14). */
-export function NuevoModulo({ cursoId, reinicio }: { cursoId: string; reinicio: number }) {
+export function NuevoModulo({
+  cursoId,
+  cohortId = null,
+  reinicio,
+}: {
+  cursoId: string
+  /** La generación en la que nace (M16); null en cursos sin generaciones. */
+  cohortId?: string | null
+  reinicio: number
+}) {
   const [estado, accion] = useActionState(crearModulo, SIN_ESTADO)
 
   return (
     <Desplegable etiqueta="Nuevo módulo" variante="contorno" abierto={Boolean(estado.error || estado.aviso)}>
       <form key={reinicio} action={accion} className="flex flex-col gap-3">
         <input type="hidden" name="course_id" value={cursoId} />
+        <input type="hidden" name="cohort_id" value={cohortId ?? ''} />
         <Input
           name="title"
           placeholder="Nombre del módulo"

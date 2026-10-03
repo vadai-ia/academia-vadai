@@ -2,7 +2,8 @@ import { Avatar } from '@/components/ui-vadai/superficie'
 import { rankingDelCurso } from '@/lib/gamificacion/consultas'
 
 /**
- * El ranking del grupo, arriba del feed de la comunidad.
+ * El ranking de la generación (o del curso, si no tiene), arriba del feed de
+ * la comunidad.
  *
  * Los tres primeros llevan medalla; el resto, su número. Tu fila se resalta
  * aunque vayas en el lugar 30, y si no estás entre los primeros cinco se
@@ -17,9 +18,20 @@ import { rankingDelCurso } from '@/lib/gamificacion/consultas'
 
 const CUANTOS_ARRIBA = 5
 
-export async function Ranking({ cursoId, userId }: { cursoId: string; userId: string }) {
-  const ranking = await rankingDelCurso(cursoId, userId)
+export async function Ranking({
+  cursoId,
+  cohortId,
+  userId,
+  porGeneraciones,
+}: {
+  cursoId: string
+  cohortId: string | null
+  userId: string
+  porGeneraciones: boolean
+}) {
+  const ranking = await rankingDelCurso(cursoId, cohortId, userId)
   if (ranking.total === 0) return null
+  const quien = porGeneraciones ? 'tu generación' : 'el curso'
 
   const arriba = ranking.puestos.slice(0, CUANTOS_ARRIBA)
   const yoAbajo = ranking.yo && ranking.yo.posicion > CUANTOS_ARRIBA ? ranking.yo : null
@@ -31,7 +43,7 @@ export async function Ranking({ cursoId, userId }: { cursoId: string; userId: st
     >
       <div className="flex flex-wrap items-baseline justify-between gap-2">
         <h2 id="ranking-del-grupo" className="font-medium">
-          Ranking del grupo
+          Ranking de {quien}
         </h2>
         <span className="text-xs text-muted-foreground">
           {ranking.total} {ranking.total === 1 ? 'persona' : 'personas'}
@@ -56,7 +68,7 @@ export async function Ranking({ cursoId, userId }: { cursoId: string; userId: st
       {ranking.total > CUANTOS_ARRIBA ? (
         <details className="group/todos text-sm">
           <summary className="inline-flex cursor-pointer list-none items-center gap-1.5 text-primary select-none underline-offset-4 hover:underline [&::-webkit-details-marker]:hidden">
-            Ver a todo el grupo
+            Ver a {porGeneraciones ? 'toda la generación' : 'todo el curso'}
             <span aria-hidden className="transition-transform group-open/todos:rotate-90">›</span>
           </summary>
           <ol className="mt-3 flex flex-col gap-1">

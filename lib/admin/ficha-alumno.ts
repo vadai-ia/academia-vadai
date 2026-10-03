@@ -30,7 +30,7 @@ export type FichaAlumno = {
     cursoId: string
     cursoTitulo: string
     cursoSlug: string
-    cohorte: string | null
+    generacion: string | null
     acceso: AccesoDeInscripcion
     expiraEn: string | null
     inscritoEn: string
@@ -164,7 +164,7 @@ export const fichaDeAlumno = cache(async function fichaDeAlumno(userId: string):
       cursoId: e.course_id,
       cursoTitulo: e.courses?.title ?? 'Curso',
       cursoSlug: e.courses?.slug ?? '',
-      cohorte: e.cohorts?.name ?? null,
+      generacion: e.cohorts?.name ?? null,
       acceso: (e.status === 'revoked' ? 'revocado' : vigente ? 'vigente' : 'vencido') as AccesoDeInscripcion,
       expiraEn: e.expires_at,
       inscritoEn: e.created_at,

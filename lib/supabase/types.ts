@@ -235,6 +235,7 @@ export type Database = {
           ends_on: string | null
           created_at: string
           updated_at: string
+          open_for_enrollment: boolean
         }
         Insert: {
           id?: string
@@ -244,6 +245,7 @@ export type Database = {
           ends_on?: string | null
           created_at?: string
           updated_at?: string
+          open_for_enrollment?: boolean
         }
         Update: {
           id?: string
@@ -253,6 +255,7 @@ export type Database = {
           ends_on?: string | null
           created_at?: string
           updated_at?: string
+          open_for_enrollment?: boolean
         }
         Relationships: []
       }
@@ -298,6 +301,8 @@ export type Database = {
           status: 'visible' | 'hidden' | 'deleted'
           created_at: string
           updated_at: string
+          cohort_id: string | null
+          broadcast_id: string | null
         }
         Insert: {
           id?: string
@@ -310,6 +315,8 @@ export type Database = {
           status?: 'visible' | 'hidden' | 'deleted'
           created_at?: string
           updated_at?: string
+          cohort_id?: string | null
+          broadcast_id?: string | null
         }
         Update: {
           id?: string
@@ -322,6 +329,8 @@ export type Database = {
           status?: 'visible' | 'hidden' | 'deleted'
           created_at?: string
           updated_at?: string
+          cohort_id?: string | null
+          broadcast_id?: string | null
         }
         Relationships: []
       }
@@ -804,6 +813,7 @@ export type Database = {
           position: number
           created_at: string
           updated_at: string
+          cohort_id: string | null
         }
         Insert: {
           id?: string
@@ -812,6 +822,7 @@ export type Database = {
           position?: number
           created_at?: string
           updated_at?: string
+          cohort_id?: string | null
         }
         Update: {
           id?: string
@@ -820,6 +831,7 @@ export type Database = {
           position?: number
           created_at?: string
           updated_at?: string
+          cohort_id?: string | null
         }
         Relationships: []
       }
@@ -1114,6 +1126,7 @@ export type Database = {
           published_at: string | null
           created_at: string
           updated_at: string
+          audience_cohort_id: string | null
         }
         Insert: {
           id?: string
@@ -1126,6 +1139,7 @@ export type Database = {
           published_at?: string | null
           created_at?: string
           updated_at?: string
+          audience_cohort_id?: string | null
         }
         Update: {
           id?: string
@@ -1138,6 +1152,7 @@ export type Database = {
           published_at?: string | null
           created_at?: string
           updated_at?: string
+          audience_cohort_id?: string | null
         }
         Relationships: []
       }
@@ -1332,6 +1347,7 @@ export type Database = {
           comentarios: number | null
           certificados: number | null
           dinamicas: number | null
+          cohort_id: string | null
         }
         Relationships: []
       }
@@ -1347,6 +1363,7 @@ export type Database = {
           tiene_video: boolean | null
           video_duration_sec: number | null
           desbloqueada: boolean | null
+          cohort_id: string | null
         }
         Relationships: []
       }

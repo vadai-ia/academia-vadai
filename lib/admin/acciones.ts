@@ -192,17 +192,18 @@ export async function crearModulo(_previo: EstadoAccion, datos: FormData): Promi
 
   const resultado = esquemaModulo.safeParse({
     course_id: datos.get('course_id'),
+    cohort_id: datos.get('cohort_id') ?? '',
     title: datos.get('title'),
   })
   if (!resultado.success) return { error: primerError(resultado) }
 
   const supabase = await crearClienteServidor()
 
-  // Se coloca al final: una posición más que el último módulo del curso.
-  const { data: ultimo } = await supabase
-    .from('modules')
-    .select('position')
-    .eq('course_id', resultado.data.course_id)
+  // Se coloca al final: una posición más que el último módulo de SU generación
+  // (o del curso, si no tiene generaciones).
+  const { cohort_id: generacion } = resultado.data
+  const ultimos = supabase.from('modules').select('position').eq('course_id', resultado.data.course_id)
+  const { data: ultimo } = await (generacion ? ultimos.eq('cohort_id', generacion) : ultimos.is('cohort_id', null))
     .order('position', { ascending: false })
     .limit(1)
     .maybeSingle()
@@ -212,8 +213,9 @@ export async function crearModulo(_previo: EstadoAccion, datos: FormData): Promi
     .insert({ ...resultado.data, position: (ultimo?.position ?? 0) + 1 })
 
   if (error) {
-    registrarFallo('crearModulo', { curso: resultado.data.course_id }, error.message)
-    return { error: 'No se pudo crear el módulo.' }
+    registrarFallo('crearModulo', { curso: resultado.data.course_id, generacion }, error.message)
+    // 23514: el trigger `modules_generacion_obligatoria` explica en español.
+    return { error: error.code === '23514' ? error.message : 'No se pudo crear el módulo.' }
   }
 
   revalidatePath(`/admin/cursos/${resultado.data.course_id}`)
@@ -419,12 +421,14 @@ export async function moverModulo(datos: FormData): Promise<void> {
 
   const { data: actual } = await supabase
     .from('modules')
-    .select('id, position')
+    .select('id, position, cohort_id')
     .eq('id', id)
     .maybeSingle()
   if (!actual) return
 
-  const consulta = supabase.from('modules').select('id, position').eq('course_id', cursoId)
+  // Los vecinos son los de su misma generación: cada generación ordena lo suyo.
+  const mismos = supabase.from('modules').select('id, position').eq('course_id', cursoId)
+  const consulta = actual.cohort_id ? mismos.eq('cohort_id', actual.cohort_id) : mismos.is('cohort_id', null)
   const { data: vecino } = await (arriba
     ? consulta.lt('position', actual.position).order('position', { ascending: false })
     : consulta.gt('position', actual.position).order('position', { ascending: true })
@@ -572,8 +576,16 @@ export async function eliminarAdjunto(datos: FormData): Promise<void> {
 
   // El archivo se borra después de la fila: si esto falla queda basura en el
   // bucket, que es menos grave que una fila apuntando a un archivo inexistente.
+  // Y solo si ninguna otra lección lo usa: copiar una generación (M16) comparte
+  // el mismo objeto de Storage entre las dos lecciones.
   if (adjunto?.storage_path) {
-    await supabase.storage.from(BUCKET_ADJUNTOS).remove([adjunto.storage_path])
+    const { count } = await supabase
+      .from('lesson_attachments')
+      .select('id', { count: 'exact', head: true })
+      .eq('storage_path', adjunto.storage_path)
+    if ((count ?? 0) === 0) {
+      await supabase.storage.from(BUCKET_ADJUNTOS).remove([adjunto.storage_path])
+    }
   }
 
   revalidatePath(`/admin/lecciones/${leccionId}`)

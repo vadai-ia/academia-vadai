@@ -88,6 +88,16 @@ export const IDS = {
   // cuentas qa-din-* y el id fijo con el que se prueba el check de escala.
   empresaDinamicas: U(23),
   dinamica: U(24),
+
+  // Generaciones (M16): la segunda generación del curso QA, con su módulo, su
+  // lección, su sesión y una publicación por generación. Los alumnos QA están
+  // en la primera (`cohorte`): nada de esto debe existir para ellos.
+  cohorte2: U(25),
+  moduloGen2: U(26),
+  leccionGen2: U(27),
+  sesionGen2: U(28),
+  postGen1: U(29),
+  postGen2: U(30),
 }
 
 export const CURSO_QA = {

@@ -10,6 +10,7 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
 import { SIN_ESTADO } from '@/lib/admin/tipos'
+import { ETIQUETA_ESTADO } from '@/lib/generaciones'
 import {
   actualizarEncuesta,
   eliminarEncuesta,
@@ -76,21 +77,26 @@ export function AjustesEncuesta({
           </div>
 
           <div className="flex flex-col gap-1.5">
-            <Label htmlFor="aj-cohorte">Generación</Label>
+            <Label htmlFor="aj-generacion">Generación</Label>
             <select
-              id="aj-cohorte"
+              id="aj-generacion"
               name="cohort_id"
               defaultValue={encuesta.cohort_id ?? ''}
               className={claseSelect}
             >
-              <option value="">Todo el curso</option>
-              {cursos.flatMap((c) =>
-                c.cohortes.map((h) => (
-                  <option key={h.id} value={h.id}>
-                    {h.nombre} · {c.titulo}
-                  </option>
-                ))
-              )}
+              <option value="">Según el curso: la generación abierta</option>
+              {cursos
+                .filter((c) => c.porGeneraciones && c.generaciones.length > 0)
+                .map((c) => (
+                  <optgroup key={c.id} label={c.titulo}>
+                    {c.generaciones.map((h) => (
+                      <option key={h.id} value={h.id}>
+                        {h.nombre}
+                        {h.estado !== 'en_curso' ? ` · ${ETIQUETA_ESTADO[h.estado]}` : ''}
+                      </option>
+                    ))}
+                  </optgroup>
+                ))}
             </select>
           </div>
         </div>
@@ -150,7 +156,7 @@ export function AjustesEncuesta({
 
       <details>
         <summary className="inline-flex w-fit cursor-pointer list-none items-center gap-2 rounded-lg px-3 py-2 text-sm text-muted-foreground transition-colors select-none hover:bg-muted hover:text-foreground focus-visible:ring-3 focus-visible:ring-ring/50 focus-visible:outline-none [&::-webkit-details-marker]:hidden">
-          Correrla otra vez con otro grupo
+          Correrla otra vez con otra generación
         </summary>
         <form
           action={nuevaCorrida}

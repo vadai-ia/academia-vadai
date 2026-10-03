@@ -38,7 +38,7 @@ export default async function PaginaPublicaciones() {
       </header>
 
       <NuevaPublicacion
-        cursos={cursos.map((c) => ({ id: c.id, titulo: c.titulo }))}
+        cursos={cursos.map((c) => ({ id: c.id, titulo: c.titulo, generaciones: c.generaciones }))}
         reinicio={publicaciones.length}
       />
 

@@ -11,6 +11,12 @@ const nextConfig: NextConfig = {
       bodySizeLimit: '4mb',
     },
   },
+  async redirects() {
+    return [
+      // M16: las generaciones ya no tienen página propia; viven en su curso.
+      { source: '/admin/cohortes/:id', destination: '/admin/generaciones/:id', permanent: false },
+    ]
+  },
 };
 
 export default nextConfig;

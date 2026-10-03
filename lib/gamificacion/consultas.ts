@@ -24,6 +24,7 @@ import {
 type FilaActividad = {
   user_id: string | null
   course_id: string | null
+  cohort_id: string | null
   lecciones: number | null
   quizzes: number | null
   tareas: number | null
@@ -89,13 +90,21 @@ export type RankingDeCurso = {
 }
 
 /**
- * El ranking de un curso: todos los inscritos activos, ordenados.
+ * El ranking de una generación (o del curso, si no tiene): todos los inscritos
+ * activos, ordenados. Los puntos son de la persona; el ranking compara dentro
+ * de su generación (M16).
  *
  * Los nombres salen de `public_profiles`, que ya deja ver nombre y avatar de
  * cualquier miembro de la academia. Es lo mismo que se ve en la comunidad.
  */
-export async function rankingDelCurso(cursoId: string, userId: string): Promise<RankingDeCurso> {
-  const filas = (await actividadVisible()).filter((f) => f.course_id === cursoId && f.user_id)
+export async function rankingDelCurso(
+  cursoId: string,
+  cohortId: string | null,
+  userId: string
+): Promise<RankingDeCurso> {
+  const filas = (await actividadVisible()).filter(
+    (f) => f.course_id === cursoId && (f.cohort_id ?? null) === cohortId && f.user_id
+  )
   if (filas.length === 0) return { puestos: [], total: 0, yo: null }
 
   const supabase = await crearClienteServidor()
@@ -129,7 +138,7 @@ export type MiNivel = {
   puntos: number
   nivel: Nivel
   actividad: Actividad
-  porCurso: Array<{ cursoId: string; puntos: number; posicion: number; total: number }>
+  porCurso: Array<{ cursoId: string; cohortId: string | null; puntos: number; posicion: number; total: number }>
 }
 
 /**
@@ -144,9 +153,14 @@ export async function miNivel(userId: string): Promise<MiNivel> {
   let actividad = ACTIVIDAD_VACIA
   const porCurso: MiNivel['porCurso'] = []
 
-  const cursos = new Set(filas.filter((f) => f.user_id === userId).map((f) => f.course_id as string))
-  for (const cursoId of cursos) {
-    const delCurso = filas.filter((f) => f.course_id === cursoId && f.user_id)
+  // Un ranking por (curso, generación): mi lugar es entre los de mi generación.
+  const mios = filas.filter((f) => f.user_id === userId && f.course_id)
+  for (const mia of mios) {
+    const cursoId = mia.course_id as string
+    const cohortId = mia.cohort_id ?? null
+    const delCurso = filas.filter(
+      (f) => f.course_id === cursoId && (f.cohort_id ?? null) === cohortId && f.user_id
+    )
     const conPuntos = ordenar(
       delCurso.map((f) => {
         const a = actividadDe(f)
@@ -157,7 +171,7 @@ export async function miNivel(userId: string): Promise<MiNivel> {
     const mio = conPuntos[indice]
     if (!mio) continue
     actividad = sumarActividad(actividad, mio.actividad)
-    porCurso.push({ cursoId, puntos: mio.puntos, posicion: indice + 1, total: conPuntos.length })
+    porCurso.push({ cursoId, cohortId, puntos: mio.puntos, posicion: indice + 1, total: conPuntos.length })
   }
 
   const puntos = puntosDe(actividad)

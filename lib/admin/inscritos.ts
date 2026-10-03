@@ -6,7 +6,7 @@ import type { Tabla } from '@/lib/supabase/types'
 
 /**
  * Los inscritos de UN curso, con todo lo que el admin quiere ver de cada uno:
- * acceso, empresa, grupo, si ya entró, cuánto lleva y cuántos puntos tiene.
+ * acceso, empresa, generación, si ya entró, cuánto lleva y cuántos puntos tiene.
  *
  * Reemplaza a la lista plana de nombres de `alumnosDelCurso()`. Con 118
  * inscritos esa lista ya no se podía recorrer; con mil sería inservible. Aquí
@@ -26,7 +26,7 @@ export type Inscrito = {
   nombre: string
   email: string
   empresa: { id: string; nombre: string } | null
-  grupo: string | null
+  generacion: string | null
   cohorteId: string | null
   acceso: Acceso
   expiraEn: string | null
@@ -58,6 +58,10 @@ export type ResumenInscritos = {
   puntosPromedio: number
   lecciones: number
   porEmpresa: PorEmpresa[]
+  /** Inscritos activos sin generación en un curso por generaciones (M16). */
+  sinGeneracion: number
+  /** Inscritos por generación, para la insignia de cada pestaña. */
+  porGeneracion: Map<string, number>
 }
 
 export type FiltrosInscritos = {
@@ -65,6 +69,8 @@ export type FiltrosInscritos = {
   acceso?: string
   empresa?: string
   orden?: string
+  /** Una generación por id, o `sin` para los que no tienen (M16). */
+  gen?: string
 }
 
 export const ORDENES = {
@@ -119,7 +125,7 @@ export async function inscritosDelCurso(
   const publicadas = new Set(leccionIds)
 
   const nombreDeEmpresa = new Map((empresas.data ?? []).map((e) => [e.id, e.name]))
-  const nombreDeGrupo = new Map((cohortes.data ?? []).map((c) => [c.id, c.name]))
+  const nombreDeGeneracion = new Map((cohortes.data ?? []).map((c) => [c.id, c.name]))
   const hechasDe = new Map<string, number>()
   // Los tipos generados no describen los joins: se tipan a mano, como en el
   // resto del panel.
@@ -174,7 +180,7 @@ export async function inscritosDelCurso(
         empresa: p.company_id
           ? { id: p.company_id, nombre: nombreDeEmpresa.get(p.company_id) ?? 'Empresa' }
           : null,
-        grupo: e.cohort_id ? (nombreDeGrupo.get(e.cohort_id) ?? null) : null,
+        generacion: e.cohort_id ? (nombreDeGeneracion.get(e.cohort_id) ?? null) : null,
         cohorteId: e.cohort_id,
         acceso: e.status === 'revoked' ? 'revocado' : vigente ? 'vigente' : 'vencido',
         expiraEn: e.expires_at,
@@ -223,6 +229,11 @@ export async function inscritosDelCurso(
       todos.length === 0 ? 0 : Math.round(todos.reduce((n, i) => n + i.puntos, 0) / todos.length),
     lecciones: total,
     porEmpresa,
+    sinGeneracion: todos.filter((i) => i.cohorteId === null && i.acceso !== 'revocado').length,
+    porGeneracion: todos.reduce((m, i) => {
+      if (i.cohorteId) m.set(i.cohorteId, (m.get(i.cohorteId) ?? 0) + 1)
+      return m
+    }, new Map<string, number>()),
   }
 
   // --- filtros y orden ----------------------------------------------------------
@@ -246,6 +257,8 @@ export async function inscritosDelCurso(
     }
     if (filtros.empresa === 'general' && i.empresa) return false
     if (filtros.empresa && filtros.empresa !== 'general' && i.empresa?.id !== filtros.empresa) return false
+    if (filtros.gen === 'sin' && i.cohorteId !== null) return false
+    if (filtros.gen && filtros.gen !== 'sin' && i.cohorteId !== filtros.gen) return false
     return true
   })
 
@@ -281,6 +294,8 @@ function resumenVacio(): ResumenInscritos {
     puntosPromedio: 0,
     lecciones: 0,
     porEmpresa: [],
+    sinGeneracion: 0,
+    porGeneracion: new Map(),
   }
 }
 

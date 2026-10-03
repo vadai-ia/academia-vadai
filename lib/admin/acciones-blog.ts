@@ -34,6 +34,12 @@ const esquema = z.object({
     .trim()
     .transform((v) => (v === '' ? null : v))
     .nullable(),
+  /** Una generación concreta (M16); el trigger exige que sea de `audience_course_id`. */
+  audience_cohort_id: z
+    .string()
+    .trim()
+    .transform((v) => (v === '' ? null : v))
+    .nullable(),
   content_rich: z
     .string()
     .trim()
@@ -48,6 +54,18 @@ const esquema = z.object({
     })
     .nullable(),
 })
+
+/**
+ * «Para quién» viaja como un solo valor: vacío (todos), `curso:<id>` (el curso
+ * con todas sus generaciones) o `gen:<id>` (una generación). Con `gen:` el
+ * curso se resuelve en la base antes de insertar; aquí solo se reparte.
+ */
+function leerAudiencia(datos: FormData): { audience_course_id: string; audience_cohort_id: string } {
+  const valor = String(datos.get('audiencia') ?? datos.get('audience_course_id') ?? '').trim()
+  if (valor.startsWith('gen:')) return { audience_course_id: '', audience_cohort_id: valor.slice(4) }
+  if (valor.startsWith('curso:')) return { audience_course_id: valor.slice(6), audience_cohort_id: '' }
+  return { audience_course_id: valor, audience_cohort_id: '' }
+}
 
 function registrarFallo(operacion: string, detalle: Record<string, unknown>, error: string) {
   console.error(JSON.stringify({ operacion, ...detalle, error }))
@@ -69,7 +87,7 @@ export async function crearPublicacion(
     title: datos.get('title'),
     post_type: datos.get('post_type'),
     cover_url: datos.get('cover_url') ?? '',
-    audience_course_id: datos.get('audience_course_id') ?? '',
+    ...leerAudiencia(datos),
     content_rich: datos.get('content_rich') ?? '',
   })
 
@@ -80,6 +98,19 @@ export async function crearPublicacion(
   const publicarYa = String(datos.get('publicar') ?? '') === 'si'
 
   const supabase = await crearClienteServidor()
+
+  // Una generación implica su curso: así la policy del alumno y el trigger de
+  // coherencia tienen los dos datos.
+  if (resultado.data.audience_cohort_id && !resultado.data.audience_course_id) {
+    const { data: g } = await supabase
+      .from('cohorts')
+      .select('course_id')
+      .eq('id', resultado.data.audience_cohort_id)
+      .maybeSingle()
+    if (!g) return { error: 'Esa generación ya no existe.' }
+    resultado.data.audience_course_id = g.course_id
+  }
+
   const { error } = await supabase.from('posts').insert({
     ...resultado.data,
     author_id: perfil.user_id,

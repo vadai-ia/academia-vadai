@@ -5,7 +5,7 @@
 
 ## QUÉ ES ESTE PROYECTO
 
-Academia online de VADAI (academia.vadai.com.mx), tipo Skool: cursos en video con módulos, progreso, quizzes, tareas, certificados, comentarios, comunidad, blog y cohortes con sesiones en vivo (Google Meet). Primer curso lanza el 21-sep-2026.
+Academia online de VADAI (academia.vadai.com.mx), tipo Skool: cursos en video con módulos, progreso, quizzes, tareas, certificados, comentarios, comunidad, blog y generaciones con sesiones en vivo (Google Meet). Desde M16 un curso «por generaciones» tiene contenido, comunidad, dinámicas y ranking POR generación. Primer curso lanza el 21-sep-2026.
 
 ## REGLA CERO — AISLAMIENTO POR SCHEMA
 
@@ -53,7 +53,8 @@ En su lugar: `pnpm db:migrate` → `scripts/migrate.mjs`, que aplica los `.sql` 
   /(alumno)      mis-cursos, curso/[slug], curso/[slug]/en-vivo, curso/[slug]/dinamicas, comunidad, blog, perfil, dinamicas
                  # curso/[slug]/(marco)/ = el marco del curso (título, avance, pestañas) para Contenido,
                  # En vivo, Comunidad y Dinámicas; curso/[slug]/[leccionId] va FUERA: modo lección (25-sep-2026)
-  /(admin)       admin/* (cursos, alumnos, alumnos/[userId] ficha, puntos, entregas, cohortes, posts, encuestas, dinamicas)
+  /(admin)       admin/* (cursos, alumnos, alumnos/[userId] ficha, puntos, entregas, posts, encuestas, dinamicas)
+                 # cursos/[id]?gen=<id>|nueva|sin = la pestaña de una generación (M16); generaciones/[id] solo redirige ahí
   /api/stripe/webhook
   /api/certificados/[folio]
   /api/calendario/cohorte/[id]  # .ics con todas las sesiones; firmado (?t=) para abrirse desde el correo sin sesión

@@ -2,6 +2,7 @@
 
 import type { ChangeEvent } from 'react'
 
+import { ETIQUETA_ESTADO, type EstadoGeneracion } from '@/lib/generaciones'
 import { cn } from '@/lib/utils'
 
 /**
@@ -13,9 +14,9 @@ import { cn } from '@/lib/utils'
  * se comporta igual con ratón, con dedo y con teclado, y sigue siendo un campo
  * de formulario normal. Sin JavaScript se envía igual.
  *
- * `unaSola` es para los grupos de un mismo curso: una inscripción solo puede
- * pertenecer a uno. Al marcar uno se desmarcan sus hermanos. Eso es solo una
- * cortesía del navegador: quien valida de verdad es la acción del servidor.
+ * `unaSola` es para las generaciones de un mismo curso: una inscripción solo
+ * puede pertenecer a una. Al marcar una se desmarcan sus hermanas. Eso es solo
+ * una cortesía del navegador: quien valida de verdad es la acción del servidor.
  */
 
 export type OpcionSeleccionable = {
@@ -34,31 +35,36 @@ export type GrupoSeleccionable = {
 }
 
 /**
- * Cursos → renglones. Un curso sin grupos es un renglón suelto; uno con grupos
- * es un bloque donde cada grupo es un renglón y solo puede quedar uno marcado.
+ * Cursos → renglones. Un curso sin generaciones es un renglón suelto; uno por
+ * generaciones es un bloque donde cada generación es un renglón y solo puede
+ * quedar una marcada (M16: ya no hay «Sin generación», porque una inscripción
+ * sin generación no ve nada).
  *
- * Cada valor es un par `cursoId|cohorteId` (la cohorte vacía = sin grupo), que
- * es lo que leen `altaManual` y `darAccesoACursos`. Así un solo control resuelve
- * curso Y grupo sin JavaScript: un segundo selector que dependiera del primero
- * no se podría actualizar sin él.
+ * Cada valor es un par `cursoId|cohorteId`, que es lo que leen `altaManual` y
+ * `darAccesoACursos`. Así un solo control resuelve curso Y generación sin
+ * JavaScript: un segundo selector que dependiera del primero no se podría
+ * actualizar sin él.
  */
 export function gruposDesdeCursos(
-  cursos: Array<{ id: string; titulo: string; cohortes: Array<{ id: string; nombre: string }> }>
+  cursos: Array<{
+    id: string
+    titulo: string
+    porGeneraciones: boolean
+    generaciones: Array<{ id: string; nombre: string; estado: EstadoGeneracion }>
+  }>
 ): GrupoSeleccionable[] {
   return cursos.map((curso) =>
-    curso.cohortes.length === 0
+    !curso.porGeneraciones || curso.generaciones.length === 0
       ? { clave: curso.id, opciones: [{ valor: `${curso.id}|`, etiqueta: curso.titulo }] }
       : {
           clave: curso.id,
           titulo: curso.titulo,
           unaSola: true,
-          opciones: [
-            { valor: `${curso.id}|`, etiqueta: 'Sin generación' },
-            ...curso.cohortes.map((grupo) => ({
-              valor: `${curso.id}|${grupo.id}`,
-              etiqueta: grupo.nombre,
-            })),
-          ],
+          opciones: curso.generaciones.map((g) => ({
+            valor: `${curso.id}|${g.id}`,
+            etiqueta: g.nombre,
+            detalle: g.estado === 'en_curso' ? undefined : ETIQUETA_ESTADO[g.estado],
+          })),
         }
   )
 }
@@ -104,7 +110,7 @@ export function ListaSeleccionable({
             {grupo.titulo ? (
               <p className="px-1 pt-1.5 text-xs font-medium text-muted-foreground">
                 {grupo.titulo}
-                {grupo.unaSola ? ' · elige un grupo' : ''}
+                {grupo.unaSola ? ' · elige una generación' : ''}
               </p>
             ) : null}
 

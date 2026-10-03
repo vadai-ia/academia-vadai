@@ -7,14 +7,14 @@ import { ConfirmarConModal } from '@/components/admin/confirmar-con-modal'
 import { Desplegable } from '@/components/admin/desplegable'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
-import { enviarCalendarioPorCorreo } from '@/lib/admin/acciones-cohortes'
+import { enviarCalendarioPorCorreo } from '@/lib/admin/acciones-generaciones'
 import { SIN_ESTADO } from '@/lib/admin/tipos'
 
 /**
  * Mandar las fechas de las sesiones por correo, con botones de calendario.
  *
  * Primero una prueba a un correo (el mismo mensaje, marcado [PRUEBA]); luego
- * a todos los inscritos de la cohorte, con confirmación porque son decenas de
+ * a todos los inscritos de la generación, con confirmación porque son decenas de
  * buzones reales. Vive detrás de su botón (M14): se manda una vez por curso,
  * no cada vez que se abre el calendario.
  */

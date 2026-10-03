@@ -1,5 +1,6 @@
 import 'server-only'
 
+import { esPorGeneraciones, estadoDeGeneracion } from '@/lib/generaciones'
 import { crearClienteServidor } from '@/lib/supabase/server'
 
 /**
@@ -10,9 +11,10 @@ import { crearClienteServidor } from '@/lib/supabase/server'
  * aplicarle exactamente las mismas reglas. Vive aparte porque un archivo con
  * 'use server' solo puede exportar acciones.
  *
- * Cada casilla manda un par `cursoId|cohorteId`, con la cohorte vacía para "sin
- * grupo". Así un solo control resuelve curso Y grupo sin JavaScript: un segundo
- * selector que dependiera del primero no se podría actualizar sin él.
+ * Cada casilla manda un par `cursoId|cohorteId`, con la generación vacía para
+ * «la abierta» (o «sin generación» en cursos que no tienen). Así un solo control
+ * resuelve curso Y generación sin JavaScript: un segundo selector que
+ * dependiera del primero no se podría actualizar sin él.
  */
 
 /** Un par `cursoId|cohorteId`. */
@@ -24,10 +26,10 @@ export function enLista(valores: string[]): string {
 }
 
 /**
- * De los pares del formulario a "un grupo por curso".
+ * De los pares del formulario a "una generación por curso".
  *
- * Sin JavaScript la lista deja marcar dos grupos del mismo curso, y una
- * inscripción solo puede pertenecer a uno: eso se rechaza aquí.
+ * Sin JavaScript la lista deja marcar dos generaciones del mismo curso, y una
+ * inscripción solo puede pertenecer a una: eso se rechaza aquí.
  */
 export function leerPares(pares: string[]): Map<string, string | null> | { error: string } {
   const grupoPorCurso = new Map<string, string | null>()
@@ -36,7 +38,7 @@ export function leerPares(pares: string[]): Map<string, string | null> | { error
     const [cursoId = '', cohorteId = ''] = par.split('|')
     const grupo = cohorteId || null
     if (grupoPorCurso.has(cursoId) && grupoPorCurso.get(cursoId) !== grupo) {
-      return { error: 'Marcaste dos grupos del mismo curso. Deja solo uno por curso.' }
+      return { error: 'Marcaste dos generaciones del mismo curso. Deja solo una por curso.' }
     }
     grupoPorCurso.set(cursoId, grupo)
   }
@@ -53,9 +55,12 @@ export type SeleccionRevisada =
 
 /**
  * Revisa TODO antes de que se cree nada: que haya al menos un curso, que exista,
- * que no esté archivado y que cada grupo sea de su curso. Con tres cursos
+ * que no esté archivado y que cada generación sea de su curso. Con tres cursos
  * marcados —o con un archivo de cuarenta personas— descubrirlo a medio camino
  * dejaría un alta a medias.
+ *
+ * M16: en un curso por generaciones, un par sin generación cae en la ABIERTA a
+ * inscripciones; si no hay ninguna abierta, se pide elegir (decisión 5).
  *
  * Lee con el cliente de servidor: pasa por RLS, como el resto del admin.
  */
@@ -69,7 +74,10 @@ export async function revisarSeleccion(pares: string[]): Promise<SeleccionRevisa
   const supabase = await crearClienteServidor()
 
   const [cursos, cohortes] = await Promise.all([
-    supabase.from('courses').select('id, title, status').in('id', cursoIds),
+    supabase
+      .from('courses')
+      .select('id, title, status, course_type, cohorts(id, open_for_enrollment, ends_on)')
+      .in('id', cursoIds),
     cohorteIds.length > 0
       ? supabase.from('cohorts').select('id, course_id').in('id', cohorteIds)
       : Promise.resolve({ data: [], error: null }),
@@ -81,7 +89,14 @@ export async function revisarSeleccion(pares: string[]): Promise<SeleccionRevisa
     return { ok: false, error: 'No se pudo revisar la selección. Intenta de nuevo.' }
   }
 
-  const cursoPorId = new Map((cursos.data ?? []).map((c) => [c.id, c]))
+  type CursoConGeneraciones = {
+    id: string
+    title: string
+    status: string
+    course_type: string
+    cohorts: Array<{ id: string; open_for_enrollment: boolean; ends_on: string | null }>
+  }
+  const cursoPorId = new Map(((cursos.data ?? []) as unknown as CursoConGeneraciones[]).map((c) => [c.id, c]))
   const cursoDeCohorte = new Map((cohortes.data ?? []).map((c) => [c.id, c.course_id]))
   const revisados: Array<{ id: string; titulo: string; cohorteId: string | null }> = []
 
@@ -94,12 +109,36 @@ export async function revisarSeleccion(pares: string[]): Promise<SeleccionRevisa
         error: `"${curso.title}" está archivado. Restáuralo antes de dar de alta a alguien.`,
       }
     }
-    // El grupo viaja en el formulario y cualquiera puede editarlo.
+    // La generación viaja en el formulario y cualquiera puede editarla.
     if (grupo !== null && cursoDeCohorte.get(grupo) !== cursoId) {
-      return { ok: false, error: 'Uno de los grupos no pertenece a su curso.' }
+      return { ok: false, error: 'Una de las generaciones no es de su curso.' }
     }
-    revisados.push({ id: cursoId, titulo: curso.title, cohorteId: grupo })
+    const generacion = generacionDeAlta(curso, grupo)
+    if ('error' in generacion) return { ok: false, error: generacion.error }
+    revisados.push({ id: cursoId, titulo: curso.title, cohorteId: generacion.id })
   }
 
   return { ok: true, cursos: revisados }
+}
+
+/**
+ * La generación en la que cae un alta (M16). Curso sin generaciones: ninguna.
+ * Curso por generaciones: la elegida; si no se eligió, la abierta a
+ * inscripciones; sin abierta, hay que elegir.
+ */
+export function generacionDeAlta(
+  curso: {
+    title: string
+    course_type: string
+    cohorts: Array<{ id: string; open_for_enrollment: boolean; ends_on: string | null }>
+  },
+  elegida: string | null
+): { id: string | null } | { error: string } {
+  if (!esPorGeneraciones(curso.course_type)) return { id: null }
+  if (elegida) return { id: elegida }
+  const abierta = (curso.cohorts ?? []).find((g) => estadoDeGeneracion(g) === 'abierta')
+  if (abierta) return { id: abierta.id }
+  return {
+    error: `"${curso.title}" no tiene una generación abierta a inscripciones: elige en cuál entra.`,
+  }
 }

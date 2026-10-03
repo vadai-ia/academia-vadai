@@ -3,6 +3,7 @@ import 'server-only'
 import { crearEnlaceDurable } from '@/lib/auth/enlace-durable'
 import { plantillaBienvenida, plantillaNuevoCurso } from '@/lib/correo/plantillas'
 import { enviarCorreo } from '@/lib/correo/resend'
+import { estadoDeGeneracion } from '@/lib/generaciones'
 import { crearClienteServiceRole } from '@/lib/supabase/service-role'
 
 /**
@@ -41,6 +42,11 @@ type Opciones = {
    * admin no necesita estar inscrito para entrar al panel.
    */
   courseId?: string | null
+  /**
+   * Tres valores (M16). `undefined`: que lo resuelva el alta —la generación
+   * que ya tenía, o la abierta a inscripciones—. `null`: ninguna (cursos sin
+   * generaciones). Un id: esa, explícita.
+   */
   cohortId?: string | null
   origen: 'stripe' | 'manual'
   /**
@@ -163,12 +169,12 @@ export async function darDeAlta(opciones: Opciones): Promise<ResultadoAlta> {
 
   // 1. El curso, para calcular la vigencia. Puede no haber: un alta de equipo
   //    crea la cuenta y el rol, sin inscribir a nadie en nada.
-  let curso: { id: string; access_days: number | null; title: string } | null = null
+  let curso: { id: string; access_days: number | null; title: string; course_type: string } | null = null
 
   if (opciones.courseId) {
     const { data, error: errorCurso } = await supabase
       .from('courses')
-      .select('id, access_days, title')
+      .select('id, access_days, title, course_type')
       .eq('id', opciones.courseId)
       .maybeSingle()
 
@@ -262,18 +268,35 @@ export async function darDeAlta(opciones: Opciones): Promise<ResultadoAlta> {
   const { data: inscripcionPrevia } = curso
     ? await supabase
         .from('enrollments')
-        .select('user_id')
+        .select('user_id, cohort_id')
         .eq('user_id', usuario.id)
         .eq('course_id', curso.id)
         .maybeSingle()
     : { data: null }
+
+  // La generación (M16): la pedida; si no se pidió, la que ya tenía —reenviar
+  // un evento de Stripe no puede dejar a nadie sin generación— y, si tampoco,
+  // la abierta a inscripciones. En cursos sin generaciones, ninguna.
+  const generacion =
+    curso && curso.course_type === 'cohort'
+      ? opciones.cohortId !== undefined
+        ? opciones.cohortId
+        : (inscripcionPrevia?.cohort_id ?? (await generacionAbierta(curso.id)))
+      : null
+  if (curso && curso.course_type === 'cohort' && generacion === null) {
+    registrar('darDeAlta:sinGeneracion', {
+      email,
+      curso: curso.title,
+      aviso: 'el curso no tiene generación abierta; la inscripción queda sin generación',
+    })
+  }
 
   const { error: errorInscripcion } = curso
     ? await supabase.from('enrollments').upsert(
         {
           user_id: usuario.id,
           course_id: curso.id,
-          cohort_id: opciones.cohortId ?? null,
+          cohort_id: generacion,
           source: opciones.origen,
           expires_at: expiraEn,
           status: 'active',
@@ -338,6 +361,18 @@ export async function darDeAlta(opciones: Opciones): Promise<ResultadoAlta> {
   })
 
   return { ok: true, userId: usuario.id, creado, invitado, avisado }
+}
+
+/** La generación abierta a inscripciones del curso, o null. Service role: aquí no hay sesión. */
+async function generacionAbierta(cursoId: string): Promise<string | null> {
+  const supabase = crearClienteServiceRole()
+  const { data } = await supabase
+    .from('cohorts')
+    .select('id, ends_on, open_for_enrollment')
+    .eq('course_id', cursoId)
+    .eq('open_for_enrollment', true)
+  const abierta = (data ?? []).find((g) => estadoDeGeneracion(g) === 'abierta')
+  return abierta?.id ?? null
 }
 
 /**

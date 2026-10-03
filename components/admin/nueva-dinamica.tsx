@@ -11,6 +11,7 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
 import { SIN_ESTADO } from '@/lib/admin/tipos'
+import { ETIQUETA_ESTADO } from '@/lib/generaciones'
 import { crearDinamica } from '@/lib/dinamicas/acciones'
 import { TOPE_DESCRIPCION, TOPE_TITULO } from '@/lib/dinamicas/comun'
 import { cn } from '@/lib/utils'
@@ -30,14 +31,14 @@ function Enviar() {
  * Va dentro de un `<details>` y no detrás de un `useState`: sin JavaScript un
  * botón con onClick no hace nada, y el desplegable nativo sí.
  *
- * SOLO pide título, curso, cohorte y descripción. La escala y la fecha límite
+ * SOLO pide título, curso, generación y descripción. La escala y la fecha límite
  * viven en Configuración: al crearla nadie sabe todavía cuándo va a cerrar, y
  * la escala 1–10 es la correcta casi siempre. Pedirlas aquí sería llenar el
  * alta de campos que se van a dejar como están.
  *
- * La cohorte se deja suelta a propósito, igual que en encuestas: el `<select>`
+ * La generación se deja suelta a propósito, igual que en encuestas: el `<select>`
  * no se recarga al cambiar de curso —eso exigiría JavaScript— así que muestra
- * las cohortes de todos los cursos con su curso al lado.
+ * las generaciones de todos los cursos con su curso al lado.
  */
 export function NuevaDinamica({
   cursos,
@@ -103,19 +104,25 @@ export function NuevaDinamica({
           </div>
 
           <div className="flex flex-col gap-1.5">
-            <Label htmlFor="din-cohorte">Cohorte</Label>
-            <select id="din-cohorte" name="cohort_id" className={claseSelect}>
-              <option value="">Todo el curso</option>
-              {cursos.flatMap((c) =>
-                c.cohortes.map((h) => (
-                  <option key={h.id} value={h.id}>
-                    {h.nombre} · {c.titulo}
-                  </option>
-                ))
-              )}
+            <Label htmlFor="din-generacion">Generación</Label>
+            <select id="din-generacion" name="cohort_id" className={claseSelect}>
+              <option value="">Según el curso: la generación abierta</option>
+              {cursos
+                .filter((c) => c.porGeneraciones && c.generaciones.length > 0)
+                .map((c) => (
+                  <optgroup key={c.id} label={c.titulo}>
+                    {c.generaciones.map((h) => (
+                      <option key={h.id} value={h.id}>
+                        {h.nombre}
+                        {h.estado !== 'en_curso' ? ` · ${ETIQUETA_ESTADO[h.estado]}` : ''}
+                      </option>
+                    ))}
+                  </optgroup>
+                ))}
             </select>
             <p className="text-xs text-muted-foreground">
-              Opcional. Sirve para saber con qué grupo se corrió.
+              En un curso por generaciones es obligatoria: solo esa generación la ve. Los cursos
+              sin generaciones no la llevan.
             </p>
           </div>
         </div>

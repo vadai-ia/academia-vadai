@@ -261,7 +261,7 @@ async function main() {
     afirmar(G4, 'con rol alumno', 'alumno', perfil[0]?.role)
 
     const { rows: inscripcion } = await bd.query(
-      `select e.status, e.source, e.expires_at from academia.enrollments e
+      `select e.status, e.source, e.expires_at, e.cohort_id from academia.enrollments e
         where e.user_id = $1 and e.course_id = $2`,
       [perfil[0]?.user_id, IDS.curso]
     )
@@ -269,6 +269,8 @@ async function main() {
     afirmar(G4, 'activa', 'active', inscripcion[0]?.status)
     afirmar(G4, 'con origen stripe', 'stripe', inscripcion[0]?.source)
     afirmar(G4, 'de por vida (access_days null)', null, inscripcion[0]?.expires_at)
+    // Sin `metadata.cohort_id`, cae en la generación abierta a inscripciones (M16).
+    afirmar(G4, 'en la generación abierta', IDS.cohorte, inscripcion[0]?.cohort_id)
 
     const { rows: base } = await bd.query(
       `select status, source from academia.enrollments where user_id = $1 and course_id = $2`,
@@ -290,6 +292,11 @@ async function main() {
 
     const repetido = await enviar(compra)
     afirmar(G5, 'el reenvío se acepta', 200, repetido.status)
+    const { rows: trasReenvio } = await bd.query(
+      `select cohort_id from academia.enrollments where user_id = $1 and course_id = $2`,
+      [perfil[0]?.user_id, IDS.curso]
+    )
+    afirmar(G5, 'y no deja a nadie sin generación', IDS.cohorte, trasReenvio[0]?.cohort_id)
     afirmar(G5, 'y se marca duplicado', true, repetido.cuerpo?.duplicado === true)
 
     // Solo se cuentan los cursos QA: el comprado y el base de arriba. Los

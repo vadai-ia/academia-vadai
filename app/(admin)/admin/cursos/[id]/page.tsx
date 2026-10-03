@@ -4,18 +4,22 @@ import { notFound } from 'next/navigation'
 
 import { AgregarAlumnos } from '@/components/admin/agregar-alumnos'
 import { ArbolCurso } from '@/components/admin/arbol-curso'
-import { CalendarioDeCohorte } from '@/components/admin/calendario-de-cohorte'
+import { AsignarGeneracion } from '@/components/admin/asignar-generacion'
+import { CalendarioDeGeneracion } from '@/components/admin/calendario-de-generacion'
+import { EncabezadoGeneracion } from '@/components/admin/encabezado-generacion'
 import { FormularioCurso } from '@/components/admin/formulario-curso'
-import { NuevaCohorte } from '@/components/admin/nueva-cohorte'
+import { NuevaGeneracion } from '@/components/admin/nueva-generacion'
 import { Paginacion } from '@/components/admin/paginacion'
 import { TablaInscritos } from '@/components/admin/tabla-inscritos'
+import { Pestanas, type Pestana } from '@/components/ui-vadai/pestanas'
 import { Badge } from '@/components/ui/badge'
-import { calendariosDelCurso, leccionesLigables } from '@/lib/admin/cohortes'
 import { obtenerCurso } from '@/lib/admin/consultas'
 import { listarEmpresas } from '@/lib/admin/empresas'
+import { generacionesDelCurso, leccionesLigables } from '@/lib/admin/generaciones'
 import { candidatosParaCurso, inscritosDelCurso } from '@/lib/admin/inscritos'
 import { ETIQUETA_ESTADO_CURSO } from '@/lib/admin/tipos'
 import { exigirAdmin } from '@/lib/auth/sesion'
+import { esPorGeneraciones, generacionPorOmision } from '@/lib/generaciones'
 
 export const dynamic = 'force-dynamic'
 
@@ -41,6 +45,14 @@ type Parametros = {
   pagina?: string
   /** El módulo del árbol que se pide abierto (`?modulo=<id>` o `todos`). */
   modulo?: string
+  /**
+   * La pestaña (M16): el id de una generación, `nueva` para crear una, `sin`
+   * para los inscritos sin generación. Sin parámetro: la abierta a
+   * inscripciones, o la más reciente.
+   */
+  gen?: string
+  /** Aviso que deja `crearGeneracion` al redirigir a la pestaña nueva. */
+  aviso?: string
 }
 
 /**
@@ -51,6 +63,14 @@ type Parametros = {
  */
 const INSCRITOS_POR_PAGINA = 25
 
+/**
+ * La página del curso gira alrededor de la generación (M16, 3-oct-2026).
+ *
+ * En un curso por generaciones cada pestaña es una generación, y todo lo que
+ * cuelga de ella —contenido, sesiones en vivo, alumnos— es de esa generación:
+ * es lo que ven sus alumnos y nada más. La última pestaña crea la siguiente.
+ * Un curso sin generaciones se ve como siempre: su contenido es común.
+ */
 export default async function PaginaCurso({
   params,
   searchParams,
@@ -60,39 +80,70 @@ export default async function PaginaCurso({
 }) {
   const perfil = await exigirAdmin()
   const { id } = await params
-  const filtros = await searchParams
+  const { gen: genPedida, aviso, ...filtros } = await searchParams
 
-  // TODO en una sola ronda (24-sep-2026): el id de la URL es el id del curso,
-  // así que nada tiene que esperar al curso para arrancar. Antes eran cinco
-  // rondas encadenadas —curso, luego el resto, luego perfiles y progreso, luego
-  // cada cohorte, luego los títulos de sus grabaciones— y cada ronda es un
-  // viaje a la base. Si el curso no existe, las demás vuelven vacías y se
-  // descartan con el notFound().
-  const [curso, cohortes, { visibles, resumen }, candidatos, empresas, ligables] = await Promise.all([
+  // Todo en una sola ronda (24-sep-2026): el id de la URL es el id del curso,
+  // así que nada tiene que esperar al curso para arrancar. Si el curso no
+  // existe, las demás vuelven vacías y se descartan con el notFound().
+  const [curso, generaciones, candidatos, empresas] = await Promise.all([
     obtenerCurso(id),
-    // Las sesiones de cada cohorte vienen aquí mismo, para editarlas sin ir a
-    // la cohorte (pedido 21-sep-2026). Casi siempre es una; si son varias,
-    // cada una va en su propio bloque plegable.
-    calendariosDelCurso(id),
-    inscritosDelCurso(id, filtros),
+    generacionesDelCurso(id),
     candidatosParaCurso(id, filtros.buscar ?? ''),
     listarEmpresas(),
-    leccionesLigables(id),
   ])
   if (!curso) notFound()
-  const calendarios = cohortes
+
+  const porGeneraciones = esPorGeneraciones(curso.course_type)
+  const porOmision = porGeneraciones ? generacionPorOmision(generaciones) : null
+  const generacion =
+    genPedida === 'nueva' || genPedida === 'sin'
+      ? null
+      : (generaciones.find((g) => g.id === genPedida) ?? porOmision)
+  const vista: 'nueva' | 'sin' | 'generacion' | 'curso' =
+    genPedida === 'nueva' ? 'nueva' : genPedida === 'sin' ? 'sin' : generacion ? 'generacion' : 'curso'
+  const cohortId = generacion?.id ?? null
+
+  // La pestaña acota los inscritos y las lecciones ligables; con eso resuelto
+  // van en paralelo.
+  const filtrosInscritos = { ...filtros, gen: vista === 'sin' ? 'sin' : (cohortId ?? undefined) }
+  const [{ visibles, resumen }, ligables] = await Promise.all([
+    inscritosDelCurso(id, filtrosInscritos),
+    leccionesLigables(id, cohortId),
+  ])
+
+  // El árbol solo con los módulos de la pestaña.
+  const arbol = {
+    ...curso,
+    modulos: curso.modulos.filter((m) => (porGeneraciones ? m.cohort_id === cohortId : m.cohort_id === null)),
+  }
+
+  const base = `/admin/cursos/${curso.id}`
 
   const paginas = Math.max(1, Math.ceil(visibles.length / INSCRITOS_POR_PAGINA))
   const pagina = Math.min(Math.max(1, Number(filtros.pagina) || 1), paginas)
   const desde = (pagina - 1) * INSCRITOS_POR_PAGINA
 
+  const pestanas: Pestana[] = [
+    ...generaciones.map((g) => ({
+      href: `${base}?gen=${g.id}`,
+      etiqueta: g.name,
+      activa: vista === 'generacion' && g.id === cohortId,
+      insignia: g.inscritos || undefined,
+      motivo: g.estado === 'abierta' ? 'Abierta a inscripciones' : g.estado === 'terminada' ? 'Terminada' : undefined,
+    })),
+    ...(resumen.sinGeneracion > 0 || vista === 'sin'
+      ? [{ href: `${base}?gen=sin`, etiqueta: 'Sin generación', activa: vista === 'sin', insignia: resumen.sinGeneracion }]
+      : []),
+    { href: `${base}?gen=nueva`, etiqueta: '+ Nueva generación', activa: vista === 'nueva' },
+  ]
+
+  const propuesta = `Generación ${generaciones.length + 1}`
+  const grabaciones = generacion ? generacion.sesiones.filter((s) => s.recording_lesson_id).length : 0
+
   return (
-    <div className="flex flex-col gap-10">
+    <div className="flex flex-col gap-8">
       <header className="flex flex-col gap-1">
-        <Link
-          href="/admin/cursos"
-          className="text-sm text-primary underline-offset-4 hover:underline"
-        >
+        <Link href="/admin/cursos" className="text-sm text-primary underline-offset-4 hover:underline">
           ← Cursos
         </Link>
         <h1 className="flex flex-wrap items-center gap-3 text-2xl font-semibold tracking-tight">
@@ -110,14 +161,11 @@ export default async function PaginaCurso({
         {/* El equipo entra al curso sin estar inscrito. Es la única puerta a la
             comunidad y a los hilos de comentarios, que se moderan desde ahí. */}
         <p className="flex flex-wrap gap-4 pt-1 text-sm">
-          <Link
-            href={`/curso/${curso.slug}`}
-            className="text-primary underline-offset-4 hover:underline"
-          >
+          <Link href={`/curso/${curso.slug}`} className="text-primary underline-offset-4 hover:underline">
             Verlo como alumno →
           </Link>
           <Link
-            href={`/curso/${curso.slug}/comunidad`}
+            href={`/curso/${curso.slug}/comunidad${cohortId ? `?gen=${cohortId}` : ''}`}
             className="text-primary underline-offset-4 hover:underline"
           >
             Comunidad →
@@ -128,150 +176,155 @@ export default async function PaginaCurso({
         </p>
       </header>
 
-      <ArbolCurso curso={curso} moduloAbierto={filtros.modulo ?? null} />
+      {porGeneraciones ? (
+        <Pestanas pestanas={pestanas} etiqueta="Generaciones del curso" />
+      ) : (
+        <p className="flex flex-wrap items-center justify-between gap-2 rounded-[10px] border border-border bg-muted/40 px-4 py-3 text-sm">
+          <span>Curso sin generaciones: todo el contenido es común a quien lo tenga.</span>
+          {vista !== 'nueva' ? (
+            <Link href={`${base}?gen=nueva`} className="text-primary underline-offset-4 hover:underline">
+              Crear la primera generación →
+            </Link>
+          ) : null}
+        </p>
+      )}
 
-      <section className="flex flex-col gap-4 border-t border-border pt-8">
-        <div className="flex flex-wrap items-baseline justify-between gap-2">
-          <h2 className="text-lg font-medium">Generaciones</h2>
-          <p className="text-sm text-muted-foreground">
-            Grupos con calendario de sesiones en vivo
-          </p>
-        </div>
+      {vista === 'nueva' ? (
+        <section className="flex flex-col gap-4">
+          <h2 className="text-lg font-medium">Nueva generación</h2>
+          <NuevaGeneracion
+            cursoId={curso.id}
+            porGeneraciones={porGeneraciones}
+            modulosDelCurso={curso.modulos.filter((m) => m.cohort_id === null).length}
+            generaciones={generaciones.map((g) => ({ id: g.id, nombre: g.name, modulos: g.modulos }))}
+            propuesta={propuesta}
+          />
+        </section>
+      ) : null}
 
-        {cohortes.length > 0 ? (
-          <ul className="flex flex-col gap-2">
-            {cohortes.map((cohorte) => (
-              <li key={cohorte.id}>
-                <Link
-                  href={`/admin/cohortes/${cohorte.id}`}
-                  className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-border px-4 py-3 transition-colors hover:border-primary/60"
-                >
-                  <span className="flex min-w-0 flex-col gap-0.5">
-                    <span className="truncate font-medium">{cohorte.name}</span>
-                    <span className="text-xs text-muted-foreground">
-                      {cohorte.starts_on ? `Inicia ${cohorte.starts_on}` : 'Sin fecha de inicio'}
-                    </span>
-                  </span>
-                  <span className="flex shrink-0 gap-4 text-xs text-muted-foreground">
-                    <span>{cohorte.totalSesiones} sesiones</span>
-                    <span>{cohorte.inscritos} inscritos</span>
-                  </span>
-                </Link>
-              </li>
-            ))}
-          </ul>
-        ) : null}
+      {vista === 'generacion' && generacion ? (
+        <EncabezadoGeneracion generacion={generacion} grabaciones={grabaciones} aviso={aviso ?? null} />
+      ) : null}
 
-        <NuevaCohorte cursoId={curso.id} reinicio={cohortes.length} />
-      </section>
+      {vista === 'generacion' || vista === 'curso' ? (
+        <ArbolCurso curso={arbol} moduloAbierto={filtros.modulo ?? null} cohortId={cohortId} />
+      ) : null}
 
       {/* --- Sesiones en vivo ---------------------------------------------
-          El calendario de cada cohorte, editable aquí mismo: agendar una o la
+          El calendario de la generación, editable aquí mismo: agendar una o la
           serie, cambiar fecha, hora y liga, borrar, y mandar las fechas por
           correo. Agendar o mover una sesión avisa en la campana del alumno. */}
-      <section className="flex flex-col gap-4 border-t border-border pt-8" id="sesiones">
-        <div className="flex flex-wrap items-baseline justify-between gap-2">
-          <h2 className="text-lg font-semibold">Sesiones en vivo</h2>
-          <p className="text-sm text-muted-foreground">
-            Cambiar una sesión avisa a los inscritos en su campana
-          </p>
-        </div>
-
-        {calendarios.length === 0 ? (
-          <p className="rounded-lg border border-dashed border-border px-5 py-8 text-center text-sm text-muted-foreground">
-            Crea una generación arriba para agendar sesiones.
-          </p>
-        ) : (
-          calendarios.map((cohorte, i) => (
-            <details
-              key={cohorte.id}
-              open={i === 0}
-              className="group/calendario rounded-[10px] border border-border"
-            >
-              <summary className="flex cursor-pointer list-none flex-wrap items-center justify-between gap-2 px-4 py-3 font-medium select-none [&::-webkit-details-marker]:hidden">
-                <span className="flex items-center gap-2">
-                  <span aria-hidden className="text-muted-foreground transition-transform group-open/calendario:rotate-90">
-                    ›
-                  </span>
-                  {cohorte.name}
-                </span>
-                <Link
-                  href={`/admin/cohortes/${cohorte.id}`}
-                  className="text-xs font-normal text-primary underline-offset-4 hover:underline"
-                >
-                  Abrir la generación →
-                </Link>
-              </summary>
-              <div className="border-t border-border px-4 py-4">
-                <CalendarioDeCohorte
-                  cohorte={cohorte}
-                  ligables={ligables}
-                  correoAdmin={perfil.email}
-                  compacto
-                  sesionAbierta={filtros.sesion ?? null}
-                />
-              </div>
-            </details>
-          ))
-        )}
-      </section>
+      {vista === 'generacion' && generacion ? (
+        <section className="flex flex-col gap-4 border-t border-border pt-8" id="sesiones">
+          <div className="flex flex-wrap items-baseline justify-between gap-2">
+            <h2 className="text-lg font-semibold">Sesiones en vivo</h2>
+            <p className="text-sm text-muted-foreground">
+              Cambiar una sesión avisa a los inscritos de esta generación en su campana
+            </p>
+          </div>
+          <CalendarioDeGeneracion
+            generacion={generacion}
+            ligables={ligables}
+            correoAdmin={perfil.email}
+            compacto
+            sesionAbierta={filtros.sesion ?? null}
+            prefijo={`?gen=${generacion.id}&`}
+          />
+        </section>
+      ) : null}
 
       {/* --- Alumnos ----------------------------------------------------------
           Tabla con resumen, filtros en la URL, desplazamiento propio y ficha
           por persona. La inscripción se puede crear desde sus dos lados: aquí
           y en la fila de cada persona en /admin/alumnos. */}
-      <section className="flex flex-col gap-5 border-t border-border pt-8">
-        <div className="flex flex-wrap items-baseline justify-between gap-2">
-          <h2 className="text-lg font-semibold">Alumnos</h2>
-          <p className="text-sm text-muted-foreground">
-            {resumen.total} inscrito{resumen.total === 1 ? '' : 's'}
-          </p>
-        </div>
+      {vista !== 'nueva' ? (
+        <section className="flex flex-col gap-5 border-t border-border pt-8">
+          <div className="flex flex-wrap items-baseline justify-between gap-2">
+            <h2 className="text-lg font-semibold">
+              {vista === 'sin' ? 'Alumnos sin generación' : 'Alumnos'}
+            </h2>
+            <p className="text-sm text-muted-foreground">
+              {vista === 'sin'
+                ? `${resumen.sinGeneracion} sin generación · ${resumen.total} en el curso`
+                : generacion
+                  ? `${generacion.inscritos} en esta generación · ${resumen.total} en el curso`
+                  : `${resumen.total} inscrito${resumen.total === 1 ? '' : 's'}`}
+            </p>
+          </div>
 
-        <TablaInscritos
-          cursoId={curso.id}
-          inscritos={visibles.slice(desde, desde + INSCRITOS_POR_PAGINA)}
-          resumen={resumen}
-          empresas={empresas}
-          filtros={filtros}
-        />
+          {vista === 'sin' ? (
+            <p className="rounded-md border border-destructive/40 bg-destructive/5 px-4 py-3 text-sm">
+              Estas personas tienen el curso pero ninguna generación: no ven contenido, sesiones ni
+              comunidad hasta que les asignes una. Márcalas y elige la generación abajo.
+            </p>
+          ) : null}
 
-        <Paginacion
-          pagina={pagina}
-          paginas={paginas}
-          total={visibles.length}
-          porPagina={INSCRITOS_POR_PAGINA}
-          hrefDe={(p) => {
-            // Conserva los filtros de la tabla; sin ellos, pasar de página
-            // devolvería a la lista completa.
-            const params = new URLSearchParams()
-            for (const [k, val] of Object.entries(filtros)) if (val) params.set(k, String(val))
-            if (p > 1) params.set('pagina', String(p))
-            const cadena = params.toString()
-            return `/admin/cursos/${curso.id}${cadena ? `?${cadena}` : ''}#inscritos`
-          }}
-        />
-
-        {curso.status === 'archived' ? (
-          <p className="text-sm text-muted-foreground">
-            El curso está archivado: no se le agrega gente. Restáuralo desde Cursos → Archivados.
-          </p>
-        ) : (
-          <AgregarAlumnos
+          <TablaInscritos
             cursoId={curso.id}
-            candidatos={candidatos}
-            buscar={filtros.buscar ?? ''}
-            grupos={cohortes.map((c) => ({ id: c.id, nombre: c.name }))}
+            inscritos={visibles.slice(desde, desde + INSCRITOS_POR_PAGINA)}
+            resumen={resumen}
             empresas={empresas}
-            reinicio={resumen.total}
+            filtros={filtrosInscritos}
+            generaciones={
+              porGeneraciones ? generaciones.map((g) => ({ id: g.id, nombre: g.name, estado: g.estado })) : []
+            }
           />
-        )}
-      </section>
+
+          {porGeneraciones && generaciones.length > 0 && visibles.length > 0 ? (
+            <AsignarGeneracion
+              cursoId={curso.id}
+              generaciones={generaciones.map((g) => ({ id: g.id, nombre: g.name, estado: g.estado }))}
+              actual={cohortId}
+            />
+          ) : null}
+
+          <Paginacion
+            pagina={pagina}
+            paginas={paginas}
+            total={visibles.length}
+            porPagina={INSCRITOS_POR_PAGINA}
+            hrefDe={(p) => {
+              // Conserva los filtros y la pestaña; sin ellos, pasar de página
+              // devolvería a la lista completa.
+              const params = new URLSearchParams()
+              for (const [k, val] of Object.entries(filtrosInscritos)) if (val) params.set(k, String(val))
+              if (p > 1) params.set('pagina', String(p))
+              const cadena = params.toString()
+              return `${base}${cadena ? `?${cadena}` : ''}#inscritos`
+            }}
+          />
+
+          {curso.status === 'archived' ? (
+            <p className="text-sm text-muted-foreground">
+              El curso está archivado: no se le agrega gente. Restáuralo desde Cursos → Archivados.
+            </p>
+          ) : (
+            <AgregarAlumnos
+              cursoId={curso.id}
+              candidatos={candidatos}
+              buscar={filtros.buscar ?? ''}
+              generaciones={
+                porGeneraciones ? generaciones.map((g) => ({ id: g.id, nombre: g.name, estado: g.estado })) : []
+              }
+              propuesta={cohortId ?? porOmision?.id ?? ''}
+              empresas={empresas}
+              reinicio={resumen.total}
+            />
+          )}
+        </section>
+      ) : null}
 
       <section className="flex max-w-2xl flex-col gap-4 border-t border-border pt-8">
         <h2 className="text-lg font-semibold">Datos del curso</h2>
         <FormularioCurso curso={curso} />
+        {!porGeneraciones && generaciones.length === 0 ? null : (
+          <p className="text-xs text-muted-foreground">
+            El tipo «Por generaciones» no se cambia aquí: se activa creando la primera generación, y
+            un curso con generaciones ya no vuelve atrás.
+          </p>
+        )}
       </section>
+
     </div>
   )
 }

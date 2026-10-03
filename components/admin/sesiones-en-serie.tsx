@@ -9,7 +9,7 @@ import { Desplegable } from '@/components/admin/desplegable'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
-import { crearSesionesEnSerie } from '@/lib/admin/acciones-cohortes'
+import { crearSesionesEnSerie } from '@/lib/admin/acciones-generaciones'
 import { DIAS } from '@/lib/admin/fechas'
 import { SIN_ESTADO } from '@/lib/admin/tipos'
 

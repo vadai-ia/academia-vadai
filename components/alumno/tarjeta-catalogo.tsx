@@ -4,6 +4,7 @@ import { Tarjeta } from '@/components/ui-vadai/superficie'
 import { Button } from '@/components/ui/button'
 import { empezarCursoGratis } from '@/lib/alumno/acciones-catalogo'
 import { enlaceDeCompra, type CursoDelCatalogo } from '@/lib/alumno/catalogo'
+import { diaCorto } from '@/lib/generaciones'
 
 const PESOS = new Intl.NumberFormat('es-MX', { style: 'currency', currency: 'MXN', maximumFractionDigits: 0 })
 
@@ -60,6 +61,15 @@ export function TarjetaCatalogo({ curso, correo }: { curso: CursoDelCatalogo; co
         </div>
 
         <p className="text-xs text-muted-foreground">{detalles.join(' · ')}</p>
+
+        {/* Un curso por generaciones se ofrece solo mientras una está abierta a
+            inscripciones (M16): se dice cuál, y cuándo empieza si se sabe. */}
+        {curso.generacionAbierta ? (
+          <p className="text-xs font-medium text-primary">
+            {curso.generacionAbierta}
+            {curso.generacionInicia ? ` · inicia el ${diaCorto(curso.generacionInicia)}` : ' · inscripciones abiertas'}
+          </p>
+        ) : null}
 
         <div className="mt-auto pt-1">
           {curso.gratis ? (

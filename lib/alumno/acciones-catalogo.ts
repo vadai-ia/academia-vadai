@@ -31,7 +31,9 @@ export async function empezarCursoGratis(datos: FormData): Promise<void> {
   if (error || typeof data !== 'string') {
     const motivo = faltaFuncion(error)
       ? 'Los cursos gratis llegan en unos minutos. Intenta más tarde.'
-      : 'No pudimos inscribirte en ese curso. Escríbenos si sigue pasando.'
+      : /generación abierta/i.test(error?.message ?? '')
+        ? 'Este curso abre inscripciones en su próxima generación. Vuelve pronto.'
+        : 'No pudimos inscribirte en ese curso. Escríbenos si sigue pasando.'
     console.error(JSON.stringify({ operacion: 'empezarCursoGratis', curso: lectura.data.curso, error: error?.message ?? 'sin slug' }))
     redirect(`/cursos?error=${encodeURIComponent(motivo)}`)
   }

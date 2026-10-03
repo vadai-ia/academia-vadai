@@ -75,6 +75,11 @@ export async function publicarEnComunidad(
   const cursoId = String(datos.get('course_id') ?? '')
   const cursoSlug = String(datos.get('curso_slug') ?? '')
   if (!cursoId) return { error: 'Falta el curso.' }
+  // La generación del muro (M16). Para un alumno es informativa: el trigger
+  // `community_posts_sella_generacion` le pone la suya. El equipo elige
+  // publicar en esta generación o en todas las del curso.
+  const cohortId = String(datos.get('cohort_id') ?? '') || null
+  const enTodas = esEquipo(perfil) && String(datos.get('alcance') ?? '') === 'todas'
 
   const resultado = esquemaPost.safeParse({
     titulo: datos.get('titulo'),
@@ -126,26 +131,55 @@ export async function publicarEnComunidad(
     imagenes.push({ url: data.publicUrl, storage_path: ruta })
   }
 
-  const { error } = await supabase.from('community_posts').insert({
+  const base = {
     course_id: cursoId,
     user_id: perfil.user_id,
     title: resultado.data.titulo,
     content_rich: comoDocumento(resultado.data.cuerpo),
     images: imagenes,
     pinned: false,
-    status: 'visible',
-  })
+    status: 'visible' as const,
+  }
+
+  // «Todas las generaciones»: una copia por generación, hermanadas por
+  // `broadcast_id` para fijarlas, ocultarlas o borrarlas juntas. Las
+  // respuestas quedan en la generación donde se escriben.
+  let generaciones: Array<string | null> = [cohortId]
+  if (enTodas) {
+    const { data } = await supabase.from('cohorts').select('id').eq('course_id', cursoId)
+    generaciones = (data ?? []).map((g) => g.id)
+    if (generaciones.length === 0) generaciones = [cohortId]
+  }
+  const broadcast = generaciones.length > 1 ? crypto.randomUUID() : null
+
+  const { error } = await supabase
+    .from('community_posts')
+    .insert(generaciones.map((g) => ({ ...base, cohort_id: g, broadcast_id: broadcast })))
 
   if (error) {
-    registrar('publicarEnComunidad', { cursoId, error: error.message })
+    registrar('publicarEnComunidad', { cursoId, cohortId, enTodas, error: error.message })
     if (imagenes.length > 0) {
       await supabase.storage.from(BUCKET).remove(imagenes.map((i) => i.storage_path))
     }
-    return { error: 'No se pudo publicar.' }
+    return { error: error.code === '42501' ? 'No puedes publicar en esa generación.' : 'No se pudo publicar.' }
   }
 
   revalidatePath(`/curso/${cursoSlug}/comunidad`)
-  return { aviso: 'Publicado.' }
+  revalidatePath('/comunidad')
+  return {
+    aviso: generaciones.length > 1 ? `Publicado en ${generaciones.length} generaciones.` : 'Publicado.',
+  }
+}
+
+/**
+ * Lo que toca una moderación: el post, o todas sus copias si se publicó en
+ * «todas las generaciones» (M16). Quien lo publicó en todas quiere fijarlo,
+ * ocultarlo o borrarlo en todas.
+ */
+async function filtroDeModeracion(id: string): Promise<{ columna: 'id' | 'broadcast_id'; valor: string }> {
+  const supabase = await crearClienteServidor()
+  const { data } = await supabase.from('community_posts').select('broadcast_id').eq('id', id).maybeSingle()
+  return data?.broadcast_id ? { columna: 'broadcast_id', valor: data.broadcast_id } : { columna: 'id', valor: id }
 }
 
 export async function comentarEnPost(
@@ -188,7 +222,11 @@ export async function fijarPost(datos: FormData): Promise<void> {
   if (!id) return
 
   const supabase = await crearClienteServidor()
-  const { error } = await supabase.from('community_posts').update({ pinned: fijar }).eq('id', id)
+  const filtro = await filtroDeModeracion(id)
+  const { error } = await supabase
+    .from('community_posts')
+    .update({ pinned: fijar })
+    .eq(filtro.columna, filtro.valor)
 
   if (error) registrar('fijarPost', { id, error: error.message })
   revalidatePath(rutaDeVuelta(datos))
@@ -219,8 +257,13 @@ export async function moderarPost(datos: FormData): Promise<void> {
   if (!id) return
 
   const supabase = await crearClienteServidor()
-  const tabla = tipo === 'comentario' ? 'community_comments' : 'community_posts'
-  const { error } = await supabase.from(tabla).update({ status: 'hidden' }).eq('id', id)
+  const { error } =
+    tipo === 'comentario'
+      ? await supabase.from('community_comments').update({ status: 'hidden' }).eq('id', id)
+      : await (async () => {
+          const filtro = await filtroDeModeracion(id)
+          return supabase.from('community_posts').update({ status: 'hidden' }).eq(filtro.columna, filtro.valor)
+        })()
 
   if (error) registrar('moderarPost', { id, tipo, error: error.message })
   revalidatePath(rutaDeVuelta(datos))
@@ -247,8 +290,13 @@ export async function eliminarComoEquipo(datos: FormData): Promise<void> {
   if (!id) return
 
   const supabase = await crearClienteServidor()
-  const tabla = tipo === 'comentario' ? 'community_comments' : 'community_posts'
-  const { error } = await supabase.from(tabla).delete().eq('id', id)
+  const { error } =
+    tipo === 'comentario'
+      ? await supabase.from('community_comments').delete().eq('id', id)
+      : await (async () => {
+          const filtro = await filtroDeModeracion(id)
+          return supabase.from('community_posts').delete().eq(filtro.columna, filtro.valor)
+        })()
 
   if (error) registrar('eliminarComoEquipo', { id, tipo, error: error.message })
   revalidatePath(rutaDeVuelta(datos))

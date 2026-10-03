@@ -24,6 +24,9 @@ const ANON = exigir(vars, 'NEXT_PUBLIC_SUPABASE_ANON_KEY')
 const SERVICE = exigir(vars, 'SUPABASE_SERVICE_ROLE_KEY')
 const APP = (process.env.APP_URL ?? 'http://localhost:3117').replace(/\/+$/, '')
 
+// La generación vive como pestaña de su curso (M16): `?gen=<id>`.
+const RUTA_GEN = `/admin/cursos/${IDS.curso}?gen=${IDS.cohorte}`
+
 // --- sesión ----------------------------------------------------------------
 
 function crearFrasco() {
@@ -401,9 +404,9 @@ async function main() {
     (await pedir('/api/calendario/00000000-0000-4000-8000-00000000dead', admin)).status)
 
   // Sesiones editables (20-sep-2026): el formulario trae lo que ya tiene.
-  const cohortePagina = await (await pedir(`/admin/cohortes/${IDS.cohorte}`, admin)).text()
+  const cohortePagina = await (await pedir(RUTA_GEN, admin)).text()
   // Cerradas no pintan su formulario (24-sep-2026): se piden abiertas.
-  const cohorteEditable = await (await pedir(`/admin/cohortes/${IDS.cohorte}?sesion=todos`, admin)).text()
+  const cohorteEditable = await (await pedir(`${RUTA_GEN}&sesion=todos`, admin)).text()
   const formSesion = leerFormularios(cohorteEditable).find(
     (f) => f.campos.id === IDS.sesionFutura && 'title' in f.campos && 'fecha' in f.campos
   )
@@ -413,11 +416,11 @@ async function main() {
   if (formSesion) {
     const original = formSesion.campos.title
     formSesion.campos.title = 'QA Sesión editada'
-    await enviarFormulario(`/admin/cohortes/${IDS.cohorte}`, formSesion, admin)
-    const trasEditar = await (await pedir(`/admin/cohortes/${IDS.cohorte}`, admin)).text()
+    await enviarFormulario(RUTA_GEN, formSesion, admin)
+    const trasEditar = await (await pedir(RUTA_GEN, admin)).text()
     afirmar(G2, 'y editarla guarda el cambio', true, trasEditar.includes('QA Sesión editada'))
     formSesion.campos.title = original
-    await enviarFormulario(`/admin/cohortes/${IDS.cohorte}`, formSesion, admin)
+    await enviarFormulario(RUTA_GEN, formSesion, admin)
   }
 
   // Quién ya entró (20-sep-2026). El admin acaba de entrar con su liga, así que
@@ -529,7 +532,7 @@ async function main() {
   afirmar(G5, 'la sesión futura está cerrada, con su botón Editar', true,
     estadoDe(detailsQueEnvuelve(cohortePagina, `id="sesion-${IDS.sesionFutura}"`)) === 'cerrado' &&
       cohortePagina.includes('>Editar<'))
-  const conSesion = await (await pedir(`/admin/cohortes/${IDS.cohorte}?sesion=${IDS.sesionFutura}`, admin)).text()
+  const conSesion = await (await pedir(`${RUTA_GEN}&sesion=${IDS.sesionFutura}`, admin)).text()
   afirmar(G5, 'y ?sesion= la abre para editar', 'abierto',
     estadoDe(detailsQueEnvuelve(conSesion, `id="sesion-${IDS.sesionFutura}"`)))
   afirmar(G5, '"Editar datos del curso" está cerrado', 'cerrado', estadoDe(detailsQueEnvuelve(detalle, 'name="slug"')))
@@ -544,15 +547,15 @@ async function main() {
     formAgendar.campos.title = ''
     formAgendar.campos.fecha = '2026-09-21'
     formAgendar.campos.hora = '18:00'
-    const respuesta = await enviarFormulario(`/admin/cohortes/${IDS.cohorte}`, formAgendar, admin)
+    const respuesta = await enviarFormulario(RUTA_GEN, formAgendar, admin)
     const html = await respuesta.text()
     afirmar(G5, 'un envío inválido contesta el error', true, html.includes('La sesión necesita un título.'))
     afirmar(G5, 'y el panel se abre solo para enseñarlo', 'abierto',
       estadoDe(detailsQueEnvuelve(html, 'La sesión necesita un título.')))
   }
 
-  afirmar(G5, 'eliminar cohorte pide confirmación', true,
-    cohortePagina.includes(`id="eliminar-cohorte-${IDS.cohorte}"`) && cohortePagina.includes('popover="auto"'))
+  afirmar(G5, 'eliminar generación pide confirmación', true,
+    cohortePagina.includes(`id="eliminar-generacion-${IDS.cohorte}"`) && cohortePagina.includes('popover="auto"'))
   afirmar(G5, 'eliminar sesión pide confirmación', true,
     conSesion.includes(`id="eliminar-sesion-${IDS.sesionFutura}"`))
   afirmar(G5, 'eliminar módulo pide confirmación', true, detalle.includes('id="eliminar-modulo-'))

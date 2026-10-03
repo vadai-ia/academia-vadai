@@ -252,10 +252,10 @@ async function main() {
   const puntos = Number(tablero.match(/data-puntos="(\d+)"/)?.[1] ?? -1)
   afirmar(G2, 'el tablero muestra su nivel', true, tablero.includes('Tu nivel'))
   afirmar(G2, 'con al menos 20 puntos por dos lecciones', true, puntos >= 20)
-  afirmar(G2, 'y su lugar en el grupo', true, /#\d+<\/span>/.test(tablero))
+  afirmar(G2, 'y su lugar en la generación', true, /#\d+<\/span>/.test(tablero))
 
   const comunidad = await texto(`${rutaCurso}/comunidad`, vigente)
-  afirmar(G2, 'la comunidad trae el ranking del grupo', true, comunidad.includes('Ranking del grupo'))
+  afirmar(G2, 'la comunidad trae el ranking de la generación', true, comunidad.includes('Ranking de tu generación'))
   afirmar(G2, 'y lo marca a él', true, comunidad.includes('(tú)'))
 
   // ======================================================================

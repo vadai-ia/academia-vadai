@@ -7,6 +7,7 @@ import { AvisoAccion } from '@/components/admin/aviso-accion'
 import { Desplegable } from '@/components/admin/desplegable'
 import { claseResumen, claseSelect } from '@/components/admin/estilos'
 import { ListaSeleccionable, gruposDesdeCursos } from '@/components/admin/lista-seleccionable'
+import type { OpcionDeCurso } from '@/lib/admin/alumnos'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
@@ -33,11 +34,7 @@ import { SIN_ESTADO, type EstadoAccion } from '@/lib/admin/tipos'
  * distinta cantidad: uno, muchos, o alguien del equipo.
  */
 
-export type CursoOpcion = {
-  id: string
-  titulo: string
-  cohortes: Array<{ id: string; nombre: string }>
-}
+export type CursoOpcion = OpcionDeCurso
 
 export type EmpresaOpcion = { id: string; nombre: string }
 

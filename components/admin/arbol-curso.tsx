@@ -102,13 +102,19 @@ function PastillaEditar() {
 export function ArbolCurso({
   curso,
   moduloAbierto,
+  cohortId = null,
 }: {
+  /** Con los módulos ya acotados a la generación de la pestaña (M16). */
   curso: CursoCompleto
   /** El id del módulo abierto, 'todos', o null. */
   moduloAbierto: string | null
+  /** La generación de la pestaña: los módulos nuevos nacen en ella y los enlaces la conservan. */
+  cohortId?: string | null
 }) {
   const estaAbierto = (id: string) => moduloAbierto === 'todos' || moduloAbierto === id
-  const base = `/admin/cursos/${curso.id}`
+  const raiz = `/admin/cursos/${curso.id}`
+  const base = cohortId ? `${raiz}?gen=${cohortId}` : raiz
+  const con = (q: string) => `${base}${cohortId ? '&' : '?'}${q}`
   return (
     <div className="flex flex-col gap-5">
       <div className="flex flex-wrap items-baseline justify-between gap-2">
@@ -116,7 +122,7 @@ export function ArbolCurso({
         <span className="flex flex-wrap items-center gap-3">
           {curso.modulos.length > 1 ? (
             <span className="inline-flex items-center gap-1 text-xs">
-              <Link href={`${base}?modulo=todos`} scroll={false} className="rounded-md px-2 py-1 text-primary hover:bg-primary/10">
+              <Link href={con('modulo=todos')} scroll={false} className="rounded-md px-2 py-1 text-primary hover:bg-primary/10">
                 Expandir todo
               </Link>
               <span aria-hidden className="text-muted-foreground">·</span>
@@ -192,7 +198,7 @@ export function ArbolCurso({
                   <span className={claseFila}>{encabezado}</span>
                 ) : (
                   <Link
-                    href={`${base}?modulo=${modulo.id}#modulo-${modulo.id}`}
+                    href={`${con(`modulo=${modulo.id}`)}#modulo-${modulo.id}`}
                     scroll={false}
                     className={`${claseFila} rounded-l-lg transition-colors hover:bg-muted/40`}
                   >
@@ -318,7 +324,7 @@ export function ArbolCurso({
         })}
       </ul>
 
-      <NuevoModulo cursoId={curso.id} reinicio={curso.modulos.length} />
+      <NuevoModulo cursoId={curso.id} cohortId={cohortId} reinicio={curso.modulos.length} />
     </div>
   )
 }

@@ -21,7 +21,7 @@ import { COMO_GANAR, NIVELES, PUNTOS } from '@/lib/gamificacion/reglas'
  * renglón es una instrucción.
  *
  * El ranking sigue siendo POR CURSO y no de toda la academia: compites con tu
- * grupo, que es a quien ves en la comunidad.
+ * generación, que es a quien ves en la comunidad.
  *
  * NO lleva `loading.tsx` ni lo necesita: no hay `redirect()` ni `notFound()`.
  */
@@ -54,7 +54,7 @@ export default async function PaginaPuntos() {
 
   return (
     <div className="flex flex-col gap-8">
-      <Titulo apoyo="De dónde salen tus puntos, y cómo vas frente a tu grupo.">
+      <Titulo apoyo="De dónde salen tus puntos, y cómo vas frente a tu generación.">
         Tus puntos
       </Titulo>
 
@@ -167,11 +167,11 @@ export default async function PaginaPuntos() {
         </Tarjeta>
       </Seccion>
 
-      {/* --- Cómo vas frente a tu grupo ------------------------------------ */}
+      {/* --- Cómo vas frente a tu generación ------------------------------ */}
       {cursos.length > 0 ? (
         <Seccion
-          titulo="Cómo vas en tu grupo"
-          apoyo="Compites con las personas de tu curso, que son a quienes ves en la comunidad."
+          titulo="Cómo vas en tu generación"
+          apoyo="Compites con las personas de tu generación, que son a quienes ves en la comunidad. Tus puntos son tuyos: si cambias de generación, te los llevas."
         >
           <div className="flex flex-col gap-5">
             {cursos.map((c) => (
@@ -185,7 +185,7 @@ export default async function PaginaPuntos() {
                     Ir a su comunidad →
                   </Link>
                 </div>
-                <Ranking cursoId={c.id} userId={perfil.user_id} />
+                <Ranking cursoId={c.id} cohortId={c.generacion?.id ?? null} userId={perfil.user_id} porGeneraciones={c.porGeneraciones} />
               </div>
             ))}
           </div>

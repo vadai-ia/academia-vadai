@@ -126,10 +126,16 @@ function BorrarConAviso({
 
 function NuevaPublicacion({
   cursoId,
+  cohortId,
+  porGeneraciones,
+  soyEquipo,
   cursoSlug,
   ruta,
 }: {
   cursoId: string
+  cohortId: string | null
+  porGeneraciones: boolean
+  soyEquipo: boolean
   cursoSlug: string
   ruta: string
 }) {
@@ -141,8 +147,25 @@ function NuevaPublicacion({
 
       <form action={accion} className="mt-3 flex flex-col gap-4 rounded-lg border border-border p-4">
         <input type="hidden" name="course_id" value={cursoId} />
+        <input type="hidden" name="cohort_id" value={cohortId ?? ''} />
         <input type="hidden" name="curso_slug" value={cursoSlug} />
         <input type="hidden" name="ruta" value={ruta} />
+
+        {/* Solo el equipo elige (M16): el alumno publica en su generación y
+            el servidor la sella. «Todas» crea una copia por generación. */}
+        {soyEquipo && porGeneraciones ? (
+          <fieldset className="flex flex-wrap gap-4 text-sm">
+            <legend className="mb-1.5 text-sm font-medium">Publicar en</legend>
+            <label className="flex items-center gap-2">
+              <input type="radio" name="alcance" value="esta" defaultChecked className="accent-primary" />
+              Esta generación
+            </label>
+            <label className="flex items-center gap-2">
+              <input type="radio" name="alcance" value="todas" className="accent-primary" />
+              Todas las generaciones del curso
+            </label>
+          </fieldset>
+        ) : null}
 
         <div className="flex flex-col gap-1.5">
           <Label htmlFor="post-titulo">Título</Label>
@@ -592,6 +615,8 @@ function Paginacion({
 export function Comunidad({
   posts,
   cursoId,
+  cohortId = null,
+  porGeneraciones = false,
   cursoSlug,
   soyEquipo,
   ruta,
@@ -603,6 +628,9 @@ export function Comunidad({
 }: {
   posts: PostDeComunidad[]
   cursoId: string
+  /** El muro de qué generación es (M16); null en cursos sin generaciones. */
+  cohortId?: string | null
+  porGeneraciones?: boolean
   cursoSlug: string
   soyEquipo: boolean
   /** Qué ruta revalidar al reaccionar o moderar: este mismo feed. */
@@ -618,7 +646,15 @@ export function Comunidad({
     <div className="flex flex-col gap-6">
       {/* `key` es el reset: al publicarse algo cambia el conteo que manda el
           servidor, el <details> se remonta cerrado y los campos quedan limpios. */}
-      <NuevaPublicacion key={total} cursoId={cursoId} cursoSlug={cursoSlug} ruta={ruta} />
+      <NuevaPublicacion
+        key={`${total}:${cohortId ?? ''}`}
+        cursoId={cursoId}
+        cohortId={cohortId}
+        porGeneraciones={porGeneraciones}
+        soyEquipo={soyEquipo}
+        cursoSlug={cursoSlug}
+        ruta={ruta}
+      />
 
       {posts.length === 0 ? (
         <p className="rounded-lg border border-dashed border-border px-5 py-12 text-center text-sm text-muted-foreground">

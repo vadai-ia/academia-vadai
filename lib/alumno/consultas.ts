@@ -3,6 +3,7 @@ import 'server-only'
 import { cache } from 'react'
 
 import { esEquipo, obtenerSesion } from '@/lib/auth/sesion'
+import { esPorGeneraciones, generacionPorOmision } from '@/lib/generaciones'
 import { crearClienteServidor } from '@/lib/supabase/server'
 import type { Json, Tabla, Vista } from '@/lib/supabase/types'
 
@@ -29,12 +30,25 @@ export type ModuloEnIndice = {
   lecciones: LeccionEnIndice[]
 }
 
+export type GeneracionDelAlumno = {
+  id: string
+  nombre: string
+  inicia: string | null
+  termina: string | null
+}
+
 export type CursoDelAlumno = {
   id: string
   slug: string
   titulo: string
   descripcion: string | null
   portada: string | null
+  /** Curso por generaciones (M16): su contenido, comunidad y ranking van por generación. */
+  porGeneraciones: boolean
+  /** La generación de la inscripción; al equipo, la abierta o la más reciente. */
+  generacion: GeneracionDelAlumno | null
+  /** Inscrito en un curso por generaciones sin que el equipo le haya asignado una. */
+  sinGeneracion: boolean
   vigente: boolean
   expiraEn: string | null
   diasRestantes: number | null
@@ -76,6 +90,35 @@ export type CursoDelAlumno = {
 async function miUserId(): Promise<string | null> {
   const sesion = await obtenerSesion()
   return sesion.tipo === 'activo' ? sesion.perfil.user_id : null
+}
+
+type GeneracionCruda = { id: string; name: string; starts_on: string | null; ends_on: string | null }
+
+function aGeneracion(g: GeneracionCruda | null): GeneracionDelAlumno | null {
+  return g ? { id: g.id, nombre: g.name, inicia: g.starts_on, termina: g.ends_on } : null
+}
+
+/**
+ * Para el equipo, que entra sin inscripción: la generación que se opera de
+ * cada curso (la abierta a inscripciones, o la más reciente). Al alumno RLS
+ * solo le enseña la suya, así que esto nunca le devuelve otra.
+ */
+async function generacionesPorOmision(cursoIds: string[]): Promise<Map<string, GeneracionDelAlumno>> {
+  const mapa = new Map<string, GeneracionDelAlumno>()
+  if (cursoIds.length === 0) return mapa
+  const supabase = await crearClienteServidor()
+  const { data } = await supabase
+    .from('cohorts')
+    .select('id, name, course_id, starts_on, ends_on, open_for_enrollment')
+    .in('course_id', cursoIds)
+    .order('starts_on', { ascending: false, nullsFirst: false })
+  const porCurso = new Map<string, NonNullable<typeof data>>()
+  for (const g of data ?? []) porCurso.set(g.course_id, [...(porCurso.get(g.course_id) ?? []), g])
+  for (const [cursoId, lista] of porCurso) {
+    const elegida = generacionPorOmision(lista)
+    if (elegida) mapa.set(cursoId, aGeneracion(elegida) as GeneracionDelAlumno)
+  }
+  return mapa
 }
 
 function diasHasta(fecha: string | null): number | null {
@@ -148,7 +191,7 @@ export async function misCursos(): Promise<CursoDelAlumno[]> {
   // Filtrada por usuario a propósito. Ver `miUserId`.
   const { data: inscripciones, error } = await supabase
     .from('enrollments')
-    .select('course_id, expires_at, status, courses(*)')
+    .select('course_id, expires_at, status, cohort_id, courses(*), cohorts(id, name, starts_on, ends_on)')
     .eq('user_id', userId)
     .eq('status', 'active')
 
@@ -160,21 +203,28 @@ export async function misCursos(): Promise<CursoDelAlumno[]> {
   type Inscripcion = {
     course_id: string
     expires_at: string | null
+    cohort_id: string | null
     courses: Tabla<'courses'> | null
+    cohorts: GeneracionCruda | null
   }
 
   const propias = ((inscripciones ?? []) as unknown as Inscripcion[])
     .filter((fila) => fila.courses !== null)
-    .map((fila) => ({ curso: fila.courses as Tabla<'courses'>, expiraEn: fila.expires_at }))
+    .map((fila) => ({
+      curso: fila.courses as Tabla<'courses'>,
+      expiraEn: fila.expires_at,
+      generacion: aGeneracion(fila.cohorts),
+    }))
 
-  // Solo el equipo: el resto de los cursos activos, sin vencimiento.
-  let ajenos: Array<{ curso: Tabla<'courses'>; expiraEn: string | null }> = []
+  // Solo el equipo: el resto de los cursos activos, sin vencimiento, mirando
+  // la generación abierta (o la más reciente) de cada uno.
+  let ajenos: Array<{ curso: Tabla<'courses'>; expiraEn: string | null; generacion: GeneracionDelAlumno | null }> = []
   if (equipo) {
     const yaListados = new Set(propias.map((p) => p.curso.id))
     const { data: todos } = await supabase.from('courses').select('*').neq('status', 'archived')
-    ajenos = (todos ?? [])
-      .filter((curso) => !yaListados.has(curso.id))
-      .map((curso) => ({ curso, expiraEn: null }))
+    const restantes = (todos ?? []).filter((curso) => !yaListados.has(curso.id))
+    const generacionDe = await generacionesPorOmision(restantes.filter((c) => esPorGeneraciones(c.course_type)).map((c) => c.id))
+    ajenos = restantes.map((curso) => ({ curso, expiraEn: null, generacion: generacionDe.get(curso.id) ?? null }))
   }
 
   const filas = [...propias, ...ajenos]
@@ -191,8 +241,13 @@ export async function misCursos(): Promise<CursoDelAlumno[]> {
   )
 
   return filas
-    .map(({ curso, expiraEn }) => {
-      const suyas = (outline ?? []).filter((l) => l.course_id === curso.id)
+    .map(({ curso, expiraEn, generacion }) => {
+      const porGeneraciones = esPorGeneraciones(curso.course_type)
+      // Solo las lecciones de MI generación (M16): el porcentaje del curso no
+      // puede contar lecciones de una generación que no veo.
+      const suyas = (outline ?? []).filter(
+        (l) => l.course_id === curso.id && (!porGeneraciones || l.cohort_id === (generacion?.id ?? null))
+      )
       const hechas = suyas.filter((l) => l.id && completadas.has(l.id)).length
       const vigente = !expiraEn || new Date(expiraEn).getTime() > Date.now()
 
@@ -202,6 +257,9 @@ export async function misCursos(): Promise<CursoDelAlumno[]> {
         titulo: curso.title,
         descripcion: curso.description,
         portada: curso.cover_url,
+        porGeneraciones,
+        generacion,
+        sinGeneracion: porGeneraciones && generacion === null,
         vigente,
         expiraEn,
         diasRestantes: diasHasta(expiraEn),
@@ -239,7 +297,7 @@ export const cursoDelAlumno = cache(async function cursoDelAlumno(
   // RLS le devolvería las inscripciones de todos.
   const { data: fila } = await supabase
     .from('courses')
-    .select('*, enrollments(expires_at, status)')
+    .select('*, enrollments(expires_at, status, cohort_id, cohorts(id, name, starts_on, ends_on))')
     .eq('slug', slug)
     .eq('enrollments.user_id', userId)
     .eq('enrollments.status', 'active')
@@ -248,7 +306,12 @@ export const cursoDelAlumno = cache(async function cursoDelAlumno(
   if (!fila) return null
 
   const { enrollments, ...curso } = fila as Tabla<'courses'> & {
-    enrollments: Array<{ expires_at: string | null; status: string }> | null
+    enrollments: Array<{
+      expires_at: string | null
+      status: string
+      cohort_id: string | null
+      cohorts: GeneracionCruda | null
+    }> | null
   }
   const inscripcion = enrollments?.[0] ?? null
 
@@ -262,14 +325,34 @@ export const cursoDelAlumno = cache(async function cursoDelAlumno(
   // habría escondido, pero el chequeo explícito evita depender de eso.
   if (!inscripcion && !equipo) return null
 
+  // La generación que se mira (M16): la de la inscripción; alguien del equipo
+  // sin inscripción ve la abierta o la más reciente. Un alumno de un curso por
+  // generaciones sin generación asignada no ve contenido: queda «sin
+  // generación» hasta que el equipo lo asigne.
+  const porGeneraciones = esPorGeneraciones(curso.course_type)
+  let generacion = aGeneracion(inscripcion?.cohorts ?? null)
+  if (porGeneraciones && !generacion && equipo && !inscripcion) {
+    generacion = (await generacionesPorOmision([curso.id])).get(curso.id) ?? null
+  }
+  const sinGeneracion = porGeneraciones && generacion === null
+
   // Las tres son independientes entre sí: en serie son tres viajes de red
   // encadenados, en paralelo es uno solo de larga. Desde México eso son
   // decenas de milisegundos por consulta, y aquí se notan.
-  const [{ data: modulos }, { data: outline }, { data: progreso }] = await Promise.all([
-    supabase.from('modules').select('id, title, position').eq('course_id', curso.id),
+  const soloModulos = supabase.from('modules').select('id, title, position').eq('course_id', curso.id)
+  const [{ data: modulos }, { data: outlineCrudo }, { data: progreso }] = await Promise.all([
+    sinGeneracion
+      ? Promise.resolve({ data: [] as Array<{ id: string; title: string; position: number }> })
+      : generacion
+        ? soloModulos.eq('cohort_id', generacion.id)
+        : soloModulos.is('cohort_id', null),
     supabase.from('lesson_outline').select('*').eq('course_id', curso.id),
     supabase.from('lesson_progress').select('lesson_id, completed').eq('user_id', userId),
   ])
+  // Al equipo la vista le da todas las generaciones: se acota a la que mira.
+  const outline = (outlineCrudo ?? []).filter(
+    (l) => !porGeneraciones || (!sinGeneracion && l.cohort_id === generacion?.id)
+  )
 
   const completadas = new Set(
     (progreso ?? []).filter((p) => p.completed).map((p) => p.lesson_id)
@@ -279,7 +362,7 @@ export const cursoDelAlumno = cache(async function cursoDelAlumno(
     (modulos ?? []).map((m) => [m.id, { titulo: m.title, posicion: m.position }])
   )
 
-  const filas = (outline ?? []) as FilaOutline[]
+  const filas = outline as FilaOutline[]
   const hechas = filas.filter((l) => l.id && completadas.has(l.id)).length
   const vigente =
     equipo || !inscripcion?.expires_at || new Date(inscripcion.expires_at).getTime() > Date.now()
@@ -290,6 +373,9 @@ export const cursoDelAlumno = cache(async function cursoDelAlumno(
     titulo: curso.title,
     descripcion: curso.description,
     portada: curso.cover_url,
+    porGeneraciones,
+    generacion,
+    sinGeneracion,
     vigente,
     expiraEn: inscripcion?.expires_at ?? null,
     diasRestantes: diasHasta(inscripcion?.expires_at ?? null),

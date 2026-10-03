@@ -10,6 +10,7 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
 import { SIN_ESTADO } from '@/lib/admin/tipos'
+import { ETIQUETA_ESTADO } from '@/lib/generaciones'
 import { crearEncuesta } from '@/lib/encuestas/acciones'
 import { cn } from '@/lib/utils'
 
@@ -32,8 +33,8 @@ function Enviar() {
  * Va dentro de un `<details>` y no detrás de un `useState`: sin JavaScript un
  * botón con onClick no hace nada, y el desplegable nativo sí.
  *
- * La cohorte se deja suelta a propósito. El `<select>` no se recarga al cambiar
- * de curso —eso exigiría JavaScript— así que muestra las cohortes de todos los
+ * La generación se deja suelta a propósito. El `<select>` no se recarga al cambiar
+ * de curso —eso exigiría JavaScript— así que muestra las generaciones de todos los
  * cursos con su curso al lado. Con dos o tres cursos es más simple que
  * cualquier alternativa, y elegir mal se corrige en el editor.
  */
@@ -101,19 +102,25 @@ export function NuevaEncuesta({
           </div>
 
           <div className="flex flex-col gap-1.5">
-            <Label htmlFor="enc-cohorte">Generación</Label>
-            <select id="enc-cohorte" name="cohort_id" className={claseSelect}>
-              <option value="">Todo el curso</option>
-              {cursos.flatMap((c) =>
-                c.cohortes.map((h) => (
-                  <option key={h.id} value={h.id}>
-                    {h.nombre} · {c.titulo}
-                  </option>
-                ))
-              )}
+            <Label htmlFor="enc-generacion">Generación</Label>
+            <select id="enc-generacion" name="cohort_id" className={claseSelect}>
+              <option value="">Según el curso: la generación abierta</option>
+              {cursos
+                .filter((c) => c.porGeneraciones && c.generaciones.length > 0)
+                .map((c) => (
+                  <optgroup key={c.id} label={c.titulo}>
+                    {c.generaciones.map((h) => (
+                      <option key={h.id} value={h.id}>
+                        {h.nombre}
+                        {h.estado !== 'en_curso' ? ` · ${ETIQUETA_ESTADO[h.estado]}` : ''}
+                      </option>
+                    ))}
+                  </optgroup>
+                ))}
             </select>
             <p className="text-xs text-muted-foreground">
-              Opcional. Sirve para saber en qué grupo se corrió.
+              En un curso por generaciones es obligatoria: solo esa generación la ve. Los cursos
+              sin generaciones no la llevan.
             </p>
           </div>
         </div>

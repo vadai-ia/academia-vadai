@@ -15,6 +15,7 @@ import { Label } from '@/components/ui/label'
 import { altaManual, inscribirEnCurso } from '@/lib/admin/acciones-alumnos'
 import type { Candidato } from '@/lib/admin/inscritos'
 import { SIN_ESTADO } from '@/lib/admin/tipos'
+import { ETIQUETA_ESTADO, type EstadoGeneracion } from '@/lib/generaciones'
 
 /**
  * Agregar gente a un curso, desde la página del curso.
@@ -34,7 +35,7 @@ import { SIN_ESTADO } from '@/lib/admin/tipos'
  * búsqueda en la URL o si una acción contestó algo.
  */
 
-type Grupo = { id: string; nombre: string }
+type Generacion = { id: string; nombre: string; estado: EstadoGeneracion }
 
 function Enviar({ children }: { children: string }) {
   const { pending } = useFormStatus()
@@ -45,23 +46,35 @@ function Enviar({ children }: { children: string }) {
   )
 }
 
-function SelectorDeGrupo({ id, grupos }: { id: string; grupos: Grupo[] }) {
-  if (grupos.length === 0) return null
+/**
+ * Solo en cursos por generaciones (M16). Sin «Sin generación»: una inscripción
+ * sin generación no ve nada. Se propone la de la pestaña (o la abierta).
+ */
+function SelectorDeGeneracion({
+  id,
+  generaciones,
+  propuesta,
+}: {
+  id: string
+  generaciones: Generacion[]
+  propuesta: string
+}) {
+  if (generaciones.length === 0) return null
 
   return (
     <div className="flex flex-col gap-1.5">
       <Label htmlFor={id}>Generación</Label>
-      <select id={id} name="cohort_id" defaultValue="" className={claseSelect}>
-        <option value="">Sin generación</option>
-        {grupos.map((g) => (
+      <select id={id} name="cohort_id" defaultValue={propuesta} required className={claseSelect}>
+        {generaciones.map((g) => (
           <option key={g.id} value={g.id}>
             {g.nombre}
+            {g.estado !== 'en_curso' ? ` · ${ETIQUETA_ESTADO[g.estado]}` : ''}
           </option>
         ))}
       </select>
       <p className="text-xs text-muted-foreground">
-        La generación decide qué calendario de sesiones en vivo ve. Aplica a todos los que agregues
-        ahora.
+        La generación decide qué contenido, calendario y comunidad ve. Aplica a todos los que
+        agregues ahora.
       </p>
     </div>
   )
@@ -71,7 +84,8 @@ export function AgregarAlumnos({
   cursoId,
   candidatos,
   buscar,
-  grupos,
+  generaciones,
+  propuesta,
   empresas,
   reinicio,
 }: {
@@ -79,7 +93,10 @@ export function AgregarAlumnos({
   /** Los que coinciden con `buscar` y no tienen el curso; máximo treinta. */
   candidatos: Candidato[]
   buscar: string
-  grupos: Grupo[]
+  /** Vacío en cursos sin generaciones. */
+  generaciones: Generacion[]
+  /** La generación de la pestaña, propuesta por omisión. */
+  propuesta: string
   empresas: EmpresaOpcion[]
   /** Cambia cuando cambia el padrón del curso: remonta los formularios limpios. */
   reinicio: number
@@ -139,7 +156,7 @@ export function AgregarAlumnos({
                 ]}
               />
 
-              <SelectorDeGrupo id="grupo-lista" grupos={grupos} />
+              <SelectorDeGeneracion id="generacion-lista" generaciones={generaciones} propuesta={propuesta} />
 
               <p className="text-xs text-muted-foreground">
                 Toca a quienes quieras; toca otra vez para quitar. Se les avisa por correo que ya
@@ -191,7 +208,7 @@ export function AgregarAlumnos({
                 <SelectorDeEmpresa id="nuevo-empresa" empresas={empresas} />
               </div>
 
-              <SelectorDeGrupo id="grupo-correo" grupos={grupos} />
+              <SelectorDeGeneracion id="generacion-correo" generaciones={generaciones} propuesta={propuesta} />
 
               <p className="text-xs text-muted-foreground">
                 Se le crea la cuenta y se le manda un correo para que defina su contraseña. Si el

@@ -5,11 +5,13 @@ import { redirect } from 'next/navigation'
 import { z } from 'zod'
 
 import { cdmxAUtc, diaDeLaSemana, sumarDias } from '@/lib/admin/fechas'
+import type { LlamadaRpc } from '@/lib/alumno/catalogo'
 import { crearEnlacesDurables } from '@/lib/auth/enlace-durable'
 import { RUTAS } from '@/lib/auth/rutas'
 import { exigirAdmin } from '@/lib/auth/sesion'
 import { describirHorario, enlaceGoogle, enlaceOutlook } from '@/lib/calendario/enlaces'
 import { urlIcsDeCohorte } from '@/lib/calendario/firma'
+import { hoyCdmx } from '@/lib/calendario/mes'
 import { plantillaCalendario } from '@/lib/correo/plantillas'
 import { enviarCorreosEnLote } from '@/lib/correo/resend'
 import { crearClienteServidor } from '@/lib/supabase/server'
@@ -17,7 +19,7 @@ import { crearClienteServidor } from '@/lib/supabase/server'
 import type { EstadoAccion } from './tipos'
 
 /**
- * Cohortes y sesiones en vivo (§3.10).
+ * Generaciones y sesiones en vivo (§3.10, M16).
  *
  * Sobre la hora: el formulario captura en horario de CDMX, porque es como piensa
  * el equipo ("la sesión es a las 7 de la noche"). Se convierte a UTC aquí y se
@@ -26,7 +28,7 @@ import type { EstadoAccion } from './tipos'
  * eso se rompe solo en el cambio de horario.
  */
 
-const esquemaCohorte = z.object({
+const esquemaGeneracion = z.object({
   course_id: z.uuid('Curso inválido.'),
   name: z.string().trim().min(2, 'La generación necesita un nombre.').max(120),
   starts_on: z.string().trim().nullable(),
@@ -54,17 +56,51 @@ const vacioANull = (v: FormDataEntryValue | null) => {
   return s === '' ? null : s
 }
 
+/** El error de la base, traducido: lo que un trigger dice ya viene en español. */
+function mensajeDeBase(error: { message: string; code?: string }, porOmision: string): string {
+  if (/cohorts_fechas_coherentes/.test(error.message)) {
+    return 'La fecha de fin no puede ser anterior a la de inicio.'
+  }
+  if (/cohorts_una_abierta_por_curso/.test(error.message)) {
+    return 'Este curso ya tiene una generación abierta a inscripciones. Ciérrala primero.'
+  }
+  if (error.code === '23514' || error.code === '22023') return error.message
+  return porOmision
+}
+
+/** Las páginas que pintan generaciones: el curso y el panel principal. */
+function revalidarCurso(cursoId: string) {
+  revalidatePath(`/admin/cursos/${cursoId}`)
+  revalidatePath('/admin')
+}
+
 // `cdmxAUtc` (CDMX -> UTC) vive en lib/admin/fechas.ts desde M13: la fecha
 // límite de una dinámica se captura igual que la hora de una sesión.
 
 // ==========================================================================
-// Cohortes
+// Generaciones
 // ==========================================================================
 
-export async function crearCohorte(_previo: EstadoAccion, datos: FormData): Promise<EstadoAccion> {
+/**
+ * Crea una generación (M16). Tres puntos de partida, según el curso:
+ *
+ *   - Curso sin generaciones: el contenido que ya tiene PASA a esta primera
+ *     generación (`academia_activar_generaciones`), y el curso queda «por
+ *     generaciones». No se copia: el progreso de los alumnos sigue valiendo.
+ *   - Curso con generaciones y `copiar_de`: copia la estructura de esa
+ *     generación —módulos, lecciones, adjuntos, quizzes, tareas— sin videos ni
+ *     grabaciones, con las lecciones en borrador (`academia_copiar_generacion`).
+ *   - Curso con generaciones sin `copiar_de`: nace vacía.
+ *
+ * Con «Abrir a inscripciones» marcada, pasa a ser la generación donde caen las
+ * compras y las altas sin elección; la que estuviera abierta se cierra.
+ *
+ * Al terminar va a la pestaña de la generación nueva, con el aviso en la URL.
+ */
+export async function crearGeneracion(_previo: EstadoAccion, datos: FormData): Promise<EstadoAccion> {
   await exigirAdmin()
 
-  const resultado = esquemaCohorte.safeParse({
+  const resultado = esquemaGeneracion.safeParse({
     course_id: datos.get('course_id'),
     name: datos.get('name'),
     starts_on: vacioANull(datos.get('starts_on')),
@@ -72,43 +108,243 @@ export async function crearCohorte(_previo: EstadoAccion, datos: FormData): Prom
   })
   if (!resultado.success) return { error: primerError(resultado) }
 
-  const supabase = await crearClienteServidor()
-  const { error } = await supabase.from('cohorts').insert(resultado.data)
+  const copiarDe = String(datos.get('copiar_de') ?? '').trim()
+  if (copiarDe && !z.uuid().safeParse(copiarDe).success) return { error: 'Generación de origen inválida.' }
+  const abrir = datos.get('abrir_inscripciones') !== null
+  const cursoId = resultado.data.course_id
 
-  if (error) {
-    registrarFallo('crearCohorte', { curso: resultado.data.course_id }, error.message)
+  const supabase = await crearClienteServidor()
+  const { data: curso } = await supabase
+    .from('courses')
+    .select('course_type')
+    .eq('id', cursoId)
+    .maybeSingle()
+  if (!curso) return { error: 'El curso no existe.' }
+
+  const { data: creada, error } = await supabase
+    .from('cohorts')
+    .insert(resultado.data)
+    .select('id')
+    .maybeSingle()
+
+  if (error || !creada) {
+    registrarFallo('crearGeneracion', { curso: cursoId }, error?.message ?? 'sin id')
     return {
-      error: /cohorts_fechas_coherentes/.test(error.message)
-        ? 'La fecha de fin no puede ser anterior a la de inicio.'
-        : 'No se pudo crear la generación.',
+      error: error ? mensajeDeBase(error, 'No se pudo crear la generación.') : 'No se pudo crear la generación.',
     }
   }
 
-  revalidatePath(`/admin/cursos/${resultado.data.course_id}`)
-  return { aviso: 'Cohorte creada.' }
-}
+  const rpc = (supabase.rpc as unknown as LlamadaRpc).bind(supabase)
+  const partes: string[] = []
 
-/** Con confirmación en modal (M14): devuelve el error si lo hay; si no, va al curso. */
-export async function eliminarCohorte(_previo: EstadoAccion, datos: FormData): Promise<EstadoAccion> {
-  await exigirAdmin()
-
-  const id = String(datos.get('id') ?? '')
-  const cursoId = String(datos.get('course_id') ?? '')
-  if (!id) return { error: 'Falta la generación.' }
-
-  // Las inscripciones NO se borran: cohort_id es `on delete set null`, así que
-  // el alumno conserva su acceso y solo deja de pertenecer a un grupo.
-  const supabase = await crearClienteServidor()
-  const { error } = await supabase.from('cohorts').delete().eq('id', id)
-
-  if (error) {
-    registrarFallo('eliminarCohorte', { id }, error.message)
-    return { error: 'No se pudo eliminar la generación. Inténtalo otra vez.' }
+  if (curso.course_type !== 'cohort') {
+    // La primera generación de un curso: se lleva lo que ya había.
+    const { data, error: errorActivar } = await rpc('academia_activar_generaciones', {
+      curso: cursoId,
+      generacion: creada.id,
+    })
+    if (errorActivar) {
+      registrarFallo('crearGeneracion:activar', { curso: cursoId, generacion: creada.id }, errorActivar.message)
+      await supabase.from('cohorts').delete().eq('id', creada.id)
+      return { error: mensajeDeBase(errorActivar, 'No se pudo convertir el curso a generaciones.') }
+    }
+    const movidos = typeof data === 'number' ? data : 0
+    partes.push(
+      movidos > 0
+        ? `El curso ya es por generaciones: sus ${movidos} módulo${movidos === 1 ? '' : 's'} pasaron a esta generación.`
+        : 'El curso ya es por generaciones.'
+    )
+  } else if (copiarDe) {
+    const { data, error: errorCopia } = await rpc('academia_copiar_generacion', {
+      origen: copiarDe,
+      destino: creada.id,
+    })
+    if (errorCopia) {
+      registrarFallo('crearGeneracion:copiar', { origen: copiarDe, destino: creada.id }, errorCopia.message)
+      await supabase.from('cohorts').delete().eq('id', creada.id)
+      return { error: mensajeDeBase(errorCopia, 'No se pudo copiar la estructura.') }
+    }
+    const n = (data ?? {}) as Partial<Record<'modulos' | 'lecciones' | 'adjuntos' | 'quizzes' | 'tareas', number>>
+    partes.push(
+      `Se copiaron ${n.modulos ?? 0} módulos y ${n.lecciones ?? 0} lecciones` +
+        (n.adjuntos ? `, ${n.adjuntos} adjuntos` : '') +
+        (n.quizzes ? `, ${n.quizzes} quizzes` : '') +
+        (n.tareas ? `, ${n.tareas} tareas` : '') +
+        '. Las lecciones quedaron en borrador y sin video: súbelos y publícalas cuando toque.'
+    )
   }
 
-  revalidatePath(`/admin/cursos/${cursoId}`)
-  revalidatePath('/admin')
-  redirect(`/admin/cursos/${cursoId}`)
+  if (abrir) {
+    const abierta = await abrirSoloEsta(cursoId, creada.id)
+    partes.push(abierta.ok ? 'Abierta a inscripciones.' : abierta.error)
+  }
+
+  revalidarCurso(cursoId)
+  const aviso = ['Generación creada.', ...partes].join(' ')
+  redirect(`/admin/cursos/${cursoId}?gen=${creada.id}&aviso=${encodeURIComponent(aviso)}`)
+}
+
+/** Cierra la que estuviera abierta y abre esta. Dos pasos: el índice único manda. */
+async function abrirSoloEsta(cursoId: string, id: string): Promise<{ ok: true } | { ok: false; error: string }> {
+  const supabase = await crearClienteServidor()
+  const cierre = await supabase
+    .from('cohorts')
+    .update({ open_for_enrollment: false })
+    .eq('course_id', cursoId)
+    .neq('id', id)
+    .eq('open_for_enrollment', true)
+  if (cierre.error) {
+    registrarFallo('abrirInscripciones:cerrarOtras', { cursoId, id }, cierre.error.message)
+    return { ok: false, error: 'No se pudo cerrar la generación que estaba abierta.' }
+  }
+  const { error } = await supabase.from('cohorts').update({ open_for_enrollment: true }).eq('id', id)
+  if (error) {
+    registrarFallo('abrirInscripciones', { id }, error.message)
+    return { ok: false, error: mensajeDeBase(error, 'No se pudo abrir a inscripciones.') }
+  }
+  return { ok: true }
+}
+
+const esquemaEdicion = esquemaGeneracion.extend({ id: z.uuid('Generación inválida.') })
+
+/** Nombre y fechas. El resto —abrir, terminar— tiene su propio botón. */
+export async function actualizarGeneracion(_previo: EstadoAccion, datos: FormData): Promise<EstadoAccion> {
+  await exigirAdmin()
+
+  const resultado = esquemaEdicion.safeParse({
+    id: datos.get('id'),
+    course_id: datos.get('course_id'),
+    name: datos.get('name'),
+    starts_on: vacioANull(datos.get('starts_on')),
+    ends_on: vacioANull(datos.get('ends_on')),
+  })
+  if (!resultado.success) return { error: primerError(resultado) }
+  const { id, course_id: cursoId, ...cambios } = resultado.data
+
+  const supabase = await crearClienteServidor()
+  const { error } = await supabase.from('cohorts').update(cambios).eq('id', id)
+  if (error) {
+    registrarFallo('actualizarGeneracion', { id }, error.message)
+    return { error: mensajeDeBase(error, 'No se pudo guardar la generación.') }
+  }
+
+  revalidarCurso(cursoId)
+  return { aviso: 'Generación guardada.' }
+}
+
+function leerIds(datos: FormData): { id: string; cursoId: string } | null {
+  const id = String(datos.get('id') ?? '')
+  const cursoId = String(datos.get('course_id') ?? '')
+  return id && cursoId ? { id, cursoId } : null
+}
+
+/** La generación donde caen compras, catálogo y altas sin elección. Solo una por curso. */
+export async function abrirInscripciones(_previo: EstadoAccion, datos: FormData): Promise<EstadoAccion> {
+  await exigirAdmin()
+  const ids = leerIds(datos)
+  if (!ids) return { error: 'Falta la generación.' }
+
+  const hecho = await abrirSoloEsta(ids.cursoId, ids.id)
+  if (!hecho.ok) return { error: hecho.error }
+
+  revalidarCurso(ids.cursoId)
+  revalidatePath('/cursos')
+  return { aviso: 'Abierta a inscripciones. Las compras y las altas nuevas caen aquí.' }
+}
+
+export async function cerrarInscripciones(_previo: EstadoAccion, datos: FormData): Promise<EstadoAccion> {
+  await exigirAdmin()
+  const ids = leerIds(datos)
+  if (!ids) return { error: 'Falta la generación.' }
+
+  const supabase = await crearClienteServidor()
+  const { error } = await supabase.from('cohorts').update({ open_for_enrollment: false }).eq('id', ids.id)
+  if (error) {
+    registrarFallo('cerrarInscripciones', { id: ids.id }, error.message)
+    return { error: 'No se pudo cerrar.' }
+  }
+
+  revalidarCurso(ids.cursoId)
+  revalidatePath('/cursos')
+  return { aviso: 'Cerrada a inscripciones. El curso deja de ofrecerse hasta que abras otra generación.' }
+}
+
+/**
+ * «Terminada» no es una columna: es que ya pasó `ends_on`. Marcarla pone la
+ * fecha de fin en ayer (si no la tenía o estaba en el futuro) y cierra las
+ * inscripciones. Los alumnos siguen viendo todo mientras su acceso al curso
+ * esté vigente (decisión 6, 3-oct-2026).
+ */
+export async function marcarTerminada(_previo: EstadoAccion, datos: FormData): Promise<EstadoAccion> {
+  await exigirAdmin()
+  const ids = leerIds(datos)
+  if (!ids) return { error: 'Falta la generación.' }
+
+  const supabase = await crearClienteServidor()
+  const { data: actual } = await supabase.from('cohorts').select('ends_on').eq('id', ids.id).maybeSingle()
+  const hoy = hoyCdmx()
+  const ayer = sumarDias(hoy, -1)
+  const ends_on = actual?.ends_on && actual.ends_on < hoy ? actual.ends_on : ayer
+
+  const { error } = await supabase
+    .from('cohorts')
+    .update({ ends_on, open_for_enrollment: false })
+    .eq('id', ids.id)
+  if (error) {
+    registrarFallo('marcarTerminada', { id: ids.id }, error.message)
+    return { error: mensajeDeBase(error, 'No se pudo marcar como terminada.') }
+  }
+
+  revalidarCurso(ids.cursoId)
+  return { aviso: 'Generación terminada. Sus alumnos conservan el acceso mientras les dure.' }
+}
+
+/** Quita la fecha de fin: vuelve a estar en curso. La fecha se corrige en «Editar». */
+export async function reabrirGeneracion(_previo: EstadoAccion, datos: FormData): Promise<EstadoAccion> {
+  await exigirAdmin()
+  const ids = leerIds(datos)
+  if (!ids) return { error: 'Falta la generación.' }
+
+  const supabase = await crearClienteServidor()
+  const { error } = await supabase.from('cohorts').update({ ends_on: null }).eq('id', ids.id)
+  if (error) {
+    registrarFallo('reabrirGeneracion', { id: ids.id }, error.message)
+    return { error: 'No se pudo reabrir.' }
+  }
+
+  revalidarCurso(ids.cursoId)
+  return { aviso: 'Generación en curso otra vez. Ponle su fecha de fin en «Editar».' }
+}
+
+/**
+ * Con confirmación en modal (M14): devuelve el error si lo hay; si no, va al
+ * curso. Una generación con módulos no se borra (FK `restrict`): primero se
+ * borran o se mueven, para que no desaparezca contenido con progreso detrás.
+ */
+export async function eliminarGeneracion(_previo: EstadoAccion, datos: FormData): Promise<EstadoAccion> {
+  await exigirAdmin()
+
+  const ids = leerIds(datos)
+  if (!ids) return { error: 'Falta la generación.' }
+
+  // Las inscripciones NO se borran: cohort_id es `on delete set null`, así que
+  // el alumno conserva su acceso y queda «sin generación» hasta que se le
+  // asigne otra.
+  const supabase = await crearClienteServidor()
+  const { error } = await supabase.from('cohorts').delete().eq('id', ids.id)
+
+  if (error) {
+    registrarFallo('eliminarGeneracion', { id: ids.id }, error.message)
+    return {
+      error:
+        error.code === '23503'
+          ? 'Esta generación tiene módulos. Bórralos primero (o muévelos) y vuelve a intentarlo.'
+          : 'No se pudo eliminar la generación. Inténtalo otra vez.',
+    }
+  }
+
+  revalidarCurso(ids.cursoId)
+  redirect(`/admin/cursos/${ids.cursoId}`)
 }
 
 // ==========================================================================
@@ -147,7 +383,7 @@ export async function crearSesion(_previo: EstadoAccion, datos: FormData): Promi
     return { error: 'No se pudo crear la sesión.' }
   }
 
-  revalidatePath(`/admin/cohortes/${cohorteId}`)
+  revalidatePath('/admin/cursos/[id]', 'page')
   // También se agenda desde el panel principal, que lista las próximas.
   revalidatePath('/admin')
   return { aviso: 'Sesión agendada.' }
@@ -164,7 +400,6 @@ export async function actualizarSesion(datos: FormData): Promise<void> {
   await exigirAdmin()
 
   const id = String(datos.get('id') ?? '')
-  const cohorteId = String(datos.get('cohort_id') ?? '')
   if (!id) return
 
   const resultado = esquemaSesion.safeParse({
@@ -195,15 +430,15 @@ export async function actualizarSesion(datos: FormData): Promise<void> {
 
   if (error) registrarFallo('actualizarSesion', { id }, error.message)
 
-  revalidatePath(`/admin/cohortes/${cohorteId}`)
+  revalidatePath('/admin/cursos/[id]', 'page')
   revalidatePath('/admin')
 }
 
 /**
- * Manda por correo las fechas de las sesiones en vivo de la cohorte, con
+ * Manda por correo las fechas de las sesiones en vivo de la generación, con
  * botones de calendario (pedido 21-sep-2026). Con `para` manda una PRUEBA
  * solo a esa dirección; sin `para`, a todos los inscritos activos de la
- * cohorte, en lote. Solo las sesiones futuras (o de hoy).
+ * generación, en lote. Solo las sesiones futuras (o de hoy).
  */
 export async function enviarCalendarioPorCorreo(
   _previo: EstadoAccion,
@@ -254,7 +489,7 @@ export async function enviarCalendarioPorCorreo(
   })
   const urlTodas = urlIcsDeCohorte(base, cohorteId)
 
-  // A quién: la prueba, o todos los inscritos activos de la cohorte. Quien
+  // A quién: la prueba, o todos los inscritos activos de la generación. Quien
   // NUNCA ha entrado recibe además su liga de acceso (30 días): el correo de
   // fechas es el que abren el día de la sesión, y desde ahí mismo entran.
   let destinatarios: Array<{ email: string; nombre: string | null; urlAcceso: string | null }>
@@ -335,7 +570,7 @@ export async function enviarCalendarioPorCorreo(
 }
 
 const esquemaSerie = z.object({
-  cohort_id: z.uuid('Cohorte inválida.'),
+  cohort_id: z.uuid('Generación inválida.'),
   titulo_base: z.string().trim().min(2, 'Falta el título base.').max(120),
   fecha: z.string().trim().min(10, 'Falta la primera fecha.'),
   hora: z.string().trim().min(4, 'Falta la hora.'),
@@ -405,7 +640,7 @@ export async function crearSesionesEnSerie(
     return { error: 'No se pudieron agendar las sesiones.' }
   }
 
-  revalidatePath(`/admin/cohortes/${cohort_id}`)
+  revalidatePath('/admin/cursos/[id]', 'page')
   revalidatePath('/admin')
   const primera = fechas[0]
   const ultima = fechas[fechas.length - 1]
@@ -414,12 +649,11 @@ export async function crearSesionesEnSerie(
   }
 }
 
-/** Con confirmación en modal (M14). La sesión se ve en la cohorte, el curso y el panel. */
+/** Con confirmación en modal (M14). La sesión se ve en el curso y en el panel. */
 export async function eliminarSesion(_previo: EstadoAccion, datos: FormData): Promise<EstadoAccion> {
   await exigirAdmin()
 
   const id = String(datos.get('id') ?? '')
-  const cohorteId = String(datos.get('cohort_id') ?? '')
   if (!id) return { error: 'Falta la sesión.' }
 
   const supabase = await crearClienteServidor()
@@ -430,7 +664,7 @@ export async function eliminarSesion(_previo: EstadoAccion, datos: FormData): Pr
     return { error: 'No se pudo eliminar la sesión. Inténtalo otra vez.' }
   }
 
-  revalidatePath(`/admin/cohortes/${cohorteId}`)
+  revalidatePath('/admin/cursos/[id]', 'page')
   revalidatePath('/admin', 'layout')
   return { aviso: 'Sesión eliminada.' }
 }
@@ -443,7 +677,6 @@ export async function ligarGrabacion(datos: FormData): Promise<void> {
   await exigirAdmin()
 
   const id = String(datos.get('id') ?? '')
-  const cohorteId = String(datos.get('cohort_id') ?? '')
   const leccionId = String(datos.get('recording_lesson_id') ?? '')
   if (!id) return
 
@@ -455,5 +688,5 @@ export async function ligarGrabacion(datos: FormData): Promise<void> {
 
   if (error) registrarFallo('ligarGrabacion', { id, leccionId }, error.message)
 
-  revalidatePath(`/admin/cohortes/${cohorteId}`)
+  revalidatePath('/admin/cursos/[id]', 'page')
 }

@@ -47,7 +47,7 @@ const paraCalendario: Datos = (s) => ({
   descripcion: s.descripcion,
   inicio: s.programadaEn,
   ligaUrl: s.meetUrl,
-  curso: s.cohorteNombre,
+  curso: s.cursoTitulo,
 })
 
 const CDMX = '(hora de la Ciudad de México)'

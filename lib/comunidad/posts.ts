@@ -93,8 +93,14 @@ export type FeedDeComunidad = {
   porPagina: number
 }
 
+/**
+ * `cohortId`: la generación cuyo muro se pide; `null` en cursos sin
+ * generaciones. RLS ya esconde al alumno las demás generaciones; el filtro
+ * explícito es por el equipo, que las ve todas y elige una con el selector.
+ */
 export async function feedDelCurso(
   cursoId: string,
+  cohortId: string | null,
   usuarioActual: string,
   opciones: { pagina?: number; porPagina?: number } = {}
 ): Promise<FeedDeComunidad> {
@@ -105,8 +111,8 @@ export async function feedDelCurso(
   const porPagina = opciones.porPagina && opciones.porPagina > 0 ? opciones.porPagina : 1000
   const pedida = Math.max(1, opciones.pagina ?? 1)
 
-  const base = () =>
-    supabase
+  const base = () => {
+    const consulta = supabase
       .from('community_posts')
       .select(
         'id, user_id, title, content_rich, images, pinned, created_at, community_comments(id, user_id, content, created_at, status)',
@@ -114,8 +120,10 @@ export async function feedDelCurso(
       )
       .eq('course_id', cursoId)
       .eq('status', 'visible')
+    return (cohortId ? consulta.eq('cohort_id', cohortId) : consulta.is('cohort_id', null))
       .order('pinned', { ascending: false })
       .order('created_at', { ascending: false })
+  }
 
   const desde = (pedida - 1) * porPagina
   let { data, error, count } = await base().range(desde, desde + porPagina - 1)
@@ -213,13 +221,15 @@ export async function feedDelCurso(
  * Una sola consulta para todos los cursos: se piden las publicaciones visibles
  * ordenadas por fecha y se toma la primera de cada curso.
  */
-export async function cursosPorActividad<T extends { id: string }>(cursos: T[]): Promise<T[]> {
+export async function cursosPorActividad<T extends { id: string; generacion: { id: string } | null }>(
+  cursos: T[]
+): Promise<T[]> {
   if (cursos.length < 2) return cursos
 
   const supabase = await crearClienteServidor()
   const { data, error } = await supabase
     .from('community_posts')
-    .select('course_id, created_at')
+    .select('course_id, cohort_id, created_at')
     .eq('status', 'visible')
     .in('course_id', cursos.map((c) => c.id))
     .order('created_at', { ascending: false })
@@ -229,14 +239,18 @@ export async function cursosPorActividad<T extends { id: string }>(cursos: T[]):
     return cursos
   }
 
+  // La conversación que cuenta es la de MI generación (M16).
+  const clave = (cursoId: string, cohortId: string | null) => `${cursoId}::${cohortId ?? ''}`
   const ultima = new Map<string, string>()
   for (const fila of data ?? []) {
-    if (!ultima.has(fila.course_id)) ultima.set(fila.course_id, fila.created_at)
+    const k = clave(fila.course_id, fila.cohort_id)
+    if (!ultima.has(k)) ultima.set(k, fila.created_at)
   }
+  const de = (c: T) => ultima.get(clave(c.id, c.generacion?.id ?? null)) ?? ''
 
   // `toSorted` no: el arreglo llega de otra consulta y no se gana nada mutando
   // fuera. Los cursos sin una sola publicación caen al final, no desaparecen.
-  return [...cursos].sort((a, b) => (ultima.get(b.id) ?? '').localeCompare(ultima.get(a.id) ?? ''))
+  return [...cursos].sort((a, b) => de(b).localeCompare(de(a)))
 }
 
 export type AnuncioParaAlumno = {

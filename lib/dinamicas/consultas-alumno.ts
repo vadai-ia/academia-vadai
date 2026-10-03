@@ -404,14 +404,19 @@ export const obtenerDinamicaParaAlumno = cache(async function obtenerDinamicaPar
   }
 })
 
-/** Para la insignia de la pestaña del curso: abiertas de verdad, hoy. */
-export async function contarDinamicasAbiertas(cursoId: string): Promise<number> {
+/**
+ * Para la insignia de la pestaña del curso: abiertas de verdad, hoy, de la
+ * generación que se mira (al alumno RLS ya le da solo la suya; el equipo ve
+ * todas y aquí se acota).
+ */
+export async function contarDinamicasAbiertas(cursoId: string, cohortId: string | null = null): Promise<number> {
   const supabase = await crearClienteServidor()
-  const { data, error } = await supabase
+  const consulta = supabase
     .from('dynamics')
     .select('id, status, closes_at')
     .eq('course_id', cursoId)
     .eq('status', 'open')
+  const { data, error } = await (cohortId ? consulta.eq('cohort_id', cohortId) : consulta)
 
   if (error) {
     registrarFallo('contarDinamicasAbiertas', { cursoId }, error.message)

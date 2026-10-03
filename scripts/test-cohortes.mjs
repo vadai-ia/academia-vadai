@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 /**
- * test-cohortes.mjs — Criterio de cierre de M8.
+ * test-cohortes.mjs — Criterio de cierre de M8 (y las pestañas por generación de M16).
  *
  * Lo más frágil de este milestone es la conversión de zona horaria: el equipo
  * captura "21 de septiembre a las 7 pm" pensando en CDMX, y eso tiene que
@@ -172,7 +172,9 @@ async function main() {
   const vigente = await iniciarSesion(correo.alumnoVigente)
   const vencido = await iniciarSesion(correo.alumnoVencido)
 
-  const rutaCohorte = `/admin/cohortes/${IDS.cohorte}`
+  // La generación es una pestaña de su curso (M16).
+  const rutaCohorte = `/admin/cursos/${IDS.curso}?gen=${IDS.cohorte}`
+  const rutaGen2 = `/admin/cursos/${IDS.curso}?gen=${IDS.cohorte2}`
   const rutaCursoAdmin = `/admin/cursos/${IDS.curso}`
   const rutaCursoAlumno = `/curso/${CURSO_QA.slug}`
   const rutaEnVivo = `${rutaCursoAlumno}/en-vivo`
@@ -204,17 +206,29 @@ async function main() {
     // ====================================================================
     const G1 = 'ADMIN'
 
-    afirmar(G1, 'la cohorte abre', 200, (await pedir(rutaCohorte, admin)).status)
+    afirmar(G1, 'la generación abre', 200, (await pedir(rutaCohorte, admin)).status)
 
     const paginaCurso = await texto(rutaCursoAdmin, admin)
-    afirmar(G1, 'el curso lista su cohorte', true, paginaCurso.includes('Cohorte de prueba'))
+    afirmar(G1, 'el curso lista sus generaciones como pestañas', true,
+      paginaCurso.includes('Generación de prueba') && paginaCurso.includes('QA · Generación 2'))
+    afirmar(G1, 'abre en la abierta a inscripciones', true,
+      paginaCurso.includes('Abierta a inscripciones') && paginaCurso.includes('Módulo 1 · Fundamentos'))
+    afirmar(G1, 'y no mezcla el contenido de la otra', false, paginaCurso.includes('Módulo Gen 2'))
+
+    const paginaGen2 = await texto(rutaGen2, admin)
+    afirmar(G1, '?gen= cambia de generación', true,
+      paginaGen2.includes('Módulo Gen 2') && !paginaGen2.includes('Módulo 1 · Fundamentos'))
+    afirmar(G1, 'con su propia sesión', true,
+      paginaGen2.includes('Sesión Gen 2') && !paginaGen2.includes('Sesión 2 · Próxima'))
+    afirmar(G1, 'la pestaña de nueva generación ofrece copiar', true,
+      (await texto(`${rutaCursoAdmin}?gen=nueva`, admin)).includes('Copiar la estructura de'))
 
     const paginaCohorte = await texto(rutaCohorte, admin)
     afirmar(G1, 'muestra las dos sesiones', true,
       paginaCohorte.includes('Ya ocurri') && paginaCohorte.includes('xima'))
     // Cerradas por default (24-sep-2026): la liga y el selector de grabación
     // solo se pintan en la sesión abierta; ?sesion=todos las abre.
-    const cohorteAbierta = await texto(`${rutaCohorte}?sesion=todos`, admin)
+    const cohorteAbierta = await texto(`${rutaCohorte}&sesion=todos`, admin)
     afirmar(G1, 'muestra el link de Meet', true, cohorteAbierta.includes('meet.google.com'))
     afirmar(G1, 'ofrece ligar grabación', true, cohorteAbierta.includes('Sin grabación ligada'))
 
@@ -300,6 +314,8 @@ async function main() {
     afirmar(G3, 'la futura cae en su día de CDMX', true,
       enVivo.includes(`data-fecha="${fechaFutura}"`))
     afirmar(G3, 'recibe el link de Meet', true, enVivo.includes('meet.google.com/qa-futura'))
+    afirmar(G3, 'y nunca la sesión de otra generación', false,
+      (await texto(`${rutaEnVivo}?vista=lista`, vigente)).includes('Sesión Gen 2'))
     afirmar(G3, 'cada sesión abre su detalle', true,
       enVivo.includes(`id="sesion-${IDS.sesionFutura}"`) && enVivo.includes('popover="auto"'))
     // Solo hora de CDMX (21-sep-2026): sin ella, servidor y navegador
@@ -328,7 +344,7 @@ async function main() {
     // La grabación ligada (§3.10).
     const G4 = 'GRABACIÓN LIGADA'
 
-    const formularioGrabacion = leerFormularios(await texto(`${rutaCohorte}?sesion=todos`, admin)).find(
+    const formularioGrabacion = leerFormularios(await texto(`${rutaCohorte}&sesion=todos`, admin)).find(
       (f) => 'recording_lesson_id' in f.campos && f.campos.id === IDS.sesionPasada
     )
     afirmar(G4, 'existe el formulario de grabación', true, Boolean(formularioGrabacion))
