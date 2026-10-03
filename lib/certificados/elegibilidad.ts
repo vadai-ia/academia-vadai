@@ -1,5 +1,6 @@
 import 'server-only'
 
+import { esPorGeneraciones } from '@/lib/generaciones'
 import { crearClienteServiceRole } from '@/lib/supabase/service-role'
 
 import type { Faltante } from './comun'
@@ -40,10 +41,34 @@ export async function revisarElegibilidad(
 ): Promise<Elegibilidad> {
   const servicio = crearClienteServiceRole()
 
-  const { data: modulos } = await servicio
-    .from('modules')
-    .select('id')
-    .eq('course_id', cursoId)
+  // En un curso por generaciones, terminar es terminar lo de SU generación
+  // (M16). Antes se contaban los módulos del curso entero: con service role
+  // salían los de todas las generaciones, y en cuanto la Generación 2 tuviera
+  // una lección obligatoria publicada nadie —ni de la 1 ni de la 2— podía
+  // certificarse, porque siempre le faltaba una que no ve.
+  const [{ data: curso }, { data: inscripcion }] = await Promise.all([
+    servicio.from('courses').select('course_type').eq('id', cursoId).maybeSingle(),
+    servicio
+      .from('enrollments')
+      .select('cohort_id')
+      .eq('user_id', userId)
+      .eq('course_id', cursoId)
+      .maybeSingle(),
+  ])
+
+  const delCurso = servicio.from('modules').select('id').eq('course_id', cursoId)
+  let consultaModulos
+  if (esPorGeneraciones(curso?.course_type)) {
+    // Sin generación asignada no ve contenido: no hay nada que terminar.
+    if (!inscripcion?.cohort_id) {
+      return { cumple: false, totalObligatorias: 0, cubiertas: 0, faltantes: [] }
+    }
+    consultaModulos = delCurso.eq('cohort_id', inscripcion.cohort_id)
+  } else {
+    consultaModulos = delCurso.is('cohort_id', null)
+  }
+
+  const { data: modulos } = await consultaModulos
 
   const idsModulo = (modulos ?? []).map((m) => m.id)
 
