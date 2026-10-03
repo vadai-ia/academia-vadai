@@ -104,7 +104,7 @@ export const fichaDeAlumno = cache(async function fichaDeAlumno(userId: string):
   const [progreso, outline, actividad, enlaces, certificados, comentariosL, comentariosC, publicaciones, entregas, intentos, posts, opciones] =
     await Promise.all([
       supabase.from('lesson_progress').select('lesson_id').eq('user_id', userId).eq('completed', true),
-      supabase.from('lesson_outline').select('id, course_id'),
+      supabase.from('lesson_outline').select('id, course_id, cohort_id'),
       supabase.from('actividad_por_curso').select('*').eq('user_id', userId),
       supabase
         .from('access_links')
@@ -122,19 +122,24 @@ export const fichaDeAlumno = cache(async function fichaDeAlumno(userId: string):
       opcionesDeAlta(),
     ])
 
-  // Lección -> curso, para saber a qué curso cuenta cada avance.
-  const cursoDeLeccion = new Map<string, string>()
-  const totalPorCurso = new Map<string, number>()
+  // Lección -> curso y generación, para saber a qué cuenta cada avance (M16):
+  // el outline enseña al equipo las lecciones de todas las generaciones, y la
+  // persona solo tiene las de la suya. Lo que completó en una generación
+  // anterior se conserva pero no cuenta en la actual. Sin generaciones, ''.
+  const grupo = (cursoId: string, cohortId: string | null) => `${cursoId}::${cohortId ?? ''}`
+  const grupoDeLeccion = new Map<string, string>()
+  const totalPorGrupo = new Map<string, number>()
   for (const fila of outline.data ?? []) {
     if (!fila.id || !fila.course_id) continue
-    cursoDeLeccion.set(fila.id, fila.course_id)
-    totalPorCurso.set(fila.course_id, (totalPorCurso.get(fila.course_id) ?? 0) + 1)
+    const g = grupo(fila.course_id, fila.cohort_id)
+    grupoDeLeccion.set(fila.id, g)
+    totalPorGrupo.set(g, (totalPorGrupo.get(g) ?? 0) + 1)
   }
-  const hechasPorCurso = new Map<string, number>()
+  const hechasPorGrupo = new Map<string, number>()
   for (const fila of progreso.data ?? []) {
-    const curso = cursoDeLeccion.get(fila.lesson_id)
-    if (!curso) continue
-    hechasPorCurso.set(curso, (hechasPorCurso.get(curso) ?? 0) + 1)
+    const g = grupoDeLeccion.get(fila.lesson_id)
+    if (!g) continue
+    hechasPorGrupo.set(g, (hechasPorGrupo.get(g) ?? 0) + 1)
   }
 
   const actividadPorCurso = new Map<string, Actividad>()
@@ -155,8 +160,9 @@ export const fichaDeAlumno = cache(async function fichaDeAlumno(userId: string):
 
   const ahora = Date.now()
   const inscripciones = (p.enrollments ?? []).map((e) => {
-    const total = totalPorCurso.get(e.course_id) ?? 0
-    const hechas = hechasPorCurso.get(e.course_id) ?? 0
+    const g = grupo(e.course_id, e.cohort_id)
+    const total = totalPorGrupo.get(g) ?? 0
+    const hechas = hechasPorGrupo.get(g) ?? 0
     const act = actividadPorCurso.get(e.course_id) ?? ACTIVIDAD_VACIA
     const puntos = puntosDe(act)
     const vigente = e.status === 'active' && (!e.expires_at || new Date(e.expires_at).getTime() > ahora)

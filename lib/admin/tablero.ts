@@ -79,9 +79,9 @@ export async function tableroAdmin(): Promise<Tablero> {
     generaciones,
   ] = await Promise.all([
     supabase.from('profiles').select('user_id, role, status, last_sign_in_at'),
-    supabase.from('enrollments').select('user_id, course_id, status, expires_at'),
+    supabase.from('enrollments').select('user_id, course_id, cohort_id, status, expires_at'),
     supabase.from('courses').select('id, slug, title, status'),
-    supabase.from('lesson_outline').select('id, course_id'),
+    supabase.from('lesson_outline').select('id, course_id, cohort_id'),
     supabase.from('lesson_progress').select('user_id, lesson_id, completed'),
     supabase.from('assignment_submissions').select('id').eq('status', 'submitted'),
     supabase.from('certificates').select('id'),
@@ -115,22 +115,29 @@ export async function tableroAdmin(): Promise<Tablero> {
   }
 
   // --- avance por curso ----------------------------------------------------
-  const leccionesDe = new Map<string, Set<string>>()
+  // Cada quien se mide contra las lecciones de SU generación (M16): al equipo
+  // el outline le enseña las de todas, y dividir entre el total del curso
+  // bajaba el avance de todos en cuanto otra generación publicara algo. En un
+  // curso sin generaciones la generación es '' y todo cae en un grupo.
+  const grupo = (cursoId: string, cohortId: string | null) => `${cursoId}::${cohortId ?? ''}`
+  const leccionesDe = new Map<string, number>()
+  const porGrupo = new Map<string, number>()
+  const grupoDeLeccion = new Map<string, string>()
   for (const l of outline.data ?? []) {
     if (!l.id || !l.course_id) continue
-    if (!leccionesDe.has(l.course_id)) leccionesDe.set(l.course_id, new Set())
-    leccionesDe.get(l.course_id)?.add(l.id)
+    const g = grupo(l.course_id, l.cohort_id)
+    leccionesDe.set(l.course_id, (leccionesDe.get(l.course_id) ?? 0) + 1)
+    porGrupo.set(g, (porGrupo.get(g) ?? 0) + 1)
+    grupoDeLeccion.set(l.id, g)
   }
-  const cursoDeLeccion = new Map<string, string>()
-  for (const [cursoId, ids] of leccionesDe) for (const id of ids) cursoDeLeccion.set(id, cursoId)
 
-  // (usuario, curso) -> lecciones hechas
+  // (usuario, curso y generación) -> lecciones hechas
   const hechas = new Map<string, number>()
   for (const f of progreso.data ?? []) {
     if (!f.completed) continue
-    const cursoId = cursoDeLeccion.get(f.lesson_id)
-    if (!cursoId) continue
-    const llave = `${f.user_id}::${cursoId}`
+    const g = grupoDeLeccion.get(f.lesson_id)
+    if (!g) continue
+    const llave = `${f.user_id}::${g}`
     hechas.set(llave, (hechas.get(llave) ?? 0) + 1)
   }
 
@@ -138,7 +145,8 @@ export async function tableroAdmin(): Promise<Tablero> {
   const cursosEnTablero: CursoEnTablero[] = cursosVivos
     .filter((c) => c.status === 'published')
     .map((c) => {
-      const lecciones = leccionesDe.get(c.id)?.size ?? 0
+      // Las publicadas en el curso, sumando generaciones: es la etiqueta.
+      const lecciones = leccionesDe.get(c.id) ?? 0
       const inscritos = (inscripciones.data ?? []).filter(
         (e) => e.course_id === c.id && e.status === 'active'
       )
@@ -146,10 +154,12 @@ export async function tableroAdmin(): Promise<Tablero> {
       let terminaron = 0
       let suma = 0
       for (const e of inscritos) {
-        const n = hechas.get(`${e.user_id}::${c.id}`) ?? 0
+        const g = grupo(c.id, e.cohort_id)
+        const suyas = porGrupo.get(g) ?? 0
+        const n = hechas.get(`${e.user_id}::${g}`) ?? 0
         if (n > 0) empezaron += 1
-        if (lecciones > 0 && n >= lecciones) terminaron += 1
-        suma += lecciones > 0 ? n / lecciones : 0
+        if (suyas > 0 && n >= suyas) terminaron += 1
+        suma += suyas > 0 ? n / suyas : 0
       }
       return {
         id: c.id,

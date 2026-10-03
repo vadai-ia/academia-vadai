@@ -99,7 +99,7 @@ export async function inscritosDelCurso(
       .eq('course_id', cursoId),
     supabase.from('cohorts').select('id, name').eq('course_id', cursoId),
     supabase.from('companies').select('id, name'),
-    supabase.from('lesson_outline').select('id').eq('course_id', cursoId),
+    supabase.from('lesson_outline').select('id, cohort_id').eq('course_id', cursoId),
     supabase.from('actividad_por_curso').select('*').eq('course_id', cursoId),
     supabase
       .from('lesson_progress')
@@ -120,18 +120,33 @@ export async function inscritosDelCurso(
     return { visibles: [], resumen: resumenVacio() }
   }
 
-  const leccionIds = (outline.data ?? []).map((l) => l.id).filter((id): id is string => Boolean(id))
-  // Solo cuentan las lecciones publicadas (las del outline), como siempre.
-  const publicadas = new Set(leccionIds)
+  // Solo cuentan las lecciones publicadas (las del outline), y cada quien se
+  // mide contra las de SU generación (M16). Al equipo el outline le enseña las
+  // de todas, así que dividir entre el total del curso bajaba el avance de
+  // todos en cuanto la Generación 2 publicara su primera lección. En un curso
+  // sin generaciones todas van bajo `null`, como antes.
+  const leccionesDe = new Map<string | null, Set<string>>()
+  for (const l of outline.data ?? []) {
+    if (!l.id) continue
+    const clave = l.cohort_id ?? null
+    const delGrupo = leccionesDe.get(clave) ?? new Set<string>()
+    delGrupo.add(l.id)
+    leccionesDe.set(clave, delGrupo)
+  }
+  const NINGUNA = new Set<string>()
 
   const nombreDeEmpresa = new Map((empresas.data ?? []).map((e) => [e.id, e.name]))
   const nombreDeGeneracion = new Map((cohortes.data ?? []).map((c) => [c.id, c.name]))
-  const hechasDe = new Map<string, number>()
+  // Lo completado por persona, como conjunto: quien cambió de generación
+  // conserva el avance de la anterior (M16), y ese no cuenta en la nueva.
+  const completadasDe = new Map<string, Set<string>>()
   // Los tipos generados no describen los joins: se tipan a mano, como en el
   // resto del panel.
   type Hecha = Pick<Tabla<'lesson_progress'>, 'user_id' | 'lesson_id'>
   for (const f of (progreso.data ?? []) as unknown as Hecha[]) {
-    if (publicadas.has(f.lesson_id)) hechasDe.set(f.user_id, (hechasDe.get(f.user_id) ?? 0) + 1)
+    const suyas = completadasDe.get(f.user_id) ?? new Set<string>()
+    suyas.add(f.lesson_id)
+    completadasDe.set(f.user_id, suyas)
   }
   const actividadDe = new Map<string, Actividad>()
   for (const f of actividad.data ?? []) {
@@ -150,7 +165,6 @@ export async function inscritosDelCurso(
   }
 
   const ahora = Date.now()
-  const total = leccionIds.length
   const vacia: Actividad = ACTIVIDAD_VACIA
 
   type InscripcionConPerfil = Pick<
@@ -169,7 +183,10 @@ export async function inscritosDelCurso(
     // Sin perfil no es de la academia (Regla Cero); el equipo no es alumno.
     if (!p || p.role !== 'alumno') return []
     const vigente = e.status === 'active' && (!e.expires_at || new Date(e.expires_at).getTime() > ahora)
-    const hechas = hechasDe.get(e.user_id) ?? 0
+    const deSuGeneracion = leccionesDe.get(e.cohort_id ?? null) ?? NINGUNA
+    const total = deSuGeneracion.size
+    let hechas = 0
+    for (const id of completadasDe.get(e.user_id) ?? NINGUNA) if (deSuGeneracion.has(id)) hechas++
     const act = actividadDe.get(e.user_id) ?? vacia
     const puntos = puntosDe(act)
     return [
@@ -224,10 +241,12 @@ export async function inscritosDelCurso(
     entraron: todos.filter((i) => i.ultimoAcceso).length,
     avancePromedio:
       todos.length === 0 ? 0 : Math.round(todos.reduce((n, i) => n + i.porcentaje, 0) / todos.length),
-    terminaron: total === 0 ? 0 : todos.filter((i) => i.hechas >= total).length,
+    terminaron: todos.filter((i) => i.total > 0 && i.hechas >= i.total).length,
     puntosPromedio:
       todos.length === 0 ? 0 : Math.round(todos.reduce((n, i) => n + i.puntos, 0) / todos.length),
-    lecciones: total,
+    // Las de la generación que se está viendo (en un curso sin generaciones,
+    // todas): es el número que acompaña al avance en la cabecera.
+    lecciones: leccionesDe.get(filtros.gen && filtros.gen !== 'sin' ? filtros.gen : null)?.size ?? 0,
     porEmpresa,
     sinGeneracion: todos.filter((i) => i.cohorteId === null && i.acceso !== 'revocado').length,
     porGeneracion: todos.reduce((m, i) => {

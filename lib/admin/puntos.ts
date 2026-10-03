@@ -82,6 +82,8 @@ type Base = {
   /** La lectura falló: la pantalla lo dice en vez de enseñar un ranking vacío. */
   fallo: boolean
   cursos: Array<{ id: string; titulo: string; lecciones: number }>
+  /** Lecciones publicadas por curso y generación ('curso::gen'; sin generaciones, 'curso::'). */
+  leccionesPorGrupo: Map<string, number>
   empresas: Array<{ id: string; nombre: string }>
   alumnos: Array<{
     userId: string
@@ -89,11 +91,14 @@ type Base = {
     email: string
     empresaId: string | null
     ultimoAcceso: string | null
-    porCurso: Map<string, Actividad>
+    porCurso: Map<string, { actividad: Actividad; cohortId: string | null }>
   }>
 }
 
-const BASE_VACIA: Base = { fallo: false, cursos: [], empresas: [], alumnos: [] }
+const BASE_VACIA: Base = { fallo: false, cursos: [], leccionesPorGrupo: new Map(), empresas: [], alumnos: [] }
+
+/** La llave de un curso y una generación. Sin generaciones, la generación es ''. */
+const grupo = (cursoId: string, cohortId: string | null) => `${cursoId}::${cohortId ?? ''}`
 
 /** Una lectura por petición: el panel y su tabla la piden dos veces. */
 const datosDePuntos = cache(async function datosDePuntos(): Promise<Base> {
@@ -108,7 +113,7 @@ const datosDePuntos = cache(async function datosDePuntos(): Promise<Base> {
       .eq('status', 'active'),
     supabase.from('companies').select('id, name').order('name'),
     supabase.from('courses').select('id, title, status').neq('status', 'archived').order('created_at'),
-    supabase.from('lesson_outline').select('course_id'),
+    supabase.from('lesson_outline').select('course_id, cohort_id'),
   ])
 
   const fallo = actividad.error ?? perfiles.error ?? empresas.error ?? cursos.error ?? outline.error
@@ -117,17 +122,24 @@ const datosDePuntos = cache(async function datosDePuntos(): Promise<Base> {
     return { ...BASE_VACIA, fallo: true }
   }
 
+  // Por curso (la etiqueta del filtro) y por curso y generación (contra lo
+  // que se mide el avance de cada quien, M16): al equipo el outline le enseña
+  // las lecciones de todas las generaciones.
   const leccionesDe = new Map<string, number>()
+  const leccionesPorGrupo = new Map<string, number>()
   for (const l of outline.data ?? []) {
-    if (l.course_id) leccionesDe.set(l.course_id, (leccionesDe.get(l.course_id) ?? 0) + 1)
+    if (!l.course_id) continue
+    leccionesDe.set(l.course_id, (leccionesDe.get(l.course_id) ?? 0) + 1)
+    const g = grupo(l.course_id, l.cohort_id)
+    leccionesPorGrupo.set(g, (leccionesPorGrupo.get(g) ?? 0) + 1)
   }
   const vivos = new Set((cursos.data ?? []).map((c) => c.id))
 
-  const porAlumno = new Map<string, Map<string, Actividad>>()
+  const porAlumno = new Map<string, Map<string, { actividad: Actividad; cohortId: string | null }>>()
   for (const f of actividad.data ?? []) {
     if (!f.user_id || !f.course_id || !vivos.has(f.course_id)) continue
-    const mapa = porAlumno.get(f.user_id) ?? new Map<string, Actividad>()
-    mapa.set(f.course_id, {
+    const mapa = porAlumno.get(f.user_id) ?? new Map<string, { actividad: Actividad; cohortId: string | null }>()
+    mapa.set(f.course_id, { cohortId: f.cohort_id ?? null, actividad: {
       lecciones: f.lecciones ?? 0,
       quizzes: f.quizzes ?? 0,
       tareas: f.tareas ?? 0,
@@ -136,13 +148,14 @@ const datosDePuntos = cache(async function datosDePuntos(): Promise<Base> {
       comentarios: f.comentarios ?? 0,
       certificados: f.certificados ?? 0,
       dinamicas: f.dinamicas ?? 0,
-    })
+    } })
     porAlumno.set(f.user_id, mapa)
   }
 
   return {
     fallo: false,
     cursos: (cursos.data ?? []).map((c) => ({ id: c.id, titulo: c.title, lecciones: leccionesDe.get(c.id) ?? 0 })),
+    leccionesPorGrupo,
     empresas: (empresas.data ?? []).map((e) => ({ id: e.id, nombre: e.name })),
     alumnos: (perfiles.data ?? []).flatMap((p) => {
       const porCurso = porAlumno.get(p.user_id)
@@ -181,8 +194,9 @@ function ranking(base: Base, cursoId?: string): AlumnoEnPuntos[] {
       const delCurso = a.porCurso.get(id)
       if (!delCurso) continue
       inscrito = true
-      actividad = sumarActividad(actividad, delCurso)
-      total += lecciones.get(id) ?? 0
+      actividad = sumarActividad(actividad, delCurso.actividad)
+      // Contra las lecciones de SU generación en ese curso, no las del curso.
+      total += base.leccionesPorGrupo.get(grupo(id, delCurso.cohortId)) ?? 0
     }
     if (!inscrito) continue
 

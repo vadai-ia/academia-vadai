@@ -171,7 +171,7 @@ export async function listarAlumnos(filtros: FiltrosAlumnos = {}): Promise<Pagin
 
   // Estas dos no dependen de qué página se pida: arrancan junto con la lista
   // y no esperan a que termine (24-sep-2026). Antes eran una ola aparte.
-  const outlineP = supabase.from('lesson_outline').select('id, course_id')
+  const outlineP = supabase.from('lesson_outline').select('id, course_id, cohort_id')
   const empresasP = supabase.from('companies').select('id, name')
 
   let pagina = paginaPedida
@@ -203,6 +203,7 @@ export async function listarAlumnos(filtros: FiltrosAlumnos = {}): Promise<Pagin
   type Inscripcion = {
     user_id: string
     course_id: string
+    cohort_id: string | null
     expires_at: string | null
     status: string
     courses: { title: string } | null
@@ -225,7 +226,7 @@ export async function listarAlumnos(filtros: FiltrosAlumnos = {}): Promise<Pagin
     ids.length
       ? supabase
           .from('enrollments')
-          .select('user_id, course_id, expires_at, status, courses(title), cohorts(name)')
+          .select('user_id, course_id, cohort_id, expires_at, status, courses(title), cohorts(name)')
           .in('user_id', ids)
       : vacio,
   ])
@@ -235,19 +236,24 @@ export async function listarAlumnos(filtros: FiltrosAlumnos = {}): Promise<Pagin
     inscripcionesDe.set(e.user_id, [...(inscripcionesDe.get(e.user_id) ?? []), e])
   }
 
-  const cursoDeLeccion = new Map<string, string>()
-  const totalPorCurso = new Map<string, number>()
+  // El avance se mide por curso Y generación (M16): al equipo el outline le
+  // enseña las lecciones de todas, y cada quien solo tiene las de la suya. En
+  // un curso sin generaciones la generación es '' y todo cae en un grupo.
+  const grupo = (cursoId: string, cohortId: string | null) => `${cursoId}::${cohortId ?? ''}`
+  const grupoDeLeccion = new Map<string, string>()
+  const totalPorGrupo = new Map<string, number>()
   for (const fila of outline.data ?? []) {
     if (!fila.id || !fila.course_id) continue
-    cursoDeLeccion.set(fila.id, fila.course_id)
-    totalPorCurso.set(fila.course_id, (totalPorCurso.get(fila.course_id) ?? 0) + 1)
+    const g = grupo(fila.course_id, fila.cohort_id)
+    grupoDeLeccion.set(fila.id, g)
+    totalPorGrupo.set(g, (totalPorGrupo.get(g) ?? 0) + 1)
   }
 
   const hechasPor = new Map<string, number>()
   for (const fila of (progreso.data ?? []) as Array<{ user_id: string; lesson_id: string }>) {
-    const curso = cursoDeLeccion.get(fila.lesson_id)
-    if (!curso) continue
-    const llave = `${fila.user_id}::${curso}`
+    const g = grupoDeLeccion.get(fila.lesson_id)
+    if (!g) continue
+    const llave = `${fila.user_id}::${g}`
     hechasPor.set(llave, (hechasPor.get(llave) ?? 0) + 1)
   }
 
@@ -267,8 +273,9 @@ export async function listarAlumnos(filtros: FiltrosAlumnos = {}): Promise<Pagin
       : null,
     enlace: enlaces.get(p.user_id) ?? null,
     inscripciones: (inscripcionesDe.get(p.user_id) ?? []).map((e) => {
-      const total = totalPorCurso.get(e.course_id) ?? 0
-      const hechas = hechasPor.get(`${p.user_id}::${e.course_id}`) ?? 0
+      const g = grupo(e.course_id, e.cohort_id)
+      const total = totalPorGrupo.get(g) ?? 0
+      const hechas = hechasPor.get(`${p.user_id}::${g}`) ?? 0
       return {
         cursoId: e.course_id,
         cursoTitulo: e.courses?.title ?? 'Curso',
