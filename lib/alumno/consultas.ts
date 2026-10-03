@@ -4,6 +4,7 @@ import { cache } from 'react'
 
 import { esEquipo, obtenerSesion } from '@/lib/auth/sesion'
 import { esPorGeneraciones, generacionPorOmision } from '@/lib/generaciones'
+import { esCuentaQa, esCursoQa } from '@/lib/qa'
 import { crearClienteServidor } from '@/lib/supabase/server'
 import type { Json, Tabla, Vista } from '@/lib/supabase/types'
 
@@ -227,7 +228,11 @@ export async function misCursos(): Promise<CursoDelAlumno[]> {
     ajenos = restantes.map((curso) => ({ curso, expiraEn: null, generacion: generacionDe.get(curso.id) ?? null }))
   }
 
-  const filas = [...propias, ...ajenos]
+  // Una cuenta real nunca ve un curso de pruebas, esté publicado o no: las
+  // suites los publican mientras corren contra esta misma base. Las cuentas
+  // QA sí los ven; para eso existen. Ver lib/qa.ts.
+  const cuentaQa = esCuentaQa(sesion.perfil.email)
+  const filas = [...propias, ...ajenos].filter((f) => cuentaQa || !esCursoQa(f.curso.slug))
   if (filas.length === 0) return []
 
   // Independientes entre sí: en paralelo son un viaje, no dos (24-sep-2026).

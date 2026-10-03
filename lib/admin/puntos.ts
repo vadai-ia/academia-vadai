@@ -11,6 +11,7 @@ import {
   type Actividad,
   type Nivel,
 } from '@/lib/gamificacion/reglas'
+import { esCuentaQa, esCursoQa } from '@/lib/qa'
 import { crearClienteServidor } from '@/lib/supabase/server'
 
 /**
@@ -36,7 +37,6 @@ import { crearClienteServidor } from '@/lib/supabase/server'
  * elegido el lugar coincide con el que ve el alumno en su comunidad.
  */
 
-const CUENTA_QA = /^qa-.*@academia\.vadai\.com\.mx$/i
 
 export const ORDENES_PUNTOS = {
   puntos: 'Más puntos',
@@ -112,7 +112,7 @@ const datosDePuntos = cache(async function datosDePuntos(): Promise<Base> {
       .eq('role', 'alumno')
       .eq('status', 'active'),
     supabase.from('companies').select('id, name').order('name'),
-    supabase.from('courses').select('id, title, status').neq('status', 'archived').order('created_at'),
+    supabase.from('courses').select('id, slug, title, status').neq('status', 'archived').order('created_at'),
     supabase.from('lesson_outline').select('course_id, cohort_id'),
   ])
 
@@ -133,7 +133,10 @@ const datosDePuntos = cache(async function datosDePuntos(): Promise<Base> {
     const g = grupo(l.course_id, l.cohort_id)
     leccionesPorGrupo.set(g, (leccionesPorGrupo.get(g) ?? 0) + 1)
   }
-  const vivos = new Set((cursos.data ?? []).map((c) => c.id))
+  // Ni archivados ni de pruebas: durante una corrida de las suites los QA
+  // están publicados y no tienen nada que hacer en un ranking de premios.
+  const reales = (cursos.data ?? []).filter((c) => !esCursoQa(c.slug))
+  const vivos = new Set(reales.map((c) => c.id))
 
   const porAlumno = new Map<string, Map<string, { actividad: Actividad; cohortId: string | null }>>()
   for (const f of actividad.data ?? []) {
@@ -154,12 +157,12 @@ const datosDePuntos = cache(async function datosDePuntos(): Promise<Base> {
 
   return {
     fallo: false,
-    cursos: (cursos.data ?? []).map((c) => ({ id: c.id, titulo: c.title, lecciones: leccionesDe.get(c.id) ?? 0 })),
+    cursos: reales.map((c) => ({ id: c.id, titulo: c.title, lecciones: leccionesDe.get(c.id) ?? 0 })),
     leccionesPorGrupo,
     empresas: (empresas.data ?? []).map((e) => ({ id: e.id, nombre: e.name })),
     alumnos: (perfiles.data ?? []).flatMap((p) => {
       const porCurso = porAlumno.get(p.user_id)
-      if (!porCurso || CUENTA_QA.test(p.email)) return []
+      if (!porCurso || esCuentaQa(p.email)) return []
       return [
         {
           userId: p.user_id,

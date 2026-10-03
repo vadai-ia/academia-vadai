@@ -159,6 +159,11 @@ En su lugar: `pnpm db:migrate` → `scripts/migrate.mjs`, que aplica los `.sql` 
   los forzaba a `published` en cada corrida, así que un `pnpm db:seed` de cualquiera —incluida otra
   sesión trabajando en paralelo sobre la misma base— los devolvía al panel del admin real. Alejandro
   los archivó a mano cuatro veces y "se desarchivaban solos"; la última, con la sala enfrente.
+- **Una cuenta real nunca ve un curso QA, esté publicado o no** (3-oct-2026). Archivar al terminar
+  no basta: mientras corren las suites los cursos QA están publicados en esta misma base, y en esa
+  ventana le salían al equipo en su «Vista de alumno». `misCursos()` y el ranking los filtran con
+  `lib/qa.ts` (`esCursoQa`: slug `qa-…`; `esCuentaQa`: `qa-*@academia.vadai.com.mx`); las cuentas
+  QA sí los ven, que es para lo que existen. Ningún curso real puede tener slug que empiece con `qa-`.
 
 ## ANTI-PATTERNS — NO HACEMOS
 
