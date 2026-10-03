@@ -92,6 +92,8 @@ export default async function PaginaCurso({
     listarEmpresas(),
   ])
   if (!curso) notFound()
+  // La fila del curso sin su árbol, para lo que viaja al navegador.
+  const { modulos: _modulos, ...datosDelCurso } = curso
 
   const porGeneraciones = esPorGeneraciones(curso.course_type)
   const porOmision = porGeneraciones ? generacionPorOmision(generaciones) : null
@@ -316,7 +318,11 @@ export default async function PaginaCurso({
 
       <section className="flex max-w-2xl flex-col gap-4 border-t border-border pt-8">
         <h2 className="text-lg font-semibold">Datos del curso</h2>
-        <FormularioCurso curso={curso} />
+        {/* Solo la fila del curso, sin `modulos`: FormularioCurso es de
+            cliente y lo que recibe viaja al navegador. Con el curso entero
+            se llevaba el árbol de TODAS las generaciones a la pestaña de una
+            (M16), aunque el formulario solo edita título, slug y descripción. */}
+        <FormularioCurso curso={datosDelCurso} />
         {!porGeneraciones && generaciones.length === 0 ? null : (
           <p className="text-xs text-muted-foreground">
             El tipo «Por generaciones» no se cambia aquí: se activa creando la primera generación, y
