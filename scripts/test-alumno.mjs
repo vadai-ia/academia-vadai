@@ -255,7 +255,11 @@ async function main() {
   afirmar(G2, 'y su lugar en la generación', true, /#\d+<\/span>/.test(tablero))
 
   const comunidad = await texto(`${rutaCurso}/comunidad`, vigente)
-  afirmar(G2, 'la comunidad trae el ranking de la generación', true, comunidad.includes('Ranking de tu generación'))
+  // React separa texto fijo y variable con un marcador `<!-- -->`: "Ranking
+  // de {quien}" llega como "Ranking de <!-- -->tu generación". Se compara el
+  // texto como se ve, sin el marcador.
+  afirmar(G2, 'la comunidad trae el ranking de la generación', true,
+    comunidad.replace(/<!-- -->/g, '').includes('Ranking de tu generación'))
   afirmar(G2, 'y lo marca a él', true, comunidad.includes('(tú)'))
 
   // ======================================================================

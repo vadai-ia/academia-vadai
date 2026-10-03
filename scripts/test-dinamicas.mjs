@@ -461,10 +461,13 @@ async function sembrar(bd) {
        values ($1, $2, $3, 'alumno', 'active', $4)`,
       [id, cuenta.email, cuenta.nombre, cuenta.empresa ? IDS.empresaDinamicas : null]
     )
+    // En la generación de prueba (M16): el curso QA es por generaciones, y un
+    // inscrito sin generación no ve contenido, comunidad ni dinámicas. La
+    // dinámica nace en la abierta, que es esta.
     await bd.query(
-      `insert into academia.enrollments (user_id, course_id, source, expires_at, status)
-       values ($1, $2, 'manual', $3, 'active')`,
-      [id, IDS.curso, cuenta.vencido ? ayer : null]
+      `insert into academia.enrollments (user_id, course_id, cohort_id, source, expires_at, status)
+       values ($1, $2, $3, 'manual', $4, 'active')`,
+      [id, IDS.curso, IDS.cohorte, cuenta.vencido ? ayer : null]
     )
     cuentas[llave] = { ...cuenta, id }
   }

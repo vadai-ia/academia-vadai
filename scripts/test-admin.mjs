@@ -205,10 +205,13 @@ async function enviarFormulario(ruta, formulario, frasco) {
 
 // --- lectura directa de la base (para comprobar efectos) -------------------
 
+// Solo los de la generación de prueba (M16): las posiciones son únicas DENTRO
+// de una generación, no en el curso entero. Con la Generación 2 del seed, el
+// curso tiene dos módulos en la posición 0 y "el primero" dejaba de ser uno.
 async function posicionesDeModulos() {
   const token = await tokenDeAdmin()
   const respuesta = await fetch(
-    `${SUPABASE}/rest/v1/modules?course_id=eq.${IDS.curso}&select=id,title,position&order=position`,
+    `${SUPABASE}/rest/v1/modules?course_id=eq.${IDS.curso}&cohort_id=eq.${IDS.cohorte}&select=id,title,position&order=position`,
     { headers: { apikey: ANON, Authorization: `Bearer ${token}`, 'Accept-Profile': 'academia' } }
   )
   return await respuesta.json()

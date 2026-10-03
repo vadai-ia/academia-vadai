@@ -216,10 +216,17 @@ async function main() {
 
     const png = new Uint8Array(await icono.arrayBuffer())
     afirmar(GT, `${archivo} es un PNG`, 'PNG', String.fromCharCode(...png.slice(1, 4)))
-    // Byte 25 del PNG es el color type: 6 = RGBA. Sin canal alfa no habría
-    // esquinas transparentes y el disco sería un cuadrado.
-    afirmar(GT, `${archivo} tiene canal alfa`, 6, png[25])
-    void esperado
+    // Byte 25 del PNG es el color type: 6 = RGBA, 2 = RGB sin alfa.
+    if (esperado === 'disco') {
+      // Sin canal alfa no habría esquinas transparentes y el disco sería un
+      // cuadrado en la pestaña.
+      afirmar(GT, `${archivo} tiene canal alfa`, 6, png[25])
+    } else {
+      // El de iOS es al revés: iOS compone el icono sobre NEGRO, así que no
+      // puede tener transparencias o salen las esquinas oscuras. Opaco es lo
+      // correcto (favicon nuevo del 26-sep-2026, `pnpm iconos`).
+      afirmar(GT, `${archivo} es opaco, sin canal alfa`, 2, png[25])
+    }
   }
 
   const logo = await fetch(`${APP}/vadai-wordmark.png`)

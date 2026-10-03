@@ -254,7 +254,13 @@ async function main() {
       'update academia.cohorts set open_for_enrollment = true where id = $1', [IDS.cohorte2])
     afirmar(G3, 'abrir una segunda choca con el índice único', true, /cohorts_una_abierta_por_curso/.test(segundaAbierta))
 
-    await bd.query('update academia.cohorts set ends_on = current_date - 1, open_for_enrollment = false where id = $1', [GEN_TEMPORAL])
+    // Terminada = ya pasó su fin. El inicio también va al pasado: la generación
+    // se creó para dentro de 90 días, y terminar antes de empezar lo rechaza
+    // (con razón) `cohorts_fechas_coherentes`.
+    await bd.query(
+      'update academia.cohorts set starts_on = current_date - 30, ends_on = current_date - 1, open_for_enrollment = false where id = $1',
+      [GEN_TEMPORAL]
+    )
     const terminadaAbierta = await falla(bd,
       'update academia.cohorts set open_for_enrollment = true where id = $1', [GEN_TEMPORAL])
     afirmar(G3, 'una terminada no se abre', true, terminadaAbierta.length > 0)
