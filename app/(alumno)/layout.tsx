@@ -7,6 +7,7 @@ import {
   IconoBlog,
   IconoComunidad,
   IconoCursos,
+  IconoInicio,
   IconoDinamicas,
   IconoPerfil,
   IconoPuntos,
@@ -45,7 +46,9 @@ export default async function LayoutAlumno({ children }: { children: ReactNode }
         perfil={perfil}
         extra={<Campana lista={novedades.lista} nuevas={novedades.nuevas} />}
         navegacion={[
-          { href: '/mis-cursos', etiqueta: 'Inicio', icono: IconoCursos, exacto: true },
+          { href: '/mis-cursos', etiqueta: 'Inicio', icono: IconoInicio, exacto: true },
+          // M15: los cursos propios y el catálogo, separados.
+          { href: '/cursos', etiqueta: 'Cursos', icono: IconoCursos },
           // Segunda a propósito: es lo que se toca durante la sesión.
           { href: '/dinamicas', etiqueta: 'Dinámicas', icono: IconoDinamicas },
           {

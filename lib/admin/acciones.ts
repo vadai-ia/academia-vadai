@@ -47,7 +47,7 @@ function leerFormulario(datos: FormData, campos: readonly string[]) {
 const CAMPOS_CURSO = [
   'title', 'slug', 'description', 'cover_url', 'price_mxn', 'price_usd',
   'stripe_payment_link_mxn', 'stripe_payment_link_usd', 'access_days',
-  'course_type', 'status', 'certificate_enabled', 'is_default',
+  'course_type', 'status', 'certificate_enabled', 'is_default', 'in_catalog', 'is_free',
 ] as const
 
 const CAMPOS_LECCION = [

@@ -227,6 +227,43 @@ export function FormularioCurso({ curso }: { curso?: Curso }) {
             </span>
           </label>
         </div>
+
+        {/* M15: el catálogo de «Cursos» en la vista de alumno. */}
+        <div className="flex flex-col gap-2">
+          <Label htmlFor="in_catalog">Catálogo</Label>
+          <label className="flex min-h-9 items-start gap-2 text-sm">
+            <input
+              id="in_catalog"
+              name="in_catalog"
+              type="checkbox"
+              value="true"
+              defaultChecked={curso?.in_catalog ?? false}
+              className="mt-1 size-4 accent-vadai-cyan"
+            />
+            <span>
+              Mostrar en el catálogo: quien todavía no lo tiene lo ve en &ldquo;Cursos&rdquo; para
+              comprarlo o empezarlo. Sin marcar, el curso es privado. Solo aplica si está publicado.
+            </span>
+          </label>
+        </div>
+
+        <div className="flex flex-col gap-2">
+          <Label htmlFor="is_free">Gratis</Label>
+          <label className="flex min-h-9 items-start gap-2 text-sm">
+            <input
+              id="is_free"
+              name="is_free"
+              type="checkbox"
+              value="true"
+              defaultChecked={curso?.is_free ?? false}
+              className="mt-1 size-4 accent-vadai-cyan"
+            />
+            <span>
+              Curso gratis: desde el catálogo se empieza con un botón, sin pagar. El precio no se
+              toma en cuenta.
+            </span>
+          </label>
+        </div>
       </section>
 
       <section className="flex flex-col gap-4">

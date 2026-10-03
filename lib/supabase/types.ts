@@ -391,6 +391,8 @@ export type Database = {
           created_at: string
           updated_at: string
           is_default: boolean
+          in_catalog: boolean
+          is_free: boolean
         }
         Insert: {
           id?: string
@@ -409,6 +411,8 @@ export type Database = {
           created_at?: string
           updated_at?: string
           is_default?: boolean
+          in_catalog?: boolean
+          is_free?: boolean
         }
         Update: {
           id?: string
@@ -427,6 +431,8 @@ export type Database = {
           created_at?: string
           updated_at?: string
           is_default?: boolean
+          in_catalog?: boolean
+          is_free?: boolean
         }
         Relationships: []
       }
@@ -619,7 +625,7 @@ export type Database = {
           user_id: string
           course_id: string
           cohort_id: string | null
-          source: 'stripe' | 'manual'
+          source: 'stripe' | 'manual' | 'catalogo'
           starts_at: string
           expires_at: string | null
           status: 'active' | 'revoked'
@@ -631,7 +637,7 @@ export type Database = {
           user_id: string
           course_id: string
           cohort_id?: string | null
-          source?: 'stripe' | 'manual'
+          source?: 'stripe' | 'manual' | 'catalogo'
           starts_at?: string
           expires_at?: string | null
           status?: 'active' | 'revoked'
@@ -643,7 +649,7 @@ export type Database = {
           user_id?: string
           course_id?: string
           cohort_id?: string | null
-          source?: 'stripe' | 'manual'
+          source?: 'stripe' | 'manual' | 'catalogo'
           starts_at?: string
           expires_at?: string | null
           status?: 'active' | 'revoked'

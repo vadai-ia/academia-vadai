@@ -78,6 +78,10 @@ export const esquemaCurso = z.object({
   certificate_enabled: z.coerce.boolean(),
   /** Curso base: todo alumno lo recibe al darse de alta. */
   is_default: z.coerce.boolean(),
+  /** M15: se ofrece en «Cursos» a quien todavía no lo tiene. */
+  in_catalog: z.coerce.boolean(),
+  /** M15: se empieza desde el catálogo sin pagar. */
+  is_free: z.coerce.boolean(),
 })
 
 export const esquemaIdDeCurso = z.object({
