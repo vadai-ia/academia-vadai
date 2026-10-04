@@ -164,7 +164,7 @@ export default async function PaginaCurso({
             comunidad y a los hilos de comentarios, que se moderan desde ahí. */}
         <p className="flex flex-wrap gap-4 pt-1 text-sm">
           <Link href={`/curso/${curso.slug}`} className="text-primary underline-offset-4 hover:underline">
-            Verlo como alumno →
+            Verlo en el portal de alumnos →
           </Link>
           <Link
             href={`/curso/${curso.slug}/comunidad${cohortId ? `?gen=${cohortId}` : ''}`}

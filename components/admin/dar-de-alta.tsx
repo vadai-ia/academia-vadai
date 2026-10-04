@@ -228,8 +228,8 @@ function AltaEquipo({ reinicio, estado, accion }: { reinicio: number; estado: Es
       <AvisoAccion estado={estado} />
 
       <p className="text-xs text-muted-foreground">
-        No se inscribe a ningún curso: entra por su rol. Puede ver la plataforma como alumno
-        sin estar inscrito.
+        No se inscribe a ningún curso: entra por su rol. Puede abrir el portal de alumnos sin
+        estar inscrito.
       </p>
 
       <div>

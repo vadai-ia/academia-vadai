@@ -119,7 +119,7 @@ function Fila({
   esRespuesta?: boolean
 }) {
   return (
-    <li className="flex flex-col gap-2">
+    <li id={`comentario-${comentario.id}`} className="flex scroll-mt-32 flex-col gap-2">
       <div className="flex gap-3 rounded-[10px] border border-border bg-card px-4 py-3">
         <Avatar nombre={comentario.autor.nombre} tamano={32} />
 

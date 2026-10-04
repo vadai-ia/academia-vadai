@@ -96,7 +96,9 @@ export default async function PaginaComunidadGeneral({
       {/* Con un solo curso, una fila de pestañas de un elemento es ruido. */}
       {cursos.length > 1 ? <Pestanas pestanas={pestanas} etiqueta="Comunidades de tus cursos" /> : null}
 
-      {generaciones.length > 1 ? (
+      {/* Para el equipo, aunque haya una sola generación: «¿de qué generación
+          están escribiendo?» tiene que contestarse sin adivinar (3-oct-2026). */}
+      {generaciones.length > 0 ? (
         <SelectorDeGeneracion
           base={activo.slug === cursos[0]?.slug ? '/comunidad' : `/comunidad?curso=${activo.slug}`}
           generaciones={generaciones}

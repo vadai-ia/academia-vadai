@@ -367,7 +367,10 @@ function Publicacion({
   soyEquipo: boolean
 }) {
   return (
-    <li className="flex flex-col gap-3 rounded-[10px] border border-border bg-card p-4 sm:p-5">
+    <li
+      id={`publicacion-${post.id}`}
+      className="flex scroll-mt-32 flex-col gap-3 rounded-[10px] border border-border bg-card p-4 sm:p-5"
+    >
       {/* Estructura del feed de Skool: avatar a la izquierda, y a la derecha
           autor · fecha arriba con el título debajo. El avatar es lo que hace
           que un hilo de veinte mensajes se escanee — sin él todos los posts

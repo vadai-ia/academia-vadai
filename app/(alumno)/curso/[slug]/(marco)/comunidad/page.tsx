@@ -63,7 +63,9 @@ export default async function PaginaComunidad({
         comentario suman puntos.
       </p>
 
-      {generaciones.length > 1 ? (
+      {/* Para el equipo, aunque haya una sola generación: «¿de qué generación
+          están escribiendo?» tiene que contestarse sin adivinar (3-oct-2026). */}
+      {generaciones.length > 0 ? (
         <SelectorDeGeneracion
           base={`/curso/${slug}/comunidad`}
           generaciones={generaciones}
