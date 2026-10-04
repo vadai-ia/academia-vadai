@@ -46,6 +46,12 @@ const SECCIONES = [
     icono: <IconoAlumnos />,
   },
   {
+    href: '/admin/comunidad',
+    titulo: 'Comunidad',
+    apoyo: 'Contestar a los alumnos y dar seguimiento, por curso y generación',
+    icono: <IconoComunidad />,
+  },
+  {
     href: '/admin/encuestas',
     titulo: 'Encuestas en vivo',
     apoyo: 'QR, proyección, resultados y exportación',
@@ -416,7 +422,7 @@ export default async function PaginaAdmin() {
       <p className="text-sm text-muted-foreground">
         ¿Buscas cómo se ve del lado del alumno?{' '}
         <Link href="/mis-cursos" className="text-primary underline-offset-4 hover:underline">
-          Entra como alumno
+          Abre el portal de alumnos
         </Link>
         .
       </p>
@@ -468,6 +474,15 @@ function IconoAlumnos() {
       <path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2" />
       <circle cx="9" cy="7" r="4" />
       <path d="M22 21v-2a4 4 0 0 0-3-3.87" />
+    </>
+  )
+}
+
+function IconoComunidad() {
+  return marco(
+    <>
+      <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
+      <path d="M8 9h8M8 13h5" />
     </>
   )
 }

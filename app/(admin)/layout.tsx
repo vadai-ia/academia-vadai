@@ -1,7 +1,9 @@
 import { Suspense, type ReactNode } from 'react'
 
+import { CampanaDeComunidad } from '@/components/admin/campana-comunidad'
 import { Encabezado } from '@/components/marca/encabezado'
 import {
+  IconoComunidad,
   IconoCursos,
   IconoDinamicas,
   IconoEmpresas,
@@ -28,15 +30,25 @@ export default async function LayoutAdmin({ children }: { children: ReactNode })
       </Suspense>
       <Encabezado
         perfil={perfil}
+        // La comunidad que espera respuesta (3-oct-2026). En Suspense: leerla
+        // no debe frenar el resto del panel.
+        extra={
+          <Suspense fallback={null}>
+            <CampanaDeComunidad />
+          </Suspense>
+        }
         navegacion={[
           { href: '/admin', etiqueta: 'Panel', icono: IconoPanel, exacto: true },
           { href: '/admin/cursos', etiqueta: 'Cursos', icono: IconoCursos },
           { href: '/admin/alumnos', etiqueta: 'Alumnos', icono: IconoPerfil },
+          { href: '/admin/comunidad', etiqueta: 'Comunidad', icono: IconoComunidad },
           { href: '/admin/puntos', etiqueta: 'Puntos', icono: IconoPuntos },
           { href: '/admin/empresas', etiqueta: 'Empresas', icono: IconoEmpresas },
           { href: '/admin/encuestas', etiqueta: 'Encuestas', icono: IconoEncuestas },
           { href: '/admin/dinamicas', etiqueta: 'Dinámicas', icono: IconoDinamicas },
-          { href: '/mis-cursos', etiqueta: 'Vista de alumno', icono: IconoCursos },
+          // Antes «Vista de alumno»: no es una vista simulada, es el portal
+          // real, el mismo que usan los alumnos (3-oct-2026).
+          { href: '/mis-cursos', etiqueta: 'Portal de alumnos', icono: IconoCursos },
         ]}
       />
       <main id="contenido" className="mx-auto w-full max-w-6xl flex-1 px-5 py-8 sm:py-10">

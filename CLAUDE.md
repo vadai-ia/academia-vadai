@@ -53,7 +53,7 @@ En su lugar: `pnpm db:migrate` → `scripts/migrate.mjs`, que aplica los `.sql` 
   /(alumno)      mis-cursos, curso/[slug], curso/[slug]/en-vivo, curso/[slug]/dinamicas, comunidad, blog, perfil, dinamicas
                  # curso/[slug]/(marco)/ = el marco del curso (título, avance, pestañas) para Contenido,
                  # En vivo, Comunidad y Dinámicas; curso/[slug]/[leccionId] va FUERA: modo lección (25-sep-2026)
-  /(admin)       admin/* (cursos, alumnos, alumnos/[userId] ficha, puntos, entregas, posts, encuestas, dinamicas)
+  /(admin)       admin/* (cursos, alumnos, alumnos/[userId] ficha, comunidad, puntos, entregas, posts, encuestas, dinamicas)
                  # cursos/[id]?gen=<id>|nueva|sin = la pestaña de una generación (M16); generaciones/[id] solo redirige ahí
   /api/stripe/webhook
   /api/certificados/[folio]
@@ -140,6 +140,13 @@ En su lugar: `pnpm db:migrate` → `scripts/migrate.mjs`, que aplica los `.sql` 
   `/admin/puntos` (`lib/admin/puntos.ts`, 26-sep-2026): mismos pesos, sin cuentas `qa-*` ni cursos
   archivados, y el **lugar se calcula antes de filtrar** — filtrar por empresa enseña en qué lugar
   va cada quien en el ranking completo, no un ranking nuevo de esa empresa.
+- **La comunidad se atiende desde el panel** (`/admin/comunidad`, `lib/admin/comunidad.ts`,
+  3-oct-2026): muro y preguntas de lección en una bandeja, cada hilo con curso · generación ·
+  lección. El estado **no se guarda**: "sin respuesta" = el último mensaje visible no es del
+  equipo. La campana del panel cuenta solo lo que lleva más de 12 h esperando. El enlace del
+  equipo al lado del alumno se llama **«Portal de alumnos»**, no "Vista de alumno": es el
+  portal real, no una simulación. En el portal, el equipo siempre ve el selector de
+  generación, aunque haya una sola.
 - **Notificaciones internas sin tabla**: "nuevo" es lo publicado después de
   `profiles.notifications_seen_at`. Abrir la campana lo sella.
 - **Empresas** (`academia.companies`, `profiles.company_id`; 20-sep-2026): de dónde viene cada

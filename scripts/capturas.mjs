@@ -80,6 +80,7 @@ const SESIONES = {
       `/admin/cursos/${IDS.curso}?gen=nueva`,
       '/admin/alumnos',
       '/admin/empresas',
+      '/admin/comunidad',
       '/admin/encuestas',
       '/admin/dinamicas',
       '/admin/entregas',

@@ -22,6 +22,9 @@ const APP = (process.env.APP_URL ?? 'http://localhost:3117').replace(/\/+$/, '')
 const correo = Object.fromEntries(USUARIOS_QA.map((u) => [u.llave, u.email]))
 const RUTA_LECCION = `/curso/${CURSO_QA.slug}/${IDS.leccionVideo}`
 const RUTA_COMUNIDAD = `/curso/${CURSO_QA.slug}/comunidad`
+// La bandeja del panel, filtrada al curso QA: con la comunidad real
+// esperando respuesta, lo de la prueba no cabe en la primera página.
+const BANDEJA = `/admin/comunidad?curso=${IDS.curso}`
 
 // --- sesión ----------------------------------------------------------------
 
@@ -100,6 +103,22 @@ function leerFormulario(html, contiene, indice = 0) {
   return null
 }
 
+/** El <form> que trae TODO lo que se pide (p. ej. el textarea y el id del hilo). */
+function formularioCon(html, ...piezas) {
+  for (const bloque of html.matchAll(/<form\b[^>]*>([\s\S]*?)<\/form>/g)) {
+    if (!piezas.every((p) => bloque[1].includes(p))) continue
+    const campos = {}
+    for (const etiqueta of bloque[1].matchAll(/<input\b[^>]*>/g)) {
+      const nombre = etiqueta[0].match(/name="([^"]*)"/)?.[1]
+      if (!nombre) continue
+      const valor = etiqueta[0].match(/value="([^"]*)"/)?.[1] ?? ''
+      campos[nombre] = valor.replace(/&quot;/g, '"').replace(/&#x27;/g, "'").replace(/&amp;/g, '&')
+    }
+    if (Object.keys(campos).some((n) => n.startsWith('$ACTION'))) return { campos }
+  }
+  return null
+}
+
 async function enviar(ruta, formulario, frasco, extra = {}) {
   const cuerpo = new FormData()
   for (const [n, v] of Object.entries(formulario.campos)) cuerpo.append(n, v)
@@ -160,6 +179,10 @@ const MARCA_COMENTARIO = 'QA comentario de prueba unico'
 const MARCA_POST = 'QA publicacion de prueba'
 const MARCA_ANUNCIO = 'QA anuncio de prueba'
 const MARCA_BLOG = 'QA entrada de blog'
+const MARCA_BANDEJA = 'QA pregunta en el muro para la bandeja'
+const MARCA_PREGUNTA = 'QA pregunta en la leccion para la bandeja'
+const MARCA_RESPUESTA = 'QA respuesta del equipo desde la bandeja'
+const MARCA_RESPUESTA_LECCION = 'QA respuesta del equipo en la leccion'
 
 /**
  * Borra lo que ESTA suite crea, por título exacto.
@@ -173,9 +196,10 @@ const MARCA_BLOG = 'QA entrada de blog'
  */
 async function purgar(bd) {
   const titulos = [MARCA_POST, MARCA_ANUNCIO, MARCA_BLOG, 'QA borrador sin publicar',
-    'QA anuncio de otro curso']
+    'QA anuncio de otro curso', MARCA_BANDEJA]
 
-  await bd.query(`delete from academia.lesson_comments where content = $1`, [MARCA_COMENTARIO])
+  await bd.query(`delete from academia.lesson_comments where content = any($1::text[])`,
+    [[MARCA_COMENTARIO, MARCA_RESPUESTA_LECCION, MARCA_PREGUNTA]])
   await bd.query(`delete from academia.community_posts where title = any($1::text[])`, [titulos])
   await bd.query(`delete from academia.posts where title = any($1::text[])`, [titulos])
 }
@@ -349,6 +373,105 @@ async function main() {
     const misCursos2 = await texto('/mis-cursos', alumno)
     afirmar(G6, 'no ve anuncios de cursos ajenos', false,
       misCursos2.includes('QA anuncio de otro curso'))
+
+    // ================================================================
+    // La bandeja de Comunidad del panel (3-oct-2026): contestar y dar
+    // seguimiento sin entrar al portal. Se siembra por SQL lo que escribiría un
+    // alumno —una publicación y una pregunta de hace 13 horas— y todo lo demás
+    // se hace por los formularios del panel, sin JavaScript.
+    const G7 = 'BANDEJA DE COMUNIDAD (panel)'
+
+    const { rows: [vigente] } = await bd.query(
+      `select user_id from academia.profiles where email = $1`, [correo.alumnoVigente])
+    // La generación va explícita: insertando como `postgres` el trigger cree
+    // que publica el equipo y no la sella. En la app la sella sola.
+    const { rows: [post] } = await bd.query(
+      `insert into academia.community_posts (course_id, user_id, title, status, pinned, cohort_id)
+       values ($1, $2, $3, 'visible', false,
+               (select cohort_id from academia.enrollments where course_id = $1 and user_id = $2))
+       returning id, cohort_id`,
+      [IDS.curso, vigente.user_id, MARCA_BANDEJA])
+    const { rows: [pregunta] } = await bd.query(
+      `insert into academia.lesson_comments (lesson_id, user_id, content, status, created_at)
+       values ($1, $2, $3, 'visible', now() - interval '13 hours') returning id`,
+      [IDS.leccionVideo, vigente.user_id, MARCA_PREGUNTA])
+    const { rows: [generacion] } = post.cohort_id
+      ? await bd.query(`select name from academia.cohorts where id = $1`, [post.cohort_id])
+      : { rows: [null] }
+
+    const bandeja = await pedir(BANDEJA, admin)
+    afirmar(G7, 'la bandeja abre', 200, bandeja.status)
+    const html = await bandeja.text()
+    afirmar(G7, 'trae la publicación del alumno', true, html.includes(MARCA_BANDEJA))
+    afirmar(G7, 'y la pregunta de la lección', true, html.includes(MARCA_PREGUNTA))
+    afirmar(G7, 'marcadas «Sin respuesta»', true, html.includes('Sin respuesta'))
+    if (generacion) {
+      afirmar(G7, 'dice de qué generación es', true, html.includes(generacion.name))
+    }
+    afirmar(G7, 'lo más viejo va primero', true,
+      html.indexOf(MARCA_PREGUNTA) > -1 && html.indexOf(MARCA_PREGUNTA) < html.indexOf(MARCA_BANDEJA))
+
+    // La campana del panel cuenta lo que lleva más de 12 h sin respuesta.
+    const panel = await texto('/admin', admin)
+    const vencidas = Number(panel.match(/data-vencidas="(\d+)"/)?.[1] ?? -1)
+    afirmar(G7, 'la campana del panel cuenta lo vencido', true, vencidas >= 1)
+    afirmar(G7, 'el menú dice «Portal de alumnos»', true, panel.includes('Portal de alumnos'))
+
+    // Contestar la publicación desde la bandeja.
+    const responder = formularioCon(html, 'name="contenido"', `value="${post.id}"`)
+    afirmar(G7, 'hay formulario para responder', true, Boolean(responder))
+    if (responder) {
+      const r = await enviar(BANDEJA, responder, admin, { contenido: MARCA_RESPUESTA })
+      afirmar(G7, 'responder vuelve a la bandeja con aviso', true,
+        r.status === 303 && (r.headers.get('location') ?? '').includes('aviso=respondida'))
+      const { rows } = await bd.query(
+        `select c.user_id = p.user_id as del_admin from academia.community_comments c
+           join academia.profiles p on p.email = $2 where c.post_id = $1 and c.content = $3`,
+        [post.id, correo.admin, MARCA_RESPUESTA])
+      afirmar(G7, 'la respuesta queda en la base, firmada por el admin', true, rows[0]?.del_admin)
+
+      const pendiente = await texto(BANDEJA, admin)
+      afirmar(G7, 'el hilo sale de «Sin respuesta»', false, pendiente.includes(MARCA_BANDEJA))
+      const respondidas = await texto(`${BANDEJA}&estado=respondidas`, admin)
+      afirmar(G7, 'y aparece en «Respondidas»', true, respondidas.includes(MARCA_BANDEJA))
+
+      const delAlumno = await texto(RUTA_COMUNIDAD, alumno)
+      afirmar(G7, 'el alumno ve la respuesta en su muro', true, delAlumno.includes(MARCA_RESPUESTA))
+    }
+
+    // Contestar la pregunta de la lección: una respuesta al comentario raíz.
+    const responderLeccion = formularioCon(html, 'name="contenido"', `value="${pregunta.id}"`)
+    afirmar(G7, 'hay formulario para responder en la lección', true, Boolean(responderLeccion))
+    if (responderLeccion) {
+      await enviar(BANDEJA, responderLeccion, admin, { contenido: MARCA_RESPUESTA_LECCION })
+      const { rows } = await bd.query(
+        `select parent_id from academia.lesson_comments where content = $1`, [MARCA_RESPUESTA_LECCION])
+      afirmar(G7, 'la respuesta en la lección cuelga de la pregunta', pregunta.id, rows[0]?.parent_id ?? null)
+      const leccion = await texto(RUTA_LECCION, alumno)
+      afirmar(G7, 'el alumno la ve en la lección', true, leccion.includes(MARCA_RESPUESTA_LECCION))
+    }
+
+    // Ocultar desde la bandeja: el alumno deja de verlo.
+    const conRespuestas = await texto(`${BANDEJA}&estado=respondidas`, admin)
+    const ocultar = formularioCon(conRespuestas, 'name="ocultar" value="si"', `name="id" value="${post.id}"`)
+    afirmar(G7, 'hay botón de ocultar', true, Boolean(ocultar))
+    if (ocultar) {
+      await enviar(BANDEJA, ocultar, admin)
+      const { rows } = await bd.query(`select status from academia.community_posts where id = $1`, [post.id])
+      afirmar(G7, 'queda oculta en la base', 'hidden', rows[0]?.status)
+      afirmar(G7, 'el alumno ya no la ve', false, (await texto(RUTA_COMUNIDAD, alumno)).includes(MARCA_BANDEJA))
+      afirmar(G7, 'la bandeja la esconde por omisión', false,
+        (await texto(`${BANDEJA}&estado=todas`, admin)).includes(MARCA_BANDEJA))
+      afirmar(G7, 'y la enseña con «Incluir lo oculto»', true,
+        (await texto(`${BANDEJA}&estado=todas&ocultas=si`, admin)).includes(MARCA_BANDEJA))
+    }
+
+    // En el portal, el equipo siempre sabe de qué generación es el muro.
+    if (generacion) {
+      const muroEquipo = await texto(RUTA_COMUNIDAD, admin)
+      afirmar(G7, 'el portal le dice al equipo qué generación ve', true,
+        muroEquipo.includes('Generaciones del curso (solo el equipo)') && muroEquipo.includes(generacion.name))
+    }
 
     await purgar(bd)
   } finally {

@@ -4,6 +4,7 @@ import { revalidatePath } from 'next/cache'
 import { z } from 'zod'
 
 import { esEquipo, exigirPerfil } from '@/lib/auth/sesion'
+import { filtroDeModeracion } from '@/lib/comunidad/moderacion'
 import { crearClienteServidor } from '@/lib/supabase/server'
 import type { Json } from '@/lib/supabase/types'
 
@@ -169,17 +170,6 @@ export async function publicarEnComunidad(
   return {
     aviso: generaciones.length > 1 ? `Publicado en ${generaciones.length} generaciones.` : 'Publicado.',
   }
-}
-
-/**
- * Lo que toca una moderación: el post, o todas sus copias si se publicó en
- * «todas las generaciones» (M16). Quien lo publicó en todas quiere fijarlo,
- * ocultarlo o borrarlo en todas.
- */
-async function filtroDeModeracion(id: string): Promise<{ columna: 'id' | 'broadcast_id'; valor: string }> {
-  const supabase = await crearClienteServidor()
-  const { data } = await supabase.from('community_posts').select('broadcast_id').eq('id', id).maybeSingle()
-  return data?.broadcast_id ? { columna: 'broadcast_id', valor: data.broadcast_id } : { columna: 'id', valor: id }
 }
 
 export async function comentarEnPost(
