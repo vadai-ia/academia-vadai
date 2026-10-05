@@ -6,7 +6,7 @@ import { Pestanas } from '@/components/ui-vadai/pestanas'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { archivarCurso, restaurarCurso } from '@/lib/admin/acciones'
-import { exigirAdmin } from '@/lib/auth/sesion'
+import { esAdmin, exigirEquipo } from '@/lib/auth/sesion'
 import { listarCursos } from '@/lib/admin/consultas'
 import { ETIQUETA_ESTADO_CURSO, ETIQUETA_TIPO_CURSO } from '@/lib/admin/tipos'
 
@@ -24,7 +24,7 @@ export default async function PaginaCursos({
 }: {
   searchParams: Promise<{ ver?: string }>
 }) {
-  await exigirAdmin()
+  const perfil = await exigirEquipo()
   const { ver } = await searchParams
 
   // El filtro vive en la URL, igual que el buscador de alumnos: funciona sin
@@ -47,9 +47,12 @@ export default async function PaginaCursos({
               : `${activos.length} activo(s) · ${archivados.length} archivado(s)`}
           </p>
         </div>
-        <Button asChild>
-          <Link href="/admin/cursos/nuevo">Nuevo curso</Link>
-        </Button>
+        {/* Crear cursos es de admin: el community manager opera los que existen. */}
+        {esAdmin(perfil) ? (
+          <Button asChild>
+            <Link href="/admin/cursos/nuevo">Nuevo curso</Link>
+          </Button>
+        ) : null}
       </header>
 
       <Pestanas

@@ -5,6 +5,8 @@
  * acceso vive en un solo archivo y se puede leer de corrido.
  */
 
+import { esRolDeEquipo } from './roles'
+
 export const RUTAS = {
   inicio: '/',
   login: '/login',
@@ -84,7 +86,7 @@ export function esDeAdmin(ruta: string): boolean {
  * las encuestas en las que participó.
  */
 export function rutaDeInicio(role: string | null | undefined): string {
-  if (role === 'admin' || role === 'superadmin') return RUTAS.admin
+  if (esRolDeEquipo(role)) return RUTAS.admin
   if (role === 'invitado') return RUTAS.misEncuestas
   return RUTAS.misCursos
 }

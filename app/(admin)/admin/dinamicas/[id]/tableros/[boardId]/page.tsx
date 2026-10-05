@@ -5,7 +5,7 @@ import { notFound } from 'next/navigation'
 import { Tablero } from '@/components/dinamicas/tablero'
 import { Button } from '@/components/ui/button'
 import { Seccion } from '@/components/ui-vadai/superficie'
-import { exigirAdmin } from '@/lib/auth/sesion'
+import { exigirEquipo } from '@/lib/auth/sesion'
 import { contarCeldasDeCriterio } from '@/lib/dinamicas/comun'
 import { duenoDeTablero, obtenerTablero } from '@/lib/dinamicas/tablero'
 
@@ -43,7 +43,7 @@ export default async function PaginaTableroAdmin({
 }: {
   params: Promise<{ id: string; boardId: string }>
 }) {
-  const perfil = await exigirAdmin()
+  const perfil = await exigirEquipo()
   const { id, boardId } = await params
 
   const [tablero, dueno] = await Promise.all([obtenerTablero(boardId), duenoDeTablero(boardId)])

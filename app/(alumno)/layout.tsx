@@ -74,7 +74,7 @@ export default async function LayoutAlumno({ children }: { children: ReactNode }
               <span aria-hidden>←</span>
               <span className="sm:hidden">Panel</span>
               <span className="hidden sm:inline">
-                Volver al panel de {perfil.role === 'superadmin' ? 'superadmin' : 'admin'}
+                Volver al panel
               </span>
             </Link>
           ) : null

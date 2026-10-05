@@ -1,5 +1,6 @@
 'use server'
 
+import { esRolDeEquipo } from '@/lib/auth/roles'
 import { revalidatePath } from 'next/cache'
 import { redirect } from 'next/navigation'
 import { z } from 'zod'
@@ -56,7 +57,7 @@ export async function eliminarCuenta(_previo: EstadoAccion, datos: FormData): Pr
     .maybeSingle()
   if (!objetivo) return { error: 'Esa cuenta ya no existe.' }
 
-  const esDelEquipo = objetivo.role === 'admin' || objetivo.role === 'superadmin'
+  const esDelEquipo = esRolDeEquipo(objetivo.role)
   if (esDelEquipo && admin.role !== 'superadmin') {
     return { error: 'Solo un superadmin puede eliminar a alguien del equipo.' }
   }

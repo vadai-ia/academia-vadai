@@ -4,7 +4,7 @@ import Link from 'next/link'
 import { RevisionEntrega } from '@/components/admin/revision-entrega'
 import { Badge } from '@/components/ui/badge'
 import { bandejaDeEntregas } from '@/lib/admin/tareas'
-import { exigirAdmin } from '@/lib/auth/sesion'
+import { exigirEquipo } from '@/lib/auth/sesion'
 
 export const metadata: Metadata = { title: 'Entregas' }
 export const dynamic = 'force-dynamic'
@@ -20,7 +20,7 @@ export default async function PaginaEntregas({
 }: {
   searchParams: Promise<{ todas?: string }>
 }) {
-  await exigirAdmin()
+  await exigirEquipo()
   const { todas } = await searchParams
   const verTodas = todas === '1'
 

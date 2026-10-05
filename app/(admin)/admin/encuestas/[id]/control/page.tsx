@@ -6,7 +6,7 @@ import { RefrescoPeriodico } from '@/components/encuestas/refresco-periodico'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Seccion } from '@/components/ui-vadai/superficie'
-import { exigirAdmin } from '@/lib/auth/sesion'
+import { exigirEquipo } from '@/lib/auth/sesion'
 import {
   abrirPregunta,
   alternarRespuestaOculta,
@@ -35,7 +35,7 @@ export const metadata: Metadata = { title: 'Control en vivo' }
  * encuesta, así que aquí solo van los controles.
  */
 export default async function PaginaControl({ params }: { params: Promise<{ id: string }> }) {
-  await exigirAdmin()
+  await exigirEquipo()
 
   const { id } = await params
   const encuesta = await obtenerEncuesta(id)

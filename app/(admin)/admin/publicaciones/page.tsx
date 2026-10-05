@@ -7,7 +7,7 @@ import { Button } from '@/components/ui/button'
 import { alternarPublicacion, eliminarPublicacion } from '@/lib/admin/acciones-blog'
 import { opcionesDeAlta } from '@/lib/admin/alumnos'
 import { listarPublicaciones } from '@/lib/admin/blog'
-import { exigirAdmin } from '@/lib/auth/sesion'
+import { exigirEquipo } from '@/lib/auth/sesion'
 
 export const metadata: Metadata = { title: 'Publicaciones' }
 export const dynamic = 'force-dynamic'
@@ -22,7 +22,7 @@ function fecha(iso: string): string {
 }
 
 export default async function PaginaPublicaciones() {
-  await exigirAdmin()
+  await exigirEquipo()
 
   const [publicaciones, cursos] = await Promise.all([listarPublicaciones(), opcionesDeAlta()])
   const borradores = publicaciones.filter((p) => !p.publicadoEn).length

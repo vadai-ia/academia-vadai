@@ -6,7 +6,9 @@ import { z } from 'zod'
 import { empresaPorNombre } from '@/lib/admin/empresas'
 import { filasDeArchivo, interpretar } from '@/lib/admin/importar'
 import { crearEnlaceDurable } from '@/lib/auth/enlace-durable'
-import { exigirAdmin } from '@/lib/auth/sesion'
+import { esRolDeEquipo } from '@/lib/auth/roles'
+import { exigirAdmin, exigirEquipo } from '@/lib/auth/sesion'
+import { crearClienteServidor } from '@/lib/supabase/server'
 import { darDeAlta, type RolDeAlta } from '@/lib/stripe/provisioning'
 
 import { enLista, revisarSeleccion } from './seleccion-de-cursos'
@@ -35,7 +37,7 @@ const esquemaEquipo = z.object({
     .email('Ese correo no parece válido.')
     .transform((v) => v.toLowerCase()),
   nombre: z.string().trim().max(160),
-  rol: z.enum(['admin', 'superadmin']),
+  rol: z.enum(['community_manager', 'admin', 'superadmin']),
 })
 
 /**
@@ -275,10 +277,19 @@ export async function enlaceDeAcceso(
   _previo: EstadoAccion,
   datos: FormData
 ): Promise<EstadoAccion> {
-  const perfil = await exigirAdmin()
+  const perfil = await exigirEquipo()
 
   const email = String(datos.get('email') ?? '').trim().toLowerCase()
   if (!email) return { error: 'Falta el correo.' }
+
+  // Una liga de acceso ES entrar como esa persona. Para una cuenta del equipo
+  // solo la genera un superadmin: si no, un admin —o un community manager
+  // (0036)— podría entrar como superadmin con una liga a su correo.
+  const supabase = await crearClienteServidor()
+  const { data: destino } = await supabase.from('profiles').select('role').eq('email', email).maybeSingle()
+  if (esRolDeEquipo(destino?.role) && perfil.role !== 'superadmin') {
+    return { error: 'Solo un superadmin genera ligas de acceso para alguien del equipo.' }
+  }
 
   // Vale 30 días y sobrevive a que se abra dos veces: es lo que se necesita
   // cuando la liga viaja por WhatsApp y la persona la abre cuando puede.
@@ -288,4 +299,49 @@ export async function enlaceDeAcceso(
   console.log(JSON.stringify({ operacion: 'enlaceDeAcceso', porQuien: perfil.email, email }))
 
   return { aviso: enlace }
+}
+
+// ---------------------------------------------------------------------------
+// Cambiar el rol de alguien
+// ---------------------------------------------------------------------------
+
+const esquemaRol = z.object({
+  user_id: z.string().uuid(),
+  rol: z.enum(['alumno', 'community_manager', 'admin', 'superadmin']),
+})
+
+/**
+ * Dar o quitar un rol del equipo a una cuenta que ya existe (3-oct-2026). Es
+ * como se nombra o se retira a un community manager.
+ *
+ * Solo un superadmin, por la misma razón que el alta de equipo: quien sube
+ * roles no puede ser quien los recibe. La base lo exige también: el trigger de
+ * perfil (0036) rechaza dar o quitar el rol de CM a quien no es superadmin.
+ * Nadie se cambia el rol a sí mismo: un superadmin que se baja por error se
+ * queda sin poder deshacerlo.
+ */
+export async function cambiarRol(_previo: EstadoAccion, datos: FormData): Promise<EstadoAccion> {
+  const perfil = await exigirAdmin()
+  if (perfil.role !== 'superadmin') return { error: 'Solo un superadmin cambia roles.' }
+
+  const r = esquemaRol.safeParse({ user_id: datos.get('user_id'), rol: datos.get('rol') })
+  if (!r.success) return { error: 'Elige un rol.' }
+  if (r.data.user_id === perfil.user_id) return { error: 'No puedes cambiar tu propio rol.' }
+
+  const supabase = await crearClienteServidor()
+  const { data, error } = await supabase
+    .from('profiles')
+    .update({ role: r.data.rol })
+    .eq('user_id', r.data.user_id)
+    .select('email')
+    .maybeSingle()
+
+  if (error || !data) {
+    console.error(JSON.stringify({ operacion: 'cambiarRol', porQuien: perfil.email, ...r.data, error: error?.message ?? 'sin fila' }))
+    return { error: 'No se pudo cambiar el rol.' }
+  }
+
+  console.log(JSON.stringify({ operacion: 'cambiarRol', porQuien: perfil.email, email: data.email, rol: r.data.rol }))
+  revalidatePath('/admin/alumnos', 'layout')
+  return { aviso: 'Rol actualizado. Lo nota la próxima vez que cargue una página.' }
 }

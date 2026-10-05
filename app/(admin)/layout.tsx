@@ -14,11 +14,11 @@ import {
 } from '@/components/marca/iconos-navegacion'
 import { BarraDeNavegacion } from '@/components/marca/barra-de-navegacion'
 import { SaltarAlContenido } from '@/components/marca/saltar-al-contenido'
-import { exigirAdmin } from '@/lib/auth/sesion'
+import { exigirEquipo } from '@/lib/auth/sesion'
 
 /** Marco del área de administración. Un alumno que llegue aquí es devuelto. */
 export default async function LayoutAdmin({ children }: { children: ReactNode }) {
-  const perfil = await exigirAdmin()
+  const perfil = await exigirEquipo()
 
   return (
     <div className="relative flex min-h-dvh flex-col">

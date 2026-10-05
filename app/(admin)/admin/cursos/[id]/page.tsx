@@ -18,7 +18,7 @@ import { listarEmpresas } from '@/lib/admin/empresas'
 import { generacionesDelCurso, leccionesLigables } from '@/lib/admin/generaciones'
 import { candidatosParaCurso, inscritosDelCurso } from '@/lib/admin/inscritos'
 import { ETIQUETA_ESTADO_CURSO } from '@/lib/admin/tipos'
-import { exigirAdmin } from '@/lib/auth/sesion'
+import { esAdmin, exigirEquipo } from '@/lib/auth/sesion'
 import { esPorGeneraciones, generacionPorOmision } from '@/lib/generaciones'
 
 export const dynamic = 'force-dynamic'
@@ -78,9 +78,14 @@ export default async function PaginaCurso({
   params: Promise<{ id: string }>
   searchParams: Promise<Parametros>
 }) {
-  const perfil = await exigirAdmin()
+  const perfil = await exigirEquipo()
+  // El community manager (0036) opera sesiones, grabaciones y alumnos de los
+  // cursos que existen; la estructura —generaciones, módulos, lecciones, datos
+  // del curso— y las inscripciones nuevas son de admin.
+  const soyAdmin = esAdmin(perfil)
   const { id } = await params
-  const { gen: genPedida, aviso, ...filtros } = await searchParams
+  const { gen: genCruda, aviso, ...filtros } = await searchParams
+  const genPedida = genCruda === 'nueva' && !soyAdmin ? undefined : genCruda
 
   // Todo en una sola ronda (24-sep-2026): el id de la URL es el id del curso,
   // así que nada tiene que esperar al curso para arrancar. Si el curso no
@@ -136,7 +141,7 @@ export default async function PaginaCurso({
     ...(resumen.sinGeneracion > 0 || vista === 'sin'
       ? [{ href: `${base}?gen=sin`, etiqueta: 'Sin generación', activa: vista === 'sin', insignia: resumen.sinGeneracion }]
       : []),
-    { href: `${base}?gen=nueva`, etiqueta: '+ Nueva generación', activa: vista === 'nueva' },
+    ...(soyAdmin ? [{ href: `${base}?gen=nueva`, etiqueta: '+ Nueva generación', activa: vista === 'nueva' }] : []),
   ]
 
   const propuesta = `Generación ${generaciones.length + 1}`
@@ -183,7 +188,7 @@ export default async function PaginaCurso({
       ) : (
         <p className="flex flex-wrap items-center justify-between gap-2 rounded-[10px] border border-border bg-muted/40 px-4 py-3 text-sm">
           <span>Curso sin generaciones: todo el contenido es común a quien lo tenga.</span>
-          {vista !== 'nueva' ? (
+          {vista !== 'nueva' && soyAdmin ? (
             <Link href={`${base}?gen=nueva`} className="text-primary underline-offset-4 hover:underline">
               Crear la primera generación →
             </Link>
@@ -205,11 +210,16 @@ export default async function PaginaCurso({
       ) : null}
 
       {vista === 'generacion' && generacion ? (
-        <EncabezadoGeneracion generacion={generacion} grabaciones={grabaciones} aviso={aviso ?? null} />
+        <EncabezadoGeneracion
+          generacion={generacion}
+          grabaciones={grabaciones}
+          aviso={aviso ?? null}
+          soloLectura={!soyAdmin}
+        />
       ) : null}
 
       {vista === 'generacion' || vista === 'curso' ? (
-        <ArbolCurso curso={arbol} moduloAbierto={filtros.modulo ?? null} cohortId={cohortId} />
+        <ArbolCurso curso={arbol} moduloAbierto={filtros.modulo ?? null} cohortId={cohortId} soloLectura={!soyAdmin} />
       ) : null}
 
       {/* --- Sesiones en vivo ---------------------------------------------
@@ -297,7 +307,7 @@ export default async function PaginaCurso({
             }}
           />
 
-          {curso.status === 'archived' ? (
+          {!soyAdmin ? null : curso.status === 'archived' ? (
             <p className="text-sm text-muted-foreground">
               El curso está archivado: no se le agrega gente. Restáuralo desde Cursos → Archivados.
             </p>
@@ -317,6 +327,7 @@ export default async function PaginaCurso({
         </section>
       ) : null}
 
+      {soyAdmin ? (
       <section className="flex max-w-2xl flex-col gap-4 border-t border-border pt-8">
         <h2 className="text-lg font-semibold">Datos del curso</h2>
         {/* Solo la fila del curso, sin `modulos`: FormularioCurso es de
@@ -331,6 +342,7 @@ export default async function PaginaCurso({
           </p>
         )}
       </section>
+      ) : null}
 
     </div>
   )

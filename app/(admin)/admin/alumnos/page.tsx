@@ -20,7 +20,7 @@ import {
   type CorteDeAcceso,
 } from '@/lib/admin/alumnos'
 import { listarEmpresas } from '@/lib/admin/empresas'
-import { exigirAdmin } from '@/lib/auth/sesion'
+import { esAdmin, exigirEquipo } from '@/lib/auth/sesion'
 import { cn } from '@/lib/utils'
 
 export const metadata: Metadata = { title: 'Alumnos' }
@@ -60,7 +60,7 @@ type Parametros = {
 }
 
 export default async function PaginaAlumnos({ searchParams }: { searchParams: Promise<Parametros> }) {
-  const perfil = await exigirAdmin()
+  const perfil = await exigirEquipo()
   const { q, ver, acceso, empresa, pagina, aviso, correo } = await searchParams
   const busqueda = (q ?? '').trim()
   const verSuspendidos = ver === 'suspendidos'
@@ -199,7 +199,10 @@ export default async function PaginaAlumnos({ searchParams }: { searchParams: Pr
         </Tarjeta>
       ) : null}
 
-      <DarDeAlta cursos={cursos} empresas={empresas} reinicio={lista.total} soySuperadmin={soySuperadmin} />
+      {/* Dar de alta es de admin: el community manager no crea cuentas (0036). */}
+      {esAdmin(perfil) ? (
+        <DarDeAlta cursos={cursos} empresas={empresas} reinicio={lista.total} soySuperadmin={soySuperadmin} />
+      ) : null}
 
       <div className="flex flex-col gap-4">
         <Pestanas

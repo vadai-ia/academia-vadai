@@ -2,7 +2,7 @@ import type { Metadata } from 'next'
 import { notFound } from 'next/navigation'
 
 import { ConstructorDinamica } from '@/components/admin/constructor-dinamica'
-import { exigirAdmin } from '@/lib/auth/sesion'
+import { exigirEquipo } from '@/lib/auth/sesion'
 import { obtenerDinamica } from '@/lib/dinamicas/consultas'
 
 export const dynamic = 'force-dynamic'
@@ -21,7 +21,7 @@ export async function generateMetadata({
 
 /** Sección de criterios. El marco —encabezado, cifras y pestañas— lo pone el layout. */
 export default async function PaginaCriterios({ params }: { params: Promise<{ id: string }> }) {
-  await exigirAdmin()
+  await exigirEquipo()
 
   const { id } = await params
   const dinamica = await obtenerDinamica(id)

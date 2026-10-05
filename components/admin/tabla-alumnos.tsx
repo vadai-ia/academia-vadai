@@ -1,5 +1,6 @@
 import Link from 'next/link'
 
+import { esRolDeEquipo, etiquetaDeRol } from '@/lib/auth/roles'
 import { Avatar, Progreso, Tarjeta } from '@/components/ui-vadai/superficie'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
@@ -49,7 +50,7 @@ export function TablaAlumnos({
           </thead>
           <tbody className="max-sm:block">
             {filas.map((a) => {
-              const equipo = a.rol === 'admin' || a.rol === 'superadmin'
+              const equipo = esRolDeEquipo(a.rol)
               const vigentes = a.inscripciones.filter((i) => i.vigente).length
               const total = a.inscripciones.reduce((n, i) => n + i.total, 0)
               const hechas = a.inscripciones.reduce((n, i) => n + i.hechas, 0)
@@ -66,7 +67,7 @@ export function TablaAlumnos({
                           <Link href={ficha} className="font-medium underline-offset-4 hover:underline">
                             {a.nombre || '(sin nombre)'}
                           </Link>
-                          {equipo ? <Badge className="bg-vadai-lima text-[11px] text-vadai-navy">{a.rol}</Badge> : null}
+                          {equipo ? <Badge className="bg-vadai-lima text-[11px] text-vadai-navy">{etiquetaDeRol(a.rol)}</Badge> : null}
                         </span>
                         <span className="truncate text-xs text-muted-foreground">{a.email}</span>
                       </span>

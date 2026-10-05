@@ -3,7 +3,7 @@
 import { revalidatePath } from 'next/cache'
 import { redirect } from 'next/navigation'
 
-import { exigirAdmin } from '@/lib/auth/sesion'
+import { exigirAdmin, exigirEquipo } from '@/lib/auth/sesion'
 import { crearClienteServidor } from '@/lib/supabase/server'
 
 import { slugOcupado } from './consultas'
@@ -373,6 +373,37 @@ export async function ajustarLeccion(_previo: EstadoAccion, datos: FormData): Pr
   }
 }
 
+/**
+ * Publicar o pasar a borrador una lección sin tocar nada más. Es lo que
+ * necesita el community manager (0036) al ligar una grabación: las lecciones
+ * de una generación nueva nacen en borrador, y la grabación no se ve hasta
+ * publicarla. La base solo le deja cambiar video, duración y publicación
+ * (`lessons_solo_grabacion`); por eso esto escribe solo `status`.
+ */
+export async function cambiarPublicacionDeLeccion(_previo: EstadoAccion, datos: FormData): Promise<EstadoAccion> {
+  await exigirEquipo()
+
+  const id = String(datos.get('id') ?? '')
+  const cursoId = String(datos.get('course_id') ?? '')
+  const publicar = String(datos.get('publicar') ?? '') === 'si'
+  if (!id) return { error: 'Falta la lección.' }
+
+  const supabase = await crearClienteServidor()
+  const { error } = await supabase
+    .from('lessons')
+    .update({ status: publicar ? 'published' : 'draft' })
+    .eq('id', id)
+
+  if (error) {
+    registrarFallo('cambiarPublicacionDeLeccion', { id, publicar }, error.message)
+    return { error: 'No se pudo cambiar la publicación. Inténtalo otra vez.' }
+  }
+
+  revalidatePath(`/admin/lecciones/${id}`)
+  revalidatePath(`/admin/cursos/${cursoId}`)
+  return { aviso: publicar ? 'Publicada: los alumnos de su generación ya la ven.' : 'En borrador: los alumnos ya no la ven.' }
+}
+
 /** Con confirmación en modal (M14): devuelve el error si lo hay; si no, vuelve al curso. */
 export async function eliminarLeccion(_previo: EstadoAccion, datos: FormData): Promise<EstadoAccion> {
   await exigirAdmin()
@@ -501,7 +532,7 @@ export async function moverLeccion(datos: FormData): Promise<void> {
 // ==========================================================================
 
 export async function subirAdjunto(_previo: EstadoAccion, datos: FormData): Promise<EstadoAccion> {
-  await exigirAdmin()
+  await exigirEquipo()
 
   const leccionId = String(datos.get('lesson_id') ?? '')
   const cursoId = String(datos.get('course_id') ?? '')
@@ -554,7 +585,7 @@ export async function subirAdjunto(_previo: EstadoAccion, datos: FormData): Prom
 }
 
 export async function eliminarAdjunto(datos: FormData): Promise<void> {
-  await exigirAdmin()
+  await exigirEquipo()
 
   const id = String(datos.get('id') ?? '')
   const leccionId = String(datos.get('lesson_id') ?? '')
@@ -596,7 +627,7 @@ export async function eliminarAdjunto(datos: FormData): Promise<void> {
  * Los buckets son privados: nunca se expone una URL directa (§4).
  */
 export async function urlDeDescarga(rutaStorage: string): Promise<string | null> {
-  await exigirAdmin()
+  await exigirEquipo()
 
   const supabase = await crearClienteServidor()
   const { data, error } = await supabase.storage

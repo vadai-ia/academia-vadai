@@ -16,7 +16,8 @@ import {
 import { Button } from '@/components/ui/button'
 import { topDePuntos } from '@/lib/admin/puntos'
 import { tableroAdmin } from '@/lib/admin/tablero'
-import { exigirAdmin, nombreVisible } from '@/lib/auth/sesion'
+import { etiquetaDeRol } from '@/lib/auth/roles'
+import { exigirEquipo, nombreVisible } from '@/lib/auth/sesion'
 
 export const metadata: Metadata = { title: 'Administración' }
 export const dynamic = 'force-dynamic'
@@ -87,7 +88,7 @@ const SECCIONES = [
  * acceso abren el listado ya filtrado, y la sesión se agenda aquí mismo.
  */
 export default async function PaginaAdmin() {
-  const [perfil, t, ranking] = await Promise.all([exigirAdmin(), tableroAdmin(), topDePuntos(25)])
+  const [perfil, t, ranking] = await Promise.all([exigirEquipo(), tableroAdmin(), topDePuntos(25)])
   const top5 = ranking.alumnos.slice(0, 5)
 
   const porcentajeEntraron = t.personas === 0 ? 0 : Math.round((t.entraron / t.personas) * 100)
@@ -95,7 +96,7 @@ export default async function PaginaAdmin() {
 
   return (
     <div className="flex flex-col gap-8">
-      <Titulo apoyo={`${nombreVisible(perfil)} · ${perfil.role}`}>Administración</Titulo>
+      <Titulo apoyo={`${nombreVisible(perfil)} · ${etiquetaDeRol(perfil.role)}`}>Administración</Titulo>
 
       {/* Lo que hay que atender va primero y solo aparece si hay algo que
           atender. Un aviso que sale siempre deja de leerse en una semana. */}

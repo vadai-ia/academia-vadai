@@ -219,6 +219,7 @@ function AltaEquipo({ reinicio, estado, accion }: { reinicio: number; estado: Es
         <div className="flex flex-col gap-1.5">
           <Label htmlFor="eq-rol">Rol</Label>
           <select id="eq-rol" name="rol" defaultValue="admin" className={claseSelect}>
+            <option value="community_manager">Community manager — comunidad, sesiones y alumnos</option>
             <option value="admin">Admin — gestiona todo el contenido</option>
             <option value="superadmin">Superadmin — además puede borrar pagos</option>
           </select>
@@ -308,7 +309,7 @@ export function DarDeAlta({
         {soySuperadmin ? (
           <details className="border-t border-border pt-2" open={contesto(estadoEquipo) || undefined}>
             <summary className={claseResumen}>
-              <Flecha /> Alguien del equipo (admin o superadmin)
+              <Flecha /> Alguien del equipo (community manager, admin o superadmin)
             </summary>
             <div className="px-1 pt-4 pb-2">
               <AltaEquipo reinicio={reinicio} estado={estadoEquipo} accion={altaEquipo} />

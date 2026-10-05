@@ -6,6 +6,7 @@ import { CambiarTema } from '@/components/marca/cambiar-tema'
 import { NavegacionPrincipal, type Destino } from '@/components/marca/navegacion'
 import { EtiquetaAcademia, Wordmark } from '@/components/marca/wordmark'
 import { Avatar } from '@/components/ui-vadai/superficie'
+import { esRolDeEquipo, etiquetaDeRol } from '@/lib/auth/roles'
 import { nombreVisible, type Perfil } from '@/lib/auth/sesion'
 
 /**
@@ -106,7 +107,7 @@ export function Encabezado({
  */
 function MenuDeCuenta({ perfil }: { perfil: Perfil }) {
   const nombre = nombreVisible(perfil)
-  const equipo = perfil.role === 'admin' || perfil.role === 'superadmin'
+  const equipo = esRolDeEquipo(perfil.role)
   const idMenu = 'menu-de-cuenta'
 
   return (
@@ -146,7 +147,7 @@ function MenuDeCuenta({ perfil }: { perfil: Perfil }) {
                 : 'text-xs font-medium'
             }
           >
-            {perfil.role}
+            {etiquetaDeRol(perfil.role)}
           </span>
         </div>
 

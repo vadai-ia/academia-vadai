@@ -7,12 +7,13 @@ import { ConfirmarConModal } from '@/components/admin/confirmar-con-modal'
 import { ConstructorQuiz } from '@/components/admin/constructor-quiz'
 import { ConstructorTarea } from '@/components/admin/constructor-tarea'
 import { FormularioLeccion } from '@/components/admin/formulario-leccion'
+import { GrabacionDeLeccion } from '@/components/admin/grabacion-de-leccion'
 import { eliminarLeccion } from '@/lib/admin/acciones'
 import { bunnyConfigurado } from '@/lib/bunny/cliente'
 import { obtenerLeccion } from '@/lib/admin/consultas'
 import { quizDeLeccion } from '@/lib/admin/quizzes'
 import { tareaDeLeccion } from '@/lib/admin/tareas'
-import { exigirAdmin } from '@/lib/auth/sesion'
+import { esAdmin, exigirEquipo } from '@/lib/auth/sesion'
 
 export const dynamic = 'force-dynamic'
 
@@ -27,13 +28,13 @@ export async function generateMetadata({
 }
 
 export default async function PaginaLeccion({ params }: { params: Promise<{ id: string }> }) {
-  await exigirAdmin()
+  const perfil = await exigirEquipo()
   const { id } = await params
 
   const leccion = await obtenerLeccion(id)
   if (!leccion) notFound()
 
-  const quiz = leccion.lesson_type === 'quiz' ? await quizDeLeccion(leccion.id) : null
+  const quiz = leccion.lesson_type === 'quiz' && esAdmin(perfil) ? await quizDeLeccion(leccion.id) : null
   const tarea =
     leccion.lesson_type === 'assignment' ? await tareaDeLeccion(leccion.id) : null
 
@@ -49,6 +50,17 @@ export default async function PaginaLeccion({ params }: { params: Promise<{ id: 
         <h1 className="text-2xl font-semibold tracking-tight">{leccion.title}</h1>
       </header>
 
+      {/* El community manager (0036) solo sube la grabación, la publica y
+          maneja los adjuntos; el editor completo es de admin. */}
+      {!esAdmin(perfil) ? (
+        <>
+          <GrabacionDeLeccion leccion={leccion} cursoId={leccion.curso_id} bunnyListo={bunnyConfigurado()} />
+          <div className="border-t border-border pt-8">
+            <Adjuntos adjuntos={leccion.adjuntos} leccionId={leccion.id} cursoId={leccion.curso_id} />
+          </div>
+        </>
+      ) : (
+      <>
       <FormularioLeccion
         leccion={leccion}
         cursoId={leccion.curso_id}
@@ -90,6 +102,8 @@ export default async function PaginaLeccion({ params }: { params: Promise<{ id: 
           </p>
         </ConfirmarConModal>
       </div>
+      </>
+      )}
     </div>
   )
 }

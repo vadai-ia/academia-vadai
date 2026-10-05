@@ -5,7 +5,7 @@ import { redirect } from 'next/navigation'
 import { z } from 'zod'
 
 import type { EstadoAccion } from '@/lib/admin/tipos'
-import { exigirAdmin } from '@/lib/auth/sesion'
+import { exigirEquipo } from '@/lib/auth/sesion'
 import { LETRAS } from '@/lib/quiz/comun'
 import { generacionObligatoria } from '@/lib/admin/generaciones'
 import { crearClienteServidor } from '@/lib/supabase/server'
@@ -17,7 +17,7 @@ import { ajustesPorDefecto, TIPOS_PREGUNTA, TOPE_PALABRA, type TipoPregunta } fr
  * Administración de encuestas en vivo (M12, etapa 1).
  *
  * Todo lo de aquí pasa por RLS con el cliente del usuario: son operaciones de
- * admin y `exigirAdmin()` ya cortó antes. El service role de esta feature vive
+ * admin y `exigirEquipo()` ya cortó antes. El service role de esta feature vive
  * en el camino público, donde quien escribe puede no tener cuenta.
  */
 
@@ -59,7 +59,7 @@ export async function crearEncuesta(
   _previo: EstadoAccion,
   datos: FormData
 ): Promise<EstadoAccion> {
-  const perfil = await exigirAdmin()
+  const perfil = await exigirEquipo()
 
   const resultado = esquemaEncuesta.safeParse({
     course_id: datos.get('course_id'),
@@ -110,7 +110,7 @@ export async function actualizarEncuesta(
   _previo: EstadoAccion,
   datos: FormData
 ): Promise<EstadoAccion> {
-  await exigirAdmin()
+  await exigirEquipo()
 
   const id = String(datos.get('id') ?? '')
   if (!id) return { error: 'Falta la encuesta.' }
@@ -148,7 +148,7 @@ export async function actualizarEncuesta(
 }
 
 export async function eliminarEncuesta(datos: FormData): Promise<void> {
-  await exigirAdmin()
+  await exigirEquipo()
 
   const id = String(datos.get('id') ?? '')
   if (!id) return
@@ -189,7 +189,7 @@ export async function crearPreguntaEncuesta(
   _previo: EstadoAccion,
   datos: FormData
 ): Promise<EstadoAccion> {
-  await exigirAdmin()
+  await exigirEquipo()
 
   const encuestaId = String(datos.get('poll_id') ?? '')
   if (!encuestaId) return { error: 'Falta la encuesta.' }
@@ -288,7 +288,7 @@ export async function actualizarPregunta(
   _previo: EstadoAccion,
   datos: FormData
 ): Promise<EstadoAccion> {
-  await exigirAdmin()
+  await exigirEquipo()
 
   const id = String(datos.get('id') ?? '')
   const encuestaId = String(datos.get('poll_id') ?? '')
@@ -396,7 +396,7 @@ export async function actualizarPregunta(
 }
 
 export async function eliminarPreguntaEncuesta(datos: FormData): Promise<void> {
-  await exigirAdmin()
+  await exigirEquipo()
 
   const id = String(datos.get('id') ?? '')
   const encuestaId = String(datos.get('poll_id') ?? '')
@@ -411,7 +411,7 @@ export async function eliminarPreguntaEncuesta(datos: FormData): Promise<void> {
 
 /** Mismo intercambio con el vecino que módulos, lecciones y preguntas de quiz. */
 export async function moverPreguntaEncuesta(datos: FormData): Promise<void> {
-  await exigirAdmin()
+  await exigirEquipo()
 
   const id = String(datos.get('id') ?? '')
   const encuestaId = String(datos.get('poll_id') ?? '')
@@ -460,7 +460,7 @@ function refrescar(encuestaId: string) {
 
 /** Abre la encuesta: a partir de aquí la gente puede escanear y entrar. */
 export async function iniciarEncuesta(datos: FormData): Promise<void> {
-  await exigirAdmin()
+  await exigirEquipo()
 
   const id = String(datos.get('id') ?? '')
   if (!id) return
@@ -483,7 +483,7 @@ export async function iniciarEncuesta(datos: FormData): Promise<void> {
  * respuestas llegarían después de que la sala ya vio el resultado final.
  */
 export async function cerrarEncuesta(datos: FormData): Promise<void> {
-  await exigirAdmin()
+  await exigirEquipo()
 
   const id = String(datos.get('id') ?? '')
   if (!id) return
@@ -519,7 +519,7 @@ export async function cerrarEncuesta(datos: FormData): Promise<void> {
  * al botón que faltaba tocar.
  */
 export async function abrirPregunta(datos: FormData): Promise<void> {
-  await exigirAdmin()
+  await exigirEquipo()
 
   const id = String(datos.get('id') ?? '')
   const encuestaId = String(datos.get('poll_id') ?? '')
@@ -562,7 +562,7 @@ export async function abrirPregunta(datos: FormData): Promise<void> {
  * hacer, y dejar el botón sin efecto sería peor que quitarlo.
  */
 export async function avanzarEncuesta(datos: FormData): Promise<void> {
-  await exigirAdmin()
+  await exigirEquipo()
 
   const encuestaId = String(datos.get('poll_id') ?? '')
   if (!encuestaId) return
@@ -613,7 +613,7 @@ export async function avanzarEncuesta(datos: FormData): Promise<void> {
 }
 
 export async function cerrarPregunta(datos: FormData): Promise<void> {
-  await exigirAdmin()
+  await exigirEquipo()
 
   const id = String(datos.get('id') ?? '')
   const encuestaId = String(datos.get('poll_id') ?? '')
@@ -650,7 +650,7 @@ export async function cerrarPregunta(datos: FormData): Promise<void> {
  * explícitamente, que es lo que quiere un ensayo.
  */
 export async function reiniciarEncuesta(datos: FormData): Promise<void> {
-  await exigirAdmin()
+  await exigirEquipo()
 
   const id = String(datos.get('id') ?? '')
   if (!id) return
@@ -724,7 +724,7 @@ export async function reiniciarEncuesta(datos: FormData): Promise<void> {
  * respuestas de la corrida anterior todavía serían las de la actual.
  */
 export async function nuevaCorrida(datos: FormData): Promise<void> {
-  await exigirAdmin()
+  await exigirEquipo()
 
   const id = String(datos.get('id') ?? '')
   if (!id) return
@@ -776,7 +776,7 @@ export async function nuevaCorrida(datos: FormData): Promise<void> {
  * a querer saber que ocurrió, no que desapareciera sin rastro.
  */
 export async function alternarRespuestaOculta(datos: FormData): Promise<void> {
-  await exigirAdmin()
+  await exigirEquipo()
 
   const id = String(datos.get('id') ?? '')
   const encuestaId = String(datos.get('poll_id') ?? '')

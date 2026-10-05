@@ -303,6 +303,8 @@ export type Database = {
           updated_at: string
           cohort_id: string | null
           broadcast_id: string | null
+          attended_at: string | null
+          attended_by: string | null
         }
         Insert: {
           id?: string
@@ -317,6 +319,8 @@ export type Database = {
           updated_at?: string
           cohort_id?: string | null
           broadcast_id?: string | null
+          attended_at?: string | null
+          attended_by?: string | null
         }
         Update: {
           id?: string
@@ -331,6 +335,8 @@ export type Database = {
           updated_at?: string
           cohort_id?: string | null
           broadcast_id?: string | null
+          attended_at?: string | null
+          attended_by?: string | null
         }
         Relationships: []
       }
@@ -707,6 +713,8 @@ export type Database = {
           status: 'visible' | 'hidden' | 'deleted'
           created_at: string
           updated_at: string
+          attended_at: string | null
+          attended_by: string | null
         }
         Insert: {
           id?: string
@@ -717,6 +725,8 @@ export type Database = {
           status?: 'visible' | 'hidden' | 'deleted'
           created_at?: string
           updated_at?: string
+          attended_at?: string | null
+          attended_by?: string | null
         }
         Update: {
           id?: string
@@ -727,6 +737,8 @@ export type Database = {
           status?: 'visible' | 'hidden' | 'deleted'
           created_at?: string
           updated_at?: string
+          attended_at?: string | null
+          attended_by?: string | null
         }
         Relationships: []
       }
@@ -1162,7 +1174,7 @@ export type Database = {
           email: string
           full_name: string
           avatar_url: string | null
-          role: 'superadmin' | 'admin' | 'alumno' | 'invitado'
+          role: 'superadmin' | 'admin' | 'community_manager' | 'alumno' | 'invitado'
           status: 'active' | 'suspended'
           created_at: string
           updated_at: string
@@ -1177,7 +1189,7 @@ export type Database = {
           email: string
           full_name?: string
           avatar_url?: string | null
-          role?: 'superadmin' | 'admin' | 'alumno' | 'invitado'
+          role?: 'superadmin' | 'admin' | 'community_manager' | 'alumno' | 'invitado'
           status?: 'active' | 'suspended'
           created_at?: string
           updated_at?: string
@@ -1192,7 +1204,7 @@ export type Database = {
           email?: string
           full_name?: string
           avatar_url?: string | null
-          role?: 'superadmin' | 'admin' | 'alumno' | 'invitado'
+          role?: 'superadmin' | 'admin' | 'community_manager' | 'alumno' | 'invitado'
           status?: 'active' | 'suspended'
           created_at?: string
           updated_at?: string

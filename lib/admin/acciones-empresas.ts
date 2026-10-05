@@ -4,7 +4,7 @@ import { revalidatePath } from 'next/cache'
 import { z } from 'zod'
 
 import { empresaPorNombre } from '@/lib/admin/empresas'
-import { exigirAdmin } from '@/lib/auth/sesion'
+import { exigirEquipo } from '@/lib/auth/sesion'
 import { crearClienteServidor } from '@/lib/supabase/server'
 
 import type { EstadoAccion } from './tipos'
@@ -22,7 +22,7 @@ function revalidarTodo() {
 }
 
 export async function crearEmpresa(_previo: EstadoAccion, datos: FormData): Promise<EstadoAccion> {
-  await exigirAdmin()
+  await exigirEquipo()
 
   const nombre = esquemaNombre.safeParse(datos.get('nombre'))
   if (!nombre.success) return { error: nombre.error.issues[0]?.message ?? 'Revisa el nombre.' }
@@ -42,7 +42,7 @@ export async function crearEmpresa(_previo: EstadoAccion, datos: FormData): Prom
 }
 
 export async function renombrarEmpresa(datos: FormData): Promise<void> {
-  await exigirAdmin()
+  await exigirEquipo()
 
   const id = String(datos.get('id') ?? '')
   const nombre = esquemaNombre.safeParse(datos.get('nombre'))
@@ -64,7 +64,7 @@ export async function renombrarEmpresa(datos: FormData): Promise<void> {
  * matriz de un equipo en silencio. El 23503 se traduce a qué hacer antes.
  */
 export async function eliminarEmpresa(_previo: EstadoAccion, datos: FormData): Promise<EstadoAccion> {
-  await exigirAdmin()
+  await exigirEquipo()
 
   const id = String(datos.get('id') ?? '')
   if (!id) return { error: 'Falta la empresa.' }
@@ -95,7 +95,7 @@ export async function eliminarEmpresa(_previo: EstadoAccion, datos: FormData): P
  * hay que ir a Empresas, crearla y volver.
  */
 async function cambiarEmpresa(datos: FormData): Promise<EstadoAccion> {
-  await exigirAdmin()
+  await exigirEquipo()
 
   const userId = String(datos.get('user_id') ?? '')
   const nueva = String(datos.get('company_nueva') ?? '').trim()

@@ -2,6 +2,7 @@ import { createServerClient } from '@supabase/ssr'
 import { NextResponse, type NextRequest } from 'next/server'
 
 import { RUTAS, esDeAdmin, esDeAutenticacion, esPublica, rutaDeInicio } from '@/lib/auth/rutas'
+import { esRolDeEquipo } from '@/lib/auth/roles'
 
 import { ESQUEMA, llaveAnonima, urlSupabase } from './env'
 import type { Database } from './types'
@@ -105,7 +106,7 @@ export async function actualizarSesion(request: NextRequest) {
 
   // Un alumno que husmea /admin vuelve a lo suyo. Aunque entrara, RLS no le
   // daría un solo dato: esto es para que la UI no se rompa, no la protección.
-  if (esDeAdmin(ruta) && perfil?.role !== 'admin' && perfil?.role !== 'superadmin') {
+  if (esDeAdmin(ruta) && !esRolDeEquipo(perfil?.role)) {
     return irA(RUTAS.misCursos)
   }
 

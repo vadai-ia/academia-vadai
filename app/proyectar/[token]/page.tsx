@@ -4,7 +4,7 @@ import { notFound } from 'next/navigation'
 import { CodigoQr } from '@/components/encuestas/codigo-qr'
 import { PantallaEnVivo } from '@/components/encuestas/pantalla-en-vivo'
 import { CambiarTema } from '@/components/marca/cambiar-tema'
-import { exigirAdmin } from '@/lib/auth/sesion'
+import { exigirEquipo } from '@/lib/auth/sesion'
 import { urlDeEncuesta } from '@/lib/encuestas/comun'
 import { encuestaPorToken, payloadDeProyeccion } from '@/lib/encuestas/publico'
 
@@ -47,7 +47,7 @@ export default async function PaginaProyectar({
 }: {
   params: Promise<{ token: string }>
 }) {
-  await exigirAdmin()
+  await exigirEquipo()
 
   const { token } = await params
   const encuesta = await encuestaPorToken(token)

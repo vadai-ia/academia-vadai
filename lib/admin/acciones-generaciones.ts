@@ -8,7 +8,7 @@ import { cdmxAUtc, diaDeLaSemana, sumarDias } from '@/lib/admin/fechas'
 import type { LlamadaRpc } from '@/lib/alumno/catalogo'
 import { crearEnlacesDurables } from '@/lib/auth/enlace-durable'
 import { RUTAS } from '@/lib/auth/rutas'
-import { exigirAdmin } from '@/lib/auth/sesion'
+import { exigirAdmin, exigirEquipo } from '@/lib/auth/sesion'
 import { describirHorario, enlaceGoogle, enlaceOutlook } from '@/lib/calendario/enlaces'
 import { urlIcsDeCohorte } from '@/lib/calendario/firma'
 import { hoyCdmx } from '@/lib/calendario/mes'
@@ -352,7 +352,7 @@ export async function eliminarGeneracion(_previo: EstadoAccion, datos: FormData)
 // ==========================================================================
 
 export async function crearSesion(_previo: EstadoAccion, datos: FormData): Promise<EstadoAccion> {
-  await exigirAdmin()
+  await exigirEquipo()
 
   const cohorteId = String(datos.get('cohort_id') ?? '')
   if (!cohorteId) return { error: 'Falta la generación.' }
@@ -397,7 +397,7 @@ export async function crearSesion(_previo: EstadoAccion, datos: FormData): Promi
  * trae su formulario con lo que ya tiene, en hora CDMX (`utcACdmx`).
  */
 export async function actualizarSesion(datos: FormData): Promise<void> {
-  await exigirAdmin()
+  await exigirEquipo()
 
   const id = String(datos.get('id') ?? '')
   if (!id) return
@@ -444,7 +444,7 @@ export async function enviarCalendarioPorCorreo(
   _previo: EstadoAccion,
   datos: FormData
 ): Promise<EstadoAccion> {
-  const admin = await exigirAdmin()
+  const admin = await exigirEquipo()
 
   const cohorteId = String(datos.get('cohort_id') ?? '')
   const para = String(datos.get('para') ?? '').trim().toLowerCase()
@@ -594,7 +594,7 @@ export async function crearSesionesEnSerie(
   _previo: EstadoAccion,
   datos: FormData
 ): Promise<EstadoAccion> {
-  await exigirAdmin()
+  await exigirEquipo()
 
   const resultado = esquemaSerie.safeParse({
     cohort_id: datos.get('cohort_id'),
@@ -651,7 +651,7 @@ export async function crearSesionesEnSerie(
 
 /** Con confirmación en modal (M14). La sesión se ve en el curso y en el panel. */
 export async function eliminarSesion(_previo: EstadoAccion, datos: FormData): Promise<EstadoAccion> {
-  await exigirAdmin()
+  await exigirEquipo()
 
   const id = String(datos.get('id') ?? '')
   if (!id) return { error: 'Falta la sesión.' }
@@ -674,7 +674,7 @@ export async function eliminarSesion(_previo: EstadoAccion, datos: FormData): Pr
  * La grabación es una lección de tipo video del mismo curso.
  */
 export async function ligarGrabacion(datos: FormData): Promise<void> {
-  await exigirAdmin()
+  await exigirEquipo()
 
   const id = String(datos.get('id') ?? '')
   const leccionId = String(datos.get('recording_lesson_id') ?? '')

@@ -1,5 +1,6 @@
 'use server'
 
+import { esRolDeEquipo } from '@/lib/auth/roles'
 import { revalidatePath } from 'next/cache'
 import { redirect } from 'next/navigation'
 import { z } from 'zod'
@@ -7,7 +8,7 @@ import { z } from 'zod'
 import { alumnosPendientesDeEntrar } from '@/lib/admin/accesos'
 import { empresaPorNombre } from '@/lib/admin/empresas'
 import { crearEnlacesDurables } from '@/lib/auth/enlace-durable'
-import { exigirAdmin } from '@/lib/auth/sesion'
+import { exigirAdmin, exigirEquipo } from '@/lib/auth/sesion'
 import { plantillaNuevoCurso, plantillaRecordatorio } from '@/lib/correo/plantillas'
 import { enviarCorreosEnLote } from '@/lib/correo/resend'
 import { darDeAlta, enviarAccesoInicial } from '@/lib/stripe/provisioning'
@@ -149,7 +150,7 @@ export async function altaManual(_previo: EstadoAccion, datos: FormData): Promis
 
 /** Reintenta el correo de acceso para alguien ya dado de alta. */
 export async function reenviarAcceso(datos: FormData): Promise<void> {
-  const admin = await exigirAdmin()
+  const admin = await exigirEquipo()
 
   const email = String(datos.get('email') ?? '').trim().toLowerCase()
   if (!email) return
@@ -220,7 +221,7 @@ export async function enviarPruebaDeRecordatorio(
   _previo: EstadoAccion,
   datos: FormData
 ): Promise<EstadoAccion> {
-  const admin = await exigirAdmin()
+  const admin = await exigirEquipo()
 
   const para = String(datos.get('para') ?? '').trim().toLowerCase() || admin.email
   if (!/^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(para)) return { error: 'Ese correo no parece válido.' }
@@ -267,7 +268,7 @@ export async function recordarAccesoPendientes(
   _previo: EstadoAccion,
   _datos: FormData
 ): Promise<EstadoAccion> {
-  const admin = await exigirAdmin()
+  const admin = await exigirEquipo()
 
   const pendientes = await alumnosPendientesDeEntrar()
   if (pendientes.length === 0) {
@@ -326,7 +327,7 @@ export async function recordarAccesoPendientes(
  * El progreso nunca se toca (§6.3).
  */
 export async function cambiarAcceso(datos: FormData): Promise<void> {
-  await exigirAdmin()
+  await exigirEquipo()
 
   const userId = String(datos.get('user_id') ?? '')
   const courseId = String(datos.get('course_id') ?? '')
@@ -692,7 +693,7 @@ const esquemaCuenta = z.object({ user_id: z.uuid('Cuenta inválida.') })
  *     suspender a los demás admins se quedaría solo con el panel.
  */
 export async function suspenderCuenta(_previo: EstadoAccion, datos: FormData): Promise<EstadoAccion> {
-  const perfil = await exigirAdmin()
+  const perfil = await exigirEquipo()
 
   const resultado = esquemaCuenta.safeParse({ user_id: datos.get('user_id') })
   if (!resultado.success) {
@@ -714,7 +715,7 @@ export async function suspenderCuenta(_previo: EstadoAccion, datos: FormData): P
 
   if (!objetivo) return { error: 'Esa cuenta ya no existe.' }
 
-  const esDelEquipo = objetivo.role === 'admin' || objetivo.role === 'superadmin'
+  const esDelEquipo = esRolDeEquipo(objetivo.role)
   if (esDelEquipo && perfil.role !== 'superadmin') {
     return { error: 'Solo un superadmin puede suspender a alguien del equipo.' }
   }
@@ -763,7 +764,7 @@ export async function cambiarCorreoDeAlumno(
   _previo: EstadoAccion,
   datos: FormData
 ): Promise<EstadoAccion> {
-  const admin = await exigirAdmin()
+  const admin = await exigirEquipo()
 
   const userId = String(datos.get('user_id') ?? '')
   const nuevo = String(datos.get('nuevo_email') ?? '').trim().toLowerCase()
@@ -779,7 +780,7 @@ export async function cambiarCorreoDeAlumno(
   if (!actual) return { error: 'Esa cuenta no existe.' }
   if (actual.email === nuevo) return { error: 'Es el mismo correo que ya tiene.' }
 
-  const esDelEquipo = actual.role === 'admin' || actual.role === 'superadmin'
+  const esDelEquipo = esRolDeEquipo(actual.role)
   if (esDelEquipo && admin.role !== 'superadmin') {
     return { error: 'Solo un superadmin cambia el correo de alguien del equipo.' }
   }
@@ -839,7 +840,7 @@ export async function cambiarCorreoDeAlumno(
 
 /** Deshace la suspensión. La persona vuelve a entrar con lo que ya tenía. */
 export async function reactivarCuenta(datos: FormData): Promise<void> {
-  const perfil = await exigirAdmin()
+  const perfil = await exigirEquipo()
 
   const resultado = esquemaCuenta.safeParse({ user_id: datos.get('user_id') })
   if (!resultado.success) return
@@ -854,7 +855,7 @@ export async function reactivarCuenta(datos: FormData): Promise<void> {
     .eq('user_id', userId)
     .maybeSingle()
 
-  const esDelEquipo = objetivo?.role === 'admin' || objetivo?.role === 'superadmin'
+  const esDelEquipo = esRolDeEquipo(objetivo?.role)
   if (!objetivo || (esDelEquipo && perfil.role !== 'superadmin')) return
 
   const { error } = await supabase
@@ -873,7 +874,7 @@ export async function reactivarCuenta(datos: FormData): Promise<void> {
 
 /** Extiende la vigencia de una inscripción por N días desde hoy. */
 export async function extenderAcceso(datos: FormData): Promise<void> {
-  await exigirAdmin()
+  await exigirEquipo()
 
   const userId = String(datos.get('user_id') ?? '')
   const courseId = String(datos.get('course_id') ?? '')
@@ -916,7 +917,7 @@ const esquemaCambio = z.object({
  * tocan (decisión 4, 3-oct-2026).
  */
 export async function cambiarDeGeneracion(_previo: EstadoAccion, datos: FormData): Promise<EstadoAccion> {
-  await exigirAdmin()
+  await exigirEquipo()
 
   const resultado = esquemaCambio.safeParse({
     course_id: datos.get('course_id'),

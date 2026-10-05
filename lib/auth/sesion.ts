@@ -6,6 +6,7 @@ import { cache } from 'react'
 import { crearClienteServidor } from '@/lib/supabase/server'
 import type { Tabla } from '@/lib/supabase/types'
 
+import { esRolAdmin, esRolDeEquipo } from './roles'
 import { RUTAS, rutaDeInicio } from './rutas'
 
 export type Perfil = Tabla<'profiles'>
@@ -85,19 +86,44 @@ export async function exigirPerfil(): Promise<Perfil> {
   }
 }
 
-/** Para el área de admin. Un alumno que llegue aquí vuelve a lo suyo. */
+/**
+ * Para lo que solo hace un admin o superadmin: armar cursos, dar de alta,
+ * eliminar cuentas, ver pagos. Un community manager que llegue aquí vuelve al
+ * panel; un alumno, a lo suyo.
+ */
 export async function exigirAdmin(): Promise<Perfil> {
   const perfil = await exigirPerfil()
 
-  if (perfil.role !== 'admin' && perfil.role !== 'superadmin') {
+  if (!esRolAdmin(perfil.role)) {
+    redirect(esRolDeEquipo(perfil.role) ? RUTAS.admin : rutaDeInicio(perfil.role))
+  }
+
+  return perfil
+}
+
+/**
+ * Para el área del equipo: admin, superadmin y community manager (0036). Lo
+ * que el CM no puede hacer lo niega la base aunque llegue la petición; esto
+ * es la puerta del panel.
+ */
+export async function exigirEquipo(): Promise<Perfil> {
+  const perfil = await exigirPerfil()
+
+  if (!esRolDeEquipo(perfil.role)) {
     redirect(rutaDeInicio(perfil.role))
   }
 
   return perfil
 }
 
+/** Del equipo: entra al panel y firma como «Equipo VADAI». Incluye al CM. */
 export function esEquipo(perfil: Perfil): boolean {
-  return perfil.role === 'admin' || perfil.role === 'superadmin'
+  return esRolDeEquipo(perfil.role)
+}
+
+/** Admin o superadmin: lo que el community manager no hace. */
+export function esAdmin(perfil: Perfil): boolean {
+  return esRolAdmin(perfil.role)
 }
 
 /** Nombre para saludar, con el correo como respaldo. */

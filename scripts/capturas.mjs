@@ -87,6 +87,17 @@ const SESIONES = {
       '/admin/publicaciones',
     ],
   },
+  // El community manager (0036): lo que ve sin los botones de admin.
+  cm: {
+    email: correo.cm,
+    rutas: [
+      '/admin',
+      '/admin/comunidad',
+      `/admin/cursos/${IDS.curso}?gen=${IDS.cohorte}&modulo=todos`,
+      `/admin/lecciones/${IDS.leccionVideo}`,
+      '/admin/alumnos',
+    ],
+  },
   publico: {
     email: null,
     rutas: ['/login', '/recuperar'],

@@ -3,7 +3,7 @@ import { notFound } from 'next/navigation'
 
 import { AjustesDinamica } from '@/components/admin/ajustes-dinamica'
 import { opcionesDeAlta } from '@/lib/admin/alumnos'
-import { exigirAdmin } from '@/lib/auth/sesion'
+import { exigirEquipo } from '@/lib/auth/sesion'
 import { obtenerDinamica } from '@/lib/dinamicas/consultas'
 
 export const dynamic = 'force-dynamic'
@@ -17,7 +17,7 @@ export default async function PaginaConfiguracion({
 }: {
   params: Promise<{ id: string }>
 }) {
-  await exigirAdmin()
+  await exigirEquipo()
 
   const { id } = await params
   const [dinamica, cursos] = await Promise.all([obtenerDinamica(id), opcionesDeAlta()])

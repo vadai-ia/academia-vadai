@@ -9,7 +9,7 @@ import { Cifra, Tarjeta, Titulo } from '@/components/ui-vadai/superficie'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { ORDENES_PUNTOS, POR_PAGINA_PUNTOS, tablaDePuntos, type FiltrosPuntos } from '@/lib/admin/puntos'
-import { exigirAdmin } from '@/lib/auth/sesion'
+import { exigirEquipo } from '@/lib/auth/sesion'
 import { PUNTOS } from '@/lib/gamificacion/reglas'
 import { cn } from '@/lib/utils'
 
@@ -25,7 +25,7 @@ export const dynamic = 'force-dynamic'
  * el filtro: cuántos hay en cada uno y, al tocarlo, quiénes son.
  */
 export default async function PaginaPuntos({ searchParams }: { searchParams: Promise<FiltrosPuntos> }) {
-  await exigirAdmin()
+  await exigirEquipo()
   const t = await tablaDePuntos(await searchParams)
   const { q, curso, empresa, nivel, orden, por } = t.filtros
 

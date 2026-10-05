@@ -4,7 +4,7 @@ import { notFound } from 'next/navigation'
 import { AjustesEncuesta } from '@/components/admin/ajustes-encuesta'
 import { Seccion } from '@/components/ui-vadai/superficie'
 import { opcionesDeAlta } from '@/lib/admin/alumnos'
-import { exigirAdmin } from '@/lib/auth/sesion'
+import { exigirEquipo } from '@/lib/auth/sesion'
 import { obtenerEncuesta } from '@/lib/encuestas/consultas'
 
 export const dynamic = 'force-dynamic'
@@ -18,7 +18,7 @@ export default async function PaginaConfiguracion({
 }: {
   params: Promise<{ id: string }>
 }) {
-  await exigirAdmin()
+  await exigirEquipo()
 
   const { id } = await params
   const [encuesta, cursos] = await Promise.all([obtenerEncuesta(id), opcionesDeAlta()])

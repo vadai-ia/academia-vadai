@@ -1,10 +1,12 @@
 import type { Metadata } from 'next'
+import { esRolAdmin, esRolDeEquipo, etiquetaDeRol } from '@/lib/auth/roles'
 import Link from 'next/link'
 import { notFound } from 'next/navigation'
 
 import { CambiarEmpresa, DarAcceso, EnlaceDeAcceso } from '@/components/admin/acciones-de-alumno'
 import { AvisoAccion } from '@/components/admin/aviso-accion'
 import { ConfirmarConModal } from '@/components/admin/confirmar-con-modal'
+import { CambiarRol } from '@/components/admin/cambiar-rol'
 import { EliminarCuenta } from '@/components/admin/eliminar-cuenta'
 import { Avatar, Cifra, Progreso, Seccion, Tarjeta } from '@/components/ui-vadai/superficie'
 import { Badge } from '@/components/ui/badge'
@@ -21,7 +23,7 @@ import {
 import { listarEmpresas } from '@/lib/admin/empresas'
 import { fichaDeAlumno } from '@/lib/admin/ficha-alumno'
 import { fechaConHora, fechaCorta } from '@/lib/admin/formato'
-import { exigirAdmin } from '@/lib/auth/sesion'
+import { exigirEquipo } from '@/lib/auth/sesion'
 
 export const dynamic = 'force-dynamic'
 // Eliminar una cuenta llama a Auth y recorre Storage: cabe en segundos, pero
@@ -54,7 +56,7 @@ export default async function PaginaFicha({
   params: Promise<{ userId: string }>
   searchParams: Promise<{ aviso?: string; correo?: string }>
 }) {
-  const perfil = await exigirAdmin()
+  const perfil = await exigirEquipo()
   const { userId } = await params
   const { aviso, correo } = await searchParams
   if (!UUID.test(userId)) notFound()
@@ -63,9 +65,12 @@ export default async function PaginaFicha({
   if (!ficha) notFound()
 
   const quien = ficha.nombre || ficha.email
-  const esDelEquipo = ficha.rol === 'admin' || ficha.rol === 'superadmin'
+  const esDelEquipo = esRolDeEquipo(ficha.rol)
   const suspendida = ficha.estado === 'suspended'
   const soySuperadmin = perfil.role === 'superadmin'
+  // El community manager (0036) atiende alumnos pero no inscribe, no quita
+  // cursos ni elimina cuentas: eso es de admin.
+  const soyAdmin = esRolAdmin(perfil.role)
   // Nadie se toca a sí mismo; al equipo solo lo toca un superadmin. Cada
   // acción vuelve a comprobarlo en el servidor.
   const puedeTocarLaCuenta = ficha.userId !== perfil.user_id && (soySuperadmin || !esDelEquipo)
@@ -82,7 +87,7 @@ export default async function PaginaFicha({
           <div className="flex min-w-0 flex-col gap-1">
             <h1 className="flex flex-wrap items-center gap-2 text-[1.75rem] leading-tight font-medium tracking-tight text-balance">
               {ficha.nombre || '(sin nombre)'}
-              {esDelEquipo ? <Badge className="bg-vadai-lima text-[11px] text-vadai-navy">{ficha.rol}</Badge> : null}
+              {esDelEquipo ? <Badge className="bg-vadai-lima text-[11px] text-vadai-navy">{etiquetaDeRol(ficha.rol)}</Badge> : null}
               {suspendida ? (
                 <Badge variant="outline" className="text-[11px]">
                   Suspendida
@@ -193,6 +198,7 @@ export default async function PaginaFicha({
                   </Button>
                 </form>
 
+                {soyAdmin ? (
                 <ConfirmarConModal
                   idModal={`quitar-${i.cursoId}`}
                   accion={quitarDelCurso}
@@ -203,11 +209,12 @@ export default async function PaginaFicha({
                 >
                   <p>Deja de ver el curso. Su avance se conserva por si vuelve a inscribirse.</p>
                 </ConfirmarConModal>
+                ) : null}
               </div>
             </Tarjeta>
           ))}
 
-          <DarAcceso userId={ficha.userId} disponibles={ficha.cursosDisponibles} />
+          {soyAdmin ? <DarAcceso userId={ficha.userId} disponibles={ficha.cursosDisponibles} /> : null}
         </div>
       </Seccion>
 
@@ -374,7 +381,13 @@ export default async function PaginaFicha({
             </p>
           )}
 
-          {puedeTocarLaCuenta ? (
+          {soySuperadmin && ficha.userId !== perfil.user_id ? (
+            <div className="border-t border-border pt-4">
+              <CambiarRol userId={ficha.userId} actual={ficha.rol} />
+            </div>
+          ) : null}
+
+          {puedeTocarLaCuenta && soyAdmin ? (
             <div className="flex flex-wrap items-center gap-3 border-t border-border pt-4">
               <EliminarCuenta
                 userId={ficha.userId}

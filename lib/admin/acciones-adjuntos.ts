@@ -3,7 +3,7 @@
 import { revalidatePath } from 'next/cache'
 
 import type { EstadoAccion } from '@/lib/admin/tipos'
-import { exigirAdmin } from '@/lib/auth/sesion'
+import { exigirEquipo } from '@/lib/auth/sesion'
 import { crearClienteServidor } from '@/lib/supabase/server'
 
 /**
@@ -50,7 +50,7 @@ export async function prepararSubidaDeAdjunto(
   nombre: string,
   tamano: number
 ): Promise<PreparacionAdjunto> {
-  await exigirAdmin()
+  await exigirEquipo()
 
   if (!leccionId) return { ok: false, error: 'Falta la lección.' }
   if (!nombre) return { ok: false, error: 'Elige un archivo.' }
@@ -93,7 +93,7 @@ export async function confirmarAdjunto(opciones: {
   mime: string | null
   tamano: number
 }): Promise<EstadoAccion> {
-  await exigirAdmin()
+  await exigirEquipo()
 
   const { leccionId, cursoId, ruta, nombre, mime, tamano } = opciones
   if (!leccionId || !ruta || !nombre) return { error: 'Faltan datos del archivo.' }

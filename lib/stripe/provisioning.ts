@@ -32,7 +32,7 @@ export type ResultadoAlta = {
  * `invitado` nace en una encuesta en vivo: tiene cuenta para volver a la
  * siguiente, pero no compró nada y no ve cursos.
  */
-export type RolDeAlta = 'alumno' | 'admin' | 'superadmin' | 'invitado'
+export type RolDeAlta = 'alumno' | 'community_manager' | 'admin' | 'superadmin' | 'invitado'
 
 type Opciones = {
   email: string

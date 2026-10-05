@@ -7,7 +7,7 @@ import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Pestanas, type Pestana } from '@/components/ui-vadai/pestanas'
 import { Titulo } from '@/components/ui-vadai/superficie'
-import { exigirAdmin } from '@/lib/auth/sesion'
+import { exigirEquipo } from '@/lib/auth/sesion'
 import { ETIQUETA_ESTADO_ENCUESTA, urlDeEncuesta } from '@/lib/encuestas/comun'
 import { obtenerEncuesta } from '@/lib/encuestas/consultas'
 
@@ -41,7 +41,7 @@ export default async function LayoutEncuesta({
   children: ReactNode
   params: Promise<{ id: string }>
 }) {
-  await exigirAdmin()
+  await exigirEquipo()
 
   const { id } = await params
   const encuesta = await obtenerEncuesta(id)

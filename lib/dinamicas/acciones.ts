@@ -6,7 +6,7 @@ import { z } from 'zod'
 
 import { cdmxAUtc } from '@/lib/admin/fechas'
 import type { EstadoAccion } from '@/lib/admin/tipos'
-import { exigirAdmin } from '@/lib/auth/sesion'
+import { exigirEquipo } from '@/lib/auth/sesion'
 import { generacionObligatoria } from '@/lib/admin/generaciones'
 import { crearClienteServidor } from '@/lib/supabase/server'
 
@@ -26,7 +26,7 @@ import {
  * sus filas. Lo que hace el alumno sobre su tablero vive en
  * `acciones-tablero.ts`.
  *
- * Todo pasa por RLS con el cliente del usuario: `exigirAdmin()` ya cortó
+ * Todo pasa por RLS con el cliente del usuario: `exigirEquipo()` ya cortó
  * antes y las policies de 0028 son admin-only para estas tablas.
  *
  * LAS REGLAS DE VERDAD ESTÁN EN LA BASE (triggers 7b–7d de 0028): pesos que
@@ -154,7 +154,7 @@ export async function crearDinamica(
   _previo: EstadoAccion,
   datos: FormData
 ): Promise<EstadoAccion> {
-  const perfil = await exigirAdmin()
+  const perfil = await exigirEquipo()
 
   const resultado = leerDinamica(datos)
   if (!resultado.success) return { error: primerError(resultado) }
@@ -194,7 +194,7 @@ export async function actualizarConfiguracion(
   _previo: EstadoAccion,
   datos: FormData
 ): Promise<EstadoAccion> {
-  await exigirAdmin()
+  await exigirEquipo()
 
   const id = String(datos.get('id') ?? '')
   if (!id) return { error: 'Falta la dinámica.' }
@@ -273,7 +273,7 @@ export async function abrirDinamica(
   _previo: EstadoAccion,
   datos: FormData
 ): Promise<EstadoAccion> {
-  await exigirAdmin()
+  await exigirEquipo()
 
   const id = String(datos.get('id') ?? '')
   if (!id) return { error: 'Falta la dinámica.' }
@@ -328,7 +328,7 @@ export async function cerrarDinamica(
   _previo: EstadoAccion,
   datos: FormData
 ): Promise<EstadoAccion> {
-  await exigirAdmin()
+  await exigirEquipo()
 
   const id = String(datos.get('id') ?? '')
   if (!id) return { error: 'Falta la dinámica.' }
@@ -373,7 +373,7 @@ export async function volverABorrador(
   _previo: EstadoAccion,
   datos: FormData
 ): Promise<EstadoAccion> {
-  await exigirAdmin()
+  await exigirEquipo()
 
   const id = String(datos.get('id') ?? '')
   if (!id) return { error: 'Falta la dinámica.' }
@@ -418,7 +418,7 @@ export async function reabrirDinamica(
   _previo: EstadoAccion,
   datos: FormData
 ): Promise<EstadoAccion> {
-  await exigirAdmin()
+  await exigirEquipo()
 
   const id = String(datos.get('id') ?? '')
   if (!id) return { error: 'Falta la dinámica.' }
@@ -502,7 +502,7 @@ export async function eliminarDinamica(
   _previo: EstadoAccion,
   datos: FormData
 ): Promise<EstadoAccion> {
-  await exigirAdmin()
+  await exigirEquipo()
 
   const id = String(datos.get('id') ?? '')
   if (!id) return { error: 'Falta la dinámica.' }
@@ -562,7 +562,7 @@ async function estadoDe(supabase: Cliente, dynamicId: string) {
 }
 
 export async function crearFila(_previo: EstadoAccion, datos: FormData): Promise<EstadoAccion> {
-  await exigirAdmin()
+  await exigirEquipo()
 
   const dynamicId = String(datos.get('dynamic_id') ?? '')
   if (!dynamicId) return { error: 'Falta la dinámica.' }
@@ -618,7 +618,7 @@ export async function actualizarFila(
   _previo: EstadoAccion,
   datos: FormData
 ): Promise<EstadoAccion> {
-  await exigirAdmin()
+  await exigirEquipo()
 
   const id = String(datos.get('id') ?? '')
   const dynamicId = String(datos.get('dynamic_id') ?? '')
@@ -683,7 +683,7 @@ export async function actualizarFila(
  * no se mueve nada: el orden es parte de lo que la empresa está mirando.
  */
 export async function moverFila(datos: FormData): Promise<void> {
-  await exigirAdmin()
+  await exigirEquipo()
 
   const id = String(datos.get('id') ?? '')
   const dynamicId = String(datos.get('dynamic_id') ?? '')
@@ -732,7 +732,7 @@ export async function moverFila(datos: FormData): Promise<void> {
 
 /** Con confirmación en modal: sus celdas se van con ella (cascada). */
 export async function eliminarFila(_previo: EstadoAccion, datos: FormData): Promise<EstadoAccion> {
-  await exigirAdmin()
+  await exigirEquipo()
 
   const id = String(datos.get('id') ?? '')
   const dynamicId = String(datos.get('dynamic_id') ?? '')

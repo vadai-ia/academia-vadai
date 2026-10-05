@@ -3,7 +3,7 @@
 import { revalidatePath } from 'next/cache'
 import { z } from 'zod'
 
-import { exigirAdmin } from '@/lib/auth/sesion'
+import { exigirEquipo } from '@/lib/auth/sesion'
 import { crearClienteServidor } from '@/lib/supabase/server'
 import type { Json } from '@/lib/supabase/types'
 
@@ -81,7 +81,7 @@ export async function crearPublicacion(
   _previo: EstadoAccion,
   datos: FormData
 ): Promise<EstadoAccion> {
-  const perfil = await exigirAdmin()
+  const perfil = await exigirEquipo()
 
   const resultado = esquema.safeParse({
     title: datos.get('title'),
@@ -130,7 +130,7 @@ export async function crearPublicacion(
 
 /** Publica un borrador o lo regresa a borrador. */
 export async function alternarPublicacion(datos: FormData): Promise<void> {
-  await exigirAdmin()
+  await exigirEquipo()
 
   const id = String(datos.get('id') ?? '')
   const publicar = String(datos.get('publicar') ?? '') === 'si'
@@ -148,7 +148,7 @@ export async function alternarPublicacion(datos: FormData): Promise<void> {
 
 /** Con confirmación en modal (M14). */
 export async function eliminarPublicacion(_previo: EstadoAccion, datos: FormData): Promise<EstadoAccion> {
-  await exigirAdmin()
+  await exigirEquipo()
 
   const id = String(datos.get('id') ?? '')
   if (!id) return { error: 'Falta la publicación.' }

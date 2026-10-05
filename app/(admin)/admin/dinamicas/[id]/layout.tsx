@@ -6,7 +6,7 @@ import { Badge } from '@/components/ui/badge'
 import { Pestanas, type Pestana } from '@/components/ui-vadai/pestanas'
 import { Titulo } from '@/components/ui-vadai/superficie'
 import { fechaHoraCdmx } from '@/lib/admin/fechas'
-import { exigirAdmin } from '@/lib/auth/sesion'
+import { exigirEquipo } from '@/lib/auth/sesion'
 import { ETIQUETA_ESTADO_DINAMICA, sumaPesos, TOLERANCIA_PESOS } from '@/lib/dinamicas/comun'
 import { obtenerDinamica } from '@/lib/dinamicas/consultas'
 import { cn } from '@/lib/utils'
@@ -42,7 +42,7 @@ export default async function LayoutDinamica({
   children: ReactNode
   params: Promise<{ id: string }>
 }) {
-  await exigirAdmin()
+  await exigirEquipo()
 
   const { id } = await params
   const dinamica = await obtenerDinamica(id)

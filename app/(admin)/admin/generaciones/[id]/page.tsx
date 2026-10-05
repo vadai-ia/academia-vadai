@@ -1,7 +1,7 @@
 import { notFound, redirect } from 'next/navigation'
 
 import { cursoDeGeneracion } from '@/lib/admin/generaciones'
-import { exigirAdmin } from '@/lib/auth/sesion'
+import { exigirEquipo } from '@/lib/auth/sesion'
 
 export const dynamic = 'force-dynamic'
 
@@ -17,7 +17,7 @@ export default async function PaginaGeneracion({
   params: Promise<{ id: string }>
   searchParams: Promise<{ sesion?: string }>
 }) {
-  await exigirAdmin()
+  await exigirEquipo()
   const { id } = await params
   const { sesion } = await searchParams
 

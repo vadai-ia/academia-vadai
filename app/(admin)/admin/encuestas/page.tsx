@@ -6,7 +6,7 @@ import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Titulo } from '@/components/ui-vadai/superficie'
 import { opcionesDeAlta } from '@/lib/admin/alumnos'
-import { exigirAdmin } from '@/lib/auth/sesion'
+import { exigirEquipo } from '@/lib/auth/sesion'
 import { ETIQUETA_ESTADO_ENCUESTA } from '@/lib/encuestas/comun'
 import { listarEncuestas } from '@/lib/encuestas/consultas'
 
@@ -20,7 +20,7 @@ const VARIANTE = {
 } as const
 
 export default async function PaginaEncuestas() {
-  await exigirAdmin()
+  await exigirEquipo()
 
   // Los dos viajes van juntos: no dependen entre sí y encadenarlos costaba una
   // ida y vuelta a Supabase de más, que es lo que M11 anduvo quitando.

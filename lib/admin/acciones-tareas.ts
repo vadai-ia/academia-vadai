@@ -3,7 +3,7 @@
 import { revalidatePath } from 'next/cache'
 import { z } from 'zod'
 
-import { exigirAdmin } from '@/lib/auth/sesion'
+import { exigirAdmin, exigirEquipo } from '@/lib/auth/sesion'
 import { crearClienteServidor } from '@/lib/supabase/server'
 import { crearClienteServiceRole } from '@/lib/supabase/service-role'
 import type { Json } from '@/lib/supabase/types'
@@ -103,7 +103,7 @@ export async function revisarEntrega(
   _previo: EstadoAccion,
   datos: FormData
 ): Promise<EstadoAccion> {
-  const perfil = await exigirAdmin()
+  const perfil = await exigirEquipo()
 
   const id = String(datos.get('id') ?? '')
   const decision = String(datos.get('decision') ?? '')
@@ -150,7 +150,7 @@ export async function revisarEntrega(
 
 /** URL firmada para que el admin descargue un archivo entregado. */
 export async function urlDeEntrega(rutaStorage: string): Promise<string | null> {
-  await exigirAdmin()
+  await exigirEquipo()
 
   const supabase = await crearClienteServidor()
   const { data, error } = await supabase.storage.from(BUCKET).createSignedUrl(rutaStorage, 60 * 5)

@@ -2,7 +2,7 @@
 
 import { revalidatePath } from 'next/cache'
 
-import { exigirAdmin } from '@/lib/auth/sesion'
+import { exigirEquipo } from '@/lib/auth/sesion'
 import { consultarVideo, crearVideo, firmarSubida } from '@/lib/bunny/cliente'
 import { crearClienteServidor } from '@/lib/supabase/server'
 
@@ -28,7 +28,7 @@ export async function prepararSubida(
   leccionId: string,
   titulo: string
 ): Promise<PreparacionSubida> {
-  await exigirAdmin()
+  await exigirEquipo()
 
   try {
     const { guid } = await crearVideo(titulo || 'Lección sin título')
@@ -88,7 +88,7 @@ export async function confirmarSubida(
   guid: string,
   cursoId: string
 ): Promise<ResultadoConfirmacion> {
-  await exigirAdmin()
+  await exigirEquipo()
 
   try {
     const video = await consultarVideo(guid)

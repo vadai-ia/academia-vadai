@@ -9,7 +9,7 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { eliminarEmpresa, renombrarEmpresa } from '@/lib/admin/acciones-empresas'
 import { listarEmpresas } from '@/lib/admin/empresas'
-import { exigirAdmin } from '@/lib/auth/sesion'
+import { exigirEquipo } from '@/lib/auth/sesion'
 
 export const metadata: Metadata = { title: 'Empresas' }
 export const dynamic = 'force-dynamic'
@@ -26,7 +26,7 @@ export const dynamic = 'force-dynamic'
  * pide confirmación porque, aunque no borra alumnos, los deja en General.
  */
 export default async function PaginaEmpresas() {
-  await exigirAdmin()
+  await exigirEquipo()
   const empresas = await listarEmpresas()
   const conAlumnos = empresas.filter((e) => e.alumnos > 0).length
   const totalAlumnos = empresas.reduce((n, e) => n + e.alumnos, 0)

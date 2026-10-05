@@ -6,7 +6,7 @@ import { Badge } from '@/components/ui/badge'
 import { Titulo } from '@/components/ui-vadai/superficie'
 import { opcionesDeAlta } from '@/lib/admin/alumnos'
 import { fechaHoraCdmx } from '@/lib/admin/fechas'
-import { exigirAdmin } from '@/lib/auth/sesion'
+import { exigirEquipo } from '@/lib/auth/sesion'
 import { ETIQUETA_ESTADO_DINAMICA } from '@/lib/dinamicas/comun'
 import { listarDinamicas, type DinamicaEnLista } from '@/lib/dinamicas/consultas'
 
@@ -28,7 +28,7 @@ function lineaDeFecha(d: DinamicaEnLista): string {
 }
 
 export default async function PaginaDinamicas() {
-  await exigirAdmin()
+  await exigirEquipo()
 
   const [dinamicas, cursos] = await Promise.all([listarDinamicas(), opcionesDeAlta()])
 

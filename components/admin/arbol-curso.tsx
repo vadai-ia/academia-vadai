@@ -103,6 +103,7 @@ export function ArbolCurso({
   curso,
   moduloAbierto,
   cohortId = null,
+  soloLectura = false,
 }: {
   /** Con los módulos ya acotados a la generación de la pestaña (M16). */
   curso: CursoCompleto
@@ -110,6 +111,11 @@ export function ArbolCurso({
   moduloAbierto: string | null
   /** La generación de la pestaña: los módulos nuevos nacen en ella y los enlaces la conservan. */
   cohortId?: string | null
+  /**
+   * Para el community manager (0036): ve el temario y entra a cada lección a
+   * subir su video o sus adjuntos, pero no crea, mueve, renombra ni borra.
+   */
+  soloLectura?: boolean
 }) {
   const estaAbierto = (id: string) => moduloAbierto === 'todos' || moduloAbierto === id
   const raiz = `/admin/cursos/${curso.id}`
@@ -140,7 +146,9 @@ export function ArbolCurso({
 
       {curso.modulos.length === 0 ? (
         <p className="rounded-lg border border-dashed border-border px-5 py-8 text-center text-sm text-muted-foreground">
-          Este curso todavía no tiene módulos. Crea el primero con &ldquo;Nuevo módulo&rdquo;.
+          {soloLectura
+            ? 'Este curso todavía no tiene módulos.'
+            : <>Este curso todavía no tiene módulos. Crea el primero con &ldquo;Nuevo módulo&rdquo;.</>}
         </p>
       ) : null}
 
@@ -206,15 +214,17 @@ export function ArbolCurso({
                   </Link>
                 )}
 
-                <BotonesDeOrden
-                  id={modulo.id}
-                  padre={curso.id}
-                  cursoId={curso.id}
-                  accion={moverModulo}
-                  primero={indiceModulo === 0}
-                  ultimo={indiceModulo === curso.modulos.length - 1}
-                  etiqueta="módulo"
-                />
+                {soloLectura ? null : (
+                  <BotonesDeOrden
+                    id={modulo.id}
+                    padre={curso.id}
+                    cursoId={curso.id}
+                    accion={moverModulo}
+                    primero={indiceModulo === 0}
+                    ultimo={indiceModulo === curso.modulos.length - 1}
+                    etiqueta="módulo"
+                  />
+                )}
               </summary>
 
               {abierto ? (
@@ -223,6 +233,27 @@ export function ArbolCurso({
                 <ul className="border-t border-border">
                   {modulo.lecciones.map((leccion, indiceLeccion) => {
                     const numero = `${indiceModulo + 1}.${indiceLeccion + 1}`
+                    if (soloLectura) {
+                      return (
+                        <li key={leccion.id} className="flex flex-wrap items-center gap-2 border-b border-border/60 px-3 py-2 last:border-b-0">
+                          <span className="font-mono text-xs text-muted-foreground">{numero}</span>
+                          <Link
+                            href={`/admin/lecciones/${leccion.id}`}
+                            className="truncate text-sm underline-offset-4 hover:underline"
+                          >
+                            {leccion.title}
+                          </Link>
+                          <Badge variant="outline" className="shrink-0 text-[11px]">
+                            {ETIQUETA_TIPO_LECCION[leccion.lesson_type]}
+                          </Badge>
+                          {leccion.status === 'draft' ? (
+                            <Badge variant="secondary" className="shrink-0 text-[11px]">
+                              {ETIQUETA_ESTADO_LECCION.draft}
+                            </Badge>
+                          ) : null}
+                        </li>
+                      )
+                    }
                     return (
                       <li key={leccion.id} className="border-b border-border/60 last:border-b-0">
                         <details data-leccion className="group/leccion">
@@ -282,6 +313,7 @@ export function ArbolCurso({
                 </ul>
               ) : null}
 
+              {soloLectura ? null : (
               <div className="flex flex-wrap items-start justify-between gap-2 border-t border-border px-3 py-2">
                 <div className="flex flex-wrap items-start gap-2">
                   <NuevaLeccion
@@ -316,6 +348,7 @@ export function ArbolCurso({
                   </p>
                 </ConfirmarConModal>
               </div>
+              )}
                 </>
               ) : null}
             </details>
@@ -324,7 +357,7 @@ export function ArbolCurso({
         })}
       </ul>
 
-      <NuevoModulo cursoId={curso.id} cohortId={cohortId} reinicio={curso.modulos.length} />
+      {soloLectura ? null : <NuevoModulo cursoId={curso.id} cohortId={cohortId} reinicio={curso.modulos.length} />}
     </div>
   )
 }

@@ -4,7 +4,7 @@ import { notFound } from 'next/navigation'
 import { RefrescoPeriodico } from '@/components/encuestas/refresco-periodico'
 import { Avatar, Progreso, Seccion, Tarjeta, TarjetaEnlace } from '@/components/ui-vadai/superficie'
 import { fechaHoraCdmx } from '@/lib/admin/fechas'
-import { exigirAdmin } from '@/lib/auth/sesion'
+import { exigirEquipo } from '@/lib/auth/sesion'
 import {
   empresasDelCursoSinTablero,
   obtenerDinamica,
@@ -97,7 +97,7 @@ function TarjetaTablero({ tablero, base }: { tablero: ResumenTablero; base: stri
 }
 
 export default async function PaginaTableros({ params }: { params: Promise<{ id: string }> }) {
-  await exigirAdmin()
+  await exigirEquipo()
 
   const { id } = await params
   const [dinamica, tableros, sinTablero] = await Promise.all([

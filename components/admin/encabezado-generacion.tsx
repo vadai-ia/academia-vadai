@@ -50,8 +50,11 @@ export function EncabezadoGeneracion({
   generacion,
   grabaciones,
   aviso,
+  soloLectura = false,
 }: {
   generacion: GeneracionCompleta
+  /** El community manager ve la generación pero no la edita, abre, cierra ni borra (0036). */
+  soloLectura?: boolean
   /** Sesiones con grabación ligada, para «N de M». */
   grabaciones: number
   aviso?: string | null
@@ -89,6 +92,7 @@ export function EncabezadoGeneracion({
           </p>
         </div>
 
+        {soloLectura ? null : (
         <div className="flex flex-wrap items-center gap-2">
           {g.estado === 'abierta' ? (
             <ConfirmarConModal
@@ -168,6 +172,7 @@ export function EncabezadoGeneracion({
             </form>
           </Desplegable>
         </div>
+        )}
       </div>
 
       {aviso ? (
@@ -182,6 +187,7 @@ export function EncabezadoGeneracion({
           Todo lo de esta pestaña —contenido, sesiones, alumnos— es de esta generación. Los
           alumnos de otra no lo ven.
         </p>
+        {soloLectura ? null : (
         <ConfirmarConModal
           idModal={`eliminar-generacion-${g.id}`}
           accion={eliminarGeneracion}
@@ -198,6 +204,7 @@ export function EncabezadoGeneracion({
               : ''}
           </p>
         </ConfirmarConModal>
+        )}
       </div>
     </section>
   )

@@ -12,7 +12,7 @@ export const CLAVE_QA = 'VadaiQA-2026!seed'
 export const DOMINIO_QA = 'academia.vadai.com.mx'
 
 /**
- * Los cinco actores del criterio de cierre de M1.
+ * Los cinco actores del criterio de cierre de M1, y desde 0036 el community manager.
  *
  * `sin-perfil` es el más importante y el más fácil de olvidar: un usuario
  * autenticado de verdad, con JWT válido, que NO tiene fila en academia.profiles.
@@ -53,6 +53,14 @@ export const USUARIOS_QA = [
     nombre: 'QA Sin Perfil',
     role: null,
     conPerfil: false,
+  },  // El community manager (0036, 3-oct-2026). Va al final: el seed y algunas
+  // suites leen a los demás por posición. No se inscribe a ningún curso.
+  {
+    llave: 'cm',
+    email: `qa-cm@${DOMINIO_QA}`,
+    nombre: 'QA Community Manager',
+    role: 'community_manager',
+    conPerfil: true,
   },
 ]
 

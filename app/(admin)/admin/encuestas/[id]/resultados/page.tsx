@@ -4,7 +4,7 @@ import { notFound } from 'next/navigation'
 import { ResultadosEncuesta } from '@/components/admin/resultados-encuesta'
 import { Button } from '@/components/ui/button'
 import { Seccion } from '@/components/ui-vadai/superficie'
-import { exigirAdmin } from '@/lib/auth/sesion'
+import { exigirEquipo } from '@/lib/auth/sesion'
 import { datosParaExportar } from '@/lib/encuestas/exportacion'
 
 export const dynamic = 'force-dynamic'
@@ -14,7 +14,7 @@ export const dynamic = 'force-dynamic'
 export const metadata: Metadata = { title: 'Resultados de la encuesta' }
 
 export default async function PaginaResultados({ params }: { params: Promise<{ id: string }> }) {
-  await exigirAdmin()
+  await exigirEquipo()
 
   const { id } = await params
 
