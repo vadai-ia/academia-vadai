@@ -10,7 +10,7 @@ import { Pestanas, type Pestana } from '@/components/ui-vadai/pestanas'
 import { Tarjeta, Titulo } from '@/components/ui-vadai/superficie'
 import { Button } from '@/components/ui/button'
 import { bandejaDeComunidad, HORAS_DE_ESPERA, type FiltrosComunidad } from '@/lib/admin/comunidad'
-import { exigirAdmin } from '@/lib/auth/sesion'
+import { exigirEquipo } from '@/lib/auth/sesion'
 import { cn } from '@/lib/utils'
 
 export const metadata: Metadata = { title: 'Comunidad' }
@@ -32,6 +32,8 @@ const AVISOS: Record<string, { texto: string; error?: boolean }> = {
   fijada: { texto: 'Fijada arriba del muro.' },
   desfijada: { texto: 'Ya no está fijada.' },
   eliminada: { texto: 'Eliminado para siempre.' },
+  atendida: { texto: 'Marcado como atendido. Si el alumno vuelve a escribir, regresa a «Sin respuesta».' },
+  pendiente: { texto: 'De vuelta en «Sin respuesta».' },
   vacia: { texto: 'La respuesta necesita al menos dos caracteres.', error: true },
   sinPermiso: { texto: 'La base no dejó publicar la respuesta. Avísale a quien mantiene la plataforma.', error: true },
   error: { texto: 'No se pudo completar. Intenta de nuevo.', error: true },
@@ -42,7 +44,7 @@ export default async function PaginaComunidadAdmin({
 }: {
   searchParams: Promise<FiltrosComunidad & { aviso?: string; hilo?: string }>
 }) {
-  await exigirAdmin()
+  await exigirEquipo()
   const parametros = await searchParams
   const b = await bandejaDeComunidad(parametros)
   const { estado, curso, gen, tipo, ocultas } = b.filtros
@@ -64,7 +66,7 @@ export default async function PaginaComunidadAdmin({
 
   const pestanas: Pestana[] = [
     { href: hrefDe({ estado: 'sin' }), etiqueta: 'Sin respuesta', activa: estado === 'sin', insignia: b.conteos.sin },
-    { href: hrefDe({ estado: 'respondidas' }), etiqueta: 'Respondidas', activa: estado === 'respondidas', insignia: b.conteos.respondidas },
+    { href: hrefDe({ estado: 'respondidas' }), etiqueta: 'Resueltas', activa: estado === 'respondidas', insignia: b.conteos.respondidas },
     { href: hrefDe({ estado: 'todas' }), etiqueta: 'Todo', activa: estado === 'todas', insignia: b.conteos.todas },
   ]
 
@@ -87,14 +89,14 @@ export default async function PaginaComunidadAdmin({
           )}
         >
           {aviso.texto}
-          {parametros.aviso === 'respondida' && parametros.hilo && estado === 'sin' ? (
+          {(parametros.aviso === 'respondida' || parametros.aviso === 'atendida') && parametros.hilo && estado === 'sin' ? (
             <>
               {' '}
               <Link
                 href={`${hrefDe({ estado: 'respondidas' })}#hilo-${parametros.hilo}`}
                 className="font-medium text-primary underline-offset-4 hover:underline"
               >
-                Verlo en Respondidas
+                Verlo en Resueltas
               </Link>
             </>
           ) : null}
@@ -185,7 +187,7 @@ export default async function PaginaComunidadAdmin({
               hilo={h}
               vuelta={vuelta}
               ahora={ahora}
-              recienRespondido={parametros.aviso === 'respondida' && parametros.hilo === h.id}
+              recienRespondido={(parametros.aviso === 'respondida' || parametros.aviso === 'atendida') && parametros.hilo === h.id}
             />
           ))}
         </ul>

@@ -1,8 +1,9 @@
 import 'server-only'
 
+import { esRolDeEquipo } from '@/lib/auth/roles'
 import { cache } from 'react'
 
-import { exigirAdmin } from '@/lib/auth/sesion'
+import { exigirEquipo } from '@/lib/auth/sesion'
 import { esCuentaQa, esCursoQa } from '@/lib/qa'
 import { crearClienteServidor } from '@/lib/supabase/server'
 import type { Json } from '@/lib/supabase/types'
@@ -49,7 +50,12 @@ export type FiltrosComunidad = {
   pagina?: string
 }
 
-export type EstadoDeHilo = 'sin' | 'respondida'
+/**
+ * `atendida`: el equipo lo dio por atendido sin escribir (0037), por ejemplo
+ * porque se resolvió en la sesión en vivo. Cuenta como resuelto, igual que
+ * `respondida`; si el alumno vuelve a escribir, regresa a `sin`.
+ */
+export type EstadoDeHilo = 'sin' | 'respondida' | 'atendida'
 
 export type AutorEnHilo = {
   userId: string
@@ -86,6 +92,8 @@ export type Hilo = {
   esperaDesde: string | null
   oculto: boolean
   fijado: boolean
+  /** Si el equipo lo marcó atendido sin responder: cuándo y quién. */
+  atendida: { en: string; por: string | null } | null
   respuestas: MensajeDeHilo[]
   /** Dónde lo ve el alumno, para quien quiera verlo en contexto. */
   hrefPortal: string
@@ -140,14 +148,14 @@ function registrar(operacion: string, detalle: Record<string, unknown>) {
  * petición, y así es una sola lectura.
  */
 const hilosDeLaAcademia = cache(async (): Promise<Crudo> => {
-  const perfil = await exigirAdmin()
+  const perfil = await exigirEquipo()
   const veQa = esCuentaQa(perfil.email)
   const supabase = await crearClienteServidor()
 
   const [posts, comentarios, preguntas, cursos, generaciones, lecciones, modulos, perfiles, empresas] = await Promise.all([
     supabase
       .from('community_posts')
-      .select('id, course_id, cohort_id, user_id, title, content_rich, pinned, status, created_at')
+      .select('id, course_id, cohort_id, user_id, title, content_rich, pinned, status, created_at, attended_at, attended_by')
       .neq('status', 'deleted'),
     supabase
       .from('community_comments')
@@ -155,7 +163,7 @@ const hilosDeLaAcademia = cache(async (): Promise<Crudo> => {
       .neq('status', 'deleted'),
     supabase
       .from('lesson_comments')
-      .select('id, lesson_id, user_id, parent_id, content, status, created_at')
+      .select('id, lesson_id, user_id, parent_id, content, status, created_at, attended_at, attended_by')
       .neq('status', 'deleted'),
     supabase.from('courses').select('id, title, slug, status').neq('status', 'archived'),
     supabase.from('cohorts').select('id, name, course_id, starts_on').order('starts_on', { ascending: false, nullsFirst: false }),
@@ -200,7 +208,7 @@ const hilosDeLaAcademia = cache(async (): Promise<Crudo> => {
     autorPorId.set(p.user_id, {
       userId: p.user_id,
       nombre: p.full_name.trim() || p.email.split('@')[0] || 'Alguien',
-      equipo: p.role === 'admin' || p.role === 'superadmin',
+      equipo: esRolDeEquipo(p.role),
       empresa: p.company_id ? (empresaPorId.get(p.company_id) ?? null) : null,
     })
   }
@@ -242,6 +250,7 @@ const hilosDeLaAcademia = cache(async (): Promise<Crudo> => {
         creadoEn: p.created_at,
         oculto: p.status === 'hidden',
         fijado: p.pinned,
+        atendida: p.attended_at ? { en: p.attended_at, por: p.attended_by ? autor(p.attended_by).nombre : null } : null,
         respuestas: comentariosPorPost.get(p.id) ?? [],
         hrefPortal: `/curso/${curso.slug}/comunidad${consulta ? `?${consulta}` : ''}#publicacion-${p.id}`,
       })
@@ -276,6 +285,7 @@ const hilosDeLaAcademia = cache(async (): Promise<Crudo> => {
         creadoEn: c.created_at,
         oculto: c.status === 'hidden',
         fijado: false,
+        atendida: c.attended_at ? { en: c.attended_at, por: c.attended_by ? autor(c.attended_by).nombre : null } : null,
         respuestas: respuestasPorRaiz.get(c.id) ?? [],
         hrefPortal: `/curso/${curso.slug}/${leccion.id}#comentario-${c.id}`,
       })
@@ -314,11 +324,15 @@ function armar(base: Omit<Hilo, 'estado' | 'esperaDesde' | 'ultimaActividad'>): 
     else esperaDesde ??= m.creadoEn
   }
 
+  // Marcado atendido DESPUÉS de lo último que escribió el alumno: resuelto.
+  // Si el alumno escribió después, la marca ya no cuenta y vuelve a esperar.
+  const atendida = esperaDesde !== null && base.atendida !== null && base.atendida.en >= (ultimo?.creadoEn ?? '')
+
   return {
     ...base,
     respuestas,
-    estado: ultimo?.autor.equipo ? 'respondida' : 'sin',
-    esperaDesde,
+    estado: ultimo?.autor.equipo ? 'respondida' : atendida ? 'atendida' : 'sin',
+    esperaDesde: atendida ? null : esperaDesde,
     ultimaActividad: ultimo?.creadoEn ?? base.creadoEn,
   }
 }
@@ -347,12 +361,12 @@ export async function bandejaDeComunidad(crudos: FiltrosComunidad): Promise<Band
 
   const conteos = {
     sin: enAlcance.filter((h) => h.estado === 'sin').length,
-    respondidas: enAlcance.filter((h) => h.estado === 'respondida').length,
+    respondidas: enAlcance.filter((h) => h.estado !== 'sin').length,
     todas: enAlcance.length,
   }
 
   const filtrados = enAlcance.filter((h) =>
-    estado === 'sin' ? h.estado === 'sin' : estado === 'respondidas' ? h.estado === 'respondida' : true
+    estado === 'sin' ? h.estado === 'sin' : estado === 'respondidas' ? h.estado !== 'sin' : true
   )
   // Lo que espera, de lo más viejo a lo más nuevo: primero quien lleva más
   // tiempo sin respuesta. Lo demás, por actividad reciente.

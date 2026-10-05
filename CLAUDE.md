@@ -79,11 +79,20 @@ En su lugar: `pnpm db:migrate` → `scripts/migrate.mjs`, que aplica los `.sql` 
 
 ## ROLES Y ACCESO
 
-- Roles en `academia.profiles.role`: `superadmin`, `admin`, `alumno`, `invitado`.
+- Roles en `academia.profiles.role`: `superadmin`, `admin`, `community_manager`, `alumno`, `invitado`.
   `invitado` nació contestando una encuesta en vivo: tiene cuenta para volver a la
   siguiente, pero no compró nada. `rutaDeInicio()` lo manda a `/mis-encuestas`, no a
   `/mis-cursos`, donde solo vería un vacío que le pide escribirnos por un curso que
   nunca compró.
+- **`community_manager`** (0036, 3-oct-2026): "casi admin". Entra al panel, atiende la comunidad,
+  opera encuestas, dinámicas, empresas, blog y entregas, y con los alumnos hace todo menos alta y
+  eliminar. En contenido **solo sesiones y grabaciones** (sube el video de una lección, la publica,
+  sus adjuntos); no crea cursos, módulos, lecciones, quizzes, tareas ni generaciones, y **no ve
+  pagos**. Contesta como «Equipo VADAI». Solo un superadmin da o quita el rol.
+  En la base: `is_admin()` sigue siendo admin|superadmin y `is_equipo()` suma al CM; **una
+  política nueva usa `is_admin()` salvo que se decida abrírsela al CM** (negar por default).
+  Lo que una política no alcanza lo cierran triggers: `lessons_solo_grabacion` y
+  `enrollments_sin_mover`. En la app: `exigirEquipo()` / `exigirAdmin()` y `lib/auth/roles.ts`.
 - Sign-up público DESHABILITADO. Cuentas solo server-side con service role, por **tres**
   caminos: invite manual, webhook de Stripe, y —desde M12— registro desde una encuesta en
   vivo, que nace con rol `invitado`. El tercero es el único expuesto a internet sin
@@ -143,7 +152,9 @@ En su lugar: `pnpm db:migrate` → `scripts/migrate.mjs`, que aplica los `.sql` 
 - **La comunidad se atiende desde el panel** (`/admin/comunidad`, `lib/admin/comunidad.ts`,
   3-oct-2026): muro y preguntas de lección en una bandeja, cada hilo con curso · generación ·
   lección. El estado **no se guarda**: "sin respuesta" = el último mensaje visible no es del
-  equipo. La campana del panel cuenta solo lo que lleva más de 12 h esperando. El enlace del
+  equipo. «Atendida sin responder» (0037, `attended_at` en la raíz del hilo) lo saca sin
+  escribir ni ocultar, y si el alumno vuelve a escribir regresa solo. La campana del panel
+  cuenta solo lo que lleva más de 12 h esperando. El enlace del
   equipo al lado del alumno se llama **«Portal de alumnos»**, no "Vista de alumno": es el
   portal real, no una simulación. En el portal, el equipo siempre ve el selector de
   generación, aunque haya una sola.

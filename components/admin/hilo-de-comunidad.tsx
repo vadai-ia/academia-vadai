@@ -11,6 +11,7 @@ import {
   alternarFijado,
   alternarVisibilidad,
   eliminarDeComunidad,
+  marcarAtendida,
   responderHilo,
 } from '@/lib/admin/acciones-comunidad'
 import { HORAS_DE_ESPERA, type AutorEnHilo, type Hilo, type MensajeDeHilo } from '@/lib/admin/comunidad'
@@ -75,6 +76,13 @@ function Estado({ hilo, ahora }: { hilo: Hilo; ahora: number }) {
     return (
       <Badge variant="outline" className="shrink-0 text-muted-foreground">
         Respondida
+      </Badge>
+    )
+  }
+  if (hilo.estado === 'atendida') {
+    return (
+      <Badge variant="outline" className="shrink-0 text-muted-foreground">
+        Atendida sin respuesta{hilo.atendida?.por ? ` · ${hilo.atendida.por}` : ''}
       </Badge>
     )
   }
@@ -244,6 +252,22 @@ export function HiloDeComunidad({
               <input type="hidden" name="id" value={hilo.id} />
               <input type="hidden" name="fijar" value={hilo.fijado ? 'no' : 'si'} />
               <BotonConEspera texto={hilo.fijado ? 'Desfijar' : 'Fijar'} enCurso="Guardando…" variante="ghost" />
+            </form>
+          ) : null}
+          {/* Resuelto fuera de aquí (en la sesión en vivo, por WhatsApp) o no
+              pedía respuesta: sale de la lista sin escribir de relleno ni
+              ocultárselo a los alumnos (0037). */}
+          {hilo.estado === 'sin' || hilo.estado === 'atendida' ? (
+            <form action={marcarAtendida}>
+              <Vuelta vuelta={vuelta} />
+              <input type="hidden" name="tipo" value={hilo.tipo} />
+              <input type="hidden" name="id" value={hilo.id} />
+              <input type="hidden" name="atender" value={hilo.estado === 'sin' ? 'si' : 'no'} />
+              <BotonConEspera
+                texto={hilo.estado === 'sin' ? 'Atendida sin responder' : 'Volver a pendiente'}
+                enCurso="Guardando…"
+                variante="ghost"
+              />
             </form>
           ) : null}
           <Ocultar tipo={tipoRaiz} id={hilo.id} oculto={hilo.oculto} vuelta={vuelta} />

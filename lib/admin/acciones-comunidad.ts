@@ -6,7 +6,7 @@ import { z } from 'zod'
 
 import { publicarEnComunidad } from '@/lib/comunidad/acciones-posts'
 import { filtroDeModeracion } from '@/lib/comunidad/moderacion'
-import { exigirAdmin } from '@/lib/auth/sesion'
+import { exigirEquipo } from '@/lib/auth/sesion'
 import { crearClienteServidor } from '@/lib/supabase/server'
 import type { EstadoAccion } from '@/lib/admin/tipos'
 
@@ -63,7 +63,7 @@ const esquemaRespuesta = z.object({
  * La fila es de quien contesta: el alumno ve «Equipo VADAI» junto a su nombre.
  */
 export async function responderHilo(datos: FormData): Promise<void> {
-  const perfil = await exigirAdmin()
+  const perfil = await exigirEquipo()
   const r = esquemaRespuesta.safeParse({
     tipo: datos.get('tipo'),
     id: datos.get('id'),
@@ -108,7 +108,7 @@ const esquemaModeracion = z.object({
 
 /** Ocultar o volver a mostrar. Reversible, y no rompe el hilo. */
 export async function alternarVisibilidad(datos: FormData): Promise<void> {
-  await exigirAdmin()
+  await exigirEquipo()
   const r = esquemaModeracion.safeParse({ tipo: datos.get('tipo'), id: datos.get('id') })
   if (!r.success) volver(datos, 'error')
   const ocultar = String(datos.get('ocultar') ?? '') === 'si'
@@ -134,9 +134,43 @@ export async function alternarVisibilidad(datos: FormData): Promise<void> {
   volver(datos, ocultar ? 'oculta' : 'visible')
 }
 
+const esquemaAtencion = z.object({
+  tipo: z.enum(['muro', 'leccion']),
+  id: z.string().uuid(),
+})
+
+/**
+ * Dar por atendido un hilo sin escribir nada (0037): se resolvió en la sesión
+ * en vivo, por WhatsApp, o no pedía respuesta. Sale de «Sin respuesta» y de la
+ * campana; si el alumno vuelve a escribir, regresa solo. «Volver a pendiente»
+ * quita la marca.
+ */
+export async function marcarAtendida(datos: FormData): Promise<void> {
+  const perfil = await exigirEquipo()
+  const r = esquemaAtencion.safeParse({ tipo: datos.get('tipo'), id: datos.get('id') })
+  if (!r.success) volver(datos, 'error')
+  const atender = String(datos.get('atender') ?? '') === 'si'
+  const cambios = atender
+    ? { attended_at: new Date().toISOString(), attended_by: perfil.user_id }
+    : { attended_at: null, attended_by: null }
+
+  const supabase = await crearClienteServidor()
+  const { error } =
+    r.data.tipo === 'muro'
+      ? await supabase.from('community_posts').update(cambios).eq('id', r.data.id)
+      : await supabase.from('lesson_comments').update(cambios).eq('id', r.data.id)
+
+  if (error) {
+    registrar('marcarAtendida', { ...r.data, atender, porQuien: perfil.user_id, error: error.message })
+    volver(datos, 'error')
+  }
+  revalidar()
+  volver(datos, atender ? 'atendida' : 'pendiente', r.data.id)
+}
+
 /** Fijar arriba del muro de su generación (o de todas, si se publicó en todas). */
 export async function alternarFijado(datos: FormData): Promise<void> {
-  await exigirAdmin()
+  await exigirEquipo()
   const id = z.string().uuid().safeParse(datos.get('id'))
   if (!id.success) volver(datos, 'error')
   const fijar = String(datos.get('fijar') ?? '') === 'si'
@@ -159,7 +193,7 @@ export async function alternarFijado(datos: FormData): Promise<void> {
  * lección, sus respuestas. Va detrás de un modal (`ConfirmarConModal`).
  */
 export async function eliminarDeComunidad(_previo: EstadoAccion, datos: FormData): Promise<EstadoAccion> {
-  await exigirAdmin()
+  await exigirEquipo()
   const r = esquemaModeracion.safeParse({ tipo: datos.get('tipo'), id: datos.get('id') })
   if (!r.success) return { error: 'No se encontró qué borrar.' }
   const { tipo, id } = r.data
@@ -189,7 +223,7 @@ export async function eliminarDeComunidad(_previo: EstadoAccion, datos: FormData
  * el destino elegido («curso::generación» o «curso::todas») a sus campos.
  */
 export async function publicarDesdeElPanel(previo: EstadoAccion, datos: FormData): Promise<EstadoAccion> {
-  await exigirAdmin()
+  await exigirEquipo()
   const [cursoId = '', destino = ''] = String(datos.get('destino') ?? '').split('::')
   if (!cursoId) return { error: 'Elige en qué muro publicar.' }
 
