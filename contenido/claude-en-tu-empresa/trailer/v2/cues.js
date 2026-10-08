@@ -80,6 +80,7 @@ export function cues(T, estilo = "3d") {
   C.caro = T.f(16).inicio;
   C.mano2 = T.w(16, "mano.");
   C.fin = T.f(16).fin;
+  C.tarjeta = C.fin + (v === "platica" ? 0.8 : 0.3);   // entra la tarjeta final
   if (v === "platica") {
     C.platica = T.w(9, "plática");
     C.vivo = T.w(9, "vivo");
@@ -269,6 +270,6 @@ export function cues(T, estilo = "3d") {
     sfx("brillo1", C.mano2, -9);                                     // la chispa cae en MANO
   }
   sfx("swell1", C.caro + 0.3, -12);
-  sfx("brillo2", C.fin + 0.15, -8);
+  sfx("brillo2", C.tarjeta - 0.15, -8);
   return { C, S };
 }

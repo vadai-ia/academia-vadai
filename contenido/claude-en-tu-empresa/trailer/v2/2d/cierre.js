@@ -609,7 +609,7 @@ export function montar(ctx) {
   el("path", { d: "M0,-70 L0,60 M-46,16 L0,64 L46,16", fill: "none", stroke: navy, "stroke-width": 26, "stroke-linecap": "round", "stroke-linejoin": "round", transform: "translate(0 6)" }, flecha);
   el("path", { d: "M0,-70 L0,60 M-46,16 L0,64 L46,16", fill: "none", stroke: K("lima"), "stroke-width": 16, "stroke-linecap": "round", "stroke-linejoin": "round" }, flecha);
   const FL2 = q({ x: CX, y: 740 }, { x: CX, y: 1330 });
-  const tF = C.fin + 0.3;
+  const tF = C.tarjeta;   // la tarjeta final (en la plática deja leer «A MANO.»: ERRORES E38)
   // la flecha la mueve solo el reloj: entra en «clic», late, y se recoloca bajo la tarjeta final
   reloj(C.clic - 0.05, 999, (t) => {
     const u = tramo(t, C.clic, C.clic + 0.5), s = Math.max(0.001, 1 + 1.7 * Math.pow(u - 1, 3) + 0.7 * Math.pow(u - 1, 2));
@@ -685,7 +685,7 @@ export function montar(ctx) {
     tl.fromTo(fCaro.g, { x: -14 }, { x: 0, duration: 0.4, ease: "elastic.out(1, 0.3)" }, C.caro);
     const f2 = texto(fuente, letras, [["ES", "QUE", "SIGAN", "HACIENDO"]], { x: CX, y: q(500, 920), tam: q(92, 86), maxAncho: q(1300, 960), estilo: "sube" });
     ["es", "que", "sigan", "haciendo"].forEach((x, i) => dibujar(tl, f2.palabras[i], w(16, x), { dur: 0.24 }));
-    const f3 = texto(fuente, letras, [["LAS", "COSAS", "A", "MANO."]], { x: CX, y: q(650, 1080), tam: q(130, 116), maxAncho: q(1300, 960), estilo: "cae", colores: { 2: K("durazno"), 3: K("durazno") } });
+    const f3 = texto(fuente, letras, [["LAS", "COSAS", "A", "MANO."]], { x: CX, y: q(650, 1080), tam: q(130, 116), maxAncho: q(1300, 960), estilo: "golpe", colores: { 2: K("durazno"), 3: K("durazno") } });
     ["las", "cosas", "a", "mano."].forEach((x, i) => dibujar(tl, f3.palabras[i], w(16, x), { dur: 0.3 }));
     // la escena roja entera (telón, halo, billetes y frase) sube de un jalón y descubre la tarjeta final
     tl.fromTo([gRojo, fCaro.g, f2.g, f3.g], { y: 0 }, { y: -H, duration: 0.36, ease: "power3.inOut", immediateRender: false }, tF - 0.3);

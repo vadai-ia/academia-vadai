@@ -34,8 +34,8 @@
     </style>
   </head>
   <body>
-    <div id="root" data-composition-id="main" data-start="0" data-duration="94.5" data-width="1920" data-height="1080" data-fps="60">
-      <div id="lienzo" class="clip" data-start="0" data-duration="94.5" data-track-index="1">
+    <div id="root" data-composition-id="main" data-start="0" data-duration="94" data-width="1920" data-height="1080" data-fps="60">
+      <div id="lienzo" class="clip" data-start="0" data-duration="94" data-track-index="1">
         <svg viewBox="0 0 1920 1080" width="1920" height="1080" aria-hidden="true">
           <defs>
             <filter id="brillo" x="-100%" y="-100%" width="300%" height="300%">
@@ -67,13 +67,13 @@
           <rect width="1920" height="1080" filter="url(#grano)" opacity="0.055" />
         </svg>
       </div>
-      <div id="tipo" class="clip" data-start="0" data-duration="94.5" data-track-index="2"></div>
-      <audio id="mezcla-master" src="./assets/v2/mezcla/master-2d-platica-previa.m4a" data-start="0" data-duration="94.5" data-track-index="3" data-volume="1"></audio>
+      <div id="tipo" class="clip" data-start="0" data-duration="94" data-track-index="2"></div>
+      <audio id="mezcla-master" src="./assets/v2/mezcla/master-2d-platica-previa.m4a" data-start="0" data-duration="94" data-track-index="3" data-volume="1"></audio>
     </div>
 
     <script>
       const tl = gsap.timeline({ paused: true });
-      tl.set({}, {}, 94.5);
+      tl.set({}, {}, 94);
       window.__tl = tl;
       window.__timelines["main"] = tl;
     </script>
@@ -88,7 +88,7 @@
       import * as medio from "./v2/2d/medio.js";
       import * as cierreM from "./v2/2d/cierre.js";
 
-      const DUR = 94.5, W = 1920, H = 1080, V = false;
+      const DUR = 94, W = 1920, H = 1080, V = false;
       const tl = window.__tl;
       let cierre = "platica";
       try { const v = window.__hyperframes && window.__hyperframes.getVariables ? window.__hyperframes.getVariables() : null; if (v && v.cierre) cierre = v.cierre; } catch (e) {}

@@ -167,6 +167,11 @@ FRASES.forEach((_, fi) => {
 });
 // orden mínimo garantizado (whisper a veces pega dos palabras): nunca hacia atrás
 for (let i = 1; i < t.length; i++) if (t[i].start < t[i - 1].start + 0.04) { t[i].start = +(t[i - 1].start + 0.04).toFixed(3); t[i].end = Math.max(t[i].end, t[i].start + 0.04); }
+// correcciones medidas a mano sobre la energía de la pista (11-oct): whisper estiró «Lo caro es que sigan
+// haciendo las cosas a mano» hasta una respiración en 91.7 s; la voz termina en 90.73 y de «haciendo» en
+// adelante cada palabra salía 0.5–0.85 s tarde (Alejandro: «tarda en salir las palabras»). ERRORES E38.
+const CORRIGE = { "camila-g": { [FRASES.length - 1]: [[88.45, 88.59], [88.63, 88.99], [89.02, 89.13], [89.15, 89.22], [89.22, 89.49], [89.52, 89.94], [89.98, 90.13], [90.15, 90.42], [90.42, 90.5], [90.5, 90.73]] } };
+for (const [fi, ts] of Object.entries(CORRIGE[BASE] || {})) t.filter((w) => w.f === +fi).forEach((w, k) => { [w.start, w.end] = ts[k]; });
 const nC = SECCIONES.cuerpo.length;
 const palabras = t.map((w) => ({ text: w.text, s: w.f < nC ? "cuerpo" : "platica", start: +w.start.toFixed(3), end: +w.end.toFixed(3) }));
 writeFileSync(join(raiz, "v2/vo-platica.js"), `// GENERADO por scripts/v2-voz-platica.mjs (Camila Rodríguez). Tiempos de cada palabra del guion en la pista de voz.\nexport const DURACION_VOZ = ${(z.length / SR).toFixed(3)};\nexport const PALABRAS = ${JSON.stringify(palabras)};\n`);

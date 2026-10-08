@@ -5,6 +5,12 @@ animada (MOTION-RULES 11). Lo más nuevo arriba.
 
 ## 10-oct-2026 · v2 2D plática, Ronda E (toma G, escenas nuevas)
 
+### E38 · Whisper estira la última frase hasta una respiración
+- **Síntoma:** en «Lo caro es que sigan haciendo las cosas a mano», las palabras salían después de oírse. De «haciendo» en adelante iban entre 0.5 y 0.85 s tarde.
+- **Causa:** la voz termina en 90.73 s, pero una respiración en 91.7 s pasó el umbral de −45 dB. El afinado tomó ese punto como fin del habla y estiró la frase un segundo.
+- **Arreglo:** en `scripts/v2-voz-platica.mjs` (`CORRIGE`) van los tiempos medidos sobre la energía de la pista para esa toma. La tarjeta final entra 0.8 s después del fin de la voz (`C.tarjeta`), para que «A MANO.» se alcance a leer.
+- **Regla:** la última frase se revisa siempre contra la energía de la pista, no contra whisper.
+
 ### E37 · Opentype pega un 0 al número anterior
 - **Síntoma:** «?», «!» y «$» de los signos y billetes no se dibujaban. La consola decía `Expected number, "…M20.20L2.70…"`.
 - **Causa:** `getPath(c, 0, 0, tam).toPathData()` escribe `M20.2 0` como `M20.20` cuando una coordenada vale exactamente 0.
