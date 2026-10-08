@@ -277,9 +277,7 @@
         for (const fn of posDom) fn(t);
       }
 
-      // diagnóstico: cuánto tarda en armarse el mundo (no afecta a ningún cuadro)
-      const marcas = {}; const t0 = performance.now(); const marca = (k) => (marcas[k] = Math.round(performance.now() - t0));
-      window.__montaje = marcas;
+      const marca = () => {}; // (diagnóstico de 0b retirado: el reloj no entra a la composición)
       (async () => {
         await document.fonts.load('500 64px "Inter"');
         await document.fonts.load('600 64px "Inter"');

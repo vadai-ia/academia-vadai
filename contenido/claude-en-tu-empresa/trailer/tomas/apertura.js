@@ -23,6 +23,8 @@ export function montar(ctx) {
   dir.camara([
     { t: 0, pos: [0, 1.8, 9.6], mira: [0, 1.75, 4.2] },
     { t: 3.9, pos: [0.15, 1.82, 9.0], mira: [0, 1.75, 4.2], e: "sine.inOut" },
+    // la pose de 01 se sostiene hasta el corte: sin esta clave la cámara ya se deslizaba hacia 02
+    { t: T02 - 0.001, pos: [0.15, 1.82, 9.0], mira: [0, 1.75, 4.2] },
   ]);
   dir.claves("foco", [{ t: 0, v: P_CHISPA.toArray() }]);
   dir.claves("rango", [{ t: 0, v: 3 }]);
@@ -33,8 +35,9 @@ export function montar(ctx) {
     const k = curva("expo.out")(tramo(T, ENCENDIDO - 0.05, ENCENDIDO + 0.5));
     const latido = Math.exp(-Math.pow((T - (ENCENDIDO + 0.6)) / 0.18, 2)) * 0.35;
     const cruce = curva("power3.in")(tramo(T, T02 - 0.55, T02));
-    chispa.position.copy(P_CHISPA).lerp(new THREE.Vector3(0.05, 1.8, 9.35), cruce);
-    chispa.scale.setScalar((0.001 + k * 0.42 + latido) * (1 + cruce * 0.6));
+    // cruza la lente sin pasar detrás de la cámara (0.4 delante): el destello limpia el cuadro hacia 02
+    chispa.position.copy(P_CHISPA).lerp(new THREE.Vector3(0.134, 1.813, 8.5), cruce); // sobre el eje cámara→mira
+    chispa.scale.setScalar((0.001 + k * 0.42 + latido) * (1 + cruce * 2.8));
     chispa.rotation.z = T * 0.35;
     chispa.rotation.y = Math.sin(T * 0.8) * 0.3;
     chispa.userData.luz.intensity = (k + latido) * 6 + cruce * 30;
