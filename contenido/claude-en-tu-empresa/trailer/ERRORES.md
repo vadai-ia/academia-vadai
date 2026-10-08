@@ -3,6 +3,34 @@
 Fallas encontradas y cómo se arreglaron. Se lee antes de tocar render, 3D o tipografía
 animada (MOTION-RULES 11). Lo más nuevo arriba.
 
+## 10-oct-2026 · v2 2D plática, Ronda E (toma G, escenas nuevas)
+
+### E37 · Opentype pega un 0 al número anterior
+- **Síntoma:** «?», «!» y «$» de los signos y billetes no se dibujaban. La consola decía `Expected number, "…M20.20L2.70…"`.
+- **Causa:** `getPath(c, 0, 0, tam).toPathData()` escribe `M20.2 0` como `M20.20` cuando una coordenada vale exactamente 0.
+- **Arreglo:** el glifo se pide lejos del origen (`getPath(c, 1000, 1000, tam)`) y se centra con su caja. `texto()` no lo sufre porque nunca cae en 0.
+
+### E36 · Un nombre de módulo tapado por una variable local deja la escena a medias
+- **Síntoma:** en el render no aparecían el bucle, los logos ni la chispa. La personita del 06 salía desde el segundo 0.
+- **Causa:** en `medio.js`, `D` ya era la posición del escritorio y tapó `import * as D from "./dibujos.js"`. La construcción se cayó a la mitad, el reloj y la chispa nunca se montaron, y el snapshot no lo reporta.
+- **Arreglo:** el import se llama `Dib`. Antes de renderizar se corre la sonda de Chrome (`node scripts/v2-sonda.mjs v2-2d.html t1,t2,…`). **Un snapshot «bien guardado» no prueba que la construcción terminó.**
+
+### E35 · Imágenes en blanco en los primeros cuadros de un worker
+- **Síntoma:** los logos oficiales (Excel, PowerPoint) salían como círculos blancos en los primeros cuadros de cada snapshot.
+- **Arreglo:** la plantilla decodifica las imágenes (`new Image().decode()`) antes de construir.
+
+### E34 · La línea de comando del mezclador pasó del límite de Windows
+- **Síntoma:** `spawnSync ffmpeg ENAMETOOLONG` con 173 efectos.
+- **Arreglo:** cada archivo de efecto entra una sola vez y se reparte con `asplit`; el grafo va en `-filter_complex_script`.
+
+### E33 · Al cambiar la voz, los compases quietos de la canción caen en otro lado
+- **Síntoma:** con la toma G (3.4 s más larga antes de «método»), los compases 16–17 de n5 caían en «diariamente… y aun así»: un hueco de 12 dB a media escena.
+- **Arreglo:** se quitan el 16 y el 17 (antes 19–21) y la entrada se retrasa 1.4 s. La edición se revisa con el nivel de la música segundo por segundo, no solo con dónde cae el golpe.
+
+### E32 · Empalmar una frase de otra toma cambia el acento
+- **Síntoma:** la frase del respaldo, tomada de otra generación, sonó «sumamente española» en medio de una voz mexicana.
+- **Arreglo:** nunca se empalma. Se generan tomas completas, se verifican con whisper y se elige una sola para todo el video.
+
 ## 9-oct-2026 · v2 plática: voz de mujer, música nueva, texto de golpe
 
 ### E31 · La duración de la composición estaba fija en el generador

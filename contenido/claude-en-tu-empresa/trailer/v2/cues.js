@@ -67,8 +67,8 @@ export function cues(T, estilo = "3d") {
   C.respaldan = T.f(iR).inicio;
   C.vadai = T.w(iR, "VADAI");
   C.total = T.w(iR, "Total");
-  C.cuarenta = T.w(iR, "cuarenta");
-  C.capacitadas = T.w(iR, "capacitadas.");
+  C.cuarenta = v === "platica" ? T.w(iR, "cientos") : T.w(iR, "cuarenta");
+  C.capacitadas = v === "platica" ? T.w(iR, "capacitadas") : T.w(iR, "capacitadas.");
   C.porque2 = T.f(iP).inicio;
   C.ia2 = T.w(iP, "inteligencia");
   C.nosotros = T.f(iN).inicio;
@@ -95,6 +95,18 @@ export function cues(T, estilo = "3d") {
     C.esperarte = T.w(10, "esperarte.");
     C.cta = T.w(14, "aparta");
     C.gratis = T.w(15, "gratis.");
+    // 10: la constelación de lo que aprendes alrededor de Claude; el bucle se infla y truena como vidrio
+    C.centro = C.contamos + 0.25;
+    C.grafica = C.b[0];
+    C.ciudad = C.b[1];
+    C.herr = Array.from({ length: 11 }, (_, k) => +(C.centro + 0.3 + k * 0.36).toFixed(3));
+    C.aro = C.b[2];
+    C.truena = T.w(10, "bucle:") + 0.13;
+    // respaldo: el contador hasta el infinito; el mundo que habla de IA; la etiqueta y la escena roja
+    C.infinito = T.w(11, "capacitadas") + 0.2;
+    C.mundo = C.porque2 + 0.3;
+    C.etiqueta = T.w(15, "esto") - 0.2;
+    C.rojo = C.caro - 0.18;
   } else {
     C.claude = T.w(9, "Claude");
     C.empresaT = T.w(9, "Empresa:");
@@ -109,6 +121,27 @@ export function cues(T, estilo = "3d") {
     C.esperarte = T.w(11, "esperarte.");
     C.cta = T.w(15, "capacita");
   }
+
+  // ---------- 10-oct · Ronda E de Alejandro (2D) ----------
+  // las excursiones de la chispa a los costados del bucle (personas corriendo, buscando, estresadas)
+  C.excA = T.w(2, "tu") - 0.6;                 // sale a la izquierda: rueda de hámster + alguien estresado
+  C.excAvuelve = C.niEso - 0.3;
+  C.excB = T.wFin(2, "eso,") + 0.1;            // sale a la derecha: alguien que busca con su lupa
+  C.excBvuelve = C.avanzaron + 0.1;
+  C.glitches = [C.L[1] + 0.12, C.niEso, C.avanzaron + 0.45, C.L[2]];
+  C.empresas = T.w(3, "empresas");
+  // 04: el reloj de «vas tarde», el pizarrón y el maestro de «nadie te ha explicado», el foco que no prende
+  C.reloj = C.tarde - 0.1;
+  C.vuelve04 = C.tarde + 0.75;
+  C.pizarron = C.nadie + 0.07;
+  C.como = T.w(4, "cómo");
+  C.maestro = C.como + 0.1;
+  C.foco = T.w(4, "implementarla") + 0.36;
+  // 06: los signos que abruman, alguien que huye; los chats que el director tiene que aprobar
+  C.signos = T.w(6, "sé") + 0.1;
+  C.huye = C.signos + 0.15;
+  C.traga = C.cuanto - 0.5;                    // el punto «tú» se traga los signos
+  C.chats = [0, 1, 2, 3].map((k) => +(C.cuanto + 0.25 + k * 0.62).toFixed(3));
 
   // ---------- efectos de sonido ----------
   // f: archivo (scripts/v2-mezcla.mjs) · t: instante del evento · db: nivel relativo (0 = presente,
@@ -129,6 +162,17 @@ export function cues(T, estilo = "3d") {
   sfx("glitch2", C.niEso, -8);                                       // «o ni eso»
   sfx("giro", C.avanzaron - 0.2, -10);                               // el bucle se acelera
   sfx("glitch1", C.L[2] - 0.08, -9);                                 // «sale otra»: sacudida
+  if (estilo === "2d") {
+    // las excursiones: la chispa sale silbando, dibuja con plumón; la rueda gira con pasos
+    [C.excA, C.excB].forEach((t) => sfx("whoosh3", t + 0.15, -13, { ancla: "pico" }));
+    sfx("plumon3", C.excA + 0.32, -12);
+    sfx("pasos", C.excA + 0.7, -14, { dur: 2.4 });
+    sfx("plumon1", C.excA + 1.25, -13);
+    sfx("plumon3", C.excB + 0.32, -12);
+    [0.95, 1.12, 1.29].forEach((d, k) => sfx("pop", C.excB + d, -12, { tono: 5 + k * 2 }));   // los «?» del que busca
+    sfx("glitch1", C.glitches[0], -13);
+    sfx("glitch2", C.glitches[2], -12);
+  }
   sfx("swell2", C.colapso - 1.2, -6, { recorte: 1.8 });
   sfx("impacto2", C.colapso + 0.55, -4);                             // implosión
   // 03
@@ -138,7 +182,14 @@ export function cues(T, estilo = "3d") {
   // 04
   sfx("whoosh1", C.normal - 0.05, -10, { ancla: "pico" });           // los demás caen
   sfx("whoosh3", C.tarde + 0.35, -10, { ancla: "pico" });            // los seis se adelantan
-  sfx("whoosh1", C.ha + 0.3, -12, { ancla: "pico", solo: "2d" });    // la chispa regresa
+  sfx("whoosh1", C.vuelve04, -12, { ancla: "pico", solo: "2d" });    // la chispa regresa
+  if (estilo === "2d") {
+    sfx("reloj", C.reloj, -11, { dur: 3.6 });                         // el reloj de «vas tarde»
+    sfx("plumon1", C.pizarron + 0.05, -11);                           // el pizarrón
+    sfx("plumon3", C.como - 0.3, -10);                                // el «?» en el pizarrón
+    sfx("plumon1", C.maestro + 0.05, -13);
+    sfx("foco", C.foco + 0.45, -8);                                   // el foco que no prende
+  }
   // 05
   sfx("whoosh2", C.mientras, -5, { ancla: "pico" });
   sfx("teclado", C.reportes - 0.1, -4, { dur: 2.6 });
@@ -146,6 +197,15 @@ export function cues(T, estilo = "3d") {
   C.avisos.forEach((t, k) => sfx(k % 2 ? "ping2" : "ping1", t, k % 2 ? -4 : -8, { tono: k }));
   sfx("golpePapel", C.escritorio + 0.05, 0, { ancla: "pico" });
   // 06
+  if (estilo === "2d") {
+    // los signos que abruman: pops cada vez más seguidos y agudos; alguien huye corriendo
+    for (let k = 0; k < 14; k++) sfx("pop", +(C.signos + (C.traga - 0.4 - C.signos) * Math.pow(k / 14, 0.55)).toFixed(3), -12 + k * 0.3, { tono: k });
+    sfx("pasos", C.huye, -9, { dur: 1.5 });
+    sfx("whoosh1", C.traga + 0.25, -8, { ancla: "pico" });           // el punto se los traga
+    sfx("impacto1", C.cuanto, -10);                                  // la pregunta cae de golpe
+    sfx("chats", C.chats[0] - 0.05, -14, { dur: 3.0 });
+    C.chats.forEach((t, k) => { sfx(k % 2 ? "ping2" : "ping1", t, -9, { tono: k }); sfx("blip", t + 0.36, -14, { tono: 7 + k }); });
+  }
   sfx("latido", C.cuanto - 0.1, -3);
   // 07 · 08
   sfx("glitch2", C.herramienta, -5);
@@ -158,7 +218,18 @@ export function cues(T, estilo = "3d") {
     sfx("brillo1", C.platica, -8);
     sfx("pulso", C.vivo, -8);                                        // el punto «en vivo»
     sfx("pop", C.duenos, -6);
-    C.b.forEach((t, k) => { sfx("whoosh3", t - 0.05, -12, { ancla: "pico" }); sfx("pop", t, -6, { tono: k * 2 }); });
+    C.b.forEach((t, k) => { sfx("whoosh3", t - 0.05, -12, { ancla: "pico" }); if (k < 2 || estilo !== "2d") sfx("pop", t, -6, { tono: k * 2 }); });
+    if (estilo === "2d") {
+      sfx("brillo2", C.centro, -6);                                  // Claude en el centro
+      C.herr.forEach((t, k) => sfx("blip", t, -10, { tono: ESCALA[k % ESCALA.length] }));
+      sfx("plumon3", C.grafica + 0.05, -11);
+      sfx("plumon1", C.ciudad + 0.05, -11);
+      for (let k = 0; k < 6; k++) sfx("pop", C.ciudad + 0.9 + k * 0.12, -11, { tono: 4 + k });
+      sfx("plumon3", C.aro + 0.05, -10);
+      sfx("vidrio1", C.truena, -2, { ancla: "pico" });               // el bucle truena como vidrio
+      sfx("vidrio2", C.truena + 0.12, -9);
+      sfx("impacto2", C.truena, -9);
+    }
   } else {
     sfx("brillo2", C.claude, -4);
     C.apps.forEach((t, k) => sfx("blip", t, -5, { tono: 4 + k * 3 }));
@@ -172,12 +243,31 @@ export function cues(T, estilo = "3d") {
   sfx("pop", C.vadai, -4);
   sfx("pop", C.total, -4, { tono: 3 });
   sfx("contador", C.cuarenta, -3);
-  sfx("murmullo", C.porque2, -11, { dur: 2.0 });
+  if (v === "platica" && estilo === "2d") {
+    sfx("plumon3", C.respaldan + 0.1, -12);                          // la chispa rodea la placa
+    sfx("brillo1", C.respaldan + 1.7, -12);                          // el brillo que cruza la placa
+    sfx("multitud", C.cuarenta + 0.2, -16, { dur: 3.0 });            // las empresas que no paran de llegar
+    sfx("riser", C.infinito + 0.55, -12, { ancla: "pico" });
+    sfx("brillo2", C.infinito + 0.6, -6);                            // el infinito
+    sfx("plumon3", C.mundo + 0.1, -12);                              // el planeta
+    sfx("plumon1", C.mundo + 0.88, -13);                             // las barras
+    sfx("plumon1", C.mundo + 1.62, -13);                             // la gráfica
+    for (let k = 0; k < 7; k++) sfx("pop", C.mundo + 0.7 + k * 0.16, -13, { tono: k * 2 });   // los globos de diálogo
+  }
+  sfx("murmullo", C.porque2, -11, { dur: v === "platica" ? 3.2 : 2.0 });
   sfx("whoosh3", C.ia2, -10, { ancla: "pico" });
   sfx("brillo1", C.ella, -6);
   sfx("clic", C.clic, 0, { ancla: "pico" });
   sfx("pop", C.cta, -4);
   if (v === "platica") sfx("campanita", C.gratis, -9);
+  if (v === "platica" && estilo === "2d") {
+    sfx("plumon3", C.etiqueta + 0.05, -10);                          // la etiqueta
+    sfx("sello", C.gratis, -3, { ancla: "pico" });                   // GRATIS se estampa
+    sfx("whoosh2", C.rojo, -8, { ancla: "pico" });                   // el telón navy
+    sfx("monedas", C.caro + 0.05, -6);                               // lo caro
+    sfx("impacto1", C.caro, -12);
+    sfx("brillo1", C.mano2, -9);                                     // la chispa cae en MANO
+  }
   sfx("swell1", C.caro + 0.3, -12);
   sfx("brillo2", C.fin + 0.15, -8);
   return { C, S };

@@ -24,6 +24,8 @@ const F = {
   latido: "v2/latido.mp3", riser: "v2/riser.mp3", brillo1: "v2/brillo-1.mp3", brillo2: "v2/brillo-2.mp3",
   clic: "v2/clic.mp3", giro: "v2/giro.mp3", glitch1: "v2/glitch-1.mp3", glitch2: "v2/glitch-2.mp3",
   plumon1: "v2/plumon-1.mp3", plumon3: "v2/plumon-3.mp3", murmullo: "v2/murmullo.mp3",
+  vidrio1: "v2/vidrio-1.mp3", vidrio2: "v2/vidrio-2.mp3", monedas: "v2/monedas.mp3", pasos: "v2/pasos.mp3",
+  sello: "v2/sello.mp3", reloj: "v2/reloj.mp3", chats: "v2/chats.mp3", multitud: "v2/multitud.mp3", foco: "v2/foco.mp3",
 };
 const MEDIDAS = JSON.parse(readFileSync(join(raiz, "assets/sfx/medidas.json"), "utf8"));
 const REF = -30;
@@ -63,7 +65,9 @@ for (const v of cierres.length ? cierres : ["platica", "curso"]) for (const esti
     let o = -2;
     for (const [a, b] of habla) if (t >= a - 0.12 && t < b + 0.2) { o = -9; break; }
     g += (o - g) * (o < g ? kAb : kSu);
-    const objetivo = t >= SIL0 && t < SIL1 ? -20 : 0;
+    // 10-oct: con la toma G los compases que caen en el silencio son los del crescendo (antes los quietos):
+    // −28 en vez de −20 para que siga «casi desapareciendo» como en la versión aprobada
+    const objetivo = t >= SIL0 && t < SIL1 ? -28 : 0;
     sil = t >= SIL1 && t < SIL1 + 0.01 ? 0 : sil + (objetivo - sil) * kSil;   // regreso instantáneo en «método»
     const tension = t < SIL0 ? 5 : 0;   // la primera mitad de la canción es tenue de origen: +5 dB
     env[i] = Math.pow(10, (g + sil + tension) / 20);
@@ -74,11 +78,19 @@ for (const v of cierres.length ? cierres : ["platica", "curso"]) for (const esti
   ffm(["-i", join(raiz, MUSICA), "-i", join(M, `curva-${v}.wav`), "-filter_complex",
     `[0:a]aresample=48000,volume=${(-16 - Lm).toFixed(2)}dB,aformat=sample_fmts=fltp:channel_layouts=stereo,adelay=${Math.round(MUSICA_RETRASO * 1000)}:all=1,apad=whole_dur=${DURACION},atrim=0:${DURACION}[m];[1:a]aformat=sample_fmts=fltp:sample_rates=48000:channel_layouts=stereo[e];[m][e]amultiply[o]`,
     "-map", "[o]", "-c:a", "pcm_f32le", join(M, `stem-musica-${v}.wav`)]);
-  const ent = [], ramas = [];
+  // cada archivo entra una sola vez y se reparte con asplit; el grafo va en un archivo (10-oct: con 170
+  // efectos la línea de comando pasaba del límite de Windows, ENAMETOOLONG)
+  const ent = [], ramas = [], usos = {};
+  for (const x of S) usos[x.f] = (usos[x.f] || 0) + 1;
+  const archivos = Object.keys(usos), cuenta = {};
+  archivos.forEach((f, k) => {
+    if (!MEDIDAS[F[f]]) throw new Error(`mezcla: efecto sin medida ${f}`);
+    ent.push("-i", join("assets/sfx", F[f]));
+    ramas.push(`[${k}:a]asplit=${usos[f]}${Array.from({ length: usos[f] }, (_, j) => `[e${k}_${j}]`).join("")}`);
+  });
   S.forEach((x, i) => {
     const m = MEDIDAS[F[x.f]];
-    if (!m) throw new Error(`mezcla: efecto sin medida ${x.f}`);
-    ent.push("-i", join(raiz, "assets/sfx", F[x.f]));
+    const k = archivos.indexOf(x.f), j = (cuenta[x.f] = (cuenta[x.f] ?? -1) + 1);
     const r = Math.pow(2, x.tono / 12);
     const ancla = ((x.ancla === "pico" ? m.pico : m.inicio) - x.recorte) / r;   // dónde cae el evento dentro del efecto
     const ini = Math.max(0, x.t - Math.max(0, ancla));
@@ -90,9 +102,11 @@ for (const v of cierres.length ? cierres : ["platica", "curso"]) for (const esti
       `volume=${(REF + x.db - m.rms_db).toFixed(1)}dB`,
       `adelay=${Math.round(ini * 1000)}:all=1`,
     ].filter(Boolean).join(",");
-    ramas.push(`[${i}:a]${cadena}[s${i}]`);
+    ramas.push(`[e${k}_${j}]${cadena}[s${i}]`);
   });
-  ffm([...ent, "-filter_complex", `${ramas.join(";")};${S.map((_, i) => `[s${i}]`).join("")}amix=inputs=${S.length}:normalize=0:dropout_transition=0,apad=whole_dur=${DURACION},atrim=0:${DURACION}[s]`, "-map", "[s]", "-c:a", "pcm_f32le", join(M, `stem-sfx-${id}.wav`)]);
+  const grafo = join(M, `grafo-sfx-${id}.txt`);
+  writeFileSync(grafo, `${ramas.join(";\n")};\n${S.map((_, i) => `[s${i}]`).join("")}amix=inputs=${S.length}:normalize=0:dropout_transition=0,apad=whole_dur=${DURACION},atrim=0:${DURACION}[s]`);
+  execFileSync("ffmpeg", ["-v", "error", "-y", ...ent, "-filter_complex_script", grafo, "-map", "[s]", "-c:a", "pcm_f32le", join(M, `stem-sfx-${id}.wav`)], { cwd: raiz });
   ffm(["-i", join(M, `stem-voz-${v}.wav`), "-i", join(M, `stem-musica-${v}.wav`), "-i", join(M, `stem-sfx-${id}.wav`), "-filter_complex", "[0:a][1:a][2:a]amix=inputs=3:normalize=0:dropout_transition=0[o]", "-map", "[o]", "-c:a", "pcm_f32le", join(M, `suma-${id}.wav`)]);
   // ganancia para −14 LUFS y un limitador de pico (los golpes de efectos y el acorde final
   // impedían llegar con normalización lineal pura); luego se verifica pico real ≤ −1 dBTP

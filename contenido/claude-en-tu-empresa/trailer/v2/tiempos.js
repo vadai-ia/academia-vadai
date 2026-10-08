@@ -4,10 +4,10 @@
 //   T.w(3, "seis")  → inicio de esa palabra dentro de la frase 3 (n = qué aparición en la frase)
 import { SECCIONES, clave } from "./guion.js";
 
-export const DURACION = 88.5;           // voz 85.6 s (Camila) + acorde final (la canción acaba en 87.75)
-export const MUSICA_RETRASO = 0;        // n5-editada.wav ya trae el retraso: su compás 23 cae en «método» (48.56 s)
+export const DURACION = 94.5;           // voz 91.7 s (Camila, toma G) + acorde final (la canción acaba en 93.55)
+export const MUSICA_RETRASO = 0;        // n5-editada.wav ya trae el desfase: su compás 23 cae en «método» (51.95 s)
 export const BPM = 99.81, PULSO = 60 / 99.81, COMPAS = 4 * 60 / 99.81;
-export const GOLPE = 48.56;             // primer tiempo fuerte de la sección grande (compás 23 de n5), en tiempo de video
+export const GOLPE = 51.949;            // primer tiempo fuerte de la sección grande (compás 23 de n5), en tiempo de video
 export const beat = (t) => +(GOLPE + Math.round((t - GOLPE) / PULSO) * PULSO).toFixed(3);
 
 export async function tiempos(version) {

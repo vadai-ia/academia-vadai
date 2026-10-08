@@ -132,12 +132,26 @@
   "fin": 1.92,
   "rms_db": -23.9
  },
+ "v2/chats.mp3": {
+  "dur": 3.0,
+  "inicio": 0.01,
+  "pico": 0.03,
+  "fin": 1.24,
+  "rms_db": -17.1
+ },
  "v2/clic.mp3": {
   "dur": 1.0,
   "inicio": 0.02,
   "pico": 0.82,
   "fin": 0.91,
   "rms_db": -28.7
+ },
+ "v2/foco.mp3": {
+  "dur": 2.0,
+  "inicio": 0.0,
+  "pico": 0.37,
+  "fin": 1.94,
+  "rms_db": -15.3
  },
  "v2/giro.mp3": {
   "dur": 3.0,
@@ -174,12 +188,33 @@
   "fin": 3.13,
   "rms_db": -22.5
  },
+ "v2/monedas.mp3": {
+  "dur": 2.0,
+  "inicio": 0.0,
+  "pico": 0.75,
+  "fin": 1.58,
+  "rms_db": -19.4
+ },
+ "v2/multitud.mp3": {
+  "dur": 3.0,
+  "inicio": 0.04,
+  "pico": 0.64,
+  "fin": 2.95,
+  "rms_db": -11.3
+ },
  "v2/murmullo.mp3": {
   "dur": 3.0,
   "inicio": 0.06,
   "pico": 0.65,
   "fin": 2.77,
   "rms_db": -26.2
+ },
+ "v2/pasos.mp3": {
+  "dur": 2.0,
+  "inicio": 0.0,
+  "pico": 0.39,
+  "fin": 1.93,
+  "rms_db": -27.0
  },
  "v2/ping-1.mp3": {
   "dur": 1.0,
@@ -216,6 +251,13 @@
   "fin": 0.88,
   "rms_db": -14.9
  },
+ "v2/reloj.mp3": {
+  "dur": 2.0,
+  "inicio": 0.0,
+  "pico": 1.49,
+  "fin": 1.95,
+  "rms_db": -23.4
+ },
  "v2/riser.mp3": {
   "dur": 3.0,
   "inicio": 2.02,
@@ -223,12 +265,33 @@
   "fin": 2.93,
   "rms_db": -13.3
  },
+ "v2/sello.mp3": {
+  "dur": 1.0,
+  "inicio": 0.0,
+  "pico": 0.03,
+  "fin": 0.16,
+  "rms_db": -30.3
+ },
  "v2/teclado.mp3": {
   "dur": 3.0,
   "inicio": 0.05,
   "pico": 2.61,
   "fin": 2.76,
   "rms_db": -31.3
+ },
+ "v2/vidrio-1.mp3": {
+  "dur": 2.0,
+  "inicio": 0.03,
+  "pico": 0.6,
+  "fin": 1.6,
+  "rms_db": -16.4
+ },
+ "v2/vidrio-2.mp3": {
+  "dur": 2.0,
+  "inicio": 0.0,
+  "pico": 0.34,
+  "fin": 1.75,
+  "rms_db": -20.0
  },
  "v2/whoosh-1.mp3": {
   "dur": 2.0,

@@ -1,7 +1,9 @@
 # v2 · edita la canción n5 (Lyria 3 Pro, 99.8 BPM) a la voz de Camila por compases completos:
-#   compases 0–18 · 22–33 (se quitan 19–21: la potencia entra justo en «método») · 30–33 otra vez
+#   compases 0–15 · 18–33 (se quitan el 16 y el 17, los más quietos: con la toma G caían en «diariamente…
+#   y aun así» y dejaban un hueco) · 29–33 otra vez
 #   (el clímax sostiene el llamado) · 34–35 (el acorde final). Cortes en tiempo fuerte con fundido de 25 ms.
-# El retraso de 0.46 s va al principio del archivo, así el compás 23 cae en «método» (48.56 s).
+# El desfase va al principio: el compás 23 cae en «método» (10-oct, toma G de Camila: 51.95 s). Si el
+# desfase sale negativo se recorta la entrada, que es casi silencio (compás 0 a −34 dB).
 #   python scripts/v2-musica-editar.py → assets/v2/musica/n5-editada.wav
 import json, subprocess, sys, pathlib
 import numpy as np
@@ -14,8 +16,8 @@ x = np.frombuffer(subprocess.run(["ffmpeg", "-v", "error", "-i", str(raiz / "ass
 compas = 4 * an["pulso"]
 t0 = an["fase"]
 inicio = lambda c: int(round((t0 + c * compas) * SR))
-METODO, RETRASO = 48.56, None
-tramos = [(0, 19), (22, 34), (30, 34), (34, None)]
+METODO, RETRASO = 51.949, None
+tramos = [(0, 16), (18, 34), (29, 34), (34, None)]
 piezas = []
 for a, b in tramos:
     ia = 0 if a == 0 else inicio(a)
@@ -28,7 +30,7 @@ for k, p in enumerate(piezas):
     if k < len(piezas) - 1: p[-F:] *= r[::-1]
 y = np.concatenate(piezas)
 # dónde quedó el compás 23 (el golpe) en la pista editada → retraso para que caiga en «método»
-golpe = (inicio(19) - 0) / SR + 0 + (inicio(23) - inicio(22)) / SR
+golpe = len(piezas[0]) / SR + (inicio(23) - inicio(tramos[1][0])) / SR
 RETRASO = round(METODO - golpe, 3)
 y = np.concatenate([np.zeros((int(RETRASO * SR), 2), dtype=np.float32), y]) if RETRASO > 0 else y[int(-RETRASO * SR):]
 sal = raiz / "assets/v2/musica/n5-editada.wav"

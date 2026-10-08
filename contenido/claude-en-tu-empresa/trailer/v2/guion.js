@@ -19,7 +19,7 @@ export const SECCIONES = {
   platica: [
     "Por eso creamos esta plática gratuita y en vivo para dueños y directivos.",
     "Te contamos qué está pasando con la IA, qué hacen las empresas que sí la aprovechan, y cómo salir del bucle: todo en un mismo lugar, con Claude y un mismo método, para que tu equipo resuelva sin tener que esperarte.",
-    "Lo respaldan VADAI y Total Coach, con más de cuarenta empresas mexicanas capacitadas.",
+    "Lo respaldan VADAI y Total Coach, con cientos de empresas mexicanas capacitadas en el uso de IA.",
     "Porque todo mundo te va a seguir hablando de inteligencia artificial.",
     "Nosotros te enseñamos qué hacer con ella.",
     "Dale clic aquí abajo y aparta tu lugar.",

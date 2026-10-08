@@ -1,6 +1,6 @@
-// v2 · voz de la plática (9-oct-2026): Camila Rodríguez, eleven_v3, estabilidad 0.4.
-//   1. base = toma E; la frase del respaldo («Lo respaldan VADAI y Total Coach…») sale de la toma C,
-//      la única que dice VADAI en dos sílabas (como Joaquín: «Badaï»). Cortes en silencios reales.
+// v2 · voz de la plática: Camila Rodríguez, eleven_v3, estabilidad 0.4.
+//   1. UNA toma completa (--base); se elige la que dice «VADAI» en dos sílabas («Badaï») y todo el
+//      guion limpio. Nada de empalmar frases de otras tomas: cambia el acento (ERRORES E32).
 //   2. silencios: entre frases ≤ 0.5 s y dentro de una frase ≤ 0.6 s, salvo las pausas dramáticas
 //      (después de «¿…depende de ti?» y de «método»). Así dura ~1:27 sin acelerar la voz.
 //   3. termina en la última palabra con un fundido: nada de la toma después (ERRORES: en la v2 anterior
@@ -61,33 +61,22 @@ const transcribir = (wav, json) => {
   return JSON.parse(readFileSync(json, "utf8")).filter((w) => clave(w.text));
 };
 
-// ---------- 1 · la toma armada: E con la frase del respaldo de C ----------
-const E = { x: leer(join(V, "camila-e.mp3")), w: alinear(JSON.parse(readFileSync(join(V, "camila-e.json"), "utf8")).filter((w) => clave(w.text))) };
-const Cc = { x: leer(join(V, "camila-c.mp3")), w: alinear(JSON.parse(readFileSync(join(V, "camila-c.json"), "utf8")).filter((w) => clave(w.text))) };
-E.db = energia(E.x); Cc.db = energia(Cc.x);
+// ---------- 1 · la toma: una sola, completa (10-oct: empalmar una frase de otra toma cambiaba el
+// acento, Alejandro la oyó «española»). --base <nombre> en assets/v2/voz/ ----------
+const iB = process.argv.indexOf("--base");
+const BASE = iB > 0 ? process.argv[iB + 1] : "camila-f";
+const E = { x: leer(join(V, `${BASE}.mp3`)), w: alinear(JSON.parse(readFileSync(join(V, `${BASE}.json`), "utf8")).filter((w) => clave(w.text))) };
+E.db = energia(E.x);
 const fr = (T, i) => ({ ini: T.w.find((w) => w.f === i).start, fin: T.w.filter((w) => w.f === i).at(-1).end });
-const corte = (T, i) => hondo(T.db, fr(T, i - 1).fin + 0.03, fr(T, i).ini - 0.03);   // silencio antes de la frase i
-const seg = (T, a, b) => T.x.subarray(Math.round(a * SR), Math.round(b * SR));
-const eA = corte(E, RESPALDO), eB = corte(E, RESPALDO + 1), cA = corte(Cc, RESPALDO), cB = corte(Cc, RESPALDO + 1);
 const inicio = Math.max(0, fr(E, 0).ini - 0.2), final = fr(E, FRASES.length - 1).fin + 0.35;
-const piezas = [seg(E, inicio, eA), seg(Cc, cA, cB), seg(E, eB, final)];
-// pegado con fundido corto en silencio (sin chasquidos)
-const F = 0.03 * SR;
-let y = new Float32Array(piezas.reduce((a, p) => a + p.length, 0));
+let y = Float32Array.from(E.x.subarray(Math.round(inicio * SR), Math.round(final * SR)));
 let o = 0;
-piezas.forEach((p, k) => {
-  const q = Float32Array.from(p);
-  for (let i = 0; i < F && i < q.length; i++) { const g = i / F; if (k) q[i] *= g; if (k < piezas.length - 1) q[q.length - 1 - i] *= g; }
-  y.set(q, o); o += q.length;
-});
-console.log(`empalme: respaldo de la toma C (${cA.toFixed(2)}–${cB.toFixed(2)} s) en la E (${eA.toFixed(2)}–${eB.toFixed(2)} s)`);
+const F = 0.03 * SR;
+console.log(`toma única: ${BASE} (${inicio.toFixed(2)}–${final.toFixed(2)} s)`);
 
 // ---------- 2 · silencios con tope (las pausas dramáticas se respetan) ----------
-// mapa de tiempos toma-E → pista armada para saber a qué frase pertenece cada silencio
-const dA = eA - inicio, dur1 = (cB - cA), desfase = dur1 - (eB - eA);
-const aPista = (tE) => (tE < eA ? tE - inicio : tE < eB ? NaN : tE - inicio + desfase);
-const finFrase = FRASES.map((_, i) => i === RESPALDO ? dA + (fr(Cc, i).fin - cA) : aPista(fr(E, i).fin));
-const iniFrase = FRASES.map((_, i) => i === RESPALDO ? dA + (fr(Cc, i).ini - cA) : aPista(fr(E, i).ini));
+const finFrase = FRASES.map((_, i) => fr(E, i).fin - inicio);
+const iniFrase = FRASES.map((_, i) => fr(E, i).ini - inicio);
 const dbY = energia(y);
 const silencios = [];
 for (let i = 0; i < dbY.length; ) { if (dbY[i] < -42) { let j = i; while (j < dbY.length && dbY[j] < -42) j++; if (j - i >= 25) silencios.push([i / 100, j / 100]); i = j; } else i++; }

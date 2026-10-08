@@ -4,7 +4,13 @@
 export const NS = "http://www.w3.org/2000/svg";
 // colores de estilo/tokens.css resueltos a hex (var() en atributos SVG no es confiable)
 const cache = {};
-export const K = (n) => cache[n] || (cache[n] = getComputedStyle(document.documentElement).getPropertyValue(`--${n}`).trim());
+// fuera de la paleta: el rojo solo para «LO CARO» (10-oct, nota de Alejandro: «un poquito de rojo para
+// resaltar lo CARO»). 5.6:1 sobre navy.
+const EXTRA = { rojo: "#FF5A5F", whatsapp: "#25D366" };
+export const K = (n) => cache[n] || (cache[n] = EXTRA[n] || getComputedStyle(document.documentElement).getPropertyValue(`--${n}`).trim());
+// el texto llega una décima antes que su palabra (10-oct: «los textos salen un poquito después de cuando
+// lo dice la narradora»): el ojo lee antes de que el oído termine de oír
+export const ADELANTO = 0.1;
 
 export function azar(semilla) {
   let a = semilla >>> 0;
@@ -48,7 +54,7 @@ export function texto(fuente, padre, lineas, { x, y, tam, interlinea = 1.0, ancl
   lineas.forEach((ps, li) => {
     if (li) base += s * interlinea + (/[ÑÁÉÍÓÚÜ]/.test(ps.join("")) ? 0.16 * s : 0);
     const total = anchoDe(ps, s);
-    let cx = ancla === "centro" ? x - total / 2 : x;
+    let cx = ancla === "centro" ? x - total / 2 : ancla === "der" ? x - total : x;
     for (const p of ps) {
       const w = fuente.getAdvanceWidth(p, s);
       const gp = el("g", { class: "palabra" }, g);
@@ -75,7 +81,8 @@ export function colorear(palabra, color) { for (const q of palabra.glifos) { q.s
 
 // entrada de una palabra, completa, en su palabra. traza: el contorno se dibuja y el relleno llega a la mitad
 // (un trazo de largo cero con remate redondo pinta un punto: fuera de su ventana el glifo no existe)
-export function dibujar(tl, palabra, t, { dur, escalon = 0.012, estilo = palabra.estilo } = {}) {
+export function dibujar(tl, palabra, t0, { dur, escalon = 0.012, estilo = palabra.estilo, adelanto = ADELANTO } = {}) {
+  const t = Math.max(0, t0 - adelanto);
   const P = palabra, origen = `${P.cx.toFixed(1)} ${P.cy.toFixed(1)}`;
   tl.fromTo(P.glifos, { opacity: 0 }, { opacity: 1, duration: 0.001 }, t);
   if (estilo === "traza") {
@@ -159,6 +166,59 @@ export function trazoReloj(path, { modo = "dibuja", cola = 240 } = {}) {
       return path.getPointAtLength(Math.min(L, Math.max(0, h)));
     },
   };
+}
+
+// lleva un path de coordenadas locales (dibujos.js) a la escena: escala, gira y traslada cada punto.
+// Solo comandos absolutos M L C Q A Z (los que usan los dibujos). Así la chispa recorre el dibujo ya
+// colocado (su guía es el mismo path, sin transformaciones de por medio).
+export function mover(d, dx, dy, s = 1, rot = 0) {
+  const c = Math.cos(rot), si = Math.sin(rot);
+  const P = (x, y) => { x *= s; y *= s; return `${(x * c - y * si + dx).toFixed(1)},${(x * si + y * c + dy).toFixed(1)}`; };
+  const tok = d.match(/[MLCQAZ]|-?\d*\.?\d+/g);
+  const N = { M: 2, L: 2, C: 6, Q: 4, A: 7 };
+  let out = "", i = 0, cmd = "M";
+  while (i < tok.length) {
+    if (/[MLCQAZ]/.test(tok[i])) { cmd = tok[i++]; out += cmd; if (cmd === "Z") continue; }
+    const v = tok.slice(i, i + N[cmd]).map(Number); i += N[cmd];
+    if (cmd === "A") out += `${(v[0] * s).toFixed(1)},${(v[1] * s).toFixed(1)} ${(v[2] + (rot * 180) / Math.PI).toFixed(1)} ${v[3]} ${v[4]} ${P(v[5], v[6])} `;
+    else for (let k = 0; k < v.length; k += 2) out += `${P(v[k], v[k + 1])} `;
+  }
+  return out.trim();
+}
+
+// ---------- glitch: copias de la escena y de las letras, teñidas y corridas en franjas ----------
+// (10-oct, nota de Alejandro: «más elementos que hagan énfasis en que es un bucle, como si fuera un
+// glitch»). Las franjas cambian cada dos cuadros con semilla del cuadro: determinista.
+export function crearGlitch({ padre, reloj, W, H, ids = ["escena", "letras"] }) {
+  const momentos = [];
+  const rgb = (h) => [1, 3, 5].map((i) => (parseInt(h.slice(i, i + 2), 16) / 255).toFixed(3));
+  const capas = [K("cieloClaro"), K("durazno"), null].map((col, n) => {
+    const cp = el("clipPath", { id: `gl-cp${n}` }, padre);
+    const bandas = [0, 1, 2, 3, 4].map(() => el("rect", { x: -300, width: W + 600, y: 0, height: 0 }, cp));
+    const g = el("g", { "clip-path": `url(#gl-cp${n})`, opacity: 0 }, padre);
+    if (col) {
+      const f = el("filter", { id: `gl-f${n}`, x: "-20%", y: "-20%", width: "140%", height: "140%" }, padre);
+      const [r, gg, b] = rgb(col);
+      el("feColorMatrix", { type: "matrix", values: `0 0 0 0 ${r}  0 0 0 0 ${gg}  0 0 0 0 ${b}  0 0 0 1 0` }, f);
+      g.setAttribute("filter", `url(#gl-f${n})`);
+    } else el("rect", { x: -300, y: -300, width: W + 600, height: H + 600, fill: K("navy") }, g);   // la franja tapa el original: se ve el desgarre
+    const dentro = el("g", {}, g);
+    for (const id of ids) el("use", { href: `#${id}` }, dentro);
+    return { g, dentro, bandas, col };
+  });
+  reloj(0, 999, (t) => {
+    const m = momentos.find((z) => t >= z.t && t < z.t + z.dur);
+    if (!m) { for (const c of capas) c.g.setAttribute("opacity", 0); return; }
+    const k = Math.floor(t * 30), r = azar(k * 7919 + 13);
+    capas.forEach((c, n) => {
+      const nb = n === 2 ? 2 + Math.floor(r() * 3) : 5;
+      c.bandas.forEach((b, i) => { const on = i < nb; b.setAttribute("y", on ? (r() * H).toFixed(0) : -50); b.setAttribute("height", on ? (8 + r() * H * (n === 2 ? 0.08 : 0.18)).toFixed(0) : 0); });
+      const dx = n === 2 ? (r() - 0.5) * 2 * m.amp * 3 : (n ? -1 : 1) * m.amp * (0.6 + r());
+      c.dentro.setAttribute("transform", `translate(${dx.toFixed(1)} ${((r() - 0.5) * m.amp * 0.3).toFixed(1)})`);
+      c.g.setAttribute("opacity", n === 2 ? 1 : 0.7);
+    });
+  });
+  return { en(t, dur = 0.28, amp = 16) { momentos.push({ t, dur, amp }); } };
 }
 
 // ---------- la cámara 2D: una sola dueña de la transformación de la escena ----------

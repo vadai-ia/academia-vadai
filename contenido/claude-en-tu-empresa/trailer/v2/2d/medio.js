@@ -2,16 +2,19 @@
 // no te falta otra herramienta → te falta un MÉTODO. La cámara sale del punto «tú» al escritorio que
 // dibuja la chispa; el silencio es una red que cuelga de ti; el golpe es la línea que se endereza.
 import { el, texto, dibujar, borrar, tramo, ease, K, insignia, onda, azar } from "./trazo.js";
-import { LOGOS } from "../logos.js";
+import { LOGOS, HERRAMIENTAS } from "../logos.js";
+import * as Dib from "./dibujos.js";
 
 export function montar(ctx) {
-  const { tl, capas, C, T, fuente, reloj, chispa, cam, V, W, H } = ctx;
+  const { tl, capas, C, T, fuente, reloj, chispa, cam, V, W, H, dom } = ctx;
   const { escena, letras, fijo } = capas;
   const q = (h, v) => (V ? v : h);
   const CX = W / 2, CYm = H / 2;
-  const izq = q({ x: 96, y: 470, tam: 120, max: 760 }, { x: 80, y: 560, tam: 112, max: 920 });
+  // 10-oct (nota de Alejandro: «acercaría un poco más los textos a la animación»): en horizontal los
+  // textos de 05 se alinean a la derecha, pegados al monitor, y arriba de la pila de copias
+  const izq = q({ x: 1056, y: 372, tam: 120, max: 760, ancla: "der" }, { x: 80, y: 560, tam: 112, max: 920, ancla: "izq" });
   const frase = (lineas, anclas, fin, o = {}) => {
-    const f = texto(fuente, letras, lineas, { x: o.x ?? izq.x, y: o.y ?? izq.y, tam: o.tam ?? izq.tam, ancla: o.ancla ?? "izq", maxAncho: o.max ?? izq.max, color: o.color, estilo: o.estilo ?? "sube", colores: o.colores ?? {} });
+    const f = texto(fuente, letras, lineas, { x: o.x ?? izq.x, y: o.y ?? izq.y, tam: o.tam ?? izq.tam, ancla: o.ancla ?? izq.ancla, maxAncho: o.max ?? izq.max, color: o.color, estilo: o.estilo ?? "sube", colores: o.colores ?? {} });
     f.palabras.forEach((p, i) => dibujar(tl, p, anclas[i], { dur: 0.34 }));
     if (fin) borrar(tl, f.palabras, fin, { dur: 0.24, escalon: 0.005 });
     return f;
@@ -154,19 +157,104 @@ export function montar(ctx) {
   // la chispa se va: en este silencio no hay método, solo tú
   chispa.pierna(`M${esquina.x},${esquina.y} Q${esquina.x + 150},${esquina.y - 260} ${W + 150},${q(-120, 300)}`, C.honesto, C.honesto + 0.45, { cola: 200, e: ease.entra2 });
   chispa.quieta(C.honesto + 0.46, C.falta + 0.15, W + 200, q(-200, 200), 0);
+  // «entonces, sé honesto» (10-oct, nota de Alejandro: «muchísimos signos de interrogación y admiración
+  // que comienzan a abrumar y una personita corriendo de estos símbolos»): los signos llegan cada vez más
+  // seguido, alguien huye por abajo, y el punto «tú» se los traga justo antes de que caiga la pregunta
+  frase([["SÉ", "HONESTO."]], [T.w(6, "sé"), T.w(6, "honesto:")], C.traga, { x: CX, y: q(612, 1000), tam: q(180, 150), ancla: "centro", max: q(1300, 940), estilo: "golpe", colores: { 1: K("durazno") } });
+  const signos = el("g", { class: "signos" }, fijo);
+  const r6s = azar(6161), NSG = 76, S0 = C.signos, S1 = C.traga;
+  const caja = { x0: CX - 460, x1: CX + 460, y0: q(440, 820), y1: q(650, 1040) };
+  const COLS6 = [hueso, K("gris"), K("cieloClaro"), hueso, K("durazno"), K("gris")];
+  const lista = [];
+  for (let i = 0; i < NSG; i++) {
+    const ch = "?!¿?!¡"[Math.floor(r6s() * 6)], tam = 56 + r6s() * (90 + 170 * (i / NSG));
+    let x = 0, y = 0;
+    for (let k = 0; k < 40; k++) {
+      x = 70 + r6s() * (W - 140); y = 130 + r6s() * (H - 190);
+      if (i > NSG * 0.72 || !(x > caja.x0 - tam * 0.4 && x < caja.x1 + tam * 0.4 && y > caja.y0 - tam * 0.5 && y < caja.y1 + tam * 0.5)) break;
+    }
+    const gl = fuente.getPath(ch, 1000, 1000, tam), bb = gl.getBoundingBox();
+    const g = el("g", { opacity: 0 }, signos);
+    el("path", { d: gl.toPathData(1), fill: COLS6[Math.floor(r6s() * COLS6.length)], transform: `translate(${(-(bb.x1 + bb.x2) / 2).toFixed(1)} ${(-(bb.y1 + bb.y2) / 2).toFixed(1)})` }, g);
+    lista.push({ g, x, y, t0: S0 + (S1 - 0.25 - S0) * Math.pow(i / NSG, 0.55), rot: (r6s() - 0.5) * 50, f: r6s() * 6.28 });
+  }
+  reloj(S0 - 0.05, S1 + 0.35, (t) => {
+    const junta = ease.entra3(tramo(t, S1, S1 + 0.3)), nervio = tramo(t, S0, S1);
+    for (const s of lista) {
+      const u = tramo(t, s.t0, s.t0 + 0.22), sc = u <= 0 ? 0.001 : Math.max(0.001, 1 + 1.7 * Math.pow(u - 1, 3) + 0.7 * Math.pow(u - 1, 2));
+      const x = s.x + (N.x - s.x) * junta + Math.sin(t * 31 + s.f) * 7 * nervio, y = s.y + (N.y - s.y) * junta + Math.cos(t * 27 + s.f) * 7 * nervio;
+      s.g.setAttribute("transform", `translate(${x.toFixed(1)} ${y.toFixed(1)}) rotate(${(s.rot + Math.sin(t * 3 + s.f) * 8).toFixed(1)}) scale(${Math.max(0.001, sc * (1 - junta)).toFixed(3)})`);
+      s.g.setAttribute("opacity", t < s.t0 || junta >= 0.999 ? 0 : 0.92);
+    }
+  });
+  // la personita que huye de los signos, por abajo, de izquierda a derecha (dos pasos alternados)
+  const huye = el("g", { opacity: 0 }, fijo);
+  const trazoH = { fill: "none", stroke: hueso, "stroke-width": 5, "stroke-linecap": "round", "stroke-linejoin": "round" };
+  const hA = el("path", { d: Dib.persona("corriendo", 1.05), ...trazoH }, huye), hB = el("path", { d: Dib.persona("corriendo2", 1.05), ...trazoH }, huye);
+  const gotas = [0, 1, 2].map((k) => el("circle", { r: 6 - k * 1.5, fill: K("cieloClaro") }, huye));
+  const yH = q(1012, 1780);
+  reloj(C.huye - 0.05, S1 + 0.4, (t) => {
+    const u = tramo(t, C.huye, S1 + 0.3), x = -120 + u * (W + 260), par = Math.floor(t * 10) % 2 === 0;
+    huye.setAttribute("transform", `translate(${x.toFixed(1)} ${(yH - 6 * Math.abs(Math.sin(t * 15))).toFixed(1)})`);
+    huye.setAttribute("opacity", t >= C.huye && u < 1 ? 1 : 0);
+    hA.setAttribute("opacity", par ? 1 : 0); hB.setAttribute("opacity", par ? 0 : 1);
+    gotas.forEach((g, k) => { const ph = (t * 3 + k / 3) % 1; g.setAttribute("cx", (-26 - ph * 64).toFixed(1)); g.setAttribute("cy", (-150 - 22 * Math.sin(ph * Math.PI)).toFixed(1)); g.setAttribute("opacity", (1 - ph).toFixed(2)); });
+  });
+  ctx.glitch.en(S1 + 0.18, 0.2, 12);
+
+  // la red que cuelga de ti: más hilos, y por cada uno un pulso que viaja hacia ti (todo pasa por ti)
   const red = el("g", { class: "red" }, escena);
   const tu = el("ellipse", { cx: N.x, cy: N.y, rx: 0, ry: 0, fill: K("gris") }, red);
   const nodos = [];
-  const r06 = azar(606);
-  for (let n = 0; n < 22; n++) {
-    const a = (n / 22) * Math.PI * 2 + (r06() - 0.5) * 0.25, rr = RN * (0.72 + r06() * 0.42);
+  const r06 = azar(606), NN = 34;
+  for (let n = 0; n < NN; n++) {
+    const dentro = n % 3 === 1;
+    const a = (n / NN) * Math.PI * 2 + (r06() - 0.5) * 0.3, rr = RN * (dentro ? 0.42 + r06() * 0.14 : 0.74 + r06() * 0.4);
     const x = N.x + Math.cos(a) * rr, y = N.y + Math.sin(a) * rr * q(0.92, 1.05);
     const hilo = el("path", { d: `M${x.toFixed(1)},${y.toFixed(1)} L${N.x},${N.y}`, stroke: K("cieloClaro"), "stroke-width": 2, opacity: 0.55 }, red);
     const c = el("circle", { cx: x, cy: y, r: 0, fill: hueso, opacity: 0.85 }, red);
-    nodos.push({ x, y, hilo, c, t0: C.cuanto + 0.05 + n * 0.055 });
+    const pul = el("circle", { r: 0, fill: K("cieloClaro"), filter: "url(#brillo)" }, red);
+    nodos.push({ x, y, hilo, c, pul, t0: C.cuanto + 0.05 + n * 0.04, f: r06() });
   }
   red.appendChild(tu);
-  const tTu = C.honesto + 0.25;
+  // los mensajes sin leer: el globo verde de WhatsApp sobre ti
+  const insig = el("g", { opacity: 0 }, red);
+  el("circle", { r: 25, fill: K("whatsapp") }, insig);
+  const cuenta = el("text", { y: 9, "text-anchor": "middle", "font-family": "Inter", "font-weight": 700, "font-size": 24, fill: K("navy") }, insig);
+  const tTu = C.cuanto - 0.15;
+  onda(tl, red, N.x, N.y, tTu, { r0: 30, r1: q(260, 300), color: K("gris"), ancho: 3, dur: 0.6 });
+  reloj(C.chats[0] - 0.05, C.porque + 0.05, (t) => {
+    const u = tramo(t, C.chats[0], C.chats[0] + 0.25), s = u <= 0 ? 0.001 : Math.max(0.001, 1 + 1.7 * Math.pow(u - 1, 3) + 0.7 * Math.pow(u - 1, 2));
+    const n = Math.min(99, Math.floor(1 + Math.pow(Math.max(0, t - C.chats[0]) / 2.6, 1.6) * 98));
+    cuenta.textContent = n >= 99 ? "99+" : String(n);
+    cuenta.setAttribute("font-size", n >= 99 ? 19 : 24);
+    insig.setAttribute("transform", `translate(${N.x + 36} ${N.y - 36}) scale(${s.toFixed(3)})`);
+    insig.setAttribute("opacity", t < C.chats[0] ? 0 : 1 - tramo(t, C.porque - 0.22, C.porque - 0.05));
+  });
+  // y lo que el director tiene que aprobar, como chats (10-oct, nota de Alejandro: «lo que siempre dice
+  // un director de ir aprobando cada decisión, como conversaciones de WhatsApp con autorizaciones»)
+  const WA = HERRAMIENTAS.find((h) => h.id === "whatsapp");
+  const icono = `<svg viewBox="0 0 24 24" width="20" height="20"><path d="${WA.d}" fill="${K("whatsapp")}"/></svg>`;
+  const palomas = `<svg viewBox="0 0 28 16" width="26" height="15"><path d="M1,8 L5,12 L13,3 M10,12 L11,13 L22,3" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/></svg>`;
+  const CHATS = [
+    { de: "Ventas", msg: "¿Le doy el descuento al cliente?", resp: "Espérame, yo lo reviso." },
+    { de: "Compras", msg: "¿Autorizas el pago al proveedor?", resp: "Pásamelo antes de pagar." },
+    { de: "Administración", msg: "¿Mando la cotización así?", resp: "No, déjame verla." },
+    { de: "Operación", msg: "Jefe, ¿qué hago con el pedido?", resp: "Ahorita te digo." },
+  ];
+  C.chats.forEach((t0, k) => {
+    const c = CHATS[k], izqC = k % 2 === 0, top = q(k < 2 ? 400 : 690, k < 2 ? 1380 : 1600);
+    const ent = dom("div", "burbuja entra");
+    ent.innerHTML = `<div class="de">${icono}<span>${c.de}</span></div><div class="msg">${c.msg}</div>`;
+    Object.assign(ent.style, izqC ? { left: "70px" } : { left: `${q(1350, 520)}px` }, { top: `${top}px`, transformOrigin: "0% 100%" });
+    const sal = dom("div", "burbuja sale");
+    sal.innerHTML = `<div class="msg">${c.resp}<span class="palomas">${palomas}</span></div>`;
+    Object.assign(sal.style, izqC ? { right: `${W - q(570, 520)}px` } : { right: "70px" }, { top: `${top + 104}px`, transformOrigin: "100% 100%" });
+    tl.fromTo(ent, { opacity: 0, scale: 0.6, y: 24 }, { opacity: 1, scale: 1, y: 0, duration: 0.32, ease: "back.out(2)" }, t0);
+    tl.fromTo(sal, { opacity: 0, scale: 0.6, y: 24 }, { opacity: 1, scale: 1, y: 0, duration: 0.32, ease: "back.out(2)" }, t0 + 0.36);
+    tl.fromTo(sal.querySelector(".palomas"), { color: "#8696A0" }, { color: K("azul"), duration: 0.12 }, t0 + 0.62);   // leído
+    tl.to([ent, sal], { opacity: 0, y: -18, duration: 0.22, ease: "power1.in" }, C.porque - 0.24);
+  });
   reloj(tTu - 0.05, C.ramal + 0.3, (t) => {
     const nace = ease.sale3(tramo(t, tTu, tTu + 0.5));
     // latido: dos golpes por segundo y medio, más tensos en «depende de ti»
@@ -190,12 +278,18 @@ export function montar(ctx) {
       nd.hilo.setAttribute("d", `M${(x + vib).toFixed(1)},${y.toFixed(1)} L${(x + (N.x - x) * hu).toFixed(1)},${(y + (N.y - y) * hu).toFixed(1)}`);
       nd.hilo.setAttribute("stroke-width", (2 + tension * 1.6 + lat * 0.8).toFixed(2));
       nd.hilo.setAttribute("opacity", hu > 0.01 ? (0.5 + tension * 0.35).toFixed(2) : 0);
+      // el pulso: una petición que viaja del nodo hacia ti, una y otra vez
+      const fase = t > nd.t0 + 0.6 ? ((t - nd.t0 - 0.6) * 1.1 + nd.f) % 1 : -1;
+      nd.pul.setAttribute("cx", (x + (N.x - x) * Math.max(0, fase)).toFixed(1)); nd.pul.setAttribute("cy", (y + (N.y - y) * Math.max(0, fase)).toFixed(1));
+      nd.pul.setAttribute("r", fase >= 0 && hu > 0.5 ? (5.5 * (1 - suelta)).toFixed(2) : 0);
     }
   });
   onda(tl, red, N.x, N.y, C.ti - 0.1, { r0: 40, r1: q(420, 480), color: K("gris"), ancho: 3, dur: 1.2 });
-  frase(q([["¿CUÁNTO", "DE", "TU", "EMPRESA"], ["DEPENDE", "DE", "TI?"]], [["¿CUÁNTO", "DE"], ["TU", "EMPRESA"], ["DEPENDE", "DE", "TI?"]]),
-    [C.cuanto, T.w(6, "de", 1), T.w(6, "tu"), T.w(6, "empresa"), C.depende, T.w(6, "de", 2), T.w(6, "ti?")], C.porque - 0.3,
-    { x: CX, y: q(200, 470), tam: q(100, 104), ancla: "centro", max: q(1500, 940), estilo: "sube", colores: { 6: K("durazno") } });
+  // la pregunta cae de golpe, con «todavía» (10-oct)
+  frase(q([["¿CUÁNTO", "DE", "TU", "EMPRESA"], ["TODAVÍA", "DEPENDE", "DE", "TI?"]], [["¿CUÁNTO", "DE"], ["TU", "EMPRESA"], ["TODAVÍA", "DEPENDE"], ["DE", "TI?"]]),
+    [C.cuanto, T.w(6, "de", 1), T.w(6, "tu"), T.w(6, "empresa"), T.w(6, "todavía"), C.depende, T.w(6, "de", 2), T.w(6, "ti?")], C.porque - 0.3,
+    { x: CX, y: q(172, 430), tam: q(96, 100), ancla: "centro", max: q(1500, 940), estilo: "golpe", colores: { 7: K("durazno") } });
+  cam.sacudir(C.cuanto, 0.35, 12);
 
   // ---------------- 07 · «porque no te falta otra herramienta» ----------------
   const grises = LOGOS.filter((l) => l.id !== "claude");
@@ -225,9 +319,10 @@ export function montar(ctx) {
   // ---------------- 08 · «te falta un MÉTODO» ----------------
   // tú te vuelves una línea recta; la chispa la recorre y en «método» la línea escribe la palabra
   const fM1 = texto(fuente, letras, [["TE", "FALTA", "UN"]], { x: CX, y: q(330, 760), tam: 90, maxAncho: q(1200, 900), estilo: "sube" });
-  ["te", "falta", "un"].forEach((w, i) => dibujar(tl, fM1.palabras[i], T.w(8, w), { dur: 0.3 }));
+  // la escena de MÉTODO es la aprobada «10/10»: conserva su sincronía original, sin adelanto
+  ["te", "falta", "un"].forEach((w, i) => dibujar(tl, fM1.palabras[i], T.w(8, w), { dur: 0.3, adelanto: 0 }));
   const fM = texto(fuente, letras, [["MÉTODO."]], { x: CX, y: TITY, tam: q(330, 236), maxAncho: q(1500, 960), color: K("lima"), trazo: 4, estilo: "traza" });
-  dibujar(tl, fM.palabras[0], C.metodo - 0.02, { dur: 0.24, escalon: 0.02 });
+  dibujar(tl, fM.palabras[0], C.metodo - 0.02, { dur: 0.24, escalon: 0.02, adelanto: 0 });
   const lim = el("rect", { width: W, height: H, fill: K("hueso"), opacity: 0 }, fijo);
   tl.fromTo(lim, { opacity: 0 }, { opacity: 0.35, duration: 0.03 }, C.metodo);
   tl.fromTo(lim, { opacity: 0.35 }, { opacity: 0, duration: 0.5, ease: "power2.out", immediateRender: false }, C.metodo + 0.03);

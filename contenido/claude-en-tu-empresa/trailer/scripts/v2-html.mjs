@@ -36,6 +36,12 @@ const html2d = ({ W, H, V, archivo }) => `<!doctype html>
       #lienzo svg { position: absolute; inset: 0; width: ${W}px; height: ${H}px; display: block; }
       .fuente { position: absolute; font-family: "Inter"; font-weight: 500; font-size: 22px; font-style: italic; color: var(--hueso); white-space: nowrap; }
       .contador { position: absolute; font-family: "Anton"; font-size: 190px; line-height: 1; color: var(--cieloClaro); white-space: nowrap; }
+      .burbuja { position: absolute; font-family: "Inter"; font-weight: 500; color: var(--navy); padding: 12px 18px 14px; border-radius: 18px; white-space: nowrap; opacity: 0; }
+      .burbuja.entra { background: var(--blanco); border-top-left-radius: 4px; }
+      .burbuja.sale { background: var(--hueso); border-top-right-radius: 4px; }
+      .burbuja .de { display: flex; align-items: center; gap: 8px; font-size: 18px; font-weight: 700; color: var(--cieloHondo); margin-bottom: 4px; }
+      .burbuja .msg { font-size: 26px; line-height: 1.25; }
+      .burbuja .palomas { display: inline-block; vertical-align: -1px; margin-left: 8px; color: #8696A0; }
     </style>
   </head>
   <body>
@@ -49,6 +55,7 @@ const html2d = ({ W, H, V, archivo }) => `<!doctype html>
             </filter>
             <radialGradient id="halo-a"><stop offset="0" stop-color="#00A0DB" stop-opacity="0.16" /><stop offset="1" stop-color="#00A0DB" stop-opacity="0" /></radialGradient>
             <radialGradient id="halo-b"><stop offset="0" stop-color="#006E96" stop-opacity="0.22" /><stop offset="1" stop-color="#006E96" stop-opacity="0" /></radialGradient>
+            <radialGradient id="halo-rojo"><stop offset="0" stop-color="#FF5A5F" stop-opacity="0.26" /><stop offset="1" stop-color="#FF5A5F" stop-opacity="0" /></radialGradient>
             <radialGradient id="viñeta" cx="0.5" cy="0.5" r="0.75"><stop offset="0.55" stop-color="#050E1A" stop-opacity="0" /><stop offset="1" stop-color="#050E1A" stop-opacity="0.55" /></radialGradient>
             <linearGradient id="cielo" gradientUnits="userSpaceOnUse" x1="0" y1="0" x2="${W}" y2="${H}"><stop offset="0" stop-color="#4FC6EE" /><stop offset="1" stop-color="#006E96" /></linearGradient>
             <filter id="grano" x="0" y="0" width="100%" height="100%">
@@ -65,6 +72,7 @@ const html2d = ({ W, H, V, archivo }) => `<!doctype html>
           <g id="escena"></g>
           <g id="telon"></g>
           <g id="letras"></g>
+          <g id="glitch"></g>
           <g id="fijo"></g>
           <rect width="${W}" height="${H}" fill="url(#viñeta)" />
           <rect width="${W}" height="${H}" filter="url(#grano)" opacity="0.055" />
@@ -86,7 +94,7 @@ const html2d = ({ W, H, V, archivo }) => `<!doctype html>
       import { CHISPA_SVG } from "./estilo/ui.js";
       import { tiempos } from "./v2/tiempos.js";
       import { cues } from "./v2/cues.js";
-      import { crearCamara, crearChispa, azar, el, K } from "./v2/2d/trazo.js";
+      import { crearCamara, crearChispa, crearGlitch, azar, el, K } from "./v2/2d/trazo.js";
       import * as apertura from "./v2/2d/apertura.js";
       import * as medio from "./v2/2d/medio.js";
       import * as cierreM from "./v2/2d/cierre.js";
@@ -111,8 +119,12 @@ const html2d = ({ W, H, V, archivo }) => `<!doctype html>
       (async () => {
         await document.fonts.load('500 22px "Inter"');
         await document.fonts.load('italic 500 22px "Inter"');
+        await document.fonts.load('700 26px "Inter"');
         await document.fonts.load('190px "Anton"');
         const fuente = parse(await (await fetch("./assets/fonts/Anton-Regular.ttf")).arrayBuffer());
+        // las imágenes se decodifican antes de construir: un cuadro nunca debe ver un logo a medio cargar
+        await Promise.all(["excel.svg", "powerpoint.svg", "higgsfield.svg"].map((f) => "./assets/marca/herramientas/" + f).concat(["./assets/marca/vadai-horizontal-recorte.png", "./assets/marca/totalcoach-recorte.png"])
+          .map((src) => { const i = new Image(); i.src = src; return i.decode(); }));
         const T = await tiempos(cierre);
         const { C } = cues(T, "2d");
         const tipo = $("tipo");
@@ -121,7 +133,8 @@ const html2d = ({ W, H, V, archivo }) => `<!doctype html>
         const CHISPA_D = CHISPA_SVG().match(/ d="([^"]+)"/)[1];
         const cam = crearCamara(escena, reloj, W, H);
         const chispa = crearChispa({ escena, reloj, CHISPA_D });
-        const ctx = { tl, C, T, fuente, reloj, dom, cam, chispa, V, W, H, CHISPA_D,
+        const glitch = crearGlitch({ padre: $("glitch"), reloj, W, H });
+        const ctx = { tl, C, T, fuente, reloj, dom, cam, chispa, glitch, V, W, H, CHISPA_D,
           capas: { escena, letras: $("letras"), fijo: $("fijo"), telon: $("telon") } };
         apertura.montar(ctx);
         medio.montar(ctx);
