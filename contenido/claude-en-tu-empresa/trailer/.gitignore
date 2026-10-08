@@ -10,3 +10,11 @@ vendor/
 assets/mezcla/
 # tomas de voz descartadas y pruebas de 0b
 assets/voz/pruebas/
+# v2: mezclas y stems (se reproducen con scripts/v2-mezcla.mjs), audiciones y candidatas descartadas
+assets/v2/mezcla/
+assets/v2/voz/audicion/
+assets/v2/musica/m2*
+assets/v2/musica/m3*
+# videos entregados (se mandan, no se versionan)
+entregables/
+assets/v2/musica/n5-editada.wav

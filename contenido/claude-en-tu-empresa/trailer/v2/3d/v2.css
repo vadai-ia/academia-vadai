@@ -1,0 +1,58 @@
+/* v2 · 3D · lo nuevo de la v2. Un solo texto a la vez; sobre cielo, siempre en placa navy sólida.
+   html[data-formato="v"] = vertical 1080×1920 (zona segura de redes: nada importante arriba de 300 px
+   ni abajo de 1560 px). */
+.mascara-metodo { width: 100%; height: 100%; }
+/* la máscara de cada palabra deja aire arriba para tildes altas (Ñ, É): sin esto se recortaban */
+.mascara { padding-top: 0.16em; margin-top: -0.16em; }
+.placa-navy { background: rgba(10, 26, 47, var(--placa, 0)); padding: 24px 40px 30px; margin: -24px -40px; border-radius: 30px; }
+.tit-arriba { left: 0; right: 0; top: 90px; text-align: center; font-size: 100px; }
+.tit-respaldo { left: 0; right: 0; top: 650px; text-align: center; font-size: 72px; }
+.tit-respaldo.placa-navy, .tit-arriba.placa-navy, .tit-centro.placa-navy, .tit-nosotros.placa-navy { left: 50%; right: auto; translate: -50% 0; margin: -24px 0; }
+.tit-nosotros { left: 0; right: 0; top: 330px; text-align: center; font-size: 116px; }
+.claude-txt { color: var(--durazno); }
+.pildora-fija { position: absolute; left: 50%; bottom: 96px; translate: -50% 0; white-space: nowrap; padding: 18px 44px; border-radius: 100px; background: var(--navy); color: var(--hueso); font-family: "Inter"; font-weight: 600; font-size: 40px; line-height: 1.1; box-shadow: 0 10px 40px rgba(0, 20, 40, .35); }
+.flash { position: absolute; inset: 0; background: var(--cieloClaro); opacity: 0; }
+.velo { position: absolute; inset: 0; background: var(--hueso); opacity: 0; }
+.contador3d { position: absolute; left: 50%; top: 390px; translate: -50% 0; font-family: "Anton"; font-size: 190px; line-height: 1; color: var(--cieloClaro); background: var(--navy); padding: 14px 54px 20px; border-radius: 34px; white-space: nowrap; }
+.placa-v2 { left: 50%; top: 210px; translate: -50% 0; }
+.chips-v2 { left: 96px; top: 150px; }
+.final-v2 .final-fondo { position: absolute; inset: 0; }
+.destello { position: absolute; inset: 0; background: radial-gradient(circle at 50% 50%, #FFFFFF 0, rgba(255, 180, 137, .95) 18%, rgba(255, 180, 137, 0) 62%); }
+.tit-final { left: 0; right: 0; top: 380px; text-align: center; font-size: 150px; color: var(--navy); }
+.tit-final.chica-f { top: 300px; font-size: 108px; }
+.flecha-v2 { position: absolute; left: 50%; top: 640px; width: 120px; height: 150px; margin-left: -60px; color: var(--lima); }
+.flecha-v2 svg { width: 100%; height: 100%; display: block; }
+.titulo-final { left: 0; right: 0; top: 200px; text-align: center; }
+.ast-final { position: absolute; left: 50%; top: 110px; width: 0; height: 0; }
+.ast-final .chispa-svg.g { position: absolute; width: 96px; height: 96px; left: -48px; top: -48px; margin: 0; color: var(--durazno); filter: drop-shadow(0 0 16px rgba(255, 180, 137, .8)); }
+.cta-final { position: absolute; left: 0; right: 0; top: 520px; text-align: center; font-family: "Anton"; text-transform: uppercase; font-size: 80px; line-height: 1; color: var(--navy); white-space: nowrap; }
+.placa-final { left: 50%; top: 880px; translate: -50% 0; }
+
+html[data-formato="v"] .tit-izq { left: 80px; top: 470px; font-size: 118px; }
+html[data-formato="v"] .tit-centro { top: 820px; font-size: 140px; }
+html[data-formato="v"] .tit-centro.chica2 { top: 800px; font-size: 118px; }
+html[data-formato="v"] .tit-arriba { top: 330px; font-size: 104px; }
+html[data-formato="v"] .tit-respaldo { top: 1010px; font-size: 78px; }
+html[data-formato="v"] .tit-nosotros { top: 560px; font-size: 116px; }
+html[data-formato="v"] .pildora-fija { bottom: 380px; font-size: 40px; }
+html[data-formato="v"] .cifra { left: 100px; top: 360px; }
+html[data-formato="v"] .fuente { left: 100px; top: 720px; }
+html[data-formato="v"] .contador3d { top: 760px; }
+html[data-formato="v"] .placa-v2 { top: 560px; }
+html[data-formato="v"] .chips-v2 { left: 80px; top: 420px; }
+html[data-formato="v"] .titulo { left: 80px; top: 320px; font-size: 140px; }
+html[data-formato="v"] .titulo-final { left: 0; top: 520px; font-size: 140px; }
+html[data-formato="v"] .ast-final { top: 430px; }
+html[data-formato="v"] .cta-final { top: 1000px; font-size: 76px; }
+html[data-formato="v"] .flecha-v2 { top: 1150px; }
+html[data-formato="v"] .tit-final { top: 760px; font-size: 130px; }
+html[data-formato="v"] .tit-final.chica-f { top: 620px; font-size: 104px; }
+html[data-formato="v"] .placa-final { top: 1500px; }
+html[data-formato="v"] .golpe-palabra { font-size: 300px; }
+/* interlínea 1.0: con 0.92 la tilde de Ñ y los acentos altos caían encima de la línea de arriba */
+.tit { line-height: 1.0; }
+
+/* énfasis por palabra (9-oct): durazno / azul / cielo; sobre la placa navy pasan AA */
+.enf-durazno { color: var(--durazno); }
+.enf-azul { color: var(--azul); }
+.enf-cielo { color: var(--cieloClaro); }

@@ -3,6 +3,102 @@
 Fallas encontradas y cómo se arreglaron. Se lee antes de tocar render, 3D o tipografía
 animada (MOTION-RULES 11). Lo más nuevo arriba.
 
+## 9-oct-2026 · v2 plática: voz de mujer, música nueva, texto de golpe
+
+### E31 · La duración de la composición estaba fija en el generador
+- **Síntoma:** al cambiar de voz el video siguió en 87.0 s en vez de 88.5. La tarjeta final duraba 1.3 s y el acorde final se cortaba.
+- **Arreglo:** `scripts/v2-html.mjs` importa `DURACION` de `v2/tiempos.js`. Nada de duraciones copiadas a mano.
+
+### E30 · Detener el script de render no detiene el render
+- **Síntoma:** después de `TaskStop` siguió el siguiente video de la cola, con Chrome y Node vivos e `index.html` cambiado.
+- **Arreglo:** matar toda la cadena (`hyperframes`, `v2-render.sh`, `chrome-headless-shell`, `ffmpeg`) y restaurar la v1 desde `renders/v2/index-v1.respaldo.html`.
+
+### E29 · `transcribe` sin whisper.cpp no falla: se salta
+- **Síntoma:** no se escribió ningún `.json`; el aviso solo sale si se ve la salida («whisper-cpp not found»).
+- **Arreglo:** `HYPERFRAMES_WHISPER_PATH` apunta a `~/.local/whisper.cpp/b5454/Release/whisper-cli.exe`, ya fijado dentro de `scripts/v2-voz.mjs` y `v2-voz-platica.mjs`.
+
+### E28 · La pista de la plática terminaba con media palabra del curso
+- **Síntoma (lo oyó Alejandro):** al final se oía una palabra cortada.
+- **Causa:** la pista era «la toma tal cual» más 0.6 s de cola, y en esa cola ya empezaba el cierre del curso.
+- **Arreglo:** la pista muere en la última palabra (+0.35 s) con un fundido de 0.25 s, y nada de la toma entra después.
+
+### E27 · La voz IA no es estable de una toma a otra
+- **Síntoma:** con el mismo texto y los mismos ajustes, «VADAI» salió en dos sílabas en una toma y en tres en cuatro. Otra toma dijo «se irá» por «sigue».
+- **Arreglo:** cada toma se verifica palabra por palabra contra el guion. Se arma con la mejor base y se empalman frases completas de otra toma, siempre en silencios.
+- **Cómo se distingue:** «Badaï» (0.3–0.4 s) es la buena; «Badaie» (0.45–0.5 s) es la mala. La pronunciación correcta es la de Joaquín.
+
+### E26b · Afinado por islas frágil con voces que casi no pausan
+- **Síntoma:** palabras empujadas 0.3 s hacia atrás en cascada; la última frase terminaba después de la pista.
+- **Arreglo:** cada frase se pega al silencio que termina donde ella empieza y al que termina donde empieza la siguiente. Dentro de la frase solo se corta en pausas con puntuación. Nada pasa del final de la pista.
+
+## 8-oct-2026 · v2 completa (8 videos: 3D/2D × plática/curso × horizontal/vertical)
+
+### E26 · Filos de piso que se volvían un plano lima enorme
+- **Síntoma:** en vertical, entre pisos, el borde encendido de la losa de arriba llenaba medio cuadro de lima.
+- **Causa:** cada «encendido» de un piso duraba para siempre (se tomaba el máximo) y la cámara lo veía de cerca y desde abajo.
+- **Arreglo:** `enciende(k, t, fuerza, dur)` en `v2/3d/cierre.js`. Los pisos de un tiempo se apagan al terminarlo; solo las cascadas finales se quedan. Intensidad máxima 0.95.
+
+### E25 · Tildes de Ñ y acentos encima de la línea de arriba
+- **Síntoma:** «ENSEÑAMOS» en segunda línea se veía sin tilde. La tilde estaba ahí, pero encima de «NOSOTROS».
+- **Causa:** Anton es muy alto; con interlínea 0.92 los acentos de una línea invaden la anterior.
+- **Arreglo:** interlínea 1.0 y aire extra (0.16 em) arriba de cada línea con Ñ o vocal acentuada: `texto()` en 2D, `airear()` en 3D.
+- **Cómo se vio:** con `snapshot --zoom` sobre el texto. A escala de hoja de contactos parecía letra sin tilde.
+
+### E24 · «qué» y «que» son la misma palabra para las anclas
+- **Síntoma:** un «QUE» suelto aparecía segundos antes, encimado en otra frase.
+- **Causa:** `clave()` quita acentos, así que `T.w(i, "que", n)` cuenta también los «qué».
+- **Arreglo:** contar la aparición n sobre la frase completa con acentos quitados (qué, qué, que, que…).
+- **Regla:** antes de anclar una palabra que se repite, listar la frase con `T.porFrase[i]`.
+
+### E23 · En la 3D dos claves de cámara chocaban por 0.05 s
+- **Síntoma:** en «con Claude…» la cámara regresaba a un piso en vez de subir a la ventana.
+- **Causa:** la clave final de los pisos (59.68 s) quedó después de la primera de la ventana (59.63 s). El director ordena por tiempo e interpoló hacia atrás.
+- **Arreglo:** cada tramo suelta la cámara antes de que el siguiente la tome (−0.55 s / −0.2 s).
+
+### E22 · `visibility` dentro de un tween que también mueve
+- **Riesgo:** GSAP puede cambiar `visibility` hasta el final del tween, y el objeto viajaría invisible.
+- **Arreglo:** la visibilidad va siempre en su propio `fromTo` de 0.001 s.
+
+### E21 · El reloj 2D congela el último estado de cada rutina
+- **Síntoma:** la barra de MÉTODO siguió en pantalla de 47 a 76 s.
+- **Causa:** con el tiempo acotado (E17), una rutina que termina antes de apagar su objeto lo deja encendido para siempre.
+- **Regla:** el tramo de cada rutina cubre hasta que su objeto deja de verse, y su último estado es invisible. Las figuras «dibuja» llevan `fin`.
+
+### E20 · Las tarjetas que vuelan con `fromTo` se veían desde el segundo 0
+- **Causa:** `immediateRender` las deja en su posición de salida, que estaba en los bordes del cuadro.
+- **Arreglo:** cada una con su `visibility` oculta hasta que despega (E22).
+
+## 8-oct-2026 · v2 (rebanadas 3D y 2D)
+
+### E19 · `lint` y `snapshot` solo leen `index.html`
+- **Síntoma:** `hyperframes lint v2-3d.html` → "Not a directory". `snapshot` no tiene `-c`; `render` sí.
+- **Arreglo:** se copia la composición sobre `index.html` y se restaura la v1 al terminar, con `trap` en `scripts/v2-rebanadas.sh`.
+- **Ojo:** con `v2-3d.html` y `v2-2d.html` en la raíz, `lint` marca `multiple_root_compositions`. No estorba al render, pero cuando se elija la versión hay que dejar una sola raíz.
+
+### E18 · Puntos sueltos en toda la versión 2D
+- **Síntoma:** motitas en fila donde había o iba a haber texto, y alrededor del bucle.
+- **Causa:** un trazo de largo cero (DrawSVG en `0% 0%` o `100% 100%`) con `stroke-linecap: round` pinta un punto.
+- **Arreglo:** fuera de su ventana de dibujo, cada glifo, cometa, anillo e ícono va con `opacity 0` o `visibility hidden`. Lo hacen `dibujar()` y `borrar()` en `v2/2d/trazo.js`.
+
+### E17 · Rutinas 2D que dependían del orden de los cuadros
+- **Riesgo:** es el mismo de E12. Un `seek` que salta deja con el estado viejo a una rutina que ya no corre.
+- **Arreglo:** el reloj de `v2-2d.html` corre **todas** las rutinas en cada cuadro, con el tiempo acotado a su tramo.
+- **Cómo se dispara:** desde un `modifier` de GSAP, que se ejecuta aunque el `seek` suprima callbacks, y desde `hf-seek`.
+
+### E16 · Dos titulares encimados por palabras muy juntas
+- **Síntoma:** «tarde» (24.44 s) y «nadie» (24.81 s) están a 0.37 s. Sacar la primera frase en «nadie» la encimaba con la segunda.
+- **Arreglo:** la primera frase se queda 0.7 s más para que se lea. La segunda entra completa en «ha».
+- **Regla:** cuando dos anclas van a menos de 0.6 s, la segunda frase entra en bloque en la siguiente palabra, nunca encima de la primera.
+
+### E15 · Objetos de la v1 que nadie apagaba
+- **Síntoma:** la ventana de Claude (`s.ventana`) salía encima del titular en 01 y en medio de los cien puntos.
+- **Causa:** en la v1 solo `tomas/titulo.js` controlaba su visibilidad, y la v2 no carga esa toma.
+- **Arreglo:** cada módulo v2 declara explícitamente la visibilidad de todo objeto compartido de `crearEscena()` que no use.
+
+### E14 · La mezcla no llegaba a −14 LUFS
+- **Síntoma:** −15.4 LUFS con `loudnorm` lineal y −15.1 con ganancia + limitador. El pico real de los golpes limitaba la ganancia.
+- **Arreglo:** ganancia → limitador → se vuelve a medir y se suma lo que falta, hasta quedar a ±0.3 dB. Hoy da −14.2 LUFS / −1.6 dBTP.
+
 ## 7-oct-2026 · video definitivo (voz, música, 15 tomas)
 
 ### E13 · `snapshot` capturaba cuadros vacíos en el primer arranque en frío

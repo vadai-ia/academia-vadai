@@ -1,0 +1,115 @@
+<!doctype html>
+<html lang="es" data-resolution="portrait" data-formato="v" data-composition-variables='[{"id":"cierre","type":"string","label":"Cierre","default":"platica"},{"id":"capas","type":"string","label":"Capas","default":"limpio"}]'>
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=1080, height=1920" />
+    <!-- GENERADO por scripts/v2-html.mjs: no se edita a mano. v2 · 3D · vertical 1080×1920.
+         Orden fijo (ERRORES E2, E3, E5): semilla → espera del mundo → gsap → gsap.js → timeline → módulos. -->
+    <script src="./estilo/semilla.js"></script>
+    <script>
+      window.__hf = window.__hf || {};
+      window.__hf.buildReady = window.__hf.buildReady || {};
+      window.__hf.buildReady["mundo"] = new Promise((ok, mal) => { window.__mundoListo = ok; window.__mundoFallo = mal; });
+    </script>
+    <script src="./vendor/gsap/gsap.min.js"></script>
+    <script src="./estilo/gsap.js"></script>
+    <script type="importmap">
+      { "imports": { "three": "./vendor/three/build/three.module.js", "three/addons/": "./vendor/three/addons/", "postprocessing": "./vendor/postprocessing/index.js" } }
+    </script>
+    <link rel="stylesheet" href="./estilo/tokens.css" />
+    <link rel="stylesheet" href="./v2/3d/base.css" />
+    <link rel="stylesheet" href="./v2/3d/v2.css" />
+    <style>
+      @font-face { font-family: "Anton"; src: url("./assets/fonts/Anton-Regular.ttf") format("truetype"); font-weight: 400; font-display: block; }
+      @font-face { font-family: "Inter"; src: url("./assets/fonts/Inter-Variable.ttf") format("truetype"); font-weight: 100 900; font-display: block; }
+      @font-face { font-family: "JetBrains Mono"; src: url("./assets/fonts/JetBrainsMono-Variable.ttf") format("truetype"); font-weight: 100 800; font-display: block; }
+      html, body { width: 1080px; height: 1920px; }
+    </style>
+  </head>
+  <body>
+    <div id="root" data-composition-id="main" data-start="0" data-duration="88.5" data-width="1080" data-height="1920" data-fps="60">
+      <canvas id="gl"></canvas>
+      <div id="tipo" class="clip" data-start="0" data-duration="88.5" data-track-index="1"></div>
+      <audio id="mezcla-master" src="./assets/v2/mezcla/master-3d-platica-previa.m4a" data-start="0" data-duration="88.5" data-track-index="3" data-volume="1"></audio>
+    </div>
+
+    <script>
+      const tl = gsap.timeline({ paused: true });
+      tl.set({}, {}, 88.5);
+      window.__tl = tl;
+      window.__timelines["main"] = tl;
+    </script>
+
+    <script type="module">
+      import * as THREE from "three";
+      import { crearMundo } from "./estilo/mundo.js";
+      import * as UI from "./estilo/ui.js";
+      import { crearEscena } from "./mundo/escena.js";
+      import { crearDirector } from "./mundo/director.js";
+      import { tiempos } from "./v2/tiempos.js";
+      import { cues } from "./v2/cues.js";
+      import * as apertura from "./v2/3d/apertura.js";
+      import * as medio from "./v2/3d/medio.js";
+      import * as cierreM from "./v2/3d/cierre.js";
+      import * as finalM from "./v2/3d/final.js";
+
+      const W = 1080, H = 1920, V = true;
+      // fov vertical equivalente: en vertical, el ANCHO del cuadro ve lo que el ALTO del horizontal
+      const F = (f) => (V ? (2 * Math.atan(Math.tan((f * Math.PI) / 360) * (16 / 9)) * 180) / Math.PI : f);
+      const tl = window.__tl;
+      let cierre = "platica", capas = "limpio";
+      try { const v = window.__hyperframes && window.__hyperframes.getVariables ? window.__hyperframes.getVariables() : null; if (v) { cierre = v.cierre || cierre; capas = v.capas || capas; } } catch (e) {}
+      document.documentElement.dataset.capas = capas;
+      const mundo = crearMundo(document.getElementById("gl"), { ancho: W, alto: H });
+      const dir = crearDirector(mundo);
+      mundo.renderer.domElement.addEventListener("webglcontextlost", () => window.__mundoFallo(new Error("mundo: se perdió el contexto WebGL")));
+      let listo = false;
+      const posDom = [];
+      function renderAt(t) {
+        if (!listo) return;
+        dir.aplicar(t);
+        const f = dir.enfoque(t);
+        mundo.enfocar(f.punto, f.rango);
+        mundo.pintar(t, (T) => dir.aplicar(T), dir.muestras(t));
+        dir.aplicar(t);
+        mundo.camara.updateMatrixWorld();
+        for (const fn of posDom) fn(t);
+      }
+      (async () => {
+        await document.fonts.load('500 64px "Inter"');
+        await document.fonts.load('600 64px "Inter"');
+        await document.fonts.load('64px "Anton"');
+        await document.fonts.load('400 30px "JetBrains Mono"');
+        const T = await tiempos(cierre);
+        const { C } = cues(T, "3d");
+        const s = await crearEscena(mundo);
+        mundo.fondo = s.fondo;
+        dir.cada(0, 999, (t) => s.vivir(t));
+        const ctx = {
+          THREE, mundo, s, dir, tl, escena: mundo.escena, raiz: document.getElementById("tipo"), T, C, cierre, V, W, H, F,
+          ui: UI, proyectar: (v) => mundo.proyectar(v), colocar: UI.colocar, sacudidas: [],
+          dom(desde, hasta, fn) { posDom.push((t) => { if (t >= desde && t < hasta) fn(t); }); },
+        };
+        apertura.montar(ctx);
+        medio.montar(ctx);
+        cierreM.montar(ctx);
+        finalM.montar(ctx);
+        // sacudidas de cámara (con semilla, decaen): se suman después de que el director pone la cámara
+        dir.cada(0, 999, (t) => {
+          let dx = 0, dy = 0;
+          for (const z of ctx.sacudidas) {
+            const u = (t - z.t) / z.dur;
+            if (u < 0 || u > 1) continue;
+            const a = z.amp * Math.pow(1 - u, 2);
+            dx += a * Math.sin(t * 97.3 + z.t * 13.1); dy += a * Math.cos(t * 83.7 + z.t * 7.7);
+          }
+          mundo.camara.position.x += dx; mundo.camara.position.y += dy;
+        });
+        dir.preparar();
+        listo = true;
+        renderAt(window.__hfThreeTime || 0);
+      })().then(window.__mundoListo, (e) => { console.error("mundo: no se construyó", e); window.__mundoFallo(e); });
+      window.addEventListener("hf-seek", (e) => renderAt(e.detail.time));
+    </script>
+  </body>
+</html>

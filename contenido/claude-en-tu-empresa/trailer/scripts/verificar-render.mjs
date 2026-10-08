@@ -16,5 +16,5 @@ const salida = execFileSync("ffmpeg", [
 const ymax = [...salida.matchAll(/YMAX=(\d+)/g)].map((m) => Number(m[1]));
 const ymin = [...salida.matchAll(/YMIN=(\d+)/g)].map((m) => Number(m[1]));
 const rotos = ymax.map((v, i) => [i, v - ymin[i]]).filter(([, v]) => v < umbral);
-console.log(JSON.stringify({ archivo, cuadros: ymax.length, rotos: rotos.length, primeros: rotos.slice(0, 10).map(([i]) => i) }));
+console.log(JSON.stringify({ archivo, cuadros: ymax.length, rotos: rotos.length, primeros: rotos.slice(0, 10).map(([i]) => i), tramos: rotos.reduce((a, [i]) => { const u = a.at(-1); if (u && i === u[1] + 1) u[1] = i; else a.push([i, i]); return a; }, []).map(([a, b]) => `${(a / 60).toFixed(2)}–${(b / 60).toFixed(2)} s`) }));
 process.exit(rotos.length ? 1 : 0);

@@ -1,0 +1,254 @@
+{
+ "codigo/campanita.wav": {
+  "dur": 1.6,
+  "inicio": 0.0,
+  "pico": 0.12,
+  "fin": 1.51,
+  "rms_db": -16.2
+ },
+ "codigo/contador.wav": {
+  "dur": 0.9,
+  "inicio": 0.0,
+  "pico": 0.49,
+  "fin": 0.85,
+  "rms_db": -21.9
+ },
+ "codigo/marcador.wav": {
+  "dur": 0.2,
+  "inicio": 0.0,
+  "pico": 0.0,
+  "fin": 0.07,
+  "rms_db": -13.9
+ },
+ "codigo/pop.wav": {
+  "dur": 0.18,
+  "inicio": 0.0,
+  "pico": 0.0,
+  "fin": 0.15,
+  "rms_db": -12.7
+ },
+ "codigo/pulso.wav": {
+  "dur": 1.2,
+  "inicio": 0.0,
+  "pico": 0.01,
+  "fin": 1.12,
+  "rms_db": -11.2
+ },
+ "codigo/tick.wav": {
+  "dur": 0.12,
+  "inicio": 0.0,
+  "pico": 0.0,
+  "fin": 0.08,
+  "rms_db": -17.8
+ },
+ "ia/hielo.mp3": {
+  "dur": 2.0,
+  "inicio": 0.13,
+  "pico": 0.83,
+  "fin": 1.84,
+  "rms_db": -23.6
+ },
+ "ia/impacto-1.mp3": {
+  "dur": 3.0,
+  "inicio": 0.0,
+  "pico": 0.09,
+  "fin": 1.13,
+  "rms_db": -10.2
+ },
+ "ia/impacto-2.mp3": {
+  "dur": 3.0,
+  "inicio": 0.0,
+  "pico": 0.12,
+  "fin": 1.84,
+  "rms_db": -25.4
+ },
+ "ia/llave-1.mp3": {
+  "dur": 1.0,
+  "inicio": 0.03,
+  "pico": 0.04,
+  "fin": 0.62,
+  "rms_db": -30.8
+ },
+ "ia/llave-2.mp3": {
+  "dur": 1.0,
+  "inicio": 0.03,
+  "pico": 0.69,
+  "fin": 0.71,
+  "rms_db": -30.4
+ },
+ "ia/sobre.mp3": {
+  "dur": 1.0,
+  "inicio": 0.01,
+  "pico": 0.79,
+  "fin": 0.93,
+  "rms_db": -53.5
+ },
+ "ia/swell-1.mp3": {
+  "dur": 3.0,
+  "inicio": 1.84,
+  "pico": 2.8,
+  "fin": 2.96,
+  "rms_db": -13.8
+ },
+ "ia/swell-2.mp3": {
+  "dur": 3.0,
+  "inicio": 1.45,
+  "pico": 2.95,
+  "fin": 2.98,
+  "rms_db": -16.5
+ },
+ "v2/blip-1.mp3": {
+  "dur": 1.0,
+  "inicio": 0.0,
+  "pico": 0.0,
+  "fin": 0.99,
+  "rms_db": -53.0
+ },
+ "v2/blip-2.mp3": {
+  "dur": 1.0,
+  "inicio": 0.0,
+  "pico": 0.01,
+  "fin": 0.06,
+  "rms_db": -11.4
+ },
+ "v2/blip-3.mp3": {
+  "dur": 1.0,
+  "inicio": 0.0,
+  "pico": 0.0,
+  "fin": 0.5,
+  "rms_db": -33.7
+ },
+ "v2/brillo-1.mp3": {
+  "dur": 2.0,
+  "inicio": 0.0,
+  "pico": 0.19,
+  "fin": 1.43,
+  "rms_db": -35.1
+ },
+ "v2/brillo-2.mp3": {
+  "dur": 2.0,
+  "inicio": 0.0,
+  "pico": 0.48,
+  "fin": 1.92,
+  "rms_db": -23.9
+ },
+ "v2/clic.mp3": {
+  "dur": 1.0,
+  "inicio": 0.02,
+  "pico": 0.82,
+  "fin": 0.91,
+  "rms_db": -28.7
+ },
+ "v2/giro.mp3": {
+  "dur": 3.0,
+  "inicio": 0.0,
+  "pico": 0.49,
+  "fin": 2.95,
+  "rms_db": -4.6
+ },
+ "v2/glitch-1.mp3": {
+  "dur": 1.0,
+  "inicio": 0.0,
+  "pico": 0.01,
+  "fin": 0.99,
+  "rms_db": -20.0
+ },
+ "v2/glitch-2.mp3": {
+  "dur": 1.0,
+  "inicio": 0.0,
+  "pico": 0.59,
+  "fin": 0.94,
+  "rms_db": -19.3
+ },
+ "v2/golpe-papel.mp3": {
+  "dur": 2.0,
+  "inicio": 0.79,
+  "pico": 0.87,
+  "fin": 1.04,
+  "rms_db": -22.9
+ },
+ "v2/latido.mp3": {
+  "dur": 5.0,
+  "inicio": 0.0,
+  "pico": 1.04,
+  "fin": 3.13,
+  "rms_db": -22.5
+ },
+ "v2/murmullo.mp3": {
+  "dur": 3.0,
+  "inicio": 0.06,
+  "pico": 0.65,
+  "fin": 2.77,
+  "rms_db": -26.2
+ },
+ "v2/ping-1.mp3": {
+  "dur": 1.0,
+  "inicio": 0.0,
+  "pico": 0.0,
+  "fin": 0.35,
+  "rms_db": -14.6
+ },
+ "v2/ping-2.mp3": {
+  "dur": 1.0,
+  "inicio": 0.0,
+  "pico": 0.0,
+  "fin": 0.41,
+  "rms_db": -30.0
+ },
+ "v2/plumon-1.mp3": {
+  "dur": 1.0,
+  "inicio": 0.09,
+  "pico": 0.77,
+  "fin": 0.93,
+  "rms_db": -19.1
+ },
+ "v2/plumon-2.mp3": {
+  "dur": 1.0,
+  "inicio": 0.0,
+  "pico": 0.76,
+  "fin": 0.9,
+  "rms_db": -14.8
+ },
+ "v2/plumon-3.mp3": {
+  "dur": 1.0,
+  "inicio": 0.0,
+  "pico": 0.57,
+  "fin": 0.88,
+  "rms_db": -14.9
+ },
+ "v2/riser.mp3": {
+  "dur": 3.0,
+  "inicio": 2.02,
+  "pico": 2.79,
+  "fin": 2.93,
+  "rms_db": -13.3
+ },
+ "v2/teclado.mp3": {
+  "dur": 3.0,
+  "inicio": 0.05,
+  "pico": 2.61,
+  "fin": 2.76,
+  "rms_db": -31.3
+ },
+ "v2/whoosh-1.mp3": {
+  "dur": 2.0,
+  "inicio": 0.14,
+  "pico": 0.4,
+  "fin": 1.17,
+  "rms_db": -14.6
+ },
+ "v2/whoosh-2.mp3": {
+  "dur": 2.0,
+  "inicio": 0.21,
+  "pico": 0.61,
+  "fin": 1.12,
+  "rms_db": -12.2
+ },
+ "v2/whoosh-3.mp3": {
+  "dur": 2.0,
+  "inicio": 0.38,
+  "pico": 0.63,
+  "fin": 0.83,
+  "rms_db": -8.7
+ }
+}

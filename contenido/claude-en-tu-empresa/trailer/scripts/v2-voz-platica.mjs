@@ -1,0 +1,184 @@
+// v2 · voz de la plática (9-oct-2026): Camila Rodríguez, eleven_v3, estabilidad 0.4.
+//   1. base = toma E; la frase del respaldo («Lo respaldan VADAI y Total Coach…») sale de la toma C,
+//      la única que dice VADAI en dos sílabas (como Joaquín: «Badaï»). Cortes en silencios reales.
+//   2. silencios: entre frases ≤ 0.5 s y dentro de una frase ≤ 0.6 s, salvo las pausas dramáticas
+//      (después de «¿…depende de ti?» y de «método»). Así dura ~1:27 sin acelerar la voz.
+//   3. termina en la última palabra con un fundido: nada de la toma después (ERRORES: en la v2 anterior
+//      se colaba el arranque del cierre del curso y se oía una palabra cortada).
+//   4. tiempos: whisper sobre la pista armada + afinado por islas de energía (ERRORES E9).
+// Salidas: assets/v2/mezcla/voz-platica.wav · v2/vo-platica.js
+//   node scripts/v2-voz-platica.mjs
+import { execFileSync } from "node:child_process";
+import { readFileSync, writeFileSync, mkdirSync, renameSync, existsSync } from "node:fs";
+import { join, resolve, dirname } from "node:path";
+import { fileURLToPath } from "node:url";
+import { SECCIONES, palabrasDe, clave } from "../v2/guion.js";
+
+process.env.HYPERFRAMES_WHISPER_PATH ||= join(process.env.USERPROFILE || process.env.HOME, ".local/whisper.cpp/b5454/Release/whisper-cli.exe");
+const raiz = resolve(dirname(fileURLToPath(import.meta.url)), "..");
+const V = join(raiz, "assets/v2/voz"), M = join(raiz, "assets/v2/mezcla");
+mkdirSync(M, { recursive: true });
+const SR = 48000;
+const FRASES = [...SECCIONES.cuerpo, ...SECCIONES.platica];
+const RESPALDO = SECCIONES.cuerpo.length + 2;            // índice de la frase del respaldo
+const PAUSA_DRAMATICA = { 6: 1.3, 8: 0.9 };              // tope del silencio DESPUÉS de esa frase
+const TOPE_ENTRE = 0.5, TOPE_DENTRO = 0.6;
+
+const leer = (f) => { const b = execFileSync("ffmpeg", ["-v", "error", "-i", f, "-ac", "1", "-ar", String(SR), "-f", "f32le", "-"], { maxBuffer: 1 << 30 }); return new Float32Array(b.buffer.slice(b.byteOffset, b.byteOffset + b.length)); };
+const energia = (x) => { const d = []; for (let i = 0; i + 480 <= x.length; i += 480) { let e = 0; for (let j = i; j < i + 480; j++) e += x[j] * x[j]; d.push(10 * Math.log10(e / 480 + 1e-12)); } return d; };
+const hondo = (db, t0, t1) => { let m = t0, v = 1e9; for (let k = Math.floor(t0 * 100); k < t1 * 100; k++) if (db[k] < v) { v = db[k]; m = k / 100; } return m; };
+
+// alineación tolerante por caracteres: tiempo de cada palabra del guion en una transcripción
+const ALIAS2 = { click: "clic", badaie: "vadai", badai: "vadai" };
+const k2 = (w) => ALIAS2[clave(w)] || clave(w);
+function alinear(oido) {
+  const guion = FRASES.flatMap((f, i) => f.split(/\s+/).map((text) => ({ text, f: i })));
+  const gs = guion.map((w) => k2(w.text)).join(""), os = oido.map((w) => k2(w.text)).join("");
+  const charW = []; oido.forEach((w, i) => { for (const _ of k2(w.text)) charW.push(i); });
+  const mapa = new Int32Array(gs.length).fill(-1);
+  for (let i = 0, j = 0; i < gs.length && j < os.length; ) {
+    if (gs[i] === os[j]) { mapa[i++] = j++; continue; }
+    let ok = false;
+    for (let a = 0; a < 30 && !ok; a++) for (let b = 0; b < 30; b++) if (gs.slice(i + a, i + a + 8) === os.slice(j + b, j + b + 8)) { i += a; j += b; ok = true; break; }
+    if (!ok) break;
+  }
+  let c = 0;
+  const t = guion.map((w) => {
+    const n = k2(w.text).length, a = c, b = c + n - 1; c += n;
+    let ia = a; while (ia <= b && mapa[ia] < 0) ia++;
+    let ib = b; while (ib >= a && mapa[ib] < 0) ib--;
+    if (ia > b) return { ...w, start: null, end: null };
+    return { ...w, start: oido[charW[mapa[ia]]].start, end: oido[charW[mapa[ib]]].end };
+  });
+  t.forEach((w, i) => { if (w.start == null) { const p = t[i - 1], s = t[i + 1]; w.start = p ? p.end : 0; w.end = Math.max(w.start + 0.04, s && s.start != null ? s.start : w.start + 0.1); } });
+  return t;
+}
+const transcribir = (wav, json) => {
+  if (!existsSync(json)) {
+    execFileSync("npx", ["--yes", "hyperframes@0.8.140", "transcribe", wav.split(/[\\/]/).pop(), "--model", "medium", "--language", "es"], { cwd: dirname(wav), stdio: "ignore", shell: true });
+    renameSync(join(dirname(wav), "transcript.json"), json);
+  }
+  return JSON.parse(readFileSync(json, "utf8")).filter((w) => clave(w.text));
+};
+
+// ---------- 1 · la toma armada: E con la frase del respaldo de C ----------
+const E = { x: leer(join(V, "camila-e.mp3")), w: alinear(JSON.parse(readFileSync(join(V, "camila-e.json"), "utf8")).filter((w) => clave(w.text))) };
+const Cc = { x: leer(join(V, "camila-c.mp3")), w: alinear(JSON.parse(readFileSync(join(V, "camila-c.json"), "utf8")).filter((w) => clave(w.text))) };
+E.db = energia(E.x); Cc.db = energia(Cc.x);
+const fr = (T, i) => ({ ini: T.w.find((w) => w.f === i).start, fin: T.w.filter((w) => w.f === i).at(-1).end });
+const corte = (T, i) => hondo(T.db, fr(T, i - 1).fin + 0.03, fr(T, i).ini - 0.03);   // silencio antes de la frase i
+const seg = (T, a, b) => T.x.subarray(Math.round(a * SR), Math.round(b * SR));
+const eA = corte(E, RESPALDO), eB = corte(E, RESPALDO + 1), cA = corte(Cc, RESPALDO), cB = corte(Cc, RESPALDO + 1);
+const inicio = Math.max(0, fr(E, 0).ini - 0.2), final = fr(E, FRASES.length - 1).fin + 0.35;
+const piezas = [seg(E, inicio, eA), seg(Cc, cA, cB), seg(E, eB, final)];
+// pegado con fundido corto en silencio (sin chasquidos)
+const F = 0.03 * SR;
+let y = new Float32Array(piezas.reduce((a, p) => a + p.length, 0));
+let o = 0;
+piezas.forEach((p, k) => {
+  const q = Float32Array.from(p);
+  for (let i = 0; i < F && i < q.length; i++) { const g = i / F; if (k) q[i] *= g; if (k < piezas.length - 1) q[q.length - 1 - i] *= g; }
+  y.set(q, o); o += q.length;
+});
+console.log(`empalme: respaldo de la toma C (${cA.toFixed(2)}–${cB.toFixed(2)} s) en la E (${eA.toFixed(2)}–${eB.toFixed(2)} s)`);
+
+// ---------- 2 · silencios con tope (las pausas dramáticas se respetan) ----------
+// mapa de tiempos toma-E → pista armada para saber a qué frase pertenece cada silencio
+const dA = eA - inicio, dur1 = (cB - cA), desfase = dur1 - (eB - eA);
+const aPista = (tE) => (tE < eA ? tE - inicio : tE < eB ? NaN : tE - inicio + desfase);
+const finFrase = FRASES.map((_, i) => i === RESPALDO ? dA + (fr(Cc, i).fin - cA) : aPista(fr(E, i).fin));
+const iniFrase = FRASES.map((_, i) => i === RESPALDO ? dA + (fr(Cc, i).ini - cA) : aPista(fr(E, i).ini));
+const dbY = energia(y);
+const silencios = [];
+for (let i = 0; i < dbY.length; ) { if (dbY[i] < -42) { let j = i; while (j < dbY.length && dbY[j] < -42) j++; if (j - i >= 25) silencios.push([i / 100, j / 100]); i = j; } else i++; }
+const PAUSA_MIN = { 6: 1.2, 8: 0.9 };   // «¿…depende de ti?» y «método»: Camila casi no respira ahí
+const ops = [];   // { en, quita } o { en, pon, desde } en tiempo de la pista armada
+if (process.argv.includes("--depurar")) { for (const i of [5, 6, 7]) console.log("frase", i, "fin", finFrase[i].toFixed(2), "ini sig", iniFrase[i + 1].toFixed(2)); console.log("silencios 38–48 s:", silencios.filter(([a2]) => a2 > 38 && a2 < 48).map(([a2, b2]) => `${a2.toFixed(2)}–${b2.toFixed(2)}`).join(" ")); }
+for (const [s0, s1] of silencios) {
+  const largo = s1 - s0;
+  // la frontera entre frases cuyo punto medio cae en este silencio (whisper estira la última palabra)
+  const despues = finFrase.findIndex((f, i) => iniFrase[i + 1] != null && (f + iniFrase[i + 1]) / 2 >= s0 - 0.25 && (f + iniFrase[i + 1]) / 2 <= s1 + 0.25);
+  const tope = despues >= 0 ? (PAUSA_DRAMATICA[despues] ?? TOPE_ENTRE) : TOPE_DENTRO;
+  const m = (s0 + s1) / 2;
+  if (largo > tope + 0.05 && s0 > 0.3 && s1 < y.length / SR - 0.3) ops.push({ en: m - (largo - tope) / 2, quita: largo - tope });
+  else if (PAUSA_MIN[despues] && largo < PAUSA_MIN[despues] - 0.05) ops.push({ en: m, pon: PAUSA_MIN[despues] - largo, desde: [s0 + 0.05, s1 - 0.05] });
+}
+const trozos = []; let c0 = 0;
+for (const op of ops) {
+  trozos.push(y.subarray(Math.round(c0 * SR), Math.round(op.en * SR)));
+  if (op.quita) c0 = op.en + op.quita;
+  else {   // ruido de fondo de ese mismo silencio, repetido (no silencio digital)
+    const r = y.subarray(Math.round(op.desde[0] * SR), Math.round(op.desde[1] * SR)), n = Math.round(op.pon * SR), q = new Float32Array(n);
+    for (let i = 0; i < n; i++) q[i] = r[i % r.length];
+    trozos.push(q); c0 = op.en;
+  }
+}
+trozos.push(y.subarray(Math.round(c0 * SR)));
+const z = new Float32Array(trozos.reduce((acc, q) => acc + q.length, 0));
+o = 0;
+trozos.forEach((q0, k) => {
+  const q = Float32Array.from(q0);
+  for (let i = 0; i < F && i < q.length; i++) { const g = i / F; if (k) q[i] *= g; if (k < trozos.length - 1) q[q.length - 1 - i] *= g; }
+  z.set(q, o); o += q.length;
+});
+// fundido final: la pista muere en la última palabra
+const FF = Math.round(0.25 * SR); for (let i = 0; i < FF; i++) z[z.length - 1 - i] *= i / FF;
+console.log(`silencios: ${ops.filter((x) => x.quita).length} recortados, ${ops.filter((x) => x.pon).length} alargados · ${(y.length / SR).toFixed(2)} s → ${(z.length / SR).toFixed(2)} s`);
+const wav = join(M, "voz-platica.wav");
+const b = Buffer.alloc(44 + z.length * 4);
+b.write("RIFF", 0); b.writeUInt32LE(36 + z.length * 4, 4); b.write("WAVE", 8); b.write("fmt ", 12); b.writeUInt32LE(16, 16);
+b.writeUInt16LE(3, 20); b.writeUInt16LE(1, 22); b.writeUInt32LE(SR, 24); b.writeUInt32LE(SR * 4, 28); b.writeUInt16LE(4, 32); b.writeUInt16LE(32, 34);
+b.write("data", 36); b.writeUInt32LE(z.length * 4, 40);
+for (let i = 0; i < z.length; i++) b.writeFloatLE(z[i], 44 + i * 4);
+writeFileSync(wav, b);
+
+// ---------- 3 · tiempos de cada palabra en la pista final ----------
+const jsonFinal = join(M, "voz-platica.json");
+if (existsSync(jsonFinal)) renameSync(jsonFinal, jsonFinal + ".viejo");
+const t = alinear(transcribir(wav, jsonFinal));
+// afinado: cada frase se pega a los bordes de sus silencios reales; dentro, solo se parte en pausas que
+// coinciden con puntuación (o muy claras) y los tiempos de whisper se reescalan a cada isla. Nada pasa
+// del final de la pista (whisper estira las últimas palabras).
+const durZ = z.length / SR, dbz = energia(z), sil = [];
+for (let i = 0; i < dbz.length; ) { if (dbz[i] < -45) { let j = i; while (j < dbz.length && dbz[j] < -45) j++; if (j - i >= 12) sil.push([i / 100, j / 100]); i = j; } else i++; }
+const finHabla = (() => { let k = dbz.length - 1; while (k > 0 && dbz[k] < -45) k--; return (k + 1) / 100; })();
+let movidas = 0;
+FRASES.forEach((_, fi) => {
+  const ws = t.filter((w) => w.f === fi);
+  for (const w of ws) { w.start = Math.min(w.start, finHabla - 0.1); w.end = Math.min(w.end, finHabla); }
+  const w0 = ws[0].start, wN = ws.at(-1).end;
+  // el silencio que abre la frase termina donde ella empieza; el que la cierra termina donde empieza
+  // la siguiente (whisper corre el final de la última palabra hasta 1.3 s hacia la pausa: ERRORES E9)
+  const cerca = (t0, tol) => sil.reduce((m, q) => (Math.abs(q[1] - t0) < tol && (!m || Math.abs(q[1] - t0) < Math.abs(m[1] - t0)) ? q : m), null);
+  const sig = t.find((w) => w.f === fi + 1);
+  const antes = cerca(w0, 0.5);
+  const despues = sig ? cerca(sig.start, 0.5) : sil.find(([s0]) => s0 >= wN - 0.7 && s0 <= wN + 0.8);
+  const ini = antes ? antes[1] : w0, fin = Math.min(despues ? despues[0] : wN, finHabla);
+  const cortes = [];
+  for (const [s0, s1] of sil) {
+    if (s0 <= ini + 0.1 || s1 >= fin - 0.1 || s1 - s0 < 0.2) continue;
+    const medio = (s0 + s1) / 2; let mejor = -1, costo = 1e9;
+    for (let k = 1; k < ws.length; k++) {
+      if (cortes.some((c) => c[0] === k)) continue;
+      const mm = (ws[k - 1].end + ws[k].start) / 2, punt = /[.,:;…?!]$/.test(ws[k - 1].text), d = Math.abs(mm - medio);
+      if (d > (punt ? 0.9 : 0.35)) continue;
+      const cc = d - (punt ? 0.5 : 0);
+      if (cc < costo) { costo = cc; mejor = k; }
+    }
+    if (mejor > 0) cortes.push([mejor, s0, s1]);
+  }
+  cortes.sort((p1, p2) => p1[0] - p2[0]);
+  const islas = []; let desde = 0, arr = ini;
+  for (const [k, s0, s1] of cortes) { if (k > desde) { islas.push([desde, k, arr, s0]); desde = k; arr = s1; } }
+  islas.push([desde, ws.length, arr, fin]);
+  for (const [i0, i1, r0, r1] of islas) {
+    const a0 = ws[i0].start, a1 = ws[i1 - 1].end, kk = (r1 - r0) / Math.max(0.05, a1 - a0);
+    for (let i = i0; i < i1; i++) { const st = r0 + (ws[i].start - a0) * kk, en = r0 + (ws[i].end - a0) * kk; if (Math.abs(st - ws[i].start) > 0.034) movidas++; ws[i].start = +st.toFixed(3); ws[i].end = +Math.max(en, st + 0.04).toFixed(3); }
+  }
+});
+// orden mínimo garantizado (whisper a veces pega dos palabras): nunca hacia atrás
+for (let i = 1; i < t.length; i++) if (t[i].start < t[i - 1].start + 0.04) { t[i].start = +(t[i - 1].start + 0.04).toFixed(3); t[i].end = Math.max(t[i].end, t[i].start + 0.04); }
+const nC = SECCIONES.cuerpo.length;
+const palabras = t.map((w) => ({ text: w.text, s: w.f < nC ? "cuerpo" : "platica", start: +w.start.toFixed(3), end: +w.end.toFixed(3) }));
+writeFileSync(join(raiz, "v2/vo-platica.js"), `// GENERADO por scripts/v2-voz-platica.mjs (Camila Rodríguez). Tiempos de cada palabra del guion en la pista de voz.\nexport const DURACION_VOZ = ${(z.length / SR).toFixed(3)};\nexport const PALABRAS = ${JSON.stringify(palabras)};\n`);
+console.log(`afinado: ${sil.length} silencios, ${movidas} palabras movidas · ${palabras.length} palabras · habla hasta ${finHabla.toFixed(2)} s · pista ${durZ.toFixed(2)} s`);
