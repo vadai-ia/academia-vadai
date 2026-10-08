@@ -19,7 +19,7 @@ export function montar(ctx) {
 
   // ---------------- 01 · enciende, «todo mundo habla» (cometas), «inteligencia artificial» ----------------
   // 10-oct: la chispa nace ya arriba (antes nacía en el centro y subía cruzando «TODO MUNDO HABLA DE»)
-  const ARRIBA = { x: CX, y: q(330, 660) };
+  const ARRIBA = { x: CX, y: q(330, 480) };
   chispa.escala((t) => {
     const k = ease.sale4(tramo(t, C.enciende - 0.05, C.enciende + 0.45));
     const latido = Math.exp(-Math.pow((t - (C.enciende + 0.5)) / 0.16, 2)) * 0.45;
@@ -45,9 +45,9 @@ export function montar(ctx) {
     tl.fromTo(p, { drawSVG: "0% 38%" }, { drawSVG: "100% 100%", duration: 0.78, ease: "power1.out", immediateRender: false }, t0 + 0.32);
   }
   // «todo mundo habla de» desde el primer segundo (10-oct: «el texto llega tarde»)
-  const fTM = texto(fuente, letras, q([["TODO", "MUNDO", "HABLA", "DE"]], [["TODO", "MUNDO"], ["HABLA", "DE"]]), { x: CX, y: q(452, 640), tam: q(78, 84), maxAncho: q(1200, 900), estilo: "sube" });
+  const fTM = texto(fuente, letras, q([["TODO", "MUNDO", "HABLA", "DE"]], [["TODO", "MUNDO"], ["HABLA", "DE"]]), { x: CX, y: q(452, 640), tam: q(78, 84), maxAncho: q(1200, 800), estilo: "sube" });
   ["Todo", "mundo", "habla", "de"].forEach((w, i) => dibujar(tl, fTM.palabras[i], T.w(0, w), { dur: 0.24 }));
-  const fIA = texto(fuente, letras, q([["INTELIGENCIA", "ARTIFICIAL"]], [["INTELIGENCIA"], ["ARTIFICIAL"]]), { x: CX, y: q(598, 900), tam: 150, maxAncho: q(1700, 920), estilo: "traza", colores: { 1: K("cieloClaro") } });
+  const fIA = texto(fuente, letras, q([["INTELIGENCIA", "ARTIFICIAL"]], [["INTELIGENCIA"], ["ARTIFICIAL"]]), { x: CX, y: q(598, 880), tam: 150, maxAncho: q(1700, 800), estilo: "traza", colores: { 1: K("cieloClaro") } });
   dibujar(tl, fIA.palabras[0], C.ia, { dur: 0.3 });
   dibujar(tl, fIA.palabras[1], T.w(0, "artificial."), { dur: 0.3 });
   borrar(tl, fTM.palabras, C.pregunta - 0.66, { escalon: 0.008 });
@@ -55,7 +55,7 @@ export function montar(ctx) {
 
   // «¿Qué hacer con ella en tu empresa?» y la barra que subraya EMPRESA: de ahí sale el bucle
   const fQ = texto(fuente, letras, q([["¿QUÉ", "HACER", "CON", "ELLA"], ["EN", "TU", "EMPRESA?"]], [["¿QUÉ", "HACER"], ["CON", "ELLA", "EN"], ["TU", "EMPRESA?"]]),
-    { x: CX, y: q(520, 860), tam: q(112, 120), maxAncho: q(1500, 940), estilo: "golpe", colores: { 6: K("azul") } });
+    { x: CX, y: q(520, 760), tam: q(112, 120), maxAncho: q(1500, 800), estilo: "golpe", colores: { 6: K("azul") } });
   const anclasQ = ["qué", "hacer", "con", "ella", "en", "tu", "empresa."].map((w) => T.w(1, w));
   fQ.palabras.forEach((p, i) => dibujar(tl, p, anclasQ[i], { dur: 0.36, escalon: 0.02 }));
   borrar(tl, fQ.palabras, C.pase01 - 0.5, { dur: 0.28, escalon: 0.006 });
@@ -76,7 +76,7 @@ export function montar(ctx) {
   chispa.tramo(tBarra[1], tSuelta[0], () => ({ x: X1, y: YS }));
 
   // ---------------- 02 · el bucle ----------------
-  const CY = q(540, 1010), R = q(380, 340), RL = R + q(118, 112);
+  const CY = q(540, 845), R = q(380, 300), RL = R + q(118, 100);
   const T_CIRC = [C.pase01 + 0.3, T.wFin(2, "tecnológico:") - 0.05];
   chispa.pierna(`M${X1},${YS} C${X1 + 120},${YS + 40} ${CX + R * 0.7},${CY + R} ${CX},${CY + R}`, tSuelta[0], T_CIRC[0], { cola: 380, ancho: 6, e: ease.entra2 });
   const bucle = lnz("g", { class: "bucle" });
@@ -159,7 +159,7 @@ export function montar(ctx) {
     }
   });
   // las frases del bucle, una a la vez, en el centro
-  const centro = (lineas, tam = 84, estilo = "sube", colores = {}) => texto(fuente, letras, lineas, { x: CX, y: lineas.length > 1 ? CY - 12 : CY + 32, tam, maxAncho: q(620, 560), estilo, colores });
+  const centro = (lineas, tam = 84, estilo = "sube", colores = {}) => texto(fuente, letras, lineas, { x: CX, y: lineas.length > 1 ? CY - 12 : CY + 32, tam, maxAncho: q(620, 480), estilo, colores });
   const frasesBucle = [
     [centro([["SALE", "UNA"], ["HERRAMIENTA", "NUEVA"]], 84, "cae", { 3: K("cieloClaro") }), ["sale", "una", "herramienta", "nueva,"].map((w) => T.w(2, w))],
     [centro([["LA", "PRUEBAN"], ["A", "SU", "MANERA"]], 84, "barre", { 4: K("azul") }), [T.w(2, "usarla"), T.w(2, "usarla") + 0.12, T.w(2, "a"), T.w(2, "su"), T.w(2, "manera,")]],
@@ -176,8 +176,8 @@ export function montar(ctx) {
   // círculo (10-oct, nota de Alejandro: «agregar el texto que lo dice»)
   const yB = { a: CY - 108, b: CY + 58, c: CY + 162 };
   const fB1 = texto(fuente, letras, [["EL", "NUEVO"]], { x: CX, y: yB.a, tam: 72, estilo: "sube" });
-  const fB2 = texto(fuente, letras, [["BUCLE"]], { x: CX, y: yB.b, tam: 172, maxAncho: q(560, 520), estilo: "golpe", color: K("durazno"), trazo: 3 });
-  const fB3 = texto(fuente, letras, [["TECNOLÓGICO"]], { x: CX, y: yB.c, tam: 80, maxAncho: q(560, 520), estilo: "barre" });
+  const fB2 = texto(fuente, letras, [["BUCLE"]], { x: CX, y: yB.b, tam: 172, maxAncho: q(560, 470), estilo: "golpe", color: K("durazno"), trazo: 3 });
+  const fB3 = texto(fuente, letras, [["TECNOLÓGICO"]], { x: CX, y: yB.c, tam: 80, maxAncho: q(560, 470), estilo: "barre" });
   dibujar(tl, fB1.palabras[0], T.w(2, "el"), { dur: 0.24 });
   dibujar(tl, fB1.palabras[1], T.w(2, "nuevo"), { dur: 0.24 });
   dibujar(tl, fB2.palabras[0], C.bucle, { dur: 0.3 });
@@ -195,18 +195,18 @@ export function montar(ctx) {
   const tinta = (o = {}) => ({ modo: "dibuja", ancho: o.ancho ?? 4, color: o.color ?? hueso, padre: o.padre ?? lados, e: o.e ?? ease.suave });
   const pt = (tr, u) => tr.path.getPointAtLength(u * tr.L);
   const vuelo = (a, b, t0, t1, alto = 120) => chispa.pierna(`M${a.x.toFixed(1)},${a.y.toFixed(1)} Q${((a.x + b.x) / 2).toFixed(1)},${(Math.min(a.y, b.y) - alto).toFixed(1)} ${b.x.toFixed(1)},${b.y.toFixed(1)}`, t0, t1, { cola: 200, e: ease.suave });
-  const RU = q({ x: 250, y: 650, r: 125 }, { x: 250, y: 1600, r: 110 });
-  const ES = q({ x: 250, y: 432, s: 0.85 }, { x: 830, y: 1680, s: 0.8 });
-  const BU = q({ x: 1660, y: 780, s: 1.05 }, { x: 830, y: 520, s: 0.9 });
+  const RU = q({ x: 250, y: 650, r: 125 }, { x: 225, y: 1335, r: 95 });
+  const ES = q({ x: 250, y: 432, s: 0.85 }, { x: 205, y: 440, s: 0.8 });
+  const BU = q({ x: 1660, y: 780, s: 1.05 }, { x: 790, y: 1432, s: 0.85 });
   // A · izquierda
   const a0 = C.excA;
   const gRueda = el("g", {}, lados), gCorre = el("g", {}, lados), gA = el("g", {}, gCorre), gB = el("g", {}, gCorre), gEstr = el("g", {}, lados);
   const pRueda = chispa.pierna(mover(D.rueda(RU.r, 8), RU.x, RU.y), a0 + 0.3, a0 + 0.68, tinta({ padre: gRueda, color: K("cieloClaro") }));
   vuelo(sobreBucle(a0), pt(pRueda, 0), a0, a0 + 0.3, -160);
   const pie = { x: RU.x, y: RU.y + RU.r - 8 };
-  const pA = chispa.pierna(mover(D.persona("corriendo", 0.88), pie.x, pie.y), a0 + 0.72, a0 + 1.12, tinta({ padre: gA, ancho: 5 }));
+  const pA = chispa.pierna(mover(D.persona("corriendo", (0.88 * RU.r) / 125), pie.x, pie.y), a0 + 0.72, a0 + 1.12, tinta({ padre: gA, ancho: 5 }));
   vuelo(pt(pRueda, 1), pt(pA, 0), a0 + 0.68, a0 + 0.72, 20);
-  el("path", { d: mover(D.persona("corriendo2", 0.88), pie.x, pie.y), fill: "none", stroke: hueso, "stroke-width": 5, "stroke-linecap": "round", "stroke-linejoin": "round" }, gB);
+  el("path", { d: mover(D.persona("corriendo2", (0.88 * RU.r) / 125), pie.x, pie.y), fill: "none", stroke: hueso, "stroke-width": 5, "stroke-linecap": "round", "stroke-linejoin": "round" }, gB);
   const rapido = el("path", { d: [[-70, -120, 30], [-86, -92, 34], [-76, -64, 30]].map(([x, y, l]) => `M${pie.x + x},${pie.y + y} L${pie.x + x + l},${pie.y + y}`).join(" "), stroke: K("cieloClaro"), "stroke-width": 3, "stroke-linecap": "round", opacity: 0 }, gCorre);
   const pE = chispa.pierna(mover(D.persona("estresado", ES.s) + " " + D.tension(ES.s), ES.x, ES.y), a0 + 1.3, a0 + 1.78, tinta({ padre: gEstr }));
   vuelo(pt(pA, 1), pt(pE, 0), a0 + 1.12, a0 + 1.3, 60);
@@ -222,7 +222,7 @@ export function montar(ctx) {
   vuelo(pt(pBus, 1), pt(pLupa, 0), b0 + 0.72, b0 + 0.76, 10);
   vuelo(pt(pLupa, 1), sobreBucle(C.excBvuelve), b0 + 0.95, C.excBvuelve, 140);
   chispa.tramo(C.excBvuelve, C.colapso + 0.55, sobreBucle);
-  const dudas = [[q(1560, 640), q(430, 330), 96, hueso], [q(1800, 960), q(370, 300), 122, K("cieloClaro")], [q(1700, 800), q(270, 220), 74, K("durazno")]].map(([x, y, tam, col], k) => {
+  const dudas = [[q(1560, 690), q(430, 345), 96, hueso], [q(1800, 880), q(370, 390), 112, K("cieloClaro")], [q(1700, 800), q(270, 300), 70, K("durazno")]].map(([x, y, tam, col], k) => {
     const g = el("g", {}, lados);
     const gl = fuente.getPath("?", 1000, 1000, tam), bb = gl.getBoundingBox();
     el("path", { d: gl.toPathData(1), fill: col, transform: `translate(${(-(bb.x1 + bb.x2) / 2).toFixed(1)} ${(-(bb.y1 + bb.y2) / 2).toFixed(1)})` }, g);
@@ -254,11 +254,11 @@ export function montar(ctx) {
   // ---------------- 03 · seis de cada cien ----------------
   // los seis, salteados y sin patrón (9-oct: unidos en orden dibujaban un «3»); la chispa salta de uno
   // a otro dejando solo estela, así no queda ninguna figura
-  const PASO = 70, IDX = [13, 38, 52, 27, 76, 64], TU = 45;
-  const G0 = q({ x: 1095, y: 225 }, { x: CX - 4.5 * PASO, y: 860 });
+  const PASO = q(70, 62), IDX = [13, 38, 52, 27, 76, 64], TU = 45;
+  const G0 = q({ x: 1095, y: 225 }, { x: CX - 4.5 * PASO, y: 815 });
   const enRejilla = (i) => ({ x: G0.x + (i % 10) * PASO, y: G0.y + Math.floor(i / 10) * PASO });
   const CG = { x: G0.x + 4.5 * PASO, y: G0.y + 4.5 * PASO };
-  const TUF = q({ x: 1330, y: 640 }, { x: CX, y: 1300 });   // dónde te quedas (el eje del reloj de 04)
+  const TUF = q({ x: 1330, y: 640 }, { x: 330, y: 1212 });   // dónde te quedas (el eje del reloj de 04)
   const rejilla = lnz("g", { class: "rejilla" });
   const seisG = lnz("g", { class: "seis" });
   const puntos = [];
@@ -313,10 +313,10 @@ export function montar(ctx) {
   chispa.tramo(tSeis[5], C.tarde + 0.5, (t) => ({ x: p6[5].x + vaX(t) * 900, y: p6[5].y - vaX(t) * 60 }));
   // «6 de 100» sobre navy; la fuente en Inter
   // «6 de 100 / EMPRESAS»: la palabra en grande llena el hueco de abajo (10-oct, nota de Alejandro)
-  const X6 = q(96, 250), Y6 = q(574, 620);
+  const X6 = q(96, 130), Y6 = q(574, 520);
   const f6 = texto(fuente, letras, [["6"]], { x: X6, y: Y6, tam: 300, ancla: "izq", color: K("azul"), trazo: 3, estilo: "golpe" });
   const fDe = texto(fuente, letras, [["DE", "100"]], { x: f6.palabras[0].x1 + 30, y: Y6, tam: 120, ancla: "izq", estilo: "sube" });
-  const fEmp = texto(fuente, letras, [["EMPRESAS"]], { x: X6, y: Y6 + 196, tam: 190, ancla: "izq", maxAncho: q(940, 880), estilo: "barre", trazo: 3 });
+  const fEmp = texto(fuente, letras, [["EMPRESAS"]], { x: X6, y: Y6 + 196, tam: q(190, 172), ancla: "izq", maxAncho: q(940, 800), estilo: "barre", trazo: 3 });
   dibujar(tl, f6.palabras[0], C.seis, { dur: 0.45 });
   dibujar(tl, fDe.palabras[0], T.w(3, "de"), { dur: 0.32 });
   dibujar(tl, fDe.palabras[1], C.cien, { dur: 0.4 });
@@ -328,12 +328,12 @@ export function montar(ctx) {
   borrar(tl, [...f6.palabras, ...fDe.palabras, ...fEmp.palabras], C.normal - 0.35, { dur: 0.32, escalon: 0.01 });
 
   // ---------------- 04 · «es normal sentir que vas tarde» → «nadie te ha explicado cómo» ----------------
-  const XT = q(96, 80), YT = q(500, 560), TT = q(130, 120);
-  const fT = texto(fuente, letras, q([["ES", "NORMAL", "SENTIR"], ["QUE", "VAS", "TARDE."]], [["ES", "NORMAL"], ["SENTIR", "QUE"], ["VAS", "TARDE."]]), { x: XT, y: YT, tam: TT, ancla: "izq", maxAncho: q(1100, 920), estilo: "sube", colores: { 5: K("durazno") } });
+  const XT = q(96, 130), YT = q(500, 420), TT = q(130, 120);
+  const fT = texto(fuente, letras, q([["ES", "NORMAL", "SENTIR"], ["QUE", "VAS", "TARDE."]], [["ES", "NORMAL"], ["SENTIR", "QUE"], ["VAS", "TARDE."]]), { x: XT, y: YT, tam: TT, ancla: "izq", maxAncho: q(1100, 800), estilo: "sube", colores: { 5: K("durazno") } });
   ["es", "normal", "sentir", "que", "vas", "tarde:"].forEach((w, i) => dibujar(tl, fT.palabras[i], T.w(4, w), { dur: 0.36 }));
   const tHa = C.ha;
   borrar(tl, fT.palabras, tHa - 0.3, { dur: 0.22, escalon: 0.004 });
-  const fN = texto(fuente, letras, q([["NADIE", "TE", "HA"], ["EXPLICADO", "CÓMO."]], [["NADIE", "TE", "HA"], ["EXPLICADO"], ["CÓMO."]]), { x: XT, y: YT, tam: TT, ancla: "izq", maxAncho: q(1100, 920), estilo: "barre", colores: { 4: K("cieloClaro") } });
+  const fN = texto(fuente, letras, q([["NADIE", "TE", "HA"], ["EXPLICADO", "CÓMO."]], [["NADIE", "TE", "HA"], ["EXPLICADO"], ["CÓMO."]]), { x: XT, y: YT, tam: TT, ancla: "izq", maxAncho: q(1100, 800), estilo: "barre", colores: { 4: K("cieloClaro") } });
   [tHa, tHa + 0.04, tHa + 0.08, T.w(4, "explicado"), T.w(4, "cómo")].forEach((t, i) => dibujar(tl, fN.palabras[i], t, { dur: 0.38 }));
   borrar(tl, fN.palabras, C.mientras - 0.45, { dur: 0.24, escalon: 0.004 });
   // ---------- el reloj de «vas tarde»; el pizarrón y el maestro de «nadie te ha explicado cómo»; el foco
@@ -357,8 +357,8 @@ export function montar(ctx) {
     manM.setAttribute("opacity", vis); manH.setAttribute("opacity", vis);
   });
   // la chispa regresa: dibuja el pizarrón, escribe «?», dibuja al maestro que señala, y el foco
-  const PZ = q({ x: 1530, y: 252, w: 330, h: 200 }, { x: 560, y: 1480, w: 400, h: 230 });
-  const MA = q({ x: 1712, y: 838, s: 1.1 }, { x: 820, y: 1900, s: 1.0 });
+  const PZ = q({ x: 1530, y: 252, w: 330, h: 200 }, { x: 570, y: 790, w: 350, h: 215 });
+  const MA = q({ x: 1712, y: 838, s: 1.1 }, { x: 770, y: 1425, s: 1.05 });
   const ent = q({ x: 2010, y: 300 }, { x: 1150, y: 1080 });
   const pPiz = chispa.pierna(mover(D.pizarron(PZ.w, PZ.h), PZ.x, PZ.y), C.pizarron, C.pizarron + 0.45, tinta({ padre: g04 }));
   vuelo(ent, pt(pPiz, 0), C.vuelve04, C.pizarron, 60);

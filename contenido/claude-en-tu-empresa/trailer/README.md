@@ -7,6 +7,7 @@
 | Carpeta | Qué contiene |
 |---|---|
 | `entregables/platica/2d/` | Versión 2D «Un solo trazo» (voz de Camila, toma G). Desde el 10-oct es la única que se trabaja; la 3D se borró de entregables y su código sigue en `v2/3d/` y en git. |
+| `entregables/platica/2d-vertical/` | El mismo video en 1080×1920 para Reels / TikTok / Shorts. Todo lo importante va dentro de la zona segura de redes (x 90–950, y 250–1440), que `scripts/v2-hoja-vertical.py` marca en las hojas de revisión. |
 
 En cada carpeta hay tres archivos:
 - `…-telefono.mp4`: para verlo en el celular (< 30 MB).
@@ -20,7 +21,7 @@ Las versiones anteriores ya se borraron (9-oct): v1, rebanadas, curso y vertical
 | Ruta | Qué es |
 |---|---|
 | `v2-2d.html`, `v2-3d.html` | Las composiciones v2 (horizontal). Las genera `scripts/v2-html.mjs`; no se editan a mano. |
-| `v2-2d-v.html`, `v2-3d-v.html` | Las mismas composiciones en vertical (en pausa; hay que volver a renderizarlas con la voz nueva). |
+| `v2-2d-v.html` | La 2D en vertical (mismos módulos; las posiciones verticales son el segundo valor de cada `q(h, v)`). |
 | `v2/` | Guion, tiempos de la voz, hoja de cues (lo que pasa en cada palabra), logos. |
 | `v2/2d/` | La versión 2D: `apertura` (0–31 s), `medio` (31–53 s), `cierre` (53 s–fin), `dibujos` (figuras de línea que traza la chispa). |
 | `v2/3d/` | La versión 3D, con las mismas tres partes, más `final` (la tarjeta con el CTA). |

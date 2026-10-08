@@ -12,7 +12,7 @@ export function montar(ctx) {
   const CX = W / 2, CYm = H / 2;
   // 10-oct (nota de Alejandro: «acercaría un poco más los textos a la animación»): en horizontal los
   // textos de 05 se alinean a la derecha, pegados al monitor, y arriba de la pila de copias
-  const izq = q({ x: 1056, y: 372, tam: 120, max: 760, ancla: "der" }, { x: 80, y: 560, tam: 112, max: 920, ancla: "izq" });
+  const izq = q({ x: 1056, y: 372, tam: 120, max: 760, ancla: "der" }, { x: CX, y: 760, tam: 112, max: 800, ancla: "centro" });
   const frase = (lineas, anclas, fin, o = {}) => {
     const f = texto(fuente, letras, lineas, { x: o.x ?? izq.x, y: o.y ?? izq.y, tam: o.tam ?? izq.tam, ancla: o.ancla ?? izq.ancla, maxAncho: o.max ?? izq.max, color: o.color, estilo: o.estilo ?? "sube", colores: o.colores ?? {} });
     f.palabras.forEach((p, i) => dibujar(tl, p, anclas[i], { dur: 0.34 }));
@@ -27,7 +27,7 @@ export function montar(ctx) {
   const velo = el("rect", { width: W, height: H, fill: K("gris"), opacity: 0 }, fijo);
   tl.fromTo(velo, { opacity: 0 }, { opacity: 1, duration: 0.001 }, tCorte);
   tl.fromTo(velo, { opacity: 1 }, { opacity: 0, duration: 0.45, ease: "power2.out", immediateRender: false }, tCorte + 0.02);
-  const D = q({ x: 1300, y: 560 }, { x: CX, y: 1260 }), k = q(1, 0.92);
+  const D = q({ x: 1300, y: 560 }, { x: CX, y: 1150 }), k = q(1, 0.92);
   const P = (x, y) => `${(D.x + x * k).toFixed(1)},${(D.y + y * k).toFixed(1)}`;
   const mesa = el("g", { class: "escritorio" }, escena);
   const tBorra = [C.honesto - 0.05, C.honesto + 0.5];
@@ -152,7 +152,7 @@ export function montar(ctx) {
   chispa.quieta(tLibre, C.honesto, esquina.x, esquina.y, 5);
 
   // ---------------- 06 · «¿cuánto de tu empresa todavía depende de ti?» ----------------
-  const N = q({ x: CX, y: 690 }, { x: CX, y: 1180 }), RN = q(300, 360);
+  const N = q({ x: CX, y: 690 }, { x: CX, y: 935 }), RN = q(300, 160);
   const TITY = q(700, 1060);   // línea base de MÉTODO (08)
   // la chispa se va: en este silencio no hay método, solo tú
   chispa.pierna(`M${esquina.x},${esquina.y} Q${esquina.x + 150},${esquina.y - 260} ${W + 150},${q(-120, 300)}`, C.honesto, C.honesto + 0.45, { cola: 200, e: ease.entra2 });
@@ -160,10 +160,10 @@ export function montar(ctx) {
   // «entonces, sé honesto» (10-oct, nota de Alejandro: «muchísimos signos de interrogación y admiración
   // que comienzan a abrumar y una personita corriendo de estos símbolos»): los signos llegan cada vez más
   // seguido, alguien huye por abajo, y el punto «tú» se los traga justo antes de que caiga la pregunta
-  frase([["SÉ", "HONESTO."]], [T.w(6, "sé"), T.w(6, "honesto:")], C.traga, { x: CX, y: q(612, 1000), tam: q(180, 150), ancla: "centro", max: q(1300, 940), estilo: "golpe", colores: { 1: K("durazno") } });
+  frase([["SÉ", "HONESTO."]], [T.w(6, "sé"), T.w(6, "honesto:")], C.traga, { x: CX, y: q(612, 860), tam: q(180, 150), ancla: "centro", max: q(1300, 800), estilo: "golpe", colores: { 1: K("durazno") } });
   const signos = el("g", { class: "signos" }, fijo);
   const r6s = azar(6161), NSG = 76, S0 = C.signos, S1 = C.traga;
-  const caja = { x0: CX - 460, x1: CX + 460, y0: q(440, 820), y1: q(650, 1040) };
+  const caja = { x0: CX - 460, x1: CX + 460, y0: q(440, 720), y1: q(650, 900) };
   const COLS6 = [hueso, K("gris"), K("cieloClaro"), hueso, K("durazno"), K("gris")];
   const lista = [];
   for (let i = 0; i < NSG; i++) {
@@ -192,7 +192,7 @@ export function montar(ctx) {
   const trazoH = { fill: "none", stroke: hueso, "stroke-width": 5, "stroke-linecap": "round", "stroke-linejoin": "round" };
   const hA = el("path", { d: Dib.persona("corriendo", 1.05), ...trazoH }, huye), hB = el("path", { d: Dib.persona("corriendo2", 1.05), ...trazoH }, huye);
   const gotas = [0, 1, 2].map((k) => el("circle", { r: 6 - k * 1.5, fill: K("cieloClaro") }, huye));
-  const yH = q(1012, 1780);
+  const yH = q(1012, 1420);
   reloj(C.huye - 0.05, S1 + 0.4, (t) => {
     const u = tramo(t, C.huye, S1 + 0.3), x = -120 + u * (W + 260), par = Math.floor(t * 10) % 2 === 0;
     huye.setAttribute("transform", `translate(${x.toFixed(1)} ${(yH - 6 * Math.abs(Math.sin(t * 15))).toFixed(1)})`);
@@ -222,7 +222,7 @@ export function montar(ctx) {
   el("circle", { r: 25, fill: K("whatsapp") }, insig);
   const cuenta = el("text", { y: 9, "text-anchor": "middle", "font-family": "Inter", "font-weight": 700, "font-size": 24, fill: K("navy") }, insig);
   const tTu = C.cuanto - 0.15;
-  onda(tl, red, N.x, N.y, tTu, { r0: 30, r1: q(260, 300), color: K("gris"), ancho: 3, dur: 0.6 });
+  onda(tl, red, N.x, N.y, tTu, { r0: 30, r1: q(260, 220), color: K("gris"), ancho: 3, dur: 0.6 });
   reloj(C.chats[0] - 0.05, C.porque + 0.05, (t) => {
     const u = tramo(t, C.chats[0], C.chats[0] + 0.25), s = u <= 0 ? 0.001 : Math.max(0.001, 1 + 1.7 * Math.pow(u - 1, 3) + 0.7 * Math.pow(u - 1, 2));
     const n = Math.min(99, Math.floor(1 + Math.pow(Math.max(0, t - C.chats[0]) / 2.6, 1.6) * 98));
@@ -242,19 +242,38 @@ export function montar(ctx) {
     { de: "Administración", msg: "¿Mando la cotización así?", resp: "No, déjame verla." },
     { de: "Operación", msg: "Jefe, ¿qué hago con el pedido?", resp: "Ahorita te digo." },
   ];
+  const hilo = [];
   C.chats.forEach((t0, k) => {
-    const c = CHATS[k], izqC = k % 2 === 0, top = q(k < 2 ? 400 : 690, k < 2 ? 1380 : 1600);
+    const c = CHATS[k], izqC = V || k % 2 === 0, top = q(k < 2 ? 400 : 690, 1300);
     const ent = dom("div", "burbuja entra");
     ent.innerHTML = `<div class="de">${icono}<span>${c.de}</span></div><div class="msg">${c.msg}</div>`;
-    Object.assign(ent.style, izqC ? { left: "70px" } : { left: `${q(1350, 520)}px` }, { top: `${top}px`, transformOrigin: "0% 100%" });
+    Object.assign(ent.style, izqC ? { left: `${q(70, 110)}px` } : { left: "1350px" }, { top: `${top}px`, transformOrigin: "0% 100%" });
     const sal = dom("div", "burbuja sale");
     sal.innerHTML = `<div class="msg">${c.resp}<span class="palomas">${palomas}</span></div>`;
-    Object.assign(sal.style, izqC ? { right: `${W - q(570, 520)}px` } : { right: "70px" }, { top: `${top + 104}px`, transformOrigin: "100% 100%" });
+    Object.assign(sal.style, V ? { right: "130px" } : izqC ? { right: `${W - 570}px` } : { right: "70px" }, { top: `${top + 104}px`, transformOrigin: "100% 100%" });
+    tl.fromTo(sal.querySelector(".palomas"), { color: "#8696A0" }, { color: K("azul"), duration: 0.12 }, t0 + 0.62);   // leído
+    if (V) { hilo.push({ n: ent, t: t0 }, { n: sal, t: t0 + 0.36 }); return; }
     tl.fromTo(ent, { opacity: 0, scale: 0.6, y: 24 }, { opacity: 1, scale: 1, y: 0, duration: 0.32, ease: "back.out(2)" }, t0);
     tl.fromTo(sal, { opacity: 0, scale: 0.6, y: 24 }, { opacity: 1, scale: 1, y: 0, duration: 0.32, ease: "back.out(2)" }, t0 + 0.36);
-    tl.fromTo(sal.querySelector(".palomas"), { color: "#8696A0" }, { color: K("azul"), duration: 0.12 }, t0 + 0.62);   // leído
     tl.to([ent, sal], { opacity: 0, y: -18, duration: 0.22, ease: "power1.in" }, C.porque - 0.24);
   });
+  // vertical: no caben dos columnas junto a la red; los chats van abajo como un hilo de WhatsApp: cada
+  // mensaje nuevo entra al fondo y empuja hacia arriba a los anteriores, que se desvanecen al subir
+  if (V) {
+    const FONDO = 1440, TECHO = 1150, SEP = 12;
+    for (const b of hilo) { b.h = b.n.offsetHeight; b.n.style.top = `${FONDO - b.h}px`; }
+    reloj(C.chats[0] - 0.05, C.porque + 0.05, (t) => {
+      hilo.forEach((b, i) => {
+        let sube = 0;
+        for (let j = i + 1; j < hilo.length; j++) sube += (hilo[j].h + SEP) * ease.sale3(tramo(t, hilo[j].t, hilo[j].t + 0.25));
+        const top = FONDO - b.h - sube, u = tramo(t, b.t, b.t + 0.3), sc = u <= 0 ? 0.6 : 0.6 + 0.4 * ease.sale3(u) + 0.08 * Math.sin(u * Math.PI);
+        b.n.style.top = `${top.toFixed(1)}px`;
+        b.n.style.transform = `scale(${sc.toFixed(3)})`;
+        const arriba = 1 - tramo(top, TECHO - 70, TECHO), sale = 1 - tramo(t, C.porque - 0.24, C.porque - 0.02);
+        b.n.style.opacity = t < b.t ? 0 : (Math.min(1, u * 3) * (1 - arriba) * sale).toFixed(3);
+      });
+    });
+  }
   reloj(tTu - 0.05, C.ramal + 0.3, (t) => {
     const nace = ease.sale3(tramo(t, tTu, tTu + 0.5));
     // latido: dos golpes por segundo y medio, más tensos en «depende de ti»
@@ -284,11 +303,11 @@ export function montar(ctx) {
       nd.pul.setAttribute("r", fase >= 0 && hu > 0.5 ? (5.5 * (1 - suelta)).toFixed(2) : 0);
     }
   });
-  onda(tl, red, N.x, N.y, C.ti - 0.1, { r0: 40, r1: q(420, 480), color: K("gris"), ancho: 3, dur: 1.2 });
+  onda(tl, red, N.x, N.y, C.ti - 0.1, { r0: 40, r1: q(420, 340), color: K("gris"), ancho: 3, dur: 1.2 });
   // la pregunta cae de golpe, con «todavía» (10-oct)
   frase(q([["¿CUÁNTO", "DE", "TU", "EMPRESA"], ["TODAVÍA", "DEPENDE", "DE", "TI?"]], [["¿CUÁNTO", "DE"], ["TU", "EMPRESA"], ["TODAVÍA", "DEPENDE"], ["DE", "TI?"]]),
     [C.cuanto, T.w(6, "de", 1), T.w(6, "tu"), T.w(6, "empresa"), T.w(6, "todavía"), C.depende, T.w(6, "de", 2), T.w(6, "ti?")], C.porque - 0.3,
-    { x: CX, y: q(172, 430), tam: q(96, 100), ancla: "centro", max: q(1500, 940), estilo: "golpe", colores: { 7: K("durazno") } });
+    { x: CX, y: q(172, 400), tam: q(96, 92), ancla: "centro", max: q(1500, 800), estilo: "golpe", colores: { 7: K("durazno") } });
   cam.sacudir(C.cuanto, 0.35, 12);
 
   // ---------------- 07 · «porque no te falta otra herramienta» ----------------
@@ -314,14 +333,14 @@ export function montar(ctx) {
   });
   frase(q([["NO", "TE", "FALTA"], ["OTRA", "HERRAMIENTA."]], [["NO", "TE", "FALTA"], ["OTRA"], ["HERRAMIENTA."]]),
     [T.w(7, "no"), T.w(7, "te"), T.w(7, "falta"), T.w(7, "otra"), C.herramienta], C.falta - 0.28,
-    { x: CX, y: q(200, 470), tam: q(110, 112), ancla: "centro", max: q(1500, 940), estilo: "barre", colores: { 4: K("cieloClaro") } });
+    { x: CX, y: q(200, 400), tam: q(110, 104), ancla: "centro", max: q(1500, 800), estilo: "barre", colores: { 4: K("cieloClaro") } });
 
   // ---------------- 08 · «te falta un MÉTODO» ----------------
   // tú te vuelves una línea recta; la chispa la recorre y en «método» la línea escribe la palabra
-  const fM1 = texto(fuente, letras, [["TE", "FALTA", "UN"]], { x: CX, y: q(330, 760), tam: 90, maxAncho: q(1200, 900), estilo: "sube" });
+  const fM1 = texto(fuente, letras, [["TE", "FALTA", "UN"]], { x: CX, y: q(330, 760), tam: 90, maxAncho: q(1200, 800), estilo: "sube" });
   // la escena de MÉTODO es la aprobada «10/10»: conserva su sincronía original, sin adelanto
   ["te", "falta", "un"].forEach((w, i) => dibujar(tl, fM1.palabras[i], T.w(8, w), { dur: 0.3, adelanto: 0 }));
-  const fM = texto(fuente, letras, [["MÉTODO."]], { x: CX, y: TITY, tam: q(330, 236), maxAncho: q(1500, 960), color: K("lima"), trazo: 4, estilo: "traza" });
+  const fM = texto(fuente, letras, [["MÉTODO."]], { x: CX, y: TITY, tam: q(330, 236), maxAncho: q(1500, 800), color: K("lima"), trazo: 4, estilo: "traza" });
   dibujar(tl, fM.palabras[0], C.metodo - 0.02, { dur: 0.24, escalon: 0.02, adelanto: 0 });
   const lim = el("rect", { width: W, height: H, fill: K("hueso"), opacity: 0 }, fijo);
   tl.fromTo(lim, { opacity: 0 }, { opacity: 0.35, duration: 0.03 }, C.metodo);
@@ -332,6 +351,6 @@ export function montar(ctx) {
   cam.clave(C.metodo + 1.0, CX, CYm, 1, ease.suave);
   cam.sacudir(C.metodo, 0.4, 14);
   const yL = TITY + 34;   // la línea queda DEBAJO de la palabra: es su barra
-  chispa.pierna(`M${-150},${yL} L${CX + q(600, 440)},${yL}`, C.falta + 0.15, C.metodo - 0.04, { cola: 420, e: ease.entra2 });
+  chispa.pierna(`M${-150},${yL} L${CX + q(600, 400)},${yL}`, C.falta + 0.15, C.metodo - 0.04, { cola: 420, e: ease.entra2 });
   ctx.medio = { TITY, fM, fM1, yL };
 }

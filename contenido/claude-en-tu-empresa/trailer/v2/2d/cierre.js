@@ -14,7 +14,7 @@ export function montar(ctx) {
   const CX = W / 2, CYm = H / 2;
   const platica = T.version === "platica";
   const hueso = K("hueso"), navy = K("navy");
-  const ARR = q({ y: 200, tam: 100, max: 1600 }, { y: 470, tam: 100, max: 940 });   // titular de arriba
+  const ARR = q({ y: 200, tam: 100, max: 1600 }, { y: 440, tam: 100, max: 800 });   // titular de arriba
   // estilo de entrada rotativo (nunca dos frases seguidas iguales) y énfasis por palabra: una palabra
   // por frase en durazno o azul; sobre el degradado final el énfasis va en blanco (contraste)
   const ROTA = ["golpe", "sube", "barre", "cae"];
@@ -68,16 +68,16 @@ export function montar(ctx) {
   const m = ctx.medio;
   borrar(tl, [...m.fM.palabras, ...m.fM1.palabras], C.ramal - 0.15, { dur: 0.3, escalon: 0.01 });
   // la chispa espera al final de la línea que escribió MÉTODO
-  chispa.quieta(C.metodo - 0.04, C.ramal, CX + q(600, 440), m.yL, 4);
+  chispa.quieta(C.metodo - 0.04, C.ramal, CX + q(600, 400), m.yL, 4);
 
   let tLibre;   // cuándo empieza el respaldo (común)
   if (platica) {
     // ---------------- 09 · la plática gratuita y en vivo ----------------
-    const S = q({ x: CX, y: 640, w: 760, h: 430 }, { x: CX, y: 1180, w: 860, h: 520 });
+    const S = q({ x: CX, y: 640, w: 760, h: 430 }, { x: CX, y: 1060, w: 800, h: 470 });
     const fin09 = C.contamos - 0.2;
     const pant = grupoVentana(escena, C.ramal, fin09);
     const x0 = S.x - S.w / 2, y0 = S.y - S.h / 2, x1 = S.x + S.w / 2, y1 = S.y + S.h / 2;
-    chispa.pierna(`M${CX + q(600, 440)},${m.yL} Q${x1 + 60},${y0 - 120} ${x1},${y0 + 30}`, C.ramal, C.ramal + 0.35, { cola: 220 });
+    chispa.pierna(`M${CX + q(600, 400)},${m.yL} Q${x1 + 60},${y0 - 120} ${x1},${y0 + 30}`, C.ramal, C.ramal + 0.35, { cola: 220 });
     linea(`M${x1},${y0 + 30} L${x1},${y1 - 20} Q${x1},${y1} ${x1 - 20},${y1} L${x0 + 20},${y1} Q${x0},${y1} ${x0},${y1 - 20} L${x0},${y0 + 20} Q${x0},${y0} ${x0 + 20},${y0} L${x1 - 20},${y0} Q${x1},${y0} ${x1},${y0 + 30}`, C.ramal + 0.35, C.ramal + 1.2, { padre: pant, ancho: 5 });
     const cols = 3, filas = 2, tw = (S.w - 80) / cols, th = (S.h - 80) / filas;
     for (let i = 0; i < filas; i++) for (let j = 0; j < cols; j++) {
@@ -112,7 +112,7 @@ export function montar(ctx) {
     // (10-oct, nota de Alejandro: «los iconos que hagan alusión a lo que les vamos a enseñar… los logos de
     // las herramientas que van a aprender… PERO TODO CON EL CENTRO DE APRENDER CLAUDE»; y salir del bucle
     // «que se sienta como un círculo que se infla y explota o truena como un cristal»)
-    const CO = q({ x: CX, y: 700, rx: 268, ry: 176, rb: 38, aro: 330 }, { x: CX, y: 1180, rx: 330, ry: 300, rb: 44, aro: 420 });
+    const CO = q({ x: CX, y: 700, rx: 268, ry: 176, rb: 38, aro: 330 }, { x: CX, y: 1010, rx: 222, ry: 200, rb: 38, aro: 280 });
     const tSale = C.truena;
     const cons = el("g", { class: "constelacion" }, escena);
     const radios = el("g", {}, cons);
@@ -147,7 +147,7 @@ export function montar(ctx) {
       return { g, radio, a0, t0 };
     });
     // qué está pasando con la IA: la gráfica que sube (la dibuja la chispa) con herramientas encima
-    const GR = q({ x: 150, y: 792, w: 300, h: 200 }, { x: 110, y: 1700, w: 280, h: 190 });
+    const GR = q({ x: 150, y: 792, w: 300, h: 200 }, { x: 105, y: 1430, w: 200, h: 130 });
     const tipG = { x: GR.x + GR.w - 10, y: GR.y - GR.h * 0.92 };
     const dGr = mover(D.graficaSube(GR.w, GR.h), GR.x, GR.y) + ` M${(tipG.x - 30).toFixed(1)},${(tipG.y + 4).toFixed(1)} L${tipG.x.toFixed(1)},${tipG.y.toFixed(1)} L${(tipG.x - 8).toFixed(1)},${(tipG.y + 30).toFixed(1)}`;
     const lado10 = el("g", {}, escena);
@@ -159,8 +159,8 @@ export function montar(ctx) {
       tl.fromTo(b.dentro, { scale: 0, opacity: 0, transformOrigin: "50% 50%" }, { scale: 1, opacity: 1, duration: 0.35, ease: "back.out(2.6)" }, C.grafica + 0.35 + k * 0.1);
     });
     // qué hacen las que sí la aprovechan: seis empresas, cada una con su palomita
-    const CI = q({ x: 1480, y: 792, w: 320 }, { x: 640, y: 1700, w: 320 });
-    const ALT = [105, 160, 125, 190, 140, 115];
+    const CI = q({ x: 1480, y: 792, w: 320 }, { x: 725, y: 1430, w: 200 });
+    const ALT = [105, 160, 125, 190, 140, 115].map((h) => h * q(1, 0.62));
     const pCi = chispa.pierna(mover(D.ciudad(CI.w, ALT), CI.x, CI.y), C.ciudad, C.ciudad + 0.8, { modo: "dibuja", ancho: 4, color: hueso, padre: lado10 });
     ALT.forEach((h, k) => {
       const bw = CI.w / ALT.length, ck = el("g", { transform: `translate(${(CI.x + k * bw + bw / 2).toFixed(1)} ${CI.y - h - 26})` }, lado10);
@@ -242,7 +242,7 @@ export function montar(ctx) {
     vuelo(sobreC, pt(pGr, 0), C.grafica - 0.35, C.grafica, 100);
     chispa.quieta(C.grafica + 0.6, C.ciudad - 0.35, tipG.x - 8, tipG.y + 30, 4);
     vuelo(pt(pGr, 1), pt(pCi, 0), C.ciudad - 0.35, C.ciudad, 160);
-    const sobreCi = { x: CI.x + CI.w / 2, y: CI.y - 250 };
+    const sobreCi = { x: CI.x + CI.w / 2, y: CI.y - q(250, 190) };
     vuelo(pt(pCi, 1), sobreCi, C.ciudad + 0.8, C.ciudad + 0.95, 40);
     chispa.quieta(C.ciudad + 0.95, C.aro - 0.3, sobreCi.x, sobreCi.y, 4);
     vuelo(sobreCi, pt(aroP, 0), C.aro - 0.3, C.aro, -60);
@@ -265,7 +265,7 @@ export function montar(ctx) {
     fT.palabras[0].glifos.forEach((g) => { g.setAttribute("fill", K("durazno")); g.setAttribute("stroke", K("durazno")); });
     const cl = fT.palabras[0];
     const ast = { x: cl.x1 + q(56, 50), y: cl.y - q(100, 88) };
-    chispa.pierna(`M${CX + q(600, 440)},${m.yL} Q${ast.x + 200},${ast.y - 260} ${ast.x},${ast.y}`, C.ramal, C.claude + 0.05, { cola: 260, e: ease.suave });
+    chispa.pierna(`M${CX + q(600, 400)},${m.yL} Q${ast.x + 200},${ast.y - 260} ${ast.x},${ast.y}`, C.ramal, C.claude + 0.05, { cola: 260, e: ease.suave });
     chispa.quieta(C.claude + 0.05, C.aprende - 0.55, ast.x, ast.y, 0);
     chispa.escala((t) => 1 + 0.5 * ease.sale3(tramo(t, C.claude, C.claude + 0.3)) * (1 - tramo(t, C.aprende - 0.7, C.aprende - 0.5)));
     onda(tl, fijo, ast.x, ast.y, C.claude + 0.05, { r0: 20, r1: 260, color: K("durazno"), ancho: 4 });
@@ -327,7 +327,7 @@ export function montar(ctx) {
 
   // ---------------- todo en un mismo lugar: una sola ventana con la chispa en el encabezado ----------------
   function unLugar(desdeX, desdeY, anclas1, anclas2, conClaude) {
-    const Wn = q({ x: CX, y: 650, w: 720, h: 440 }, { x: CX, y: 1080, w: 840, h: 520 });
+    const Wn = q({ x: CX, y: 650, w: 720, h: 440 }, { x: CX, y: 1010, w: 800, h: 470 });
     const fin = C.equipo2 - 0.25;
     const g = grupoVentana(escena, C.todo - 0.4, C.respaldan - 0.35);
     const x0 = Wn.x - Wn.w / 2, y0 = Wn.y - Wn.h / 2, x1 = Wn.x + Wn.w / 2, y1 = Wn.y + Wn.h / 2;
@@ -377,7 +377,7 @@ export function montar(ctx) {
     const Wn = ctx.ventanaFinal.Wn;
     const g = grupoVentana(escena, C.equipo2 - 0.3, C.respaldan - 0.35);
     const xs = [-2, -1, 0, 1, 2].map((n) => Wn.x + n * q(150, 150));
-    const ya = Wn.y + Wn.h / 2 + q(120, 170);
+    const ya = Wn.y + Wn.h / 2 + q(120, 125);
     xs.forEach((x, i) => {
       avatar(g, x, ya, 0.8, C.equipo2 - 0.2 + i * 0.06);
       const ck = el("g", { transform: `translate(${x + 32} ${ya - 54})` }, g);
@@ -401,7 +401,7 @@ export function montar(ctx) {
   const hV = 62, wV = (3839 / 1302) * hV, hT = 58, wT = (1110 / 252) * hT, gap = 70;   // la placa final de la tarjeta
   let finRespaldo;   // dónde queda la chispa al terminar el respaldo
   if (platica) {
-    const PL = q({ x: CX, y: 452, w: 1060, h: 214, yArriba: 214 }, { x: CX, y: 760, w: 980, h: 200, yArriba: 470 });
+    const PL = q({ x: CX, y: 452, w: 1060, h: 214, yArriba: 214 }, { x: CX, y: 700, w: 800, h: 180, yArriba: 395 });
     const placaG = el("g", {}, escena), placa = el("g", {}, placaG);
     el("rect", { x: -PL.w / 2, y: -PL.h / 2, width: PL.w, height: PL.h, rx: PL.h / 2, fill: K("blanco") }, placa);
     // un brillo que cruza la placa (por debajo de los logos: los logos no se tocan)
@@ -409,7 +409,7 @@ export function montar(ctx) {
     el("rect", { x: -PL.w / 2, y: -PL.h / 2, width: PL.w, height: PL.h, rx: PL.h / 2 }, el("clipPath", { id: cpId }, placa));
     const brilloP = el("rect", { x: -60, y: -PL.h, width: 110, height: PL.h * 2, fill: K("cieloClaro"), opacity: 0.28, transform: "skewX(-22)" }, el("g", { "clip-path": `url(#${cpId})` }, placa));
     tl.fromTo(brilloP, { x: -PL.w / 2 - 260 }, { x: PL.w / 2 + 260, duration: 0.7, ease: "power2.inOut" }, C.respaldan + 1.6);
-    const hVg = 88, wVg = (3839 / 1302) * hVg, hTg = 84, wTg = (1110 / 252) * hTg, gapG = 84;   // Total Coach por debajo de su tamaño nativo (252 px)
+    const hVg = q(88, 74), wVg = (3839 / 1302) * hVg, hTg = q(84, 70), wTg = (1110 / 252) * hTg, gapG = q(84, 66);   // Total Coach por debajo de su tamaño nativo (252 px)
     const lxg = -(wVg + gapG + wTg) / 2;
     const iV = el("image", { href: "./assets/marca/vadai-horizontal-recorte.png", x: lxg, y: -hVg / 2, width: wVg, height: hVg }, placa);
     el("rect", { x: lxg + wVg + gapG / 2 - 1, y: -34, width: 2, height: 68, fill: hueso }, placa);
@@ -433,7 +433,7 @@ export function montar(ctx) {
     chispa.pierna(`M${hv.x},${hv.y} Q${PL.x + 200},${oy0 - 160} ${PL.x},${oy0}`, C.respaldan - 0.3, C.respaldan + 0.05, { cola: 200 });
     chispa.quieta(C.respaldan + 0.7, C.cuarenta - 0.45, PL.x, oy0, 4);
     // el contador: de 10 a 900 en lo que dice «cientos…», y la chispa lo vuelve infinito
-    const YINF = q(414, 760);
+    const YINF = q(414, 640);
     const cont = dom("div", "contador", "+10");
     Object.assign(cont.style, { left: "0px", right: "0px", top: `${YINF - 96}px`, textAlign: "center" });
     tl.fromTo(cont, { opacity: 0, y: 30 }, { opacity: 1, y: 0, duration: 0.35, ease: "expo.out" }, C.cuarenta - 0.1);
@@ -458,13 +458,13 @@ export function montar(ctx) {
     // y luego recorre el infinito, sin parar
     chispa.tramo(C.infinito + 0.55, finR + 0.3, (t) => pInf.path.getPointAtLength((((t - C.infinito - 0.55) * 0.55) % 1) * pInf.L));
     finRespaldo = (t) => pInf.path.getPointAtLength((((t - C.infinito - 0.55) * 0.55) % 1) * pInf.L);
-    frase([["CIENTOS", "DE", "EMPRESAS", "MEXICANAS"], ["CAPACITADAS", "EN", "EL", "USO", "DE", "IA"]],
+    frase(q([["CIENTOS", "DE", "EMPRESAS", "MEXICANAS"], ["CAPACITADAS", "EN", "EL", "USO", "DE", "IA"]], [["CIENTOS", "DE", "EMPRESAS"], ["MEXICANAS", "CAPACITADAS"], ["EN", "EL", "USO", "DE", "IA"]]),
       [C.cuarenta, w(iR, "de", 1), w(iR, "empresas"), w(iR, "mexicanas"), C.capacitadas, w(iR, "en"), w(iR, "el"), w(iR, "uso"), w(iR, "de", 2), w(iR, "IA.")], finR,
-      { y: q(652, 1000), tam: q(70, 70), max: q(1500, 960), estilo: "sube", sinEnfasis: true, colores: { 0: K("durazno") } });
+      { y: q(652, 870), tam: q(70, 74), max: q(1500, 800), estilo: "sube", sinEnfasis: true, colores: { 0: K("durazno") } });
     // las empresas no paran de llegar: puntos (y edificios) que nacen del centro y se salen del cuadro
     const campo = el("g", {}, escena), rc = azar(4141), PASOc = 54, celdas = [];
     for (let c = -19; c <= 19; c++) for (let r = 0; r < 5; r++) {
-      const x = CX + c * PASOc + (r % 2) * PASOc * 0.5, y = q(806, 1500) + r * PASOc;
+      const x = CX + c * PASOc + (r % 2) * PASOc * 0.5, y = q(806, 1170) + r * PASOc;
       const t0 = C.cuarenta + 0.1 + 2.6 * Math.pow(Math.abs(c) / 19, 0.8) + r * 0.04;
       const ed = (c * 7 + r * 3 + 70) % 9 === 0;
       const g = el("g", { transform: `translate(${x.toFixed(1)} ${y.toFixed(1)})`, opacity: 0 }, campo);
@@ -518,17 +518,17 @@ export function montar(ctx) {
 
   // ---------------- «porque todo mundo te va a seguir hablando de IA» ----------------
   const iP = iR + 1, iN = iR + 2;
-  const ARRIBA = { x: CX, y: q(330, 660) };
+  const ARRIBA = { x: CX, y: q(330, 480) };
   const desdeR = finRespaldo(C.porque2);
   if (platica) {
     // el mundo globalizado que ya habla de IA: la chispa dibuja el planeta, la gente encima platica, y las
     // gráficas de tendencia a los lados (10-oct, nota de Alejandro: «gente hablando y tendencias y gráficas
     // y un mundo… todo con íconos y dibujos creados por el logo de Claude»)
-    frase([["TODO", "MUNDO", "TE", "VA", "A", "SEGUIR", "HABLANDO", "DE"]], ["todo", "mundo", "te", "va", "a", "seguir", "hablando", "de"].map((x) => w(iP, x)), C.nosotros - 0.3,
-      { y: q(446, 700), tam: q(64, 66), max: q(1500, 960), estilo: "sube", sinEnfasis: true });
+    frase(q([["TODO", "MUNDO", "TE", "VA", "A", "SEGUIR", "HABLANDO", "DE"]], [["TODO", "MUNDO", "TE", "VA", "A"], ["SEGUIR", "HABLANDO", "DE"]]), ["todo", "mundo", "te", "va", "a", "seguir", "hablando", "de"].map((x) => w(iP, x)), C.nosotros - 0.3,
+      { y: q(446, 560), tam: q(64, 70), max: q(1500, 800), estilo: "sube", sinEnfasis: true });
     const gM = el("g", { class: "mundo" }, escena);
-    const GL = q({ x: CX, y: 1190, r: 440 }, { x: CX, y: 2000, r: 560 });
-    const yB = q(1080, 1920), hx = Math.sqrt(GL.r ** 2 - (yB - GL.y) ** 2);
+    const GL = q({ x: CX, y: 1190, r: 440 }, { x: CX, y: 1650, r: 480 });
+    const yB = q(1080, 1500), hx = Math.sqrt(GL.r ** 2 - (yB - GL.y) ** 2);
     const izqG = { x: GL.x - hx, y: yB }, derG = { x: GL.x + hx, y: yB };
     const pArc = chispa.pierna(`M${izqG.x.toFixed(1)},${izqG.y} A${GL.r},${GL.r} 0 0 1 ${derG.x.toFixed(1)},${derG.y}`, C.mundo, C.mundo + 0.6, { modo: "dibuja", ancho: 6, color: K("cieloClaro"), padre: gM, e: ease.suave });
     chispa.pierna(`M${desdeR.x.toFixed(1)},${desdeR.y.toFixed(1)} Q${(izqG.x - 220).toFixed(1)},${(desdeR.y + 160).toFixed(1)} ${izqG.x.toFixed(1)},${izqG.y}`, C.porque2, C.mundo, { cola: 220 });
@@ -538,7 +538,7 @@ export function montar(ctx) {
     tl.fromTo(lineasG, { opacity: 0 }, { opacity: 1, duration: 0.4 }, C.mundo + 0.45);
     reloj(C.mundo, C.nosotros + 0.1, (t) => meris.forEach((m, k) => { const kk = Math.cos(t * 0.5 + (k * Math.PI) / 5); m.setAttribute("d", mover(D.meridiano(GL.r, Math.abs(kk) < 0.01 ? 0.01 : kk), GL.x, GL.y)); }));
     // la gente, de pie sobre el planeta, cada quien con su globo de diálogo
-    [-52, -35, -18, 0, 18, 35, 52].forEach((d, k) => {
+    q([-52, -35, -18, 0, 18, 35, 52], [-40, -26, -13, 0, 13, 26, 40]).forEach((d, k) => {
       const a = ((-90 + d) * Math.PI) / 180, x = GL.x + Math.cos(a) * GL.r, y = GL.y + Math.sin(a) * GL.r;
       const g = el("g", { transform: `translate(${x.toFixed(1)} ${y.toFixed(1)}) rotate(${d})` }, gM);
       const p = el("g", {}, g);
@@ -552,8 +552,8 @@ export function montar(ctx) {
       tl.fromTo(bi, { scale: 0, transformOrigin: "50% 50%" }, { scale: 1, duration: 0.28, ease: "back.out(3)" }, C.mundo + 0.7 + k * 0.16);
     });
     // las tendencias: barras que suben a la derecha, la gráfica a la izquierda
-    const BA = q({ x: 1540, y: 850, w: 270, h: 170 }, { x: 640, y: 1640, w: 280, h: 170 });
-    const GF = q({ x: 110, y: 850, w: 270, h: 170 }, { x: 160, y: 1640, w: 280, h: 170 });
+    const BA = q({ x: 1540, y: 850, w: 270, h: 170 }, { x: 790, y: 1125, w: 150, h: 115 });
+    const GF = q({ x: 110, y: 850, w: 270, h: 170 }, { x: 100, y: 1125, w: 150, h: 115 });
     const tipB = { x: BA.x + BA.w + 10, y: BA.y - BA.h - 34 };
     const dBa = mover(D.barras(BA.w, BA.h), BA.x, BA.y) + ` M${BA.x + 14},${BA.y - 50} L${tipB.x.toFixed(1)},${tipB.y.toFixed(1)} M${(tipB.x - 30).toFixed(1)},${(tipB.y - 2).toFixed(1)} L${tipB.x.toFixed(1)},${tipB.y.toFixed(1)} L${(tipB.x - 12).toFixed(1)},${(tipB.y + 27).toFixed(1)}`;
     const pBa = chispa.pierna(dBa, C.mundo + 0.85, C.mundo + 1.3, { modo: "dibuja", ancho: 4, color: hueso, padre: gM });
@@ -584,10 +584,10 @@ export function montar(ctx) {
       tl.fromTo(p, { drawSVG: "0% 38%" }, { drawSVG: "100% 100%", duration: 0.78, ease: "power1.out", immediateRender: false }, t0 + 0.3);
     }
   }
-  const yIA = q(598, 900);
-  frase(q([["INTELIGENCIA", "ARTIFICIAL"]], [["INTELIGENCIA"], ["ARTIFICIAL"]]), [C.ia2, w(iP, "artificial.")], C.nosotros - 0.3, { y: yIA, tam: 150, max: q(1700, 920), dur: 0.3, estilo: "traza" });
+  const yIA = q(598, 790);
+  frase(q([["INTELIGENCIA", "ARTIFICIAL"]], [["INTELIGENCIA"], ["ARTIFICIAL"]]), [C.ia2, w(iP, "artificial.")], C.nosotros - 0.3, { y: yIA, tam: 150, max: q(1700, 800), dur: 0.3, estilo: "traza" });
   const fNo = frase(q([["NOSOTROS", "TE", "ENSEÑAMOS"], ["QUÉ", "HACER", "CON", "ELLA."]], [["NOSOTROS", "TE"], ["ENSEÑAMOS"], ["QUÉ", "HACER"], ["CON", "ELLA."]]),
-    [C.nosotros, w(iN, "te"), C.ensenamos, w(iN, "qué"), w(iN, "hacer"), w(iN, "con"), C.ella], C.dale - 0.2, { y: q(560, 860), tam: q(120, 116), max: q(1600, 940) });
+    [C.nosotros, w(iN, "te"), C.ensenamos, w(iN, "qué"), w(iN, "hacer"), w(iN, "con"), C.ella], C.dale - 0.2, { y: q(560, 800), tam: q(120, 116), max: q(1600, 800) });
   // la línea limpia: la chispa subraya «qué hacer con ella»
   const yUlt = fNo.palabras.at(-1).y, ult = fNo.palabras.filter((p) => p.y === yUlt);
   const ux0 = ult[0].x0, ux1 = ult.at(-1).x1 - 20, uy = yUlt + 32;
@@ -619,19 +619,19 @@ export function montar(ctx) {
     flecha.style.opacity = t < C.clic ? 0 : 1;
   });
   onda(tl, letras, FL.x, FL.y - 60, C.clic, { r0: 20, r1: 180, color: navy, ancho: 4 });
-  const YC = q(420, 900);
-  const cta1 = frase(ctaF, platica ? [C.cta, w(14, "tu"), w(14, "lugar.")] : [C.cta, w(15, "a"), w(15, "tu"), w(15, "equipo.")], platica ? w(15, "esto") - 0.25 : C.caro - 0.3, { y: YC, tam: q(150, 130), color: navy, max: q(1600, 960) });
+  const YC = q(420, 860);
+  const cta1 = frase(ctaF, platica ? [C.cta, w(14, "tu"), w(14, "lugar.")] : [C.cta, w(15, "a"), w(15, "tu"), w(15, "equipo.")], platica ? w(15, "esto") - 0.25 : C.caro - 0.3, { y: YC, tam: q(150, 130), color: navy, max: q(1600, 800) });
   if (platica) {
     // ---------- «esto es gratis»: una segunda chispa (por encima del degradado) dibuja una etiqueta de
     // precio y GRATIS se estampa en ella; luego «lo caro» es otra escena: navy, con rojo y durazno
     // (10-oct, nota de Alejandro: «más creativa… más colores, un poquito de rojo para resaltar lo CARO… que
     // ya no se sienta como la misma escena anterior») ----------
     const tE = C.etiqueta, ROT = -0.09, grad = (ROT * 180) / Math.PI;
-    const TG = q({ x: 650, y: 548, w: 620, h: 240, cuelga: 214 }, { x: 240, y: 980, w: 600, h: 240, cuelga: 640 });
+    const TG = q({ x: 650, y: 548, w: 620, h: 240, cuelga: 214 }, { x: 225, y: 990, w: 620, h: 240, cuelga: 660 });
     const gTag = el("g", {}, letras);
     const capa2 = el("g", {}, letras);
     const ch2 = crearChispa({ escena: capa2, reloj, CHISPA_D: ctx.CHISPA_D });
-    const nace2 = q({ x: 1560, y: 200 }, { x: 900, y: 300 });
+    const nace2 = q({ x: 1560, y: 200 }, { x: 880, y: 420 });
     ch2.tramo(0, tE - 0.15, () => nace2);
     ch2.escala((t) => (t < tE - 0.15 || t >= tF ? 0.001 : Math.max(0.001, pop(tramo(t, tE - 0.15, tE + 0.1)))));
     const colgador = { x: TG.x - 34, y: TG.cuelga };
@@ -649,7 +649,7 @@ export function montar(ctx) {
     ch2.pierna(`M${finTag.x.toFixed(1)},${finTag.y.toFixed(1)} Q${esqTag.x},${esqTag.y - 120} ${esqTag.x.toFixed(1)},${esqTag.y.toFixed(1)}`, tE + 0.48, C.gratis - 0.02, { cola: 120 });
     ch2.tramo(C.gratis - 0.02, C.rojo, (t) => ({ x: esqTag.x, y: esqTag.y + 12 * Math.exp(-Math.pow((t - C.gratis - 0.02) / 0.05, 2)) - 5 * Math.sin((t - C.gratis) * 2.4) }));
     ch2.escala((t) => 1 + 0.7 * Math.exp(-Math.pow((t - C.gratis) / 0.07, 2)));
-    frase([["ESTO", "ES"]], [w(15, "esto"), w(15, "es")], C.rojo - 0.1, { y: q(338, 760), tam: q(96, 96), color: navy, max: q(1200, 900) });
+    frase([["ESTO", "ES"]], [w(15, "esto"), w(15, "es")], C.rojo - 0.1, { y: q(338, 780), tam: q(96, 96), color: navy, max: q(1200, 800) });
     // la etiqueta se mece con el golpe y se cae cuando entra el telón navy
     reloj(C.gratis - 0.01, C.rojo + 0.35, (t) => {
       const u = Math.max(0, t - C.gratis), mece = 5 * Math.exp(-2.2 * u) * Math.sin(u * 8.5), cae = ease.entra2(tramo(t, C.rojo - 0.12, C.rojo + 0.25));
@@ -666,7 +666,7 @@ export function montar(ctx) {
     tl.fromTo(haloR, { opacity: 1 }, { opacity: 0, duration: 0.25, immediateRender: false }, tF - 0.32);
     const dinero = el("g", {}, gRojo), rd = azar(7171), billetes = [];
     for (let k = 0; k < 30; k++) {
-      const x = k % 2 ? W - 70 - rd() * q(330, 230) : 70 + rd() * q(330, 230), tam = 50 + rd() * 110;
+      const x = k % 2 ? W - q(70, 30) - rd() * q(330, 80) : q(70, 30) + rd() * q(330, 80), tam = q(50, 40) + rd() * q(110, 70);
       const gl = fuente.getPath("$", 1000, 1000, tam), bb = gl.getBoundingBox();
       const g = el("g", { opacity: 0 }, dinero);
       el("path", { d: gl.toPathData(1), fill: rd() < 0.7 ? K("rojo") : K("durazno"), transform: `translate(${(-(bb.x1 + bb.x2) / 2).toFixed(1)} ${(-(bb.y1 + bb.y2) / 2).toFixed(1)})` }, g);
@@ -679,18 +679,18 @@ export function montar(ctx) {
         b.g.setAttribute("opacity", t < b.t0 || u >= 1 ? 0 : (0.85 * (1 - tramo(t, tF - 0.32, tF - 0.12))).toFixed(3));
       }
     });
-    const fCaro = texto(fuente, letras, [["LO", "CARO"]], { x: CX, y: q(372, 760), tam: q(240, 200), maxAncho: q(1300, 960), color: K("rojo"), estilo: "golpe", trazo: 3 });
+    const fCaro = texto(fuente, letras, [["LO", "CARO"]], { x: CX, y: q(372, 760), tam: q(240, 200), maxAncho: q(1300, 800), color: K("rojo"), estilo: "golpe", trazo: 3 });
     dibujar(tl, fCaro.palabras[0], w(16, "lo"), { dur: 0.2 });
     dibujar(tl, fCaro.palabras[1], C.caro, { dur: 0.2 });
     tl.fromTo(fCaro.g, { x: -14 }, { x: 0, duration: 0.4, ease: "elastic.out(1, 0.3)" }, C.caro);
-    const f2 = texto(fuente, letras, [["ES", "QUE", "SIGAN", "HACIENDO"]], { x: CX, y: q(500, 920), tam: q(92, 86), maxAncho: q(1300, 960), estilo: "sube" });
+    const f2 = texto(fuente, letras, [["ES", "QUE", "SIGAN", "HACIENDO"]], { x: CX, y: q(500, 920), tam: q(92, 86), maxAncho: q(1300, 800), estilo: "sube" });
     ["es", "que", "sigan", "haciendo"].forEach((x, i) => dibujar(tl, f2.palabras[i], w(16, x), { dur: 0.24 }));
-    const f3 = texto(fuente, letras, [["LAS", "COSAS", "A", "MANO."]], { x: CX, y: q(650, 1080), tam: q(130, 116), maxAncho: q(1300, 960), estilo: "golpe", colores: { 2: K("durazno"), 3: K("durazno") } });
+    const f3 = texto(fuente, letras, [["LAS", "COSAS", "A", "MANO."]], { x: CX, y: q(650, 1080), tam: q(130, 116), maxAncho: q(1300, 800), estilo: "golpe", colores: { 2: K("durazno"), 3: K("durazno") } });
     ["las", "cosas", "a", "mano."].forEach((x, i) => dibujar(tl, f3.palabras[i], w(16, x), { dur: 0.3 }));
     // la escena roja entera (telón, halo, billetes y frase) sube de un jalón y descubre la tarjeta final
     tl.fromTo([gRojo, fCaro.g, f2.g, f3.g], { y: 0 }, { y: -H, duration: 0.36, ease: "power3.inOut", immediateRender: false }, tF - 0.3);
     // la segunda chispa espera arriba a la derecha, cae en MANO y vuela al lugar de la tarjeta final
-    const parque = q({ x: 1700, y: 210 }, { x: 900, y: 420 });
+    const parque = q({ x: 1700, y: 210 }, { x: 860, y: 470 });
     ch2.pierna(`M${esqTag.x.toFixed(1)},${esqTag.y.toFixed(1)} Q${(esqTag.x + parque.x) / 2},${parque.y - 100} ${parque.x},${parque.y}`, C.rojo, C.rojo + 0.3, { cola: 160 });
     ch2.quieta(C.rojo + 0.3, C.mano2 - 0.32, parque.x, parque.y, 5);
     const pm = f3.palabras[3], encM = { x: pm.cx, y: pm.y - pm.tam * 1.02 };
@@ -698,25 +698,25 @@ export function montar(ctx) {
     ch2.tramo(C.mano2 - 0.01, C.mano2 + 0.28, (t) => ({ x: encM.x, y: encM.y + 10 * Math.exp(-Math.pow((t - C.mano2 - 0.03) / 0.05, 2)) }));
     ch2.escala((t) => 1 + 0.7 * Math.exp(-Math.pow((t - C.mano2) / 0.07, 2)));
     onda(tl, letras, pm.cx, pm.cy, C.mano2, { r0: 30, r1: pm.tam * 1.6, color: K("durazno"), ancho: 4, dur: 0.5 });
-    const astF0 = { x: CX, y: q(76, 430) };
+    const astF0 = { x: CX, y: q(76, 390) };
     ch2.pierna(`M${encM.x.toFixed(1)},${encM.y.toFixed(1)} Q${CX + 300},${astF0.y + 60} ${astF0.x},${astF0.y}`, C.mano2 + 0.28, tF - 0.04, { cola: 200 });
     ch2.quieta(tF - 0.04, 999, astF0.x, astF0.y, 0);
     ch2.montar();
   } else {
     frase(q([["LO", "CARO", "ES", "QUE", "SIGAN"], ["HACIENDO", "LAS", "COSAS", "A", "MANO."]], [["LO", "CARO", "ES"], ["QUE", "SIGAN"], ["HACIENDO", "LAS"], ["COSAS", "A", "MANO."]]),
-      ["lo", "caro", "es", "que", "sigan", "haciendo", "las", "cosas", "a", "mano."].map((x) => w(16, x)), C.fin + 0.15, { y: q(330, 640), tam: q(110, 104), color: navy, max: q(1700, 960) });
+      ["lo", "caro", "es", "que", "sigan", "haciendo", "las", "cosas", "a", "mano."].map((x) => w(16, x)), C.fin + 0.15, { y: q(330, 640), tam: q(110, 104), color: navy, max: q(1700, 800) });
   }
   // tarjeta final
-  const fTit = frase(tituloF, tituloF.flat().map((_, i) => tF + i * 0.06), null, { y: q(280, 620), tam: q(150, 140), color: navy, max: q(1600, 960), inter: platica ? 1.0 : 1.12 });
+  const fTit = frase(tituloF, tituloF.flat().map((_, i) => tF + i * 0.06), null, { y: q(280, 600), tam: q(150, 140), color: navy, max: q(1600, 800), inter: platica ? 1.0 : 1.12 });
   if (!platica) {   // CLAUDE va en navy sobre el degradado (contraste); lo lleva la barra durazno
     const c0 = fTit.palabras[0];
     const b = el("path", { d: `M${c0.x0 + 6},${c0.y + 26} L${c0.x1 - 6},${c0.y + 26}`, fill: "none", stroke: K("durazno"), "stroke-width": 14, "stroke-linecap": "round" }, letras);
     tl.fromTo(b, { drawSVG: "0% 0%" }, { drawSVG: "0% 100%", duration: 0.45, ease: "expo.out" }, tF + 0.2);
     tl.fromTo(b, { visibility: "hidden" }, { visibility: "visible", duration: 0.001 }, tF + 0.2);
   }
-  frase(ctaF, ctaF.flat().map((_, i) => tF + 0.35 + i * 0.05), null, { y: q(560, 1110), tam: q(80, 76), color: navy, max: q(1200, 900) });
+  frase(ctaF, ctaF.flat().map((_, i) => tF + 0.35 + i * 0.05), null, { y: q(560, 900), tam: q(80, 84), color: navy, max: q(1200, 800) });
   const placaF = el("g", {}, letras);
-  const PF = q({ y: 960, w: 700, h: 120 }, { y: 1560, w: 820, h: 130 });
+  const PF = q({ y: 960, w: 700, h: 120 }, { y: 1100, w: 700, h: 120 });
   el("rect", { x: CX - PF.w / 2, y: PF.y - PF.h / 2, width: PF.w, height: PF.h, rx: PF.h / 2, fill: K("blanco") }, placaF);
   const k2 = 0.8, tot2 = (wV + gap + wT) * k2, lx2 = CX - tot2 / 2;
   el("image", { href: "./assets/marca/vadai-horizontal-recorte.png", x: lx2, y: PF.y - (hV * k2) / 2, width: wV * k2, height: hV * k2 }, placaF);
@@ -734,7 +734,7 @@ export function montar(ctx) {
     reloj(C.dale - 0.1, 999, (t) => { const yy = (((H + 40 - (t - C.dale) * v - k * 47) % (H + 80)) + H + 80) % (H + 80) - 40; mo.setAttribute("cx", (mx + 14 * Math.sin(t * 0.7 + k)).toFixed(1)); mo.setAttribute("cy", yy.toFixed(1)); mo.setAttribute("opacity", (0.35 * ease.suave(tramo(t, C.dale + 0.4, C.dale + 1.4))).toFixed(3)); });
   }
   // la chispa de la tarjeta final vive sobre el telón (la de la escena queda debajo del degradado)
-  const astF = platica ? { x: CX, y: q(76, 430) } : { x: fTit.palabras[0].x1 + 56, y: fTit.palabras[0].y - 100 };
+  const astF = platica ? { x: CX, y: q(76, 390) } : { x: fTit.palabras[0].x1 + 56, y: fTit.palabras[0].y - 100 };
   chispa.quieta(tTelon + 0.56, 999, astF.x, astF.y, 0);
   const chF = el("g", {}, letras);
   const chFg = el("g", {}, chF);
