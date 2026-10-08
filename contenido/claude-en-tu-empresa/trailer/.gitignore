@@ -1,0 +1,12 @@
+# Salidas de render y de revisión: se miran, no se versionan.
+snapshots/
+renders/
+output/
+*.mp4
+*.mov
+contact-sheet.jpg
+vendor/
+# Mezclas generadas por scripts/mezcla.mjs (se reproducen desde assets/voz y assets/musica)
+assets/mezcla/
+# tomas de voz descartadas y pruebas de 0b
+assets/voz/pruebas/

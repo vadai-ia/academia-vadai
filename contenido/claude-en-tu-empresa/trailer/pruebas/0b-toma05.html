@@ -1,0 +1,166 @@
+<!doctype html>
+<html lang="es" data-resolution="landscape">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=1920, height=1080" />
+    <!-- 0b · prueba de factibilidad: toma 05, master 28.5–31.5 s (retroceso que revela el
+         edificio, chips en «Excel», «Word», «correo», etiquetas de piso). -->
+    <script src="./estilo/semilla.js"></script>
+    <script>
+      // La espera del mundo 3D se registra al parsear, antes que cualquier módulo: si se
+      // registra dentro del módulo (diferido), el runtime puede revisar antes y capturar
+      // cuadros sin el 3D. El módulo la resuelve al terminar o la rechaza si algo falla.
+      window.__hf = window.__hf || {};
+      window.__hf.buildReady = window.__hf.buildReady || {};
+      window.__hf.buildReady["mundo"] = new Promise((ok, mal) => { window.__mundoListo = ok; window.__mundoFallo = mal; });
+    </script>
+    <script src="./vendor/gsap/gsap.min.js"></script>
+    <script src="./estilo/gsap.js"></script>
+    <script type="importmap">
+      {
+        "imports": {
+          "three": "./vendor/three/build/three.module.js",
+          "three/addons/": "./vendor/three/addons/",
+          "postprocessing": "./vendor/postprocessing/index.js"
+        }
+      }
+    </script>
+    <link rel="stylesheet" href="./estilo/tokens.css" />
+    <style>
+      @font-face { font-family: "Anton"; src: url("./assets/fonts/Anton-Regular.ttf") format("truetype"); font-weight: 400; font-display: block; }
+      @font-face { font-family: "Inter"; src: url("./assets/fonts/Inter-Variable.ttf") format("truetype"); font-weight: 100 900; font-display: block; }
+      * { margin: 0; padding: 0; box-sizing: border-box; }
+      html, body { width: 1920px; height: 1080px; overflow: hidden; background: var(--cieloHondo); }
+      #root { position: relative; width: 100%; height: 100%; overflow: hidden; }
+      #gl { position: absolute; inset: 0; width: 100%; height: 100%; display: block; }
+      #tipo { position: absolute; inset: 0; }
+      .titulo { position: absolute; left: 96px; top: 92px; font-family: "Anton"; font-weight: 400; text-transform: uppercase;
+        font-size: 150px; line-height: 0.92; letter-spacing: -0.01em; color: var(--navy); }
+      .titulo .linea { display: block; white-space: nowrap; }
+      .claude { position: relative; display: inline-block; padding: 0 0.06em; }
+      .claude::before { content: ""; position: absolute; left: 0; right: 0; bottom: 0.04em; height: 0.62em; background: var(--durazno); z-index: -1; border-radius: 6px; }
+      .claude { isolation: isolate; }
+      .chispa-tit { display: inline-block; height: 0.72em; width: 0.72em; vertical-align: -0.02em; margin-left: 0.12em; color: var(--durazno); }
+      .chips { position: absolute; left: 96px; top: 420px; display: flex; align-items: center; gap: 14px; font-family: "Inter"; font-weight: 500; font-size: 34px; color: var(--navy); }
+      .chip { display: block; padding: 14px 30px; background: var(--blanco); border-radius: 100px; box-shadow: 0 2px 6px rgba(0,80,115,.08), 0 14px 34px rgba(0,80,115,.12); }
+      .punto { display: block; font-size: 34px; color: var(--navy); }
+      .etiqueta { position: absolute; left: 0; top: 0; width: 0; height: 0; }
+      .etiqueta span { position: absolute; left: 18px; top: -19px; display: block; white-space: nowrap; padding: 8px 18px; border-radius: 100px;
+        background: var(--blanco); color: var(--navy); font-family: "Inter"; font-weight: 500; font-size: 20px; line-height: 22px; }
+    </style>
+  </head>
+  <body>
+    <div id="root" data-composition-id="main" data-start="0" data-duration="3" data-width="1920" data-height="1080" data-fps="60">
+      <canvas id="gl"></canvas>
+      <div id="tipo" class="clip" data-start="0" data-duration="3" data-track-index="1">
+        <div class="titulo" id="titulo">
+          <span class="linea"><span class="claude">Claude</span><svg class="chispa-tit" viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="m4.714 15.956l4.718-2.648l.079-.23l-.08-.128h-.23l-.79-.048l-2.695-.073l-2.337-.097l-2.265-.122l-.57-.121l-.535-.704l.055-.353l.48-.321l.685.06l1.518.104l2.277.157l1.651.098l2.447.255h.389l.054-.158l-.133-.097l-.103-.098l-2.356-1.596l-2.55-1.688l-1.336-.972l-.722-.491L2 6.223l-.158-1.008l.656-.722l.88.06l.224.061l.893.686l1.906 1.476l2.49 1.833l.364.304l.146-.104l.018-.072l-.164-.274l-1.354-2.446l-1.445-2.49l-.644-1.032l-.17-.619a3 3 0 0 1-.103-.729L6.287.133L6.7 0l.995.134l.42.364l.619 1.415L9.735 4.14l1.555 3.03l.455.898l.243.832l.09.255h.159V9.01l.127-1.706l.237-2.095l.23-2.695l.08-.76l.376-.91l.747-.492l.583.28l.48.685l-.067.444l-.286 1.851l-.558 2.903l-.365 1.942h.213l.243-.242l.983-1.306l1.652-2.064l.728-.82l.85-.904l.547-.431h1.032l.759 1.129l-.34 1.166l-1.063 1.347l-.88 1.142l-1.263 1.7l-.79 1.36l.074.11l.188-.02l2.853-.606l1.542-.28l1.84-.315l.832.388l.09.395l-.327.807l-1.967.486l-2.307.462l-3.436.813l-.043.03l.049.061l1.548.146l.662.036h1.62l3.018.225l.79.522l.473.638l-.08.485l-1.213.62l-1.64-.389l-3.825-.91l-1.31-.329h-.183v.11l1.093 1.068l2.003 1.81l2.508 2.33l.127.578l-.321.455l-.34-.049l-2.204-1.657l-.85-.747l-1.925-1.62h-.127v.17l.443.649l2.343 3.521l.122 1.08l-.17.353l-.607.213l-.668-.122l-1.372-1.924l-1.415-2.168l-1.141-1.943l-.14.08l-.674 7.254l-.316.37l-.728.28l-.607-.461l-.322-.747l.322-1.476l.388-1.924l.316-1.53l.285-1.9l.17-.632l-.012-.042l-.14.018l-1.432 1.967l-2.18 2.945l-1.724 1.845l-.413.164l-.716-.37l.066-.662l.401-.589l2.386-3.036l1.439-1.882l.929-1.086l-.006-.158h-.055L4.138 18.56l-1.13.146l-.485-.456l.06-.746l.231-.243l1.907-1.312Z" /></svg></span>
+          <span class="linea">en tu Empresa</span>
+        </div>
+        <div class="chips" id="chips">
+          <span class="chip" id="chip-excel">Excel</span><span class="punto" id="p1">·</span><span class="chip" id="chip-word">Word</span><span class="punto" id="p2">·</span><span class="chip" id="chip-correo">Correo</span>
+        </div>
+        <div id="etiquetas"></div>
+      </div>
+    </div>
+
+    <script>
+      // Tipografía: un solo timeline pausado. Tiempos en master − 28.5 (tiempo local).
+      const M = (t) => t - 28.5;
+      const tl = gsap.timeline({ paused: true });
+      tl.set({}, {}, 3);
+      // chips en sus palabras (estimado del shot list a 2.7 palabras/s, antes de la VO)
+      [["#chip-excel", 29.9], ["#chip-word", 30.6], ["#chip-correo", 31.3]].forEach(([id, t], i) => {
+        tl.fromTo(id, { scale: 0.6, opacity: 0, y: 18 }, { scale: 1, opacity: 1, y: 0, duration: 0.42, ease: "back.out(2.2)" }, M(t));
+        if (i) tl.fromTo("#p" + i, { opacity: 0 }, { opacity: 1, duration: 0.2, ease: "power1.out" }, M(t) - 0.05);
+      });
+      // el título respira con la cámara: plano frontal, paralaje más rápido que el mundo
+      tl.fromTo("#titulo", { y: 0, scale: 1 }, { y: -10, scale: 0.985, duration: 3, ease: "power2.inOut" }, 0);
+      tl.fromTo("#chips", { y: 0 }, { y: -8, duration: 3, ease: "power2.inOut" }, 0);
+      window.__timelines["main"] = tl;
+      tl.seek(0);
+    </script>
+
+    <script type="module">
+      import * as THREE from "three";
+      import { crearMundo, pista, curva, tramo } from "./estilo/mundo.js";
+      import { crearEscena, PISOS } from "./mundo/escena.js";
+
+      const T0 = 28.5;
+      const mundo = crearMundo(document.getElementById("gl"));
+      let s = null;
+
+      // etiquetas de piso: una por losa, entran de arriba abajo conforme la cámara las descubre
+      const capa = document.getElementById("etiquetas");
+      const etiquetas = PISOS.map((n) => {
+        const d = document.createElement("div"); d.className = "etiqueta";
+        const sp = document.createElement("span"); sp.textContent = n; d.appendChild(sp); capa.appendChild(d);
+        return { d, sp };
+      });
+
+      // cámara: anticipación (empuje corto) → retroceso con rampa de velocidad (entra rápido, aterriza lento)
+      const pos = pista([
+        { t: 28.5, v: [0.9, 2.45, 5.9] },
+        { t: 28.85, v: [0.85, 2.43, 5.55], e: "sine.inOut" },
+        { t: 29.35, v: [3.2, 2.0, 10.0], e: "power2.in" },
+        { t: 31.45, v: [15.5, -0.9, 33.5], e: "expo.out" },
+      ]);
+      const mira = pista([
+        { t: 28.5, v: [-1.15, 2.25, 0.2] },
+        { t: 28.85, v: [-1.15, 2.25, 0.2] },
+        { t: 29.35, v: [-1.6, 1.5, 0.1], e: "power2.in" },
+        { t: 31.45, v: [-4.9, -5.3, 0], e: "expo.out" },
+      ]);
+      const foco = pista([
+        { t: 28.5, v: [0.1, 2.25, 0.2] },
+        { t: 29.35, v: [0.1, 1.6, 0.2], e: "power2.in" },
+        { t: 31.45, v: [0, -5.2, 0.4], e: "expo.out" },
+      ]);
+      const rango = pista([{ t: 28.5, v: 2.5 }, { t: 31.45, v: 16, e: "expo.out" }]);
+
+      const p0 = new THREE.Vector3(), p1 = new THREE.Vector3(), m0 = new THREE.Vector3();
+      function aplicar(T) {
+        mundo.camara.position.fromArray(pos(T));
+        mundo.camara.lookAt(m0.fromArray(mira(T)));
+        s.vivir(T);
+      }
+      // muestras del obturador según cuánto barre la cámara en este cuadro
+      function muestras(T) {
+        p0.fromArray(pos(T - 1 / 120)); p1.fromArray(pos(T + 1 / 120));
+        const d = p0.distanceTo(p1) / Math.max(1, p1.length() * 0.35);
+        m0.fromArray(mira(T - 1 / 120)); p0.fromArray(mira(T + 1 / 120));
+        const g = (d + m0.distanceTo(p0) / 12) * 380;
+        return Math.max(1, Math.min(12, Math.ceil(g)));
+      }
+
+      function renderAt(t) {
+        if (!s) return;
+        const T = T0 + t;
+        // el foco se fija ANTES de pintar: después, cada cuadro saldría con el foco del
+        // cuadro anterior que pintó ese worker (0b: así divergían renders con distinto nº de workers)
+        aplicar(T);
+        mundo.enfocar(new THREE.Vector3().fromArray(foco(T)), rango(T));
+        mundo.pintar(T, aplicar, muestras(T));
+        s.pisos.forEach((p, i) => {
+          const a = p.ancla.clone(); a.y = p.grupo.position.y - 0.21;
+          const q = mundo.proyectar(a);
+          const e = etiquetas[i];
+          // pixeles enteros con left/top: se pinta, no se compone (ver estilo/gsap.js)
+          e.d.style.left = Math.round(q.x) + "px";
+          e.d.style.top = Math.round(q.y) + "px";
+          const k = curva("power3.out")(tramo(T, 29.65 + i * 0.22, 29.65 + i * 0.22 + 0.45));
+          e.sp.style.opacity = k.toFixed(3);
+          e.sp.style.marginLeft = Math.round((1 - k) * 14) + "px";
+        });
+      }
+      mundo.renderer.domElement.addEventListener("webglcontextlost", () => window.__mundoFallo(new Error("mundo: se perdió el contexto WebGL")));
+      (async () => {
+        await document.fonts.load('500 64px "Inter"');
+        await document.fonts.load('64px "Anton"');
+        s = await crearEscena(mundo);
+        renderAt(window.__hfThreeTime || 0);
+      })().then(window.__mundoListo, (e) => { console.error("mundo: no se construyó", e); window.__mundoFallo(e); });
+      window.addEventListener("hf-seek", (e) => renderAt(e.detail.time));
+    </script>
+  </body>
+</html>

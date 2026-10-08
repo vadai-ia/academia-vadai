@@ -1,0 +1,38 @@
+[
+  {
+    "text": "Todo",
+    "start": 0.04,
+    "end": 0.21,
+    "id": "w0"
+  },
+  {
+    "text": "mundo",
+    "start": 0.21,
+    "end": 0.47,
+    "id": "w1"
+  },
+  {
+    "text": "habla",
+    "start": 0.47,
+    "end": 0.73,
+    "id": "w2"
+  },
+  {
+    "text": "de",
+    "start": 0.73,
+    "end": 0.83,
+    "id": "w3"
+  },
+  {
+    "text": "inteligencia",
+    "start": 0.83,
+    "end": 1.42,
+    "id": "w4"
+  },
+  {
+    "text": "artificial.",
+    "start": 1.48,
+    "end": 2.12,
+    "id": "w5"
+  }
+]

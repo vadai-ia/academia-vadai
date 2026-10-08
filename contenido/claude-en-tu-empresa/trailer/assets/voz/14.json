@@ -1,0 +1,62 @@
+[
+  {
+    "text": "Porque",
+    "start": 0.11,
+    "end": 0.39,
+    "id": "w0"
+  },
+  {
+    "text": "no",
+    "start": 0.39,
+    "end": 0.52,
+    "id": "w1"
+  },
+  {
+    "text": "te",
+    "start": 0.52,
+    "end": 0.64,
+    "id": "w2"
+  },
+  {
+    "text": "falta",
+    "start": 0.65,
+    "end": 0.98,
+    "id": "w3"
+  },
+  {
+    "text": "otra",
+    "start": 0.98,
+    "end": 1.21,
+    "id": "w4"
+  },
+  {
+    "text": "herramienta.",
+    "start": 1.23,
+    "end": 2,
+    "id": "w5"
+  },
+  {
+    "text": "Te",
+    "start": 2,
+    "end": 3.34,
+    "id": "w6"
+  },
+  {
+    "text": "falta",
+    "start": 3.34,
+    "end": 3.5,
+    "id": "w7"
+  },
+  {
+    "text": "un",
+    "start": 3.5,
+    "end": 3.93,
+    "id": "w8"
+  },
+  {
+    "text": "método.",
+    "start": 3.93,
+    "end": 5.22,
+    "id": "w9"
+  }
+]

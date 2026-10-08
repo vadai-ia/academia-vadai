@@ -1,0 +1,48 @@
+{
+  "meta": {
+    "nota": "Definición de estilo ÚNICA del tráiler. Toda toma la hereda; ninguna la repite ni la sobreescribe. Colores de .claude/skills/presentacion-vadai/activos/tokens.json (fuente de verdad sobre el brief, decidido 7-oct-2026)."
+  },
+  "color": {
+    "navy": { "hex": "#0A1A2F", "rol": "escenario oscuro; texto sobre claro" },
+    "navyHondo": { "hex": "#0C2137", "rol": "variante del escenario oscuro" },
+    "hueso": { "hex": "#EAF4FA", "rol": "escena clara 'papel'; paneles de UI (brief #F1F7FF → token surface)" },
+    "blanco": { "hex": "#FFFFFF", "rol": "lienzo de ventana y tarjeta (token canvas)" },
+    "azul": { "hex": "#00A0DB", "rol": "azul de marca; palabra clave de subtítulos" },
+    "cieloClaro": { "hex": "#4FC6EE", "rol": "extremo claro del degradado héroe (brief #5BC4EA → token accent2)" },
+    "cieloHondo": { "hex": "#006E96", "rol": "extremo hondo del degradado héroe (brief #0083B9 → token accentDeep)" },
+    "lima": { "hex": "#C6F24E", "rol": "UN elemento por cuadro: palabra clave, palomita, flecha del CTA" },
+    "limaTinta": { "hex": "#24340A", "rol": "texto sobre lima" },
+    "durazno": { "hex": "#FFB489", "rol": "SOLO la palabra CLAUDE, la chispa y las barras detrás de palabras clave en escenas claras" },
+    "gris": { "hex": "#4E6572", "rol": "texto secundario, fuentes (brief #5A7184 → token text2)" }
+  },
+  "gradiente": {
+    "heroe": { "angulo": 135, "de": "#4FC6EE", "a": "#006E96", "uso": "solo momentos de título y promesa" }
+  },
+  "semaforo": {
+    "nota": "Solo dentro del tablero de KPIs (toma 08), desaturados para vivir en la paleta.",
+    "verde": "#12A150",
+    "rojo": "#C4342C"
+  },
+  "tipografia": {
+    "display": { "familia": "Anton", "uso": "titulares en MAYÚSCULAS, interlínea 0.92, tracking -0.01em" },
+    "cuerpo": { "familia": "Inter", "peso": 500, "uso": "cuerpo, etiquetas, UI" },
+    "mono": { "familia": "JetBrains Mono", "uso": "prompts que se teclean, dentro de la tarjeta oscura" }
+  },
+  "ritmo": { "bpm": 100, "fps": 60 },
+  "camara": {
+    "fov": 30,
+    "obturador": { "angulo": 180, "muestrasMax": 12, "nota": "motion blur por submuestreo dentro del render 3D, derivado del tiempo" }
+  },
+  "acabado": {
+    "bloom": { "intensidad": 0.55, "umbral": 0.82, "suavidad": 0.3 },
+    "grano": 0.035,
+    "vineta": 0.18,
+    "ao": { "radio": 0.08, "intensidad": 1.4 }
+  },
+  "logos": {
+    "nota": "Intercambiables: cada toma pide el logo por clave, nunca por archivo. Total Coach nunca por encima de su resolución nativa (arte útil 1110 px de ancho → máx. 555 px de diseño a 1080p para que el 4K no lo escale).",
+    "vadai": { "archivo": "assets/marca/vadai-horizontal.png", "anchoNativoUtil": 3839 },
+    "vadaiIsotipo": { "archivo": "assets/marca/vadai-isotipo.png", "anchoNativoUtil": 978 },
+    "totalCoach": { "archivo": "assets/marca/totalcoach.png", "anchoNativoUtil": 1110 }
+  }
+}

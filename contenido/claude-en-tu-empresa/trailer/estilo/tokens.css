@@ -1,0 +1,16 @@
+/* GENERADO por scripts/vendor.mjs desde estilo/marca.json. No editar a mano. */
+/* Las @font-face van en cada composición: HyperFrames exige que vivan en el mismo archivo. */
+:root {
+  --navy: #0A1A2F;
+  --navyHondo: #0C2137;
+  --hueso: #EAF4FA;
+  --blanco: #FFFFFF;
+  --azul: #00A0DB;
+  --cieloClaro: #4FC6EE;
+  --cieloHondo: #006E96;
+  --lima: #C6F24E;
+  --limaTinta: #24340A;
+  --durazno: #FFB489;
+  --gris: #4E6572;
+  --cielo: linear-gradient(135deg, #4FC6EE, #006E96);
+}

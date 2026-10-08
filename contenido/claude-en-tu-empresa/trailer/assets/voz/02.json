@@ -1,0 +1,92 @@
+[
+  {
+    "text": "Cada",
+    "start": 0.09,
+    "end": 0.35,
+    "id": "w0"
+  },
+  {
+    "text": "semana",
+    "start": 0.39,
+    "end": 0.9,
+    "id": "w1"
+  },
+  {
+    "text": "sale",
+    "start": 0.9,
+    "end": 1.26,
+    "id": "w2"
+  },
+  {
+    "text": "una",
+    "start": 1.26,
+    "end": 1.53,
+    "id": "w3"
+  },
+  {
+    "text": "herramienta",
+    "start": 1.53,
+    "end": 2.52,
+    "id": "w4"
+  },
+  {
+    "text": "nueva",
+    "start": 2.52,
+    "end": 3.08,
+    "id": "w5"
+  },
+  {
+    "text": "y",
+    "start": 3.08,
+    "end": 3.16,
+    "id": "w6"
+  },
+  {
+    "text": "tu",
+    "start": 3.21,
+    "end": 3.28,
+    "id": "w7"
+  },
+  {
+    "text": "equipo",
+    "start": 3.28,
+    "end": 3.6,
+    "id": "w8"
+  },
+  {
+    "text": "sigue",
+    "start": 3.6,
+    "end": 3.87,
+    "id": "w9"
+  },
+  {
+    "text": "haciendo",
+    "start": 3.87,
+    "end": 4.3,
+    "id": "w10"
+  },
+  {
+    "text": "el",
+    "start": 4.3,
+    "end": 4.38,
+    "id": "w11"
+  },
+  {
+    "text": "reporte",
+    "start": 4.4,
+    "end": 4.72,
+    "id": "w12"
+  },
+  {
+    "text": "a",
+    "start": 4.79,
+    "end": 4.86,
+    "id": "w13"
+  },
+  {
+    "text": "mano.",
+    "start": 4.86,
+    "end": 5.14,
+    "id": "w14"
+  }
+]

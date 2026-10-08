@@ -1,0 +1,26 @@
+{
+  "name": "trailer",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "npx --yes hyperframes@0.8.140 preview",
+    "check": "npx --yes hyperframes@0.8.140 check",
+    "render": "npx --yes hyperframes@0.8.140 render",
+    "publish": "npx --yes hyperframes@0.8.140 publish",
+    "vendor": "node scripts/vendor.mjs",
+    "voz:verificar": "node scripts/voz-verificar.mjs",
+    "voz:montar": "node scripts/voz-montar.mjs",
+    "musica": "node scripts/musica-montar.mjs",
+    "sfx": "node scripts/sfx.mjs",
+    "mezcla": "node scripts/sfx.mjs && node scripts/voz-montar.mjs && node scripts/musica-montar.mjs && node scripts/mezcla.mjs && ffmpeg -v error -y -i assets/mezcla/master.wav -c:a aac -b:a 256k assets/mezcla/master-previa.m4a",
+    "srt": "node scripts/srt.mjs",
+    "verificar": "node scripts/verificar-render.mjs",
+    "entregables": "node scripts/entregables.mjs"
+  },
+  "dependencies": {
+    "gsap": "3.15.0",
+    "opentype.js": "2.0.0",
+    "postprocessing": "6.39.5",
+    "three": "0.186.1"
+  }
+}

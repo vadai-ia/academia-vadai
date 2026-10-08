@@ -1,0 +1,50 @@
+[
+  {
+    "text": "Claude",
+    "start": 0.1,
+    "end": 0.45,
+    "id": "w0"
+  },
+  {
+    "text": "en",
+    "start": 0.45,
+    "end": 0.61,
+    "id": "w1"
+  },
+  {
+    "text": "tu",
+    "start": 0.61,
+    "end": 0.73,
+    "id": "w2"
+  },
+  {
+    "text": "empresa,",
+    "start": 0.8,
+    "end": 1.47,
+    "id": "w3"
+  },
+  {
+    "text": "inscribe",
+    "start": 1.66,
+    "end": 2.06,
+    "id": "w4"
+  },
+  {
+    "text": "a",
+    "start": 2.06,
+    "end": 2.13,
+    "id": "w5"
+  },
+  {
+    "text": "tu",
+    "start": 2.13,
+    "end": 2.28,
+    "id": "w6"
+  },
+  {
+    "text": "equipo.",
+    "start": 2.28,
+    "end": 2.71,
+    "id": "w7"
+  }
+]

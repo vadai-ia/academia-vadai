@@ -1,0 +1,56 @@
+[
+  {
+    "text": "La",
+    "start": 0.05,
+    "end": 0.13,
+    "id": "w0"
+  },
+  {
+    "text": "diferencia",
+    "start": 0.13,
+    "end": 0.81,
+    "id": "w1"
+  },
+  {
+    "text": "no",
+    "start": 0.81,
+    "end": 0.94,
+    "id": "w2"
+  },
+  {
+    "text": "es",
+    "start": 0.94,
+    "end": 1.07,
+    "id": "w3"
+  },
+  {
+    "text": "la",
+    "start": 1.07,
+    "end": 1.15,
+    "id": "w4"
+  },
+  {
+    "text": "herramienta,",
+    "start": 1.22,
+    "end": 2.28,
+    "id": "w5"
+  },
+  {
+    "text": "es",
+    "start": 2.28,
+    "end": 2.57,
+    "id": "w6"
+  },
+  {
+    "text": "el",
+    "start": 2.57,
+    "end": 2.86,
+    "id": "w7"
+  },
+  {
+    "text": "método.",
+    "start": 2.86,
+    "end": 3.78,
+    "id": "w8"
+  }
+]

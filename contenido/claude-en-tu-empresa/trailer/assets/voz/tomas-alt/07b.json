@@ -1,0 +1,170 @@
+[
+  {
+    "text": "Después",
+    "start": 0.08,
+    "end": 0.51,
+    "id": "w0"
+  },
+  {
+    "text": "aprendes",
+    "start": 0.51,
+    "end": 1.02,
+    "id": "w1"
+  },
+  {
+    "text": "a",
+    "start": 1.11,
+    "end": 1.16,
+    "id": "w2"
+  },
+  {
+    "text": "pedirle",
+    "start": 1.16,
+    "end": 1.67,
+    "id": "w3"
+  },
+  {
+    "text": "bien",
+    "start": 1.67,
+    "end": 1.86,
+    "id": "w4"
+  },
+  {
+    "text": "con",
+    "start": 2.47,
+    "end": 2.82,
+    "id": "w5"
+  },
+  {
+    "text": "pacto,",
+    "start": 3.35,
+    "end": 3.82,
+    "id": "w6"
+  },
+  {
+    "text": "perfil,",
+    "start": 4.51,
+    "end": 5.4,
+    "id": "w7"
+  },
+  {
+    "text": "acción,",
+    "start": 5.5,
+    "end": 6.07,
+    "id": "w8"
+  },
+  {
+    "text": "contexto,",
+    "start": 6.62,
+    "end": 7.84,
+    "id": "w9"
+  },
+  {
+    "text": "tono",
+    "start": 7.96,
+    "end": 8.32,
+    "id": "w10"
+  },
+  {
+    "text": "y",
+    "start": 8.55,
+    "end": 8.58,
+    "id": "w11"
+  },
+  {
+    "text": "formato",
+    "start": 8.58,
+    "end": 10,
+    "id": "w12"
+  },
+  {
+    "text": "y",
+    "start": 10,
+    "end": 10.08,
+    "id": "w13"
+  },
+  {
+    "text": "omisiones,",
+    "start": 10.08,
+    "end": 11,
+    "id": "w14"
+  },
+  {
+    "text": "la",
+    "start": 11,
+    "end": 11.25,
+    "id": "w15"
+  },
+  {
+    "text": "letra",
+    "start": 11.25,
+    "end": 11.86,
+    "id": "w16"
+  },
+  {
+    "text": "que",
+    "start": 11.86,
+    "end": 11.88,
+    "id": "w17"
+  },
+  {
+    "text": "todos",
+    "start": 12.47,
+    "end": 12.81,
+    "id": "w18"
+  },
+  {
+    "text": "saltan,",
+    "start": 13.35,
+    "end": 13.78,
+    "id": "w19"
+  },
+  {
+    "text": "porque",
+    "start": 13.79,
+    "end": 13.81,
+    "id": "w20"
+  },
+  {
+    "text": "lo",
+    "start": 13.87,
+    "end": 14.3,
+    "id": "w21"
+  },
+  {
+    "text": "que",
+    "start": 14.3,
+    "end": 14.51,
+    "id": "w22"
+  },
+  {
+    "text": "entra",
+    "start": 14.51,
+    "end": 14.81,
+    "id": "w23"
+  },
+  {
+    "text": "es",
+    "start": 14.81,
+    "end": 14.93,
+    "id": "w24"
+  },
+  {
+    "text": "lo",
+    "start": 14.93,
+    "end": 14.96,
+    "id": "w25"
+  },
+  {
+    "text": "que",
+    "start": 14.96,
+    "end": 15.5,
+    "id": "w26"
+  },
+  {
+    "text": "sale.",
+    "start": 15.5,
+    "end": 15.56,
+    "id": "w27"
+  }
+]
