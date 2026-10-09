@@ -2,20 +2,20 @@
 
 ## Dónde están los videos
 
-**`entregables/`**: los videos finales, por cierre (plática gratuita / curso).
+Todo en **`entregables/`**, una sola carpeta. Cada nombre dice qué es: **versión - formato - tipo de archivo**.
 
-| Carpeta | Qué contiene |
-|---|---|
-| `entregables/platica/2d/` | Versión 2D «Un solo trazo» (voz de Camila, toma G). Desde el 10-oct es la única que se trabaja; la 3D se borró de entregables y su código sigue en `v2/3d/` y en git. |
-| `entregables/platica/2d-vertical/` | El mismo video en 1080×1920 para Reels / TikTok / Shorts. Todo lo importante va dentro de la zona segura de redes (x 90–950, y 250–1440), que `scripts/v2-hoja-vertical.py` marca en las hojas de revisión. |
-| `entregables/curso/2d/`, `entregables/curso/2d-vertical/` | El mismo video con el CTA al curso (11-oct): mismo cuerpo, cierre propio («Claude en tu Empresa… paso a paso», «inscribe a tu equipo»), voz de Camila toma C. Composiciones `v2-2d-curso.html` y `v2-2d-curso-v.html`. |
+| Versión | Formato | Archivos |
+|---|---|---|
+| `Plática gratuita` | `Horizontal` (1920×1080) | `Alta calidad.mp4` · `Para celular.mp4` · `Subtitulos.srt` |
+| `Plática gratuita` | `Vertical` (1080×1920, zona segura de redes) | igual |
+| `Curso` | `Horizontal` | igual |
+| `Curso` | `Vertical` | igual |
 
-En cada carpeta hay tres archivos:
-- `…-telefono.mp4`: para verlo en el celular (< 30 MB).
-- `….mp4`: el master a 1080p60.
-- `….srt`: los subtítulos.
+- **Alta calidad:** master a 1080p60 (~260 MB), para subir a YouTube, Meta, TikTok o la página.
+- **Para celular:** menos de 30 MB, para mandar por WhatsApp o verlo en el teléfono.
+- **Subtítulos:** el `.srt` para subirlo aparte (no van quemados en el video).
 
-Las versiones anteriores ya se borraron (9-oct): v1, rebanadas, curso y verticales con la voz anterior. El código de cada una sigue en git.
+El curso tiene su propia voz (toma C) y dura 96.6 s; la plática, 94 s. Las versiones anteriores (v1, 3D, rebanadas) ya se borraron; su código sigue en git.
 
 ## Cómo está armado el código
 

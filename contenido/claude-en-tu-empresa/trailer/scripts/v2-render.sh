@@ -29,12 +29,13 @@ while [ $# -ge 3 ]; do
     && rm -f pase-$id* )
   node scripts/verificar-render.mjs "$OUT/$id.mp4" | tail -1
   echo "$id teléfono: $(stat -c %s "$OUT/$id-telefono.mp4") bytes"
-  # entregable con nombre claro: entregables/<cierre>/<estilo>[-vertical]/
-  dest="entregables/$cierre/$estilo"; [ "$formato" = v ] && dest="$dest-vertical"
-  mkdir -p "$dest"
-  nombre="claude-en-tu-empresa-$cierre-$estilo"; [ "$formato" = v ] && nombre="$nombre-vertical"
-  cp "$OUT/$id.mp4" "$dest/$nombre.mp4" && cp "$OUT/$id-telefono.mp4" "$dest/$nombre-telefono.mp4"
-  [ -f "renders/v2/entregables/claude-en-tu-empresa-$cierre.srt" ] && cp "renders/v2/entregables/claude-en-tu-empresa-$cierre.srt" "$dest/$nombre.srt"
-  echo "$id entregado en $dest/"
+  # entregable con nombre claro, todo en entregables/ (11-oct, nota de Alejandro: «solo quiero ver las
+  # versiones finales fácilmente»): «Curso - Vertical - Para celular.mp4», «Plática gratuita - Horizontal - …»
+  nom="Curso"; [ "$cierre" = platica ] && nom="Plática gratuita"
+  fmt="Horizontal"; [ "$formato" = v ] && fmt="Vertical"
+  mkdir -p entregables
+  cp "$OUT/$id.mp4" "entregables/$nom - $fmt - Alta calidad.mp4" && cp "$OUT/$id-telefono.mp4" "entregables/$nom - $fmt - Para celular.mp4"
+  [ -f "renders/v2/entregables/claude-en-tu-empresa-$cierre.srt" ] && cp "renders/v2/entregables/claude-en-tu-empresa-$cierre.srt" "entregables/$nom - $fmt - Subtitulos.srt"
+  echo "$id entregado: entregables/$nom - $fmt - …"
 done
 echo "renders terminados $(date +%T)"
