@@ -9,11 +9,13 @@ const raiz = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 // la duración sale de v2/tiempos.js (voz + acorde final): nunca fija aquí (ERRORES E31)
 import { DURACION as DUR, DURACIONES } from "../v2/tiempos.js";
 
-const html2d = ({ W, H, V, archivo, cierre }) => { const DUR = DURACIONES[cierre]; return `<!doctype html>
+// vertical: la captura de Chrome recorta el ancho al múltiplo de 16 (1080 → 1072, una franja negra de 8 px a
+// la derecha; ERRORES E41). Se captura un lienzo de 1088 con el contenido en sus 1080 y v2-render.sh recorta.
+const html2d = ({ W, H, V, archivo, cierre }) => { const DUR = DURACIONES[cierre], WR = V ? 1088 : W; return `<!doctype html>
 <html lang="es" data-resolution="${V ? "portrait" : "landscape"}" data-composition-variables='[{"id":"cierre","type":"string","label":"Cierre","default":"${cierre}"}]'>
   <head>
     <meta charset="UTF-8" />
-    <meta name="viewport" content="width=${W}, height=${H}" />
+    <meta name="viewport" content="width=${WR}, height=${H}" />
     <!-- GENERADO por scripts/v2-html.mjs: no se edita a mano. v2 · 2D «Un solo trazo» · ${V ? "vertical" : "horizontal"} ${W}×${H}.
          Orden fijo (ERRORES E2, E3, E5): semilla → espera de construcción → gsap → plugins → gsap.js → timeline → módulo. -->
     <script src="./estilo/semilla.js"></script>
@@ -30,9 +32,9 @@ const html2d = ({ W, H, V, archivo, cierre }) => { const DUR = DURACIONES[cierre
       @font-face { font-family: "Anton"; src: url("./assets/fonts/Anton-Regular.ttf") format("truetype"); font-weight: 400; font-display: block; }
       @font-face { font-family: "Inter"; src: url("./assets/fonts/Inter-Variable.ttf") format("truetype"); font-weight: 100 900; font-display: block; }
       * { margin: 0; padding: 0; box-sizing: border-box; }
-      html, body { width: ${W}px; height: ${H}px; overflow: hidden; background: var(--navy); }
+      html, body { width: ${WR}px; height: ${H}px; overflow: hidden; background: var(--navy); }
       #root { position: relative; width: 100%; height: 100%; overflow: hidden; background: var(--navy); }
-      #lienzo, #tipo { position: absolute; inset: 0; }
+      #lienzo, #tipo { position: absolute; left: 0; top: 0; width: ${W}px; height: ${H}px; }
       #lienzo svg { position: absolute; inset: 0; width: ${W}px; height: ${H}px; display: block; }
       .fuente { position: absolute; font-family: "Inter"; font-weight: 500; font-size: 22px; font-style: italic; color: var(--hueso); white-space: nowrap; }
       .contador { position: absolute; font-family: "Anton"; font-size: 190px; line-height: 1; color: var(--cieloClaro); white-space: nowrap; }
@@ -45,7 +47,7 @@ const html2d = ({ W, H, V, archivo, cierre }) => { const DUR = DURACIONES[cierre
     </style>
   </head>
   <body>
-    <div id="root" data-composition-id="main" data-start="0" data-duration="${DUR}" data-width="${W}" data-height="${H}" data-fps="60">
+    <div id="root" data-composition-id="main" data-start="0" data-duration="${DUR}" data-width="${WR}" data-height="${H}" data-fps="60">
       <div id="lienzo" class="clip" data-start="0" data-duration="${DUR}" data-track-index="1">
         <svg viewBox="0 0 ${W} ${H}" width="${W}" height="${H}" aria-hidden="true">
           <defs>

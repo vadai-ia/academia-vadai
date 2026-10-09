@@ -22,7 +22,12 @@ while [ $# -ge 3 ]; do
   cp "$OUT/index-v1.respaldo.html" index.html
   echo "$id: $inicio → $(date +%T) · salida $codigo · $(grep -a 'capture ·' "$LOGS/$id.log" | tail -1 | sed 's/^ *//')"
   [ $codigo -eq 0 ] || continue
-  ffmpeg -v error -y -i "$OUT/$id-crudo.mp4" -i "assets/v2/mezcla/master-$estilo-$cierre.wav" -map 0:v -map 1:a -c:v copy -c:a aac -b:a 256k -shortest "$OUT/$id.mp4"
+  if [ "$formato" = v ] && [ "$estilo" = 2d ]; then
+    # el vertical se captura a 1088 de ancho (ERRORES E41): se recorta a 1080 exactos
+    ffmpeg -v error -y -i "$OUT/$id-crudo.mp4" -i "assets/v2/mezcla/master-$estilo-$cierre.wav" -map 0:v -map 1:a -vf "crop=1080:1920:0:0" -c:v libx264 -preset slow -crf 15 -pix_fmt yuv420p -movflags +faststart -c:a aac -b:a 256k -shortest "$OUT/$id.mp4"
+  else
+    ffmpeg -v error -y -i "$OUT/$id-crudo.mp4" -i "assets/v2/mezcla/master-$estilo-$cierre.wav" -map 0:v -map 1:a -c:v copy -c:a aac -b:a 256k -shortest "$OUT/$id.mp4"
+  fi
   dur=$(ffprobe -v error -show_entries format=duration -of csv=p=0 "$OUT/$id.mp4"); kb=$(python -c "print(int(28.5e6*8/$dur/1000) - 128)")
   ( cd "$OUT" && ffmpeg -v error -y -i "$id.mp4" -r 30 -c:v libx264 -preset slow -b:v ${kb}k -pass 1 -passlogfile "pase-$id" -an -f mp4 NUL \
     && ffmpeg -v error -y -i "$id.mp4" -r 30 -c:v libx264 -preset slow -b:v ${kb}k -maxrate $((kb * 16 / 10))k -bufsize 6000k -pass 2 -passlogfile "pase-$id" -pix_fmt yuv420p -movflags +faststart -c:a aac -b:a 128k "$id-telefono.mp4" \

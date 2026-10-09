@@ -5,6 +5,12 @@ animada (MOTION-RULES 11). Lo más nuevo arriba.
 
 ## 11-oct-2026 · v2 2D curso (toma C) y verticales
 
+### E41 · El vertical salía con una franja negra de 8 px a la derecha
+- **Síntoma:** en los videos de 1080×1920, las columnas 1072–1079 eran negro puro en todo el video. Alejandro lo vio en el teléfono. En horizontal no pasa.
+- **Causa:** el render de HyperFrames 0.8.140 en Windows captura el ancho redondeado hacia abajo al múltiplo de 16 (1080 → 1072) y rellena con negro. El snapshot no lo sufre, así que en las hojas de revisión no se veía. Con una composición de prueba de 1 s se reprodujo: la página sí mide 1080 y lo que se pierde es la captura.
+- **Arreglo:** el vertical se captura a 1088 de ancho (múltiplo de 16), con el contenido en sus 1080 (`WR` en `scripts/v2-html.mjs`), y `v2-render.sh` recorta a 1080 exactos.
+- **Regla:** todo render nuevo se revisa en sus bordes (las últimas columnas y filas), no solo en el centro del cuadro.
+
 ### E39 · «qué» y «que» cuentan como la misma palabra al anclar
 - **Síntoma:** en el curso, un «QUE» suelto se quedaba en pantalla desde «en qué punto» y se encimaba con los textos siguientes.
 - **Causa:** `clave()` quita acentos, así que `T.w(10, "que", 1)` encontró el «qué» de «en qué punto» y no el «que» de «para que tu equipo».
