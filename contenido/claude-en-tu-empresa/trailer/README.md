@@ -6,14 +6,14 @@ Todo en **`entregables/`**, una sola carpeta. Cada nombre dice qué es: **versi�
 
 | Versión | Formato | Archivos |
 |---|---|---|
-| `Plática gratuita` | `Horizontal` (1920×1080) | `Alta calidad.mp4` · `Para celular.mp4` · `Subtitulos.srt` |
+| `Plática gratuita` | `Horizontal` (1920×1080) | `Alta calidad.mp4` · `Para celular.mp4` |
 | `Plática gratuita` | `Vertical` (1080×1920, zona segura de redes) | igual |
 | `Curso` | `Horizontal` | igual |
 | `Curso` | `Vertical` | igual |
 
 - **Alta calidad:** master a 1080p60 (~260 MB), para subir a YouTube, Meta, TikTok o la página.
 - **Para celular:** menos de 30 MB, para mandar por WhatsApp o verlo en el teléfono.
-- **Subtítulos:** el `.srt` para subirlo aparte (no van quemados en el video).
+- Los subtítulos (`.srt`) no van aquí: se generan en `renders/v2/entregables/` con `node scripts/v2-srt.mjs`.
 
 El curso tiene su propia voz (toma C) y dura 96.6 s; la plática, 94 s. Las versiones anteriores (v1, 3D, rebanadas) ya se borraron; su código sigue en git.
 

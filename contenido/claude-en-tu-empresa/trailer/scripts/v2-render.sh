@@ -35,7 +35,7 @@ while [ $# -ge 3 ]; do
   fmt="Horizontal"; [ "$formato" = v ] && fmt="Vertical"
   mkdir -p entregables
   cp "$OUT/$id.mp4" "entregables/$nom - $fmt - Alta calidad.mp4" && cp "$OUT/$id-telefono.mp4" "entregables/$nom - $fmt - Para celular.mp4"
-  [ -f "renders/v2/entregables/claude-en-tu-empresa-$cierre.srt" ] && cp "renders/v2/entregables/claude-en-tu-empresa-$cierre.srt" "entregables/$nom - $fmt - Subtitulos.srt"
+  # los subtítulos no van en entregables/ (11-oct, Alejandro): siguen en renders/v2/entregables/
   echo "$id entregado: entregables/$nom - $fmt - …"
 done
 echo "renders terminados $(date +%T)"
