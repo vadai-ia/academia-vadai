@@ -10,7 +10,8 @@ export type Modulo = Tabla<'modules'>
 export type Leccion = Tabla<'lessons'>
 export type Adjunto = Tabla<'lesson_attachments'>
 
-export type ModuloConLecciones = Modulo & { lecciones: Leccion[] }
+/** `miembros`: cuántas personas tiene la lista si es una sesión exclusiva (0038). */
+export type ModuloConLecciones = Modulo & { lecciones: Leccion[]; miembros: number }
 export type CursoCompleto = Curso & { modulos: ModuloConLecciones[] }
 
 export type CursoEnLista = Curso & {
@@ -67,7 +68,7 @@ export const obtenerCurso = cache(async function obtenerCurso(id: string): Promi
 
   const { data, error } = await supabase
     .from('courses')
-    .select('*, modules(*, lessons(*))')
+    .select('*, modules(*, lessons(*), module_members(user_id))')
     .eq('id', id)
     .maybeSingle()
 
@@ -77,16 +78,19 @@ export const obtenerCurso = cache(async function obtenerCurso(id: string): Promi
   }
   if (!data) return null
 
-  type Anidado = Curso & { modules: Array<Modulo & { lessons: Leccion[] }> }
+  type Anidado = Curso & {
+    modules: Array<Modulo & { lessons: Leccion[]; module_members: Array<{ user_id: string }> | null }>
+  }
   const curso = data as unknown as Anidado
   const { modules, ...resto } = curso
 
   const modulos: ModuloConLecciones[] = (modules ?? [])
     .map((m) => {
-      const { lessons, ...moduloSolo } = m
+      const { lessons, module_members, ...moduloSolo } = m
       return {
         ...moduloSolo,
         lecciones: [...(lessons ?? [])].sort((a, b) => a.position - b.position),
+        miembros: module_members?.length ?? 0,
       }
     })
     .sort((a, b) => a.position - b.position)

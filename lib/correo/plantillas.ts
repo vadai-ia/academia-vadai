@@ -349,6 +349,55 @@ Equipo VADAI`
   }
 }
 
+/**
+ * Te dimos acceso a una sesión exclusiva (0038, 9-oct-2026): un módulo que
+ * solo abre para una lista que elige el equipo. Va solo a quien se agrega,
+ * y solo si el equipo marca «avisar» al guardar la lista.
+ */
+export function plantillaSesionExclusiva(opciones: {
+  sesion: string
+  curso: string
+  cursoSlug: string
+  nombre?: string | null
+  base?: string | null
+}): Plantilla {
+  const nombre = opciones.nombre?.trim() ?? ''
+  const base = (opciones.base ?? '').replace(/\/+$/, '')
+  const url = `${base}/curso/${opciones.cursoSlug}`
+  const urlRecuperar = `${base}/recuperar`
+  const saludo = nombre ? `Hola ${nombre},` : 'Hola,'
+  const parrafo = `margin:0 0 14px;font-size:15px;color:${TEXTO};line-height:1.65;`
+
+  const html = envoltura(
+    `
+    <p style="${parrafo}">${escapar(saludo)}</p>
+    <p style="${parrafo}">Te dimos acceso a <strong>${escapar(opciones.sesion)}</strong>, en ${escapar(opciones.curso)}. Es una sesión exclusiva: solo la ve un grupo de tu generación.</p>
+    <p style="${parrafo}">Ya está en el contenido de tu curso. Entra con tu correo y tu contraseña de siempre.</p>
+    ${boton(url, 'Ver la sesión')}
+    ${urlEnTexto(url)}
+    <p style="${parrafo};margin-top:18px;">
+      Si no recuerdas tu contraseña, pide una nueva en
+      <a href="${urlRecuperar}" style="color:${CYAN};">${escapar(urlRecuperar.replace(/^https?:\/\//, ''))}</a>.
+    </p>
+    <p style="margin:0;font-size:15px;color:${TEXTO};line-height:1.65;">Equipo VADAI</p>
+  `,
+    `Ya tienes acceso a ${opciones.sesion}.`
+  )
+
+  const texto = `${saludo}
+
+Te dimos acceso a ${opciones.sesion}, en ${opciones.curso}. Es una sesión exclusiva: solo la ve un grupo de tu generación.
+
+Ya está en el contenido de tu curso. Entra con tu correo y tu contraseña de siempre:
+${url}
+
+Si no recuerdas tu contraseña, pide una nueva en ${urlRecuperar}
+
+Equipo VADAI`
+
+  return { asunto: `Tienes acceso a ${opciones.sesion}`, html, texto }
+}
+
 export type SesionParaCorreo = {
   id: string
   titulo: string

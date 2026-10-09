@@ -81,6 +81,7 @@ const SESIONES = {
       '/admin/alumnos',
       '/admin/empresas',
       '/admin/comunidad',
+      `/admin/modulos/${IDS.modulo1}/acceso`,
       '/admin/encuestas',
       '/admin/dinamicas',
       '/admin/entregas',

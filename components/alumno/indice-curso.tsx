@@ -100,6 +100,33 @@ function Modulo({
   const completo = total > 0 && hechas === total
   const tieneActiva = modulo.lecciones.some((l) => l.id === leccionActiva)
 
+  // Sesión exclusiva y no estoy en la lista (0038): se ve que existe, con
+  // candado, pero no se abre ni enseña sus lecciones. No es un <details>: no
+  // hay nada que desplegar.
+  if (modulo.sinAcceso) {
+    return (
+      <div
+        className={cn(
+          'flex items-center gap-2.5 rounded-[10px] border border-dashed border-border bg-card',
+          compacto ? 'px-3 py-2.5' : 'px-4 py-3'
+        )}
+      >
+        <span
+          className="flex size-6 shrink-0 items-center justify-center rounded-full bg-muted text-muted-foreground"
+          aria-hidden
+        >
+          <Candado />
+        </span>
+        <span className="flex min-w-0 flex-1 flex-col">
+          <span className={cn('truncate font-medium text-muted-foreground', compacto && 'text-sm')}>
+            {modulo.titulo}
+          </span>
+          <span className="text-xs text-muted-foreground">Sesión exclusiva para un grupo de tu generación</span>
+        </span>
+      </div>
+    )
+  }
+
   return (
     <details
       open={abierto || undefined}
@@ -122,7 +149,14 @@ function Modulo({
         <EstadoModulo numero={numero} completo={completo} />
 
         <span className="flex min-w-0 flex-1 flex-col">
-          <span className={cn('truncate font-medium', compacto && 'text-sm')}>{modulo.titulo}</span>
+          <span className={cn('flex min-w-0 items-center gap-2 font-medium', compacto && 'text-sm')}>
+            <span className="truncate">{modulo.titulo}</span>
+            {modulo.exclusiva ? (
+              <span className="shrink-0 rounded-full border border-primary/40 bg-primary/10 px-2 py-0.5 text-[11px] text-primary">
+                Exclusiva
+              </span>
+            ) : null}
+          </span>
           <span className="text-xs text-muted-foreground tabular-nums">
             {total === 0
               ? 'Sin lecciones todavía'

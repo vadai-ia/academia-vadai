@@ -5,6 +5,7 @@ import type { Perfil } from '@/lib/auth/sesion'
 import { describirHorario } from '@/lib/calendario/enlaces'
 import { publicacionesParaAlumno } from '@/lib/comunidad/posts'
 import { dinamicasAbiertasParaCampana } from '@/lib/dinamicas/consultas-alumno'
+import { crearClienteServidor } from '@/lib/supabase/server'
 
 /**
  * Las novedades de la campana: anuncios, entradas de blog y sesiones en vivo.
@@ -32,7 +33,7 @@ import { dinamicasAbiertasParaCampana } from '@/lib/dinamicas/consultas-alumno'
 export type Notificacion = {
   id: string
   titulo: string
-  tipo: 'announcement' | 'blog' | 'sesion' | 'dinamica'
+  tipo: 'announcement' | 'blog' | 'sesion' | 'dinamica' | 'exclusiva'
   /** Cuándo pasó lo que se avisa. */
   publicadoEn: string
   /** Una línea más, cuando hace falta: el horario de la sesión, el curso de la dinámica. */
@@ -47,11 +48,30 @@ const CUANTAS = 8
 /** Una sesión sigue siendo noticia hasta 3 horas después de empezar. */
 const HORAS_DE_GRACIA = 3
 
+/**
+ * Las sesiones exclusivas a las que me agregaron (0038): avisa cuándo entré a
+ * la lista. RLS solo me deja leer mis propias filas de `module_members`.
+ */
+async function misSesionesExclusivas(userId: string) {
+  const supabase = await crearClienteServidor()
+  const { data } = await supabase
+    .from('module_members')
+    .select('module_id, added_at, modules(title, is_restricted, courses(slug, title))')
+    .eq('user_id', userId)
+  type Fila = {
+    module_id: string
+    added_at: string
+    modules: { title: string; is_restricted: boolean; courses: { slug: string; title: string } | null } | null
+  }
+  return ((data ?? []) as unknown as Fila[]).filter((f) => f.modules?.is_restricted && f.modules.courses)
+}
+
 export async function notificacionesDelAlumno(perfil: Perfil): Promise<Novedades> {
-  const [publicaciones, sesiones, dinamicas] = await Promise.all([
+  const [publicaciones, sesiones, dinamicas, exclusivas] = await Promise.all([
     publicacionesParaAlumno(),
     sesionesDelAlumno(),
     dinamicasAbiertasParaCampana(),
+    misSesionesExclusivas(perfil.user_id),
   ])
   const desde = new Date(perfil.notifications_seen_at ?? perfil.created_at ?? 0).getTime()
   const ahora = Date.now()
@@ -87,7 +107,17 @@ export async function notificacionesDelAlumno(perfil: Perfil): Promise<Novedades
     nueva: new Date(d.abiertaEn).getTime() > desde,
   }))
 
-  const todas = [...dePosts, ...deSesiones, ...deDinamicas].sort(
+  const deExclusivas: Notificacion[] = exclusivas.map((f) => ({
+    id: `exclusiva-${f.module_id}`,
+    titulo: f.modules!.title,
+    tipo: 'exclusiva' as const,
+    publicadoEn: f.added_at,
+    detalle: `Te dieron acceso · ${f.modules!.courses!.title}`,
+    href: `/curso/${f.modules!.courses!.slug}`,
+    nueva: new Date(f.added_at).getTime() > desde,
+  }))
+
+  const todas = [...dePosts, ...deSesiones, ...deDinamicas, ...deExclusivas].sort(
     (a, b) => new Date(b.publicadoEn).getTime() - new Date(a.publicadoEn).getTime()
   )
 

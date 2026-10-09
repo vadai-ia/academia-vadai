@@ -11,6 +11,7 @@ import {
   type Actividad,
   type Nivel,
 } from '@/lib/gamificacion/reglas'
+import { armarExclusivas, leccionesQueNoVe, SIN_EXCLUSIVAS, type Exclusivas } from '@/lib/acceso/exclusivas'
 import { esCuentaQa, esCursoQa } from '@/lib/qa'
 import { crearClienteServidor } from '@/lib/supabase/server'
 
@@ -84,6 +85,8 @@ type Base = {
   cursos: Array<{ id: string; titulo: string; lecciones: number }>
   /** Lecciones publicadas por curso y generación ('curso::gen'; sin generaciones, 'curso::'). */
   leccionesPorGrupo: Map<string, number>
+  /** Las sesiones exclusivas (0038): a quien no está en la lista, no le cuentan. */
+  exclusivas: Exclusivas
   empresas: Array<{ id: string; nombre: string }>
   alumnos: Array<{
     userId: string
@@ -95,7 +98,7 @@ type Base = {
   }>
 }
 
-const BASE_VACIA: Base = { fallo: false, cursos: [], leccionesPorGrupo: new Map(), empresas: [], alumnos: [] }
+const BASE_VACIA: Base = { fallo: false, cursos: [], leccionesPorGrupo: new Map(), exclusivas: SIN_EXCLUSIVAS, empresas: [], alumnos: [] }
 
 /** La llave de un curso y una generación. Sin generaciones, la generación es ''. */
 const grupo = (cursoId: string, cohortId: string | null) => `${cursoId}::${cohortId ?? ''}`
@@ -104,7 +107,7 @@ const grupo = (cursoId: string, cohortId: string | null) => `${cursoId}::${cohor
 const datosDePuntos = cache(async function datosDePuntos(): Promise<Base> {
   const supabase = await crearClienteServidor()
 
-  const [actividad, perfiles, empresas, cursos, outline] = await Promise.all([
+  const [actividad, perfiles, empresas, cursos, outline, miembros] = await Promise.all([
     supabase.from('actividad_por_curso').select('*'),
     supabase
       .from('profiles')
@@ -113,10 +116,11 @@ const datosDePuntos = cache(async function datosDePuntos(): Promise<Base> {
       .eq('status', 'active'),
     supabase.from('companies').select('id, name').order('name'),
     supabase.from('courses').select('id, slug, title, status').neq('status', 'archived').order('created_at'),
-    supabase.from('lesson_outline').select('course_id, cohort_id'),
+    supabase.from('lesson_outline').select('id, course_id, cohort_id, module_id, exclusiva'),
+    supabase.from('module_members').select('module_id, user_id'),
   ])
 
-  const fallo = actividad.error ?? perfiles.error ?? empresas.error ?? cursos.error ?? outline.error
+  const fallo = actividad.error ?? perfiles.error ?? empresas.error ?? cursos.error ?? outline.error ?? miembros.error
   if (fallo) {
     console.error(JSON.stringify({ operacion: 'datosDePuntos', error: fallo.message }))
     return { ...BASE_VACIA, fallo: true }
@@ -159,6 +163,7 @@ const datosDePuntos = cache(async function datosDePuntos(): Promise<Base> {
     fallo: false,
     cursos: reales.map((c) => ({ id: c.id, titulo: c.title, lecciones: leccionesDe.get(c.id) ?? 0 })),
     leccionesPorGrupo,
+    exclusivas: armarExclusivas(outline.data ?? [], (l) => grupo(l.course_id ?? '', l.cohort_id), miembros.data ?? []),
     empresas: (empresas.data ?? []).map((e) => ({ id: e.id, nombre: e.name })),
     alumnos: (perfiles.data ?? []).flatMap((p) => {
       const porCurso = porAlumno.get(p.user_id)
@@ -199,7 +204,8 @@ function ranking(base: Base, cursoId?: string): AlumnoEnPuntos[] {
       inscrito = true
       actividad = sumarActividad(actividad, delCurso.actividad)
       // Contra las lecciones de SU generación en ese curso, no las del curso.
-      total += base.leccionesPorGrupo.get(grupo(id, delCurso.cohortId)) ?? 0
+      const g = grupo(id, delCurso.cohortId)
+      total += (base.leccionesPorGrupo.get(g) ?? 0) - leccionesQueNoVe(base.exclusivas, g, a.userId)
     }
     if (!inscrito) continue
 

@@ -56,7 +56,7 @@ export async function revisarElegibilidad(
       .maybeSingle(),
   ])
 
-  const delCurso = servicio.from('modules').select('id').eq('course_id', cursoId)
+  const delCurso = servicio.from('modules').select('id, is_restricted').eq('course_id', cursoId)
   let consultaModulos
   if (esPorGeneraciones(curso?.course_type)) {
     // Sin generación asignada no ve contenido: no hay nada que terminar.
@@ -68,9 +68,15 @@ export async function revisarElegibilidad(
     consultaModulos = delCurso.is('cohort_id', null)
   }
 
-  const { data: modulos } = await consultaModulos
+  const [{ data: modulos }, { data: misExclusivas }] = await Promise.all([
+    consultaModulos,
+    servicio.from('module_members').select('module_id').eq('user_id', userId),
+  ])
 
-  const idsModulo = (modulos ?? []).map((m) => m.id)
+  // Una sesión exclusiva (0038) de cuya lista no es parte no le puede faltar:
+  // no la ve. Las que sí tiene cuentan como cualquier otra.
+  const suyas = new Set((misExclusivas ?? []).map((m) => m.module_id))
+  const idsModulo = (modulos ?? []).filter((m) => !m.is_restricted || suyas.has(m.id)).map((m) => m.id)
 
   if (idsModulo.length === 0) {
     return { cumple: false, totalObligatorias: 0, cubiertas: 0, faltantes: [] }

@@ -16,6 +16,12 @@ export type SesionDelAlumno = {
   cursoSlug: string
   cursoTitulo: string
   grabacionLeccionId: string | null
+  /**
+   * La grabación vive en una sesión exclusiva (0038) de cuya lista no soy
+   * parte: en vez de «Ver grabación» se dice que es exclusiva, y
+   * `grabacionLeccionId` llega en null para no ofrecer una liga que no abre.
+   */
+  grabacionExclusiva: boolean
   /** Cuándo se agendó o se cambió por última vez: es lo que avisa la campana. */
   actualizadaEn: string
 }
@@ -60,7 +66,17 @@ export const sesionesDelAlumno = cache(async function sesionesDelAlumno(): Promi
     cohorts: { name: string; courses: { slug: string; title: string } }
   }
 
-  return (data as unknown as Anidada[])
+  const filas = data as unknown as Anidada[]
+
+  // ¿Alguna grabación está en una sesión exclusiva que no puedo abrir?
+  const grabaciones = filas.flatMap((s) => (s.recording_lesson_id ? [s.recording_lesson_id] : []))
+  const cerradas = new Set<string>()
+  if (grabaciones.length > 0) {
+    const { data: outline } = await supabase.from('lesson_outline').select('id, para_mi').in('id', grabaciones)
+    for (const l of outline ?? []) if (l.id && l.para_mi === false) cerradas.add(l.id)
+  }
+
+  return filas
     .map((s) => ({
       id: s.id,
       titulo: s.title,
@@ -71,7 +87,8 @@ export const sesionesDelAlumno = cache(async function sesionesDelAlumno(): Promi
       generacion: s.cohorts.name,
       cursoSlug: s.cohorts.courses.slug,
       cursoTitulo: s.cohorts.courses.title,
-      grabacionLeccionId: s.recording_lesson_id,
+      grabacionLeccionId: s.recording_lesson_id && !cerradas.has(s.recording_lesson_id) ? s.recording_lesson_id : null,
+      grabacionExclusiva: Boolean(s.recording_lesson_id && cerradas.has(s.recording_lesson_id)),
       actualizadaEn: s.updated_at ?? s.created_at,
     }))
 })

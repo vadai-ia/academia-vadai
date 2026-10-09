@@ -38,6 +38,7 @@
     "test:encuestas": "node scripts/test-encuestas.mjs",
     "test:dinamicas": "node scripts/test-dinamicas.mjs",
     "test:cm": "node scripts/test-cm.mjs",
+    "test:exclusivas": "node scripts/test-exclusivas.mjs",
     "test:todo": "node scripts/test-todo.mjs",
     "check:curso": "node scripts/check-curso.mjs",
     "curso:sembrar": "node scripts/seed-curso.mjs",

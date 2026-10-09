@@ -29,6 +29,7 @@ const ETIQUETA_TIPO: Record<Notificacion['tipo'], string> = {
   blog: 'Blog',
   sesion: 'Sesión en vivo',
   dinamica: 'Dinámica',
+  exclusiva: 'Sesión exclusiva',
 }
 
 function fechaCorta(iso: string): string {

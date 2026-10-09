@@ -53,7 +53,8 @@ En su lugar: `pnpm db:migrate` → `scripts/migrate.mjs`, que aplica los `.sql` 
   /(alumno)      mis-cursos, curso/[slug], curso/[slug]/en-vivo, curso/[slug]/dinamicas, comunidad, blog, perfil, dinamicas
                  # curso/[slug]/(marco)/ = el marco del curso (título, avance, pestañas) para Contenido,
                  # En vivo, Comunidad y Dinámicas; curso/[slug]/[leccionId] va FUERA: modo lección (25-sep-2026)
-  /(admin)       admin/* (cursos, alumnos, alumnos/[userId] ficha, comunidad, puntos, entregas, posts, encuestas, dinamicas)
+  /(admin)       admin/* (cursos, alumnos, alumnos/[userId] ficha, comunidad, puntos, entregas, posts, encuestas, dinamicas,
+                 modulos/[id]/acceso = quién entra a una sesión exclusiva)
                  # cursos/[id]?gen=<id>|nueva|sin = la pestaña de una generación (M16); generaciones/[id] solo redirige ahí
   /api/stripe/webhook
   /api/certificados/[folio]
@@ -158,6 +159,15 @@ En su lugar: `pnpm db:migrate` → `scripts/migrate.mjs`, que aplica los `.sql` 
   equipo al lado del alumno se llama **«Portal de alumnos»**, no "Vista de alumno": es el
   portal real, no una simulación. En el portal, el equipo siempre ve el selector de
   generación, aunque haya una sola.
+- **Sesiones exclusivas** (0038, 9-oct-2026): un módulo con `is_restricted` solo abre para su lista
+  (`module_members`), que se elige **solo entre los inscritos de su generación** y manejan admin y
+  community manager en `/admin/modulos/[id]/acceso`. Quien no está **la ve con candado** (título sí,
+  lecciones no) y en En vivo su grabación dice «exclusiva». La protección vive en `ve_modulo()`, de
+  la que cuelgan lecciones, video, adjuntos, quizzes, tareas, avance y comentarios. **No cuenta**
+  en el avance ni en el certificado de quien no la tiene: el alumno lo lee de
+  `lesson_outline.para_mi`; el panel lo resta con `lib/acceso/exclusivas.ts`. Una pantalla nueva
+  que mida avance por persona tiene que restarlo también. Correo opcional al guardar, solo a los
+  nuevos (`plantillaSesionExclusiva`), y aviso en la campana.
 - **Notificaciones internas sin tabla**: "nuevo" es lo publicado después de
   `profiles.notifications_seen_at`. Abrir la campana lo sella.
 - **Empresas** (`academia.companies`, `profiles.company_id`; 20-sep-2026): de dónde viene cada

@@ -181,6 +181,11 @@ export function ArbolCurso({
                 {modulo.lecciones.length} lección(es)
                 {borradores > 0 ? ` · ${borradores} en borrador` : ''}
               </span>
+              {modulo.is_restricted ? (
+                <span className="rounded-full border border-primary/40 bg-primary/10 px-2 py-0.5 text-[11px] font-medium text-primary">
+                  Exclusiva · {modulo.miembros} {modulo.miembros === 1 ? 'persona' : 'personas'}
+                </span>
+              ) : null}
             </>
           )
           const claseFila = 'flex min-w-0 flex-1 flex-wrap items-center gap-2 px-3 py-2.5'
@@ -229,6 +234,22 @@ export function ArbolCurso({
 
               {abierto ? (
                 <>
+              {/* Quién abre este módulo (0038). Lo maneja también el
+                  community manager, así que va aunque el árbol sea de solo
+                  lectura. */}
+              <div className="flex flex-wrap items-center justify-between gap-2 border-t border-border bg-muted/25 px-3 py-2 text-sm">
+                <span className="text-muted-foreground">
+                  {modulo.is_restricted
+                    ? `Sesión exclusiva: la abren ${modulo.miembros} ${modulo.miembros === 1 ? 'persona' : 'personas'}; el resto la ve con candado.`
+                    : 'La abre toda la generación.'}
+                </span>
+                <Link
+                  href={`/admin/modulos/${modulo.id}/acceso`}
+                  className="font-medium text-primary underline-offset-4 hover:underline"
+                >
+                  {modulo.is_restricted ? 'Editar quién entra →' : 'Hacerla exclusiva →'}
+                </Link>
+              </div>
               {modulo.lecciones.length > 0 ? (
                 <ul className="border-t border-border">
                   {modulo.lecciones.map((leccion, indiceLeccion) => {

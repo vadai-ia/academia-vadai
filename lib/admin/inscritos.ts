@@ -1,5 +1,6 @@
 import 'server-only'
 
+import { armarExclusivas, leCuenta, leccionesQueNoVe } from '@/lib/acceso/exclusivas'
 import { ACTIVIDAD_VACIA, nivelDe, puntosDe, type Actividad, type Nivel } from '@/lib/gamificacion/reglas'
 import { crearClienteServidor } from '@/lib/supabase/server'
 import type { Tabla } from '@/lib/supabase/types'
@@ -93,7 +94,7 @@ export async function inscritosDelCurso(
   // con sus ids, los perfiles y el progreso. El perfil ahora viene embebido
   // por la FK de `enrollments.user_id`, y el progreso se pide por curso con
   // un join a `lessons → modules`: ninguna consulta espera a otra.
-  const [inscripciones, cohortes, empresas, outline, actividad, progreso] = await Promise.all([
+  const [inscripciones, cohortes, empresas, outline, actividad, progreso, miembros] = await Promise.all([
     supabase
       .from('enrollments')
       .select(
@@ -102,13 +103,16 @@ export async function inscritosDelCurso(
       .eq('course_id', cursoId),
     supabase.from('cohorts').select('id, name').eq('course_id', cursoId),
     supabase.from('companies').select('id, name'),
-    supabase.from('lesson_outline').select('id, cohort_id').eq('course_id', cursoId),
+    supabase.from('lesson_outline').select('id, cohort_id, module_id, exclusiva').eq('course_id', cursoId),
     supabase.from('actividad_por_curso').select('*').eq('course_id', cursoId),
     supabase
       .from('lesson_progress')
       .select('user_id, lesson_id, lessons!inner(modules!inner(course_id))')
       .eq('completed', true)
       .eq('lessons.modules.course_id', cursoId),
+    // Quién está en la lista de cada sesión exclusiva (0038): a quien no está,
+    // esas lecciones no le cuentan.
+    supabase.from('module_members').select('module_id, user_id'),
   ])
 
   const fallo =
@@ -117,7 +121,8 @@ export async function inscritosDelCurso(
     empresas.error ??
     outline.error ??
     actividad.error ??
-    progreso.error
+    progreso.error ??
+    miembros.error
   if (fallo) {
     console.error(JSON.stringify({ operacion: 'inscritosDelCurso', cursoId, error: fallo.message }))
     return { visibles: [], resumen: resumenVacio() }
@@ -137,6 +142,7 @@ export async function inscritosDelCurso(
     leccionesDe.set(clave, delGrupo)
   }
   const NINGUNA = new Set<string>()
+  const exclusivas = armarExclusivas(outline.data ?? [], (l) => l.cohort_id ?? '', miembros.data ?? [])
 
   const nombreDeEmpresa = new Map((empresas.data ?? []).map((e) => [e.id, e.name]))
   const nombreDeGeneracion = new Map((cohortes.data ?? []).map((c) => [c.id, c.name]))
@@ -187,9 +193,11 @@ export async function inscritosDelCurso(
     if (!p || p.role !== 'alumno') return []
     const vigente = e.status === 'active' && (!e.expires_at || new Date(e.expires_at).getTime() > ahora)
     const deSuGeneracion = leccionesDe.get(e.cohort_id ?? null) ?? NINGUNA
-    const total = deSuGeneracion.size
+    const total = deSuGeneracion.size - leccionesQueNoVe(exclusivas, e.cohort_id ?? '', e.user_id)
     let hechas = 0
-    for (const id of completadasDe.get(e.user_id) ?? NINGUNA) if (deSuGeneracion.has(id)) hechas++
+    for (const id of completadasDe.get(e.user_id) ?? NINGUNA) {
+      if (deSuGeneracion.has(id) && leCuenta(exclusivas, e.user_id, id)) hechas++
+    }
     const act = actividadDe.get(e.user_id) ?? vacia
     const puntos = puntosDe(act)
     return [

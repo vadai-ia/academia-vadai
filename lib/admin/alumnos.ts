@@ -1,5 +1,6 @@
 import 'server-only'
 
+import { armarExclusivas, leCuenta, leccionesQueNoVe } from '@/lib/acceso/exclusivas'
 import { ultimosEnlaces, type UltimoEnlace } from '@/lib/admin/accesos'
 import { esPorGeneraciones, estadoDeGeneracion, type EstadoGeneracion } from '@/lib/generaciones'
 import { crearClienteServidor } from '@/lib/supabase/server'
@@ -171,7 +172,9 @@ export async function listarAlumnos(filtros: FiltrosAlumnos = {}): Promise<Pagin
 
   // Estas dos no dependen de qué página se pida: arrancan junto con la lista
   // y no esperan a que termine (24-sep-2026). Antes eran una ola aparte.
-  const outlineP = supabase.from('lesson_outline').select('id, course_id, cohort_id')
+  const outlineP = supabase.from('lesson_outline').select('id, course_id, cohort_id, module_id, exclusiva')
+  // Las listas de las sesiones exclusivas (0038): a quien no está, no le cuentan.
+  const miembrosP = supabase.from('module_members').select('module_id, user_id')
   const empresasP = supabase.from('companies').select('id, name')
 
   let pagina = paginaPedida
@@ -216,7 +219,7 @@ export async function listarAlumnos(filtros: FiltrosAlumnos = {}): Promise<Pagin
   // Solo lo de esta página. `lesson_outline` (lecciones publicadas por curso)
   // es chica y da el total contra el que se mide el avance.
   const vacio = Promise.resolve({ data: [] as never[] })
-  const [progreso, outline, enlaces, empresas, inscripciones] = await Promise.all([
+  const [progreso, outline, enlaces, empresas, inscripciones, miembros] = await Promise.all([
     ids.length
       ? supabase.from('lesson_progress').select('user_id, lesson_id').eq('completed', true).in('user_id', ids)
       : vacio,
@@ -229,6 +232,7 @@ export async function listarAlumnos(filtros: FiltrosAlumnos = {}): Promise<Pagin
           .select('user_id, course_id, cohort_id, expires_at, status, courses(title), cohorts(name)')
           .in('user_id', ids)
       : vacio,
+    miembrosP,
   ])
 
   const inscripcionesDe = new Map<string, Inscripcion[]>()
@@ -249,10 +253,16 @@ export async function listarAlumnos(filtros: FiltrosAlumnos = {}): Promise<Pagin
     totalPorGrupo.set(g, (totalPorGrupo.get(g) ?? 0) + 1)
   }
 
+  const exclusivas = armarExclusivas(
+    outline.data ?? [],
+    (l) => grupo(l.course_id ?? '', l.cohort_id),
+    miembros.data ?? []
+  )
+
   const hechasPor = new Map<string, number>()
   for (const fila of (progreso.data ?? []) as Array<{ user_id: string; lesson_id: string }>) {
     const g = grupoDeLeccion.get(fila.lesson_id)
-    if (!g) continue
+    if (!g || !leCuenta(exclusivas, fila.user_id, fila.lesson_id)) continue
     const llave = `${fila.user_id}::${g}`
     hechasPor.set(llave, (hechasPor.get(llave) ?? 0) + 1)
   }
@@ -274,7 +284,7 @@ export async function listarAlumnos(filtros: FiltrosAlumnos = {}): Promise<Pagin
     enlace: enlaces.get(p.user_id) ?? null,
     inscripciones: (inscripcionesDe.get(p.user_id) ?? []).map((e) => {
       const g = grupo(e.course_id, e.cohort_id)
-      const total = totalPorGrupo.get(g) ?? 0
+      const total = (totalPorGrupo.get(g) ?? 0) - leccionesQueNoVe(exclusivas, g, p.user_id)
       const hechas = hechasPor.get(`${p.user_id}::${g}`) ?? 0
       return {
         cursoId: e.course_id,

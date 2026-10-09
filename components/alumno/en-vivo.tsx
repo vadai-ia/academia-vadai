@@ -270,6 +270,8 @@ function DetalleSesion({
             <Button asChild variant="outline" size="sm">
               <Link href={`/curso/${cursoSlug}/${sesion.grabacionLeccionId}`}>Ver grabación</Link>
             </Button>
+          ) : sesion.grabacionExclusiva ? (
+            <span className="text-xs text-muted-foreground">Grabación exclusiva para un grupo de tu generación</span>
           ) : null}
         </div>
 
@@ -542,6 +544,8 @@ function Renglon({
             <Button asChild variant="outline" size="sm">
               <Link href={`/curso/${cursoSlug}/${sesion.grabacionLeccionId}`}>Ver grabación</Link>
             </Button>
+          ) : sesion.grabacionExclusiva ? (
+            <span className="text-xs text-muted-foreground">Grabación exclusiva para un grupo de tu generación</span>
           ) : null}
           {!pasada ? <AgregarAlCalendario sesion={paraCalendario(sesion)} compacto /> : null}
         </div>

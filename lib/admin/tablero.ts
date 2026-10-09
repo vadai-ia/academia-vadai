@@ -6,6 +6,7 @@ import {
   type GeneracionAgendable,
   type SesionProxima,
 } from '@/lib/admin/generaciones'
+import { armarExclusivas, leCuenta, leccionesQueNoVe } from '@/lib/acceso/exclusivas'
 import { estaAbierta } from '@/lib/dinamicas/comun'
 import { crearClienteServidor } from '@/lib/supabase/server'
 
@@ -77,11 +78,12 @@ export async function tableroAdmin(): Promise<Tablero> {
     tablerosDeDinamicas,
     sesiones,
     generaciones,
+    miembros,
   ] = await Promise.all([
     supabase.from('profiles').select('user_id, role, status, last_sign_in_at'),
     supabase.from('enrollments').select('user_id, course_id, cohort_id, status, expires_at'),
     supabase.from('courses').select('id, slug, title, status'),
-    supabase.from('lesson_outline').select('id, course_id, cohort_id'),
+    supabase.from('lesson_outline').select('id, course_id, cohort_id, module_id, exclusiva'),
     supabase.from('lesson_progress').select('user_id, lesson_id, completed'),
     supabase.from('assignment_submissions').select('id').eq('status', 'submitted'),
     supabase.from('certificates').select('id'),
@@ -91,6 +93,8 @@ export async function tableroAdmin(): Promise<Tablero> {
     supabase.from('dynamic_boards').select('id'),
     proximasSesiones(5),
     generacionesParaAgendar(),
+    // Las listas de las sesiones exclusivas (0038).
+    supabase.from('module_members').select('module_id, user_id'),
   ])
 
   for (const [nombre, r] of Object.entries({ perfiles, inscripciones, cursos, outline, progreso })) {
@@ -131,12 +135,15 @@ export async function tableroAdmin(): Promise<Tablero> {
     grupoDeLeccion.set(l.id, g)
   }
 
+  // A quien no está en la lista de una sesión exclusiva, no le cuenta (0038).
+  const exclusivas = armarExclusivas(outline.data ?? [], (l) => grupo(l.course_id ?? '', l.cohort_id), miembros.data ?? [])
+
   // (usuario, curso y generación) -> lecciones hechas
   const hechas = new Map<string, number>()
   for (const f of progreso.data ?? []) {
     if (!f.completed) continue
     const g = grupoDeLeccion.get(f.lesson_id)
-    if (!g) continue
+    if (!g || !leCuenta(exclusivas, f.user_id, f.lesson_id)) continue
     const llave = `${f.user_id}::${g}`
     hechas.set(llave, (hechas.get(llave) ?? 0) + 1)
   }
@@ -155,7 +162,7 @@ export async function tableroAdmin(): Promise<Tablero> {
       let suma = 0
       for (const e of inscritos) {
         const g = grupo(c.id, e.cohort_id)
-        const suyas = porGrupo.get(g) ?? 0
+        const suyas = (porGrupo.get(g) ?? 0) - leccionesQueNoVe(exclusivas, g, e.user_id)
         const n = hechas.get(`${e.user_id}::${g}`) ?? 0
         if (n > 0) empezaron += 1
         if (suyas > 0 && n >= suyas) terminaron += 1

@@ -817,6 +817,30 @@ export type Database = {
         }
         Relationships: []
       }
+      module_members: {
+        Row: {
+          module_id: string
+          user_id: string
+          added_by: string | null
+          added_at: string
+          notified_at: string | null
+        }
+        Insert: {
+          module_id: string
+          user_id: string
+          added_by?: string | null
+          added_at?: string
+          notified_at?: string | null
+        }
+        Update: {
+          module_id?: string
+          user_id?: string
+          added_by?: string | null
+          added_at?: string
+          notified_at?: string | null
+        }
+        Relationships: []
+      }
       modules: {
         Row: {
           id: string
@@ -826,6 +850,7 @@ export type Database = {
           created_at: string
           updated_at: string
           cohort_id: string | null
+          is_restricted: boolean
         }
         Insert: {
           id?: string
@@ -835,6 +860,7 @@ export type Database = {
           created_at?: string
           updated_at?: string
           cohort_id?: string | null
+          is_restricted?: boolean
         }
         Update: {
           id?: string
@@ -844,6 +870,7 @@ export type Database = {
           created_at?: string
           updated_at?: string
           cohort_id?: string | null
+          is_restricted?: boolean
         }
         Relationships: []
       }
@@ -1376,6 +1403,8 @@ export type Database = {
           video_duration_sec: number | null
           desbloqueada: boolean | null
           cohort_id: string | null
+          exclusiva: boolean | null
+          para_mi: boolean | null
         }
         Relationships: []
       }

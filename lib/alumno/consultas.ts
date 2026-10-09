@@ -29,6 +29,10 @@ export type ModuloEnIndice = {
   titulo: string
   posicion: number
   lecciones: LeccionEnIndice[]
+  /** Sesión exclusiva (0038): solo abre para una lista. */
+  exclusiva: boolean
+  /** Exclusiva y no estoy en la lista: se pinta con candado y no cuenta en mi avance. */
+  sinAcceso: boolean
 }
 
 export type GeneracionDelAlumno = {
@@ -141,9 +145,11 @@ function armarModulos(
   todoAbierto = false
 ): ModuloEnIndice[] {
   const porModulo = new Map<string, LeccionEnIndice[]>()
+  const exclusivos = new Map<string, boolean>()
 
   for (const fila of filas) {
     if (!fila.id || !fila.module_id) continue
+    if (fila.exclusiva) exclusivos.set(fila.module_id, !(todoAbierto || fila.para_mi !== false))
     const lista = porModulo.get(fila.module_id) ?? []
     lista.push({
       id: fila.id,
@@ -168,6 +174,8 @@ function armarModulos(
         titulo: meta?.titulo ?? 'Módulo',
         posicion: meta?.posicion ?? 0,
         lecciones: lecciones.sort((a, b) => a.posicion - b.posicion),
+        exclusiva: exclusivos.has(moduloId),
+        sinAcceso: exclusivos.get(moduloId) ?? false,
       }
     })
     .sort((a, b) => a.posicion - b.posicion)
@@ -250,8 +258,12 @@ export async function misCursos(): Promise<CursoDelAlumno[]> {
       const porGeneraciones = esPorGeneraciones(curso.course_type)
       // Solo las lecciones de MI generación (M16): el porcentaje del curso no
       // puede contar lecciones de una generación que no veo.
+      // Y sin las sesiones exclusivas de cuya lista no soy parte (0038).
       const suyas = (outline ?? []).filter(
-        (l) => l.course_id === curso.id && (!porGeneraciones || l.cohort_id === (generacion?.id ?? null))
+        (l) =>
+          l.course_id === curso.id &&
+          (!porGeneraciones || l.cohort_id === (generacion?.id ?? null)) &&
+          l.para_mi !== false
       )
       const hechas = suyas.filter((l) => l.id && completadas.has(l.id)).length
       const vigente = !expiraEn || new Date(expiraEn).getTime() > Date.now()
@@ -368,7 +380,9 @@ export const cursoDelAlumno = cache(async function cursoDelAlumno(
   )
 
   const filas = outline as FilaOutline[]
-  const hechas = filas.filter((l) => l.id && completadas.has(l.id)).length
+  // El avance no cuenta las sesiones exclusivas que no puedo abrir (0038).
+  const cuentan = filas.filter((l) => l.para_mi !== false)
+  const hechas = cuentan.filter((l) => l.id && completadas.has(l.id)).length
   const vigente =
     equipo || !inscripcion?.expires_at || new Date(inscripcion.expires_at).getTime() > Date.now()
 
@@ -384,9 +398,9 @@ export const cursoDelAlumno = cache(async function cursoDelAlumno(
     vigente,
     expiraEn: inscripcion?.expires_at ?? null,
     diasRestantes: diasHasta(inscripcion?.expires_at ?? null),
-    totalLecciones: filas.length,
+    totalLecciones: cuentan.length,
     completadas: hechas,
-    porcentaje: filas.length === 0 ? 0 : Math.round((hechas / filas.length) * 100),
+    porcentaje: cuentan.length === 0 ? 0 : Math.round((hechas / cuentan.length) * 100),
     modulos: armarModulos(filas, titulos, completadas, equipo),
     linkRecompraMxn: curso.stripe_payment_link_mxn,
     linkRecompraUsd: curso.stripe_payment_link_usd,
@@ -463,7 +477,8 @@ export async function contenidoDeLeccion(leccionId: string): Promise<ContenidoDe
 
 /** Lección anterior y siguiente, para navegar sin volver al índice. */
 export function vecinas(curso: CursoDelAlumno, leccionId: string) {
-  const planas = curso.modulos.flatMap((m) => m.lecciones)
+  // Sin las sesiones exclusivas que no abro (0038): «Siguiente» no lleva a un candado.
+  const planas = curso.modulos.filter((m) => !m.sinAcceso).flatMap((m) => m.lecciones)
   const i = planas.findIndex((l) => l.id === leccionId)
   return {
     anterior: i > 0 ? (planas[i - 1] ?? null) : null,

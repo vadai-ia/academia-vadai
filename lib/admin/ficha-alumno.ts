@@ -2,6 +2,7 @@ import 'server-only'
 
 import { cache } from 'react'
 
+import { armarExclusivas, leCuenta, leccionesQueNoVe } from '@/lib/acceso/exclusivas'
 import { opcionesDeAlta } from '@/lib/admin/alumnos'
 import { ACTIVIDAD_VACIA, nivelDe, puntosDe, type Actividad, type Nivel } from '@/lib/gamificacion/reglas'
 import { crearClienteServidor } from '@/lib/supabase/server'
@@ -101,10 +102,10 @@ export const fichaDeAlumno = cache(async function fichaDeAlumno(userId: string):
   }
   const p = perfil as unknown as Perfil
 
-  const [progreso, outline, actividad, enlaces, certificados, comentariosL, comentariosC, publicaciones, entregas, intentos, posts, opciones] =
+  const [progreso, outline, actividad, enlaces, certificados, comentariosL, comentariosC, publicaciones, entregas, intentos, posts, opciones, miembros] =
     await Promise.all([
       supabase.from('lesson_progress').select('lesson_id').eq('user_id', userId).eq('completed', true),
-      supabase.from('lesson_outline').select('id, course_id, cohort_id'),
+      supabase.from('lesson_outline').select('id, course_id, cohort_id, module_id, exclusiva'),
       supabase.from('actividad_por_curso').select('*').eq('user_id', userId),
       supabase
         .from('access_links')
@@ -120,6 +121,8 @@ export const fichaDeAlumno = cache(async function fichaDeAlumno(userId: string):
       supabase.from('quiz_attempts').select('id', { count: 'exact', head: true }).eq('user_id', userId),
       supabase.from('posts').select('id', { count: 'exact', head: true }).eq('author_id', userId),
       opcionesDeAlta(),
+      // Sus sesiones exclusivas (0038): las que no tiene no le cuentan.
+      supabase.from('module_members').select('module_id, user_id').eq('user_id', userId),
     ])
 
   // Lección -> curso y generación, para saber a qué cuenta cada avance (M16):
@@ -135,10 +138,11 @@ export const fichaDeAlumno = cache(async function fichaDeAlumno(userId: string):
     grupoDeLeccion.set(fila.id, g)
     totalPorGrupo.set(g, (totalPorGrupo.get(g) ?? 0) + 1)
   }
+  const exclusivas = armarExclusivas(outline.data ?? [], (l) => grupo(l.course_id ?? '', l.cohort_id), miembros.data ?? [])
   const hechasPorGrupo = new Map<string, number>()
   for (const fila of progreso.data ?? []) {
     const g = grupoDeLeccion.get(fila.lesson_id)
-    if (!g) continue
+    if (!g || !leCuenta(exclusivas, userId, fila.lesson_id)) continue
     hechasPorGrupo.set(g, (hechasPorGrupo.get(g) ?? 0) + 1)
   }
 
@@ -161,7 +165,7 @@ export const fichaDeAlumno = cache(async function fichaDeAlumno(userId: string):
   const ahora = Date.now()
   const inscripciones = (p.enrollments ?? []).map((e) => {
     const g = grupo(e.course_id, e.cohort_id)
-    const total = totalPorGrupo.get(g) ?? 0
+    const total = (totalPorGrupo.get(g) ?? 0) - leccionesQueNoVe(exclusivas, g, userId)
     const hechas = hechasPorGrupo.get(g) ?? 0
     const act = actividadPorCurso.get(e.course_id) ?? ACTIVIDAD_VACIA
     const puntos = puntosDe(act)
