@@ -280,5 +280,19 @@ export function cues(T, estilo = "3d") {
   }
   sfx("swell1", C.caro + 0.3, -12);
   sfx("brillo2", C.tarjeta - 0.15, -8);
+  // ---------- Propuesta 3 «La interfaz viva» (v3): los efectos de sus elementos (12-oct) ----------
+  // voz y música iguales; los efectos comunes de arriba se quedan (oleadas, glitch, golpe de MÉTODO…)
+  if (estilo === "v3") {
+    sfx("gota", C.enciende - 0.04, -3);                                // la gota cae sobre la pantalla
+    for (let k = 0; k < 6; k++) sfx("pop", 0.75 + k * 0.32, -9, { tono: [0, 3, 5, 7, 10, 12][k] });   // los globos de chat
+    sfx("pop", 2.3, -8, { tono: 9 });                                  // +12 notificaciones
+    sfx("sticker", C.pregunta - 0.15, -6, { ancla: "pico" });          // la tarjeta de la pregunta
+    C.oleadas.forEach((t0, k) => sfx("sticker", t0 + 0.27, -7, { ancla: "pico", tono: k }));   // NEW! / ¡OTRA!
+    sfx("whoosh1", C.colapso + 0.5, -8, { ancla: "pico" });            // la página baja al 6 de 100
+    for (let k = 0; k < 6; k++) sfx("arcilla", C.colapso + 0.45 + k * 0.07, -14, { tono: k * 2 });   // las píldoras de arcilla
+    for (let k = 0; k < 5; k++) sfx("tick", C.normal + 0.4 + k * 0.32, -15, { tono: 12 });          // la barra de carga
+    sfx("pop", C.como - 0.1, -8, { tono: 5 });                         // el «?» que nadie llena
+    sfx("whoosh1", C.ha + 0.2, -11, { ancla: "pico" });                // la gota regresa a ti
+  }
   return { C, S };
 }

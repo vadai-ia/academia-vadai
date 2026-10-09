@@ -26,6 +26,7 @@ const F = {
   plumon1: "v2/plumon-1.mp3", plumon3: "v2/plumon-3.mp3", murmullo: "v2/murmullo.mp3",
   vidrio1: "v2/vidrio-1.mp3", vidrio2: "v2/vidrio-2.mp3", monedas: "v2/monedas.mp3", pasos: "v2/pasos.mp3",
   sello: "v2/sello.mp3", reloj: "v2/reloj.mp3", chats: "v2/chats.mp3", multitud: "v2/multitud.mp3", foco: "v2/foco.mp3",
+  gota: "v3/gota.mp3", thock: "v3/thock.mp3", sticker: "v3/sticker.mp3", arcilla: "v3/arcilla.mp3",
 };
 const MEDIDAS = JSON.parse(readFileSync(join(raiz, "assets/sfx/medidas.json"), "utf8"));
 const REF = -30;
@@ -44,7 +45,7 @@ const wavF32 = (ruta, d) => {
 
 // node scripts/v2-mezcla.mjs [3d|2d] [platica|curso] … (sin argumentos: las cuatro)
 const args = process.argv.slice(2);
-const estilos = args.filter((a) => a === "3d" || a === "2d"), cierres = args.filter((a) => a === "platica" || a === "curso");
+const estilos = args.filter((a) => a === "3d" || a === "2d" || a === "v3"), cierres = args.filter((a) => a === "platica" || a === "curso");
 for (const v of cierres.length ? cierres : ["platica", "curso"]) for (const estilo of estilos.length ? estilos : ["3d", "2d"]) {
   const T = await tiempos(v);
   const DURACION = T.duracion;

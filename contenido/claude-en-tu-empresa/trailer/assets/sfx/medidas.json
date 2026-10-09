@@ -313,5 +313,33 @@
   "pico": 0.63,
   "fin": 0.83,
   "rms_db": -8.7
+ },
+ "v3/arcilla.mp3": {
+  "dur": 1.0,
+  "inicio": 0.07,
+  "pico": 0.42,
+  "fin": 0.78,
+  "rms_db": -28.5
+ },
+ "v3/gota.mp3": {
+  "dur": 2.0,
+  "inicio": 0.01,
+  "pico": 0.02,
+  "fin": 0.64,
+  "rms_db": -23.0
+ },
+ "v3/sticker.mp3": {
+  "dur": 1.0,
+  "inicio": 0.41,
+  "pico": 0.43,
+  "fin": 0.54,
+  "rms_db": -18.9
+ },
+ "v3/thock.mp3": {
+  "dur": 1.0,
+  "inicio": 0.0,
+  "pico": 0.27,
+  "fin": 0.33,
+  "rms_db": -42.7
  }
 }
