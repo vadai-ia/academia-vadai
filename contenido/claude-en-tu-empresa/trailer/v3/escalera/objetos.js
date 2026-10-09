@@ -419,3 +419,15 @@ export function letra(texto, { color = COLOR.cieloHondo, tam = 0.5, fuente = 'it
   s.scale.set(tam, tam, 1);
   return s;
 }
+
+// globo de diálogo (la multitud): cuerpo redondeado con colita, texto navy
+export function texturaGlobo(texto, fondo = "#FFFFFF", tinta = COLOR.navy) {
+  return texturaTexto((g, W, H) => {
+    g.clearRect(0, 0, W, H);
+    g.fillStyle = "rgba(10,26,47,0.18)"; rrect(g, 18, 22, W - 30, H * 0.7, 52); g.fill();
+    g.fillStyle = fondo; rrect(g, 10, 10, W - 30, H * 0.7, 52); g.fill();
+    g.beginPath(); g.moveTo(W * 0.24, H * 0.7); g.lineTo(W * 0.2, H * 0.97); g.lineTo(W * 0.44, H * 0.7); g.closePath(); g.fill();
+    g.fillStyle = tinta; g.font = '900 120px "Inter"'; g.textAlign = "center"; g.textBaseline = "middle";
+    g.fillText(texto, (W - 20) / 2, H * 0.36 + 6);
+  }, { w: 320, h: 240 });
+}

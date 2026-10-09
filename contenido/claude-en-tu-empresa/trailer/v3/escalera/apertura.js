@@ -1,6 +1,7 @@
 // Propuesta 3 · «La escalera infinita» — de 0 a «nadie te ha explicado cómo» (≈31 s).
-//  01 Todo mundo habla de IA ............ a cinco objetos de todos los días les estampan «IA ✦»; el último
-//                                          sticker se estampa en la cámara y se despega.
+//  01 Todo mundo habla de IA ............ una multitud de píldoras, todas con su globo «IA». La cámara se
+//                                          aleja y sube: vista desde arriba, la multitud forma las letras «IA».
+//                                          Afuera, sola, TU EMPRESA. La cámara baja en picada hasta su puerta.
 //  02 …qué hacer con ella en tu empresa .. a la puerta de TU EMPRESA cae la caja «IA»: trae un manual en blanco.
 //  03 El nuevo bucle tecnológico ......... la caja se despliega en escalones y la cámara gira: es una escalera
 //                                          de Penrose (sube para siempre y regresa al mismo escalón).
@@ -12,7 +13,7 @@
 import * as THREE from "three";
 import { COLOR, ISO, pista, tramo, clamp01, mezcla, azar, asentar, brillo, arcilla } from "./mundo.js";
 import * as O from "./objetos.js";
-import { linea } from "./texto.js";
+import { linea, golpe } from "./texto.js";
 import { eventos } from "./eventos.js";
 
 const V3 = (x = 0, y = 0, z = 0) => new THREE.Vector3(x, y, z);
@@ -24,6 +25,8 @@ const aterriza = (t, t0, fuerza = 0.28, dur = 0.38) => { const u = tramo(t, t0, 
 
 export function montar(ctx) {
   const { m, T, tl, raiz } = ctx;
+  const golpes = ctx.golpes, fondo = ctx.fondo;
+  ctx.cursorClaves = ctx.cursorClaves || [];
   const esc0 = m.escena;
   const w = (i, p, n = 1) => T.w(i, p, n);
   const wf = (i, p, n = 1) => T.wFin(i, p, n);
@@ -39,21 +42,7 @@ export function montar(ctx) {
   piso.rotation.x = -Math.PI / 2; piso.receiveShadow = true;
   esc0.add(piso);
 
-  // ---- 01: objetos de todos los días ----
-  const XA = V3(-60, 0, 0);
   const derecha = V3(1, 0, -1).normalize();          // horizontal de pantalla en la pose isométrica
-  const fabr = [() => O.taza(COLOR.durazno), () => O.tostador(COLOR.cieloClaro), () => O.foco(COLOR.lima), () => O.audifonos(COLOR.azul), () => O.cepillo(COLOR.durazno)];
-  const objetos = fabr.map((f, k) => {
-    const o = f();
-    const base = XA.clone().addScaledVector(derecha, (k - 2) * 1.55);
-    o.g.position.copy(base); o.g.rotation.y = ISO.az + (k - 2) * 0.12;
-    esc0.add(o.g);
-    const st = O.sticker("IA", { ancho: 0.78, rot: (k % 2 ? -1 : 1) * 0.16 });
-    st.position.set(0, o.alto * 0.52, o.frente + 0.02);
-    o.g.add(st);
-    return { ...o, base, st, k };
-  });
-  // entradas de los objetos y golpes de sticker (en las palabras)
 
   // ---- 02: la empresa, la caja IA y el manual ----
   const esc = O.penrose();
@@ -66,6 +55,43 @@ export function montar(ctx) {
   esc0.add(cajaIA.g);
   const man = O.manual();
   esc0.add(man.g);
+
+  // ---- 01: la multitud que, vista desde arriba, forma «IA» (todos hablan de lo mismo) ----
+  const RD = V3(Math.cos(ISO.az), 0, -Math.sin(ISO.az)), DN = V3(Math.sin(ISO.az), 0, Math.cos(ISO.az));   // derecha / abajo de pantalla
+  const XC = BE.clone().add(V3(-16.5, 0, 5.0));
+  const KPX = 0.115;
+  const lienzo = document.createElement("canvas"); lienzo.width = 260; lienzo.height = 150;
+  const gq = lienzo.getContext("2d");
+  gq.fillStyle = "#000"; gq.font = '900 156px "Inter"'; gq.textAlign = "center"; gq.textBaseline = "middle"; gq.fillText("IA", 130, 84);
+  const pxl = gq.getImageData(0, 0, 260, 150).data;
+  const rM = azar(31), gente = [];
+  for (let py = 4; py < 150; py += 8.3) for (let pxx = 4; pxx < 260; pxx += 8.3) {
+    const jx = pxx + (rM() - 0.5) * 3.2, jy = py + (rM() - 0.5) * 3.2;
+    const ix = Math.round(jx), iy = Math.round(jy);
+    if (ix < 0 || iy < 0 || ix >= 260 || iy >= 150 || pxl[(iy * 260 + ix) * 4 + 3] < 128) continue;
+    const pos = XC.clone().addScaledVector(RD, (jx - 130) * KPX).addScaledVector(DN, (jy - 75) * KPX);
+    gente.push({ pos, px: jx, py: jy, rumbo: ISO.az + (rM() - 0.5) * 2.6, fase: rM() * 6.28, vel: 9 + rM() * 5, col: Math.floor(rM() * 5), vari: Math.floor(rM() * 3), azar: rM() });
+  }
+  const minPx = Math.min(...gente.map((g) => g.px));
+  const origen = gente.reduce((a, g) => (Math.hypot(g.px - (minPx + 17), g.py - 70) < Math.hypot(a.px - (minPx + 17), a.py - 70) ? g : a), gente[0]);
+  const dBmax = Math.max(...gente.map((g) => g.pos.distanceTo(BE)));
+  gente.forEach((g) => { g.tPop = 0.06 + Math.hypot(g.px - origen.px, g.py - origen.py) * 0.0072 + g.azar * 0.12; g.tFuera = E.t.pero + 0.1 + (g.pos.distanceTo(BE) / dBmax) * 0.0 + (1 - g.pos.distanceTo(BE) / dBmax) * 0.5; });
+  const NG = gente.length;
+  const colGente = [COLOR.durazno, COLOR.azul, COLOR.lima, COLOR.cieloClaro, "#F4F7FA"].map((c) => new THREE.Color(c));
+  const cuerpoG = new THREE.InstancedMesh(new THREE.CapsuleGeometry(0.34, 0.3, 8, 20), brillo("#ffffff", { rugosidad: 0.22 }), NG);
+  cuerpoG.castShadow = true; cuerpoG.receiveShadow = true;
+  gente.forEach((g, i) => cuerpoG.setColorAt(i, colGente[g.col]));
+  const ojoB = new THREE.InstancedMesh(new THREE.SphereGeometry(0.112, 14, 10), new THREE.MeshPhysicalMaterial({ color: 0xffffff, roughness: 0.15, clearcoat: 1 }), NG * 2);
+  const ojoN = new THREE.InstancedMesh(new THREE.SphereGeometry(0.068, 12, 8), new THREE.MeshPhysicalMaterial({ color: new THREE.Color(COLOR.tinta), roughness: 0.2, clearcoat: 1 }), NG * 2);
+  const globoTx = (txt, fondoG, tinta) => O.texturaGlobo(txt, fondoG, tinta);
+  const globos = [["IA", "#FFFFFF", COLOR.navy], ["¡IA!", COLOR.lima, COLOR.navy], ["IA?", COLOR.cieloClaro, COLOR.navy]].map(([txt, f, c]) => {
+    const im = new THREE.InstancedMesh(new THREE.PlaneGeometry(0.95, 0.72), new THREE.MeshBasicMaterial({ map: globoTx(txt, f, c), transparent: true, alphaTest: 0.05, depthWrite: true }), NG);
+    esc0.add(im); return im;
+  });
+  esc0.add(cuerpoG, ojoB, ojoN);
+  // las mallas instanciadas se reparten lejos de su origen: sin esto three las descarta enteras (frustum)
+  [cuerpoG, ojoB, ojoN, ...globos].forEach((x) => (x.frustumCulled = false));
+  const dum = new THREE.Object3D(), mG = new THREE.Matrix4(), mE = new THREE.Matrix4(), cero = new THREE.Matrix4().makeScale(0, 0, 0);
 
   // ---- el equipo ----
   const equipo = [COLOR.durazno, COLOR.azul, COLOR.lima, COLOR.cieloClaro].map((c) => { const p = O.pildora(c); esc0.add(p.g); return p; });
@@ -120,12 +146,14 @@ export function montar(ctx) {
       inst.setColorAt(ci * esc.N + k - 1, colTmp.copy(colBase[0]).lerp(colBase[1], u));
     }
   });
+  inst.frustumCulled = false;
   esc0.add(inst);
   // pildoritas de las otras empresas (sin ojos a esa escala)
   const coloresEq = [COLOR.durazno, COLOR.azul, COLOR.lima].map((c) => new THREE.Color(c));
   const instP = new THREE.InstancedMesh(new THREE.CapsuleGeometry(0.34, 0.3, 6, 16), brillo("#ffffff", { rugosidad: 0.25 }), cel.length * 3);
   instP.castShadow = true;
   cel.forEach((c, ci) => { for (let k = 0; k < 3; k++) instP.setColorAt(ci * 3 + k, coloresEq[k]); });
+  instP.frustumCulled = false;
   esc0.add(instP);
   // rayos de las seis: columna lima que sale del lazo hacia arriba
   const rayos = cel.filter((c) => brillan.has(`${c.i},${c.j}`)).map((c, k) => {
@@ -140,35 +168,22 @@ export function montar(ctx) {
   const hoja = O.hojaSuelta(); esc0.add(hoja.g);
 
   // ================= textos =================
-  const L = (partes, anclas, fin, op = {}) => linea(tl, raiz, { partes, anclas, fin, ...op });
-  L([["Todo mundo habla de"], ["inteligencia artificial.", "acento"]], [t.todo, t.todo + 0.11, t.habla, t.habla + 0.26, t.inteligencia, t.artificial], tLente - 0.05);
-  L([["Casi nadie te dice"], ["qué hacer", "acento"], ["con ella."]], [t.casi, t.nadie, t.dice + 0.05, t.que, t.hacer, t.ella - 0.08, t.ella], t.fin1 + 0.25);
-  L([["Te presento el nuevo"], ["bucle tecnológico.", "acento"]], [t.presento - 0.03, t.presento + 0.18, t.presento + 0.42, t.bucle - 0.12, t.bucle, t.tecno], t.cada - 0.2);
-  L([["Cada"], ["semana", "acento"], ["sale una herramienta nueva."]], [t.cada, t.semana, t.sale, t.sale + 0.2, t.herramienta, t.nueva], t.equipo - 0.22);
-  L([["Tu equipo la usa"], ["a su manera…", "acento"]], [t.equipo - 0.04, t.equipo + 0.2, t.intenta + 0.2, t.usarla + 0.1, t.manera - 0.12, t.manera], t.o - 0.18);
-  L([["…o"], ["ni eso.", "acento"]], [t.o, t.o + 0.08, t.eso], t.y - 0.2);
+  const L = (partes, anclas, fin, op = {}) => { const l = linea(tl, raiz, { partes, anclas, ...op, ...(ctx.V ? ctx.textoV(op) : {}) }); ctx.textos.push({ l, fin }); return l; };
+  const G = (q, op) => golpe(tl, q, { ...op, W: ctx.W, H: ctx.H, tam: ctx.V ? op.tam * 0.52 : op.tam });
+  L([["Todo mundo", "fuerte"], ["habla de"], ["inteligencia", "cielo"], ["artificial.", "acento"]], [t.todo, t.todo + 0.11, t.habla, t.habla + 0.26, t.inteligencia, t.artificial], t.pero - 0.12, { dir: [0, 1] });
+  L([["Casi nadie te dice"], ["qué hacer", "lima"], ["con ella"], ["en tu empresa.", "acento"]], [t.casi, t.nadie, t.dice - 0.05, t.dice + 0.05, t.que, t.hacer, t.ella - 0.08, t.ella, t.empresa - 0.12, t.empresa], t.fin1 + 0.25, { entra: [0, 1] });
+  L([["Te presento el nuevo"], ["bucle", "cielo"], ["tecnológico.", "acento"]], [t.presento - 0.03, t.presento + 0.18, t.presento + 0.42, t.bucle - 0.12, t.bucle, t.tecno], t.cada - 0.2);
+  L([["Cada"], ["semana", "acento"], ["sale una"], ["herramienta nueva.", "durazno"]], [t.cada, t.semana, t.sale, t.sale + 0.2, t.herramienta, t.nueva], t.equipo - 0.22);
+  L([["Tu equipo intenta usarla"], ["a su manera…", "acento"]], [t.equipo - 0.04, t.equipo, t.intenta, t.usarla, t.manera - 0.18, t.manera - 0.08, t.manera], t.o - 0.18);
+  L([["…o"], ["ni eso.", "fuerte"]], [t.o, t.o + 0.08, t.eso], t.y - 0.2);
   L([["Y cuando sienten que"], ["ya avanzaron…", "acento"]], [t.y + 0.02, t.y + 0.05, t.sienten, t.sienten + 0.3, t.ya, t.avanzaron], t.sale2 - 0.18);
-  L([["sale", "acento"], ["otra.", "acento"]], [t.sale2, t.otra], t.realidad - 0.15, { tam: 70 });
-  L([["Solo"], ["6 de cada 100", "acento"], ["empresas"]], [t.solo, t.seis, t.seis + 0.22, t.seis + 0.42, t.cien, t.empresas], t.realmente - 0.18);
-  L([["le están sacando"], ["provecho", "acento"], ["a la IA."]], [t.realmente, t.realmente + 0.4, t.realmente + 0.7, t.provecho, t.ia3 - 0.15, t.ia3], t.y4 - 0.2);
-  L([["Es normal sentir que"], ["vas tarde.", "acento"]], [t.normal - 0.1, t.normal + 0.15, t.normal + 0.35, t.normal + 0.6, t.vas, t.tarde], t.nadie4 - 0.2);
-  L([["Nadie te ha explicado"], ["cómo.", "acento"]], [t.nadie4, t.nadie4 + 0.18, t.nadie4 + 0.3, t.explicado, t.como], t.fin4 + 0.2);
-
-  // ---- el sticker que se estampa en la cámara ----
-  const lente = document.createElement("div");
-  Object.assign(lente.style, { position: "absolute", left: "50%", top: "50%", width: "980px", height: "490px", marginLeft: "-490px", marginTop: "-245px", opacity: "0", transformOrigin: "88% 12%" });
-  lente.innerHTML = `<svg viewBox="0 0 512 256" width="980" height="490"><defs><linearGradient id="brl" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#fff" stop-opacity=".55"/><stop offset=".4" stop-color="#fff" stop-opacity="0"/></linearGradient></defs>
-    <rect x="6" y="6" width="500" height="244" rx="64" fill="#fff"/><rect x="22" y="22" width="468" height="212" rx="50" fill="${COLOR.lima}"/>
-    <text x="226" y="170" text-anchor="middle" font-family="Inter" font-weight="800" font-size="138" fill="${COLOR.navy}">IA</text>
-    <path transform="translate(352,128)" d="M0,-52 L11,-11 L52,0 L11,11 L0,52 L-11,11 L-52,0 L-11,-11 Z" fill="${COLOR.navy}"/>
-    <rect x="22" y="22" width="468" height="212" rx="50" fill="url(#brl)"/></svg>`;
-  lente.style.filter = "drop-shadow(0 30px 40px rgba(10,26,47,.28))";
-  raiz.appendChild(lente);
-  tl.fromTo(lente, { opacity: 0, scale: 2.6, rotation: -14 }, { opacity: 1, scale: 1, rotation: -6, duration: 0.16, ease: "power4.in", immediateRender: true }, tLente);
-  tl.to(lente, { scale: 1.04, duration: 0.08, ease: "power2.out" }, tLente + 0.16);
-  tl.to(lente, { scale: 1, duration: 0.2, ease: "power2.inOut" }, tLente + 0.24);
-  tl.to(lente, { rotationX: 70, rotationY: -60, x: 900, y: -700, rotation: 30, duration: 0.42, ease: "power3.in" }, tDespega);
-  tl.set(lente, { opacity: 0 }, tDespega + 0.42);
+  L([["sale", "acento"]], [t.sale2], t.otra - 0.06, { tam: 70 });
+  G(golpes, { t: t.otra, dur: 0.48, texto: "OTRA.", fondo: COLOR.navy, color: COLOR.lima, tam: 380 });
+  L([["Solo"], ["6", "fuerte"], ["de cada 100", "lima"], ["empresas"]], [t.solo, t.seis, t.seis + 0.22, t.seis + 0.42, t.cien, t.empresas], t.realmente - 0.18);
+  L([["realmente le están sacando"], ["provecho", "acento"], ["a la IA."]], [t.realmente, t.realmente + 0.55, t.realmente + 0.62, t.realmente + 0.9, t.provecho, t.ia3 - 0.15, t.ia3], t.y4 - 0.2);
+  L([["Es normal sentir que"]], [t.normal - 0.1, t.normal + 0.15, t.normal + 0.35, t.normal + 0.6], t.vas - 0.06);
+  G(golpes, { t: t.vas, dur: 0.56, texto: "VAS TARDE", fondo: COLOR.durazno, color: COLOR.navy, tam: 300 });
+  L([["Nadie te ha explicado"], ["cómo", "acento"], ["implementarla en tu negocio.", "cielo"]], [t.nadie4, t.nadie4 + 0.18, t.nadie4 + 0.3, t.explicado, t.como, w(4, "implementarla"), w(4, "en", 1), w(4, "tu"), t.negocio], t.fin4 + 0.2, { maxAncho: 1300, tam: 58 });
 
   // ---- la etiqueta «tu empresa» en la cuadrícula (sigue al lazo en pantalla) ----
   const pin = document.createElement("div");
@@ -184,13 +199,13 @@ export function montar(ctx) {
   const enfoqueD = V3(P1.x - P1.y + 0.4, 0, P1.z - P1.y + 0.6);
   // foco en el plano isométrico sobre el escalón s (para seguir a los que suben)
   const focoSube = (sv) => { const a0 = esc.cima(Math.floor(sv)), a1 = esc.siguiente(Math.floor(sv)), u = sv - Math.floor(sv); const q = a0.clone().lerp(a1, u); return V3(q.x - q.y, 0, q.z - q.y); };
-  const camA = pista([
-    { t: 0, v: [XA.x, 0.75, XA.z, ISO.az, ISO.el, 4.6] },
-    { t: tCorte, v: [XA.x, 0.75, XA.z, ISO.az, ISO.el, 4.15], e: "power1.inOut" },
-  ]);
   const vB = (alto) => [P1.x + 1.0, 1.55, P1.z + 0.4, 0.42, 0.36, alto];
   const camB = pista([
-    { t: tCorte, v: vB(5.6) },
+    { t: 0, v: [origen.pos.x, 1.25, origen.pos.z, ISO.az, ISO.el, 3.7] },
+    { t: 0.42, v: [origen.pos.x, 1.25, origen.pos.z, ISO.az, ISO.el, 4.0], e: "power1.in" },
+    { t: t.artificial + 0.35, v: [XC.x - DN.x * 1.6, 0, XC.z - DN.z * 1.6, ISO.az, 1.5, 27.5], e: "power3.inOut" },
+    { t: t.pero - 0.05, v: [XC.x - DN.x * 1.6, 0, XC.z - DN.z * 1.6, ISO.az, 1.5, 28.6], e: "power1.inOut" },
+    { t: tLlega + 0.28, v: vB(5.6), e: "power3.inOut" },
     { t: tGuarda, v: vB(5.0), e: "power1.inOut" },
     { t: tArma0 + 0.4, v: [centroLazo.x * 0.6 + (P1.x + 1.1) * 0.4, 1.0, centroLazo.z * 0.6 + (P1.z + 0.5) * 0.4, 0.34, 0.4, 7.4], e: "power2.in" },
     { t: tCierra, v: [centroLazo.x, 0.55, centroLazo.z, ISO.az, ISO.el, 7.9], e: "power3.out" },
@@ -305,33 +320,93 @@ export function montar(ctx) {
     });
   }
 
+  // ================= fondo vivo y cursor =================
+  // humor por tramo: multitud (cielo + durazno) · bucle (cielo + lima) · 6 de 100 (lima) · tarde (durazno)
+  ctx.paleta.push(
+    { t: -1, base: "#F4F8FB", a: "#BFEAFB", b: "#FFD7C0", c: "#CFE1EE" },
+    { t: t.presento, base: "#F2F8FB", a: "#B6E6F8", b: "#E2F6B8", c: "#C9DEEC" },
+    { t: t.realidad, base: "#F5FAF0", a: "#DDF5B0", b: "#BDE7F7", c: "#D3E5EE" },
+    { t: t.y4, base: "#FBF6F2", a: "#FFD3BA", b: "#C2E8F7", c: "#DCE6EE" },
+  );
+  ctx.marquesinas.push(
+    { t0: -1, t1: t.pero + 0.2, texto: "IA ✦ IA ✦ IA ✦", color: COLOR.cieloHondo, op: 0.1, y: 560, tam: 320, vel: 120 },
+    { t0: t.presento, t1: t.otra, texto: "BUCLE · BUCLE ·", color: COLOR.cieloHondo, op: 0.09, y: 600, tam: 300, vel: 80 },
+    { t0: t.realidad, t1: t.y4, texto: "6 DE CADA 100 ·", color: COLOR.limaTinta, op: 0.08, y: 600, tam: 260, vel: 70 },
+  );
+  const P = (v3) => m.proyectar(v3);
+  const esq = (x, y) => ({ x: x * (ctx.W / 1920), y: y * (ctx.H / 1080) });
+  const cimaCaja = () => P(V3(P1.x, 1.0, P1.z));
+  ctx.cursorClaves.push(
+    { t: tLlega + 0.1, p: () => ({ x: cimaCaja().x + 260, y: cimaCaja().y + 120 }), oculto: true },
+    { t: tAbre - 0.05, p: () => cimaCaja(), viaje: 0.5 },
+    { t: tAbre + 0.02, p: () => cimaCaja(), clic: true },
+    { t: tAbreMan - 0.02, p: () => P(V3(P1.x + 0.35, 1.5, P1.z + 0.2)), viaje: 0.35, clic: true },
+    { t: tHojas[3], p: () => P(V3(P1.x + 0.9, 0.9, P1.z + 0.6)), viaje: 0.5 },
+    { t: tArma0 - 0.12, p: () => P(V3(P1.x, 0.75, P1.z)), viaje: 0.4 },
+    { t: tArma0 - 0.06, p: () => P(V3(P1.x, 0.75, P1.z)), clic: true },
+    { t: tArma0 + 0.9, p: () => esq(1780, 980), viaje: 0.8 },
+    { t: tArma0 + 1.0, p: () => esq(1780, 980), oculto: true },
+    { t: tPin0 - 0.1, p: () => esq(1700, 900), oculto: true },
+    { t: tPin0 + 0.35, p: () => { const q = P(V3(esc.P[esc.N].x, esc.P[esc.N].y + 0.8, esc.P[esc.N].z)); return { x: q.x + 40, y: q.y + 30 }; }, viaje: 0.6, clic: true },
+    { t: tPin1 - 0.4, p: () => { const q = P(V3(esc.P[esc.N].x, esc.P[esc.N].y + 0.8, esc.P[esc.N].z)); return { x: q.x + 40, y: q.y + 30 }; } },
+    { t: tPin1 + 0.3, p: () => esq(1700, 1000), viaje: 0.5 },
+    { t: tPin1 + 0.4, p: () => esq(1700, 1000), oculto: true },
+    { t: tAbre2 - 0.55, p: () => esq(1500, 950), oculto: true },
+    { t: tAbre2 - 0.04, p: () => { const c = esc.cima(2); return P(V3(c.x + 0.4, c.y + 0.1, c.z + 0.35)); }, viaje: 0.45 },
+    { t: tAbre2 + 0.02, p: () => { const c = esc.cima(2); return P(V3(c.x + 0.4, c.y + 0.1, c.z + 0.35)); }, clic: true },
+    { t: tZafa + 0.6, p: () => esq(1820, 1020), viaje: 0.6 },
+    { t: tZafa + 0.7, p: () => esq(1820, 1020), oculto: true },
+  );
+
+  // la multitud (01); el cierre la vuelve a llamar con el tiempo corrido («todo mundo te va a seguir hablando»)
+  function multitud(tt) {
+    const enC = tt < t.pero + 0.9;
+    cuerpoG.visible = ojoB.visible = ojoN.visible = enC;
+    globos.forEach((g) => (g.visible = enC));
+    if (enC) {
+      const q = m.camara.quaternion;
+      gente.forEach((g, i) => {
+        const uP = tramo(tt, g.tPop, g.tPop + 0.22);
+        const uF = tramo(tt, g.tFuera, g.tFuera + 0.26);
+        const vive = 1 - sale3(uF);
+        const habla = uP > 0 ? 0.07 * Math.sin(tt * g.vel + g.fase) : 0;
+        const sy = (1 + habla) * (uP > 0 && uP < 1 ? 1 - 0.18 * Math.sin(Math.PI * uP) : 1);
+        const sx = 1 / Math.sqrt(sy);
+        if (vive <= 0.001) { cuerpoG.setMatrixAt(i, cero); ojoB.setMatrixAt(2 * i, cero); ojoB.setMatrixAt(2 * i + 1, cero); ojoN.setMatrixAt(2 * i, cero); ojoN.setMatrixAt(2 * i + 1, cero); globos.forEach((gb) => gb.setMatrixAt(i, cero)); return; }
+        dum.position.copy(g.pos); dum.rotation.set(0, g.rumbo + 0.25 * Math.sin(tt * 1.3 + g.fase), 0); dum.scale.set(sx * vive, sy * vive, sx * vive); dum.updateMatrix();
+        mG.copy(dum.matrix);
+        mE.makeTranslation(0, 0.51, 0); cuerpoG.setMatrixAt(i, mE.premultiply(mG));
+        [-1, 1].forEach((lado, j) => {
+          mE.makeTranslation(lado * 0.136, 0.632, 0.25).multiply(new THREE.Matrix4().makeScale(1, 1.18, 0.6)); ojoB.setMatrixAt(2 * i + j, mE.premultiply(mG));
+          mE.makeTranslation(lado * 0.136, 0.632 + 0.02, 0.305).multiply(new THREE.Matrix4().makeScale(1, 1.12, 0.55)); ojoN.setMatrixAt(2 * i + j, mE.premultiply(mG));
+        });
+        // su globo: aparece en la ola, flota y se apaga en «Pero»
+        const uG = tramo(tt, g.tPop, g.tPop + 0.28), uGf = tramo(tt, t.pero - 0.05 + g.azar * 0.18, t.pero + 0.13 + g.azar * 0.18);
+        const eg = uG <= 0 || uGf >= 1 ? 0 : (uG < 1 ? 1 + 0.25 * Math.sin(Math.PI * uG) * (1 - uG) : 1) * Math.min(1, uG * 3) * (1 - uGf);
+        globos.forEach((gb, k) => {
+          if (k !== g.vari || eg <= 0.001) { gb.setMatrixAt(i, cero); return; }
+          dum.position.copy(g.pos).add(V3(0, 1.02 * sy + 0.62 + 0.05 * Math.sin(tt * 3 + g.fase), 0)); dum.quaternion.copy(q); dum.scale.setScalar(eg); dum.updateMatrix();
+          gb.setMatrixAt(i, dum.matrix); dum.rotation.set(0, 0, 0);
+        });
+      });
+      cuerpoG.instanceMatrix.needsUpdate = ojoB.instanceMatrix.needsUpdate = ojoN.instanceMatrix.needsUpdate = true;
+      globos.forEach((gb) => (gb.instanceMatrix.needsUpdate = true));
+    }
+
+  }
+
   function pintar(tt) {
+    esc.g.visible = true; piso.visible = true;
     // ---------- cámara ----------
-    let v = tt < tCorte ? camA(tt) : camB(tt);
+    let v = camB(tt);
     let dx = 0, dy = 0;
     for (const z of sacudidas) { const u = (tt - z.t) / z.dur; if (u < 0 || u > 1) continue; const a = z.amp * Math.pow(1 - u, 2); dx += a * Math.sin(tt * 97.3 + z.t * 13.1); dy += a * Math.cos(tt * 83.7 + z.t * 7.7); }
     m.ponerCamara({ x: v[0] + dx * derecha.x, y: v[1] + dy, z: v[2] + dx * derecha.z, az: v[3], el: v[4], alto: v[5] });
 
-    // ---------- 01 ----------
-    const enA = tt < tCorte;
-    objetos.forEach((o, k) => {
-      o.g.visible = enA;
-      const u = tramo(tt, tObj[k], tObj[k] + 0.32);
-      o.g.position.set(o.base.x, o.base.y + (1 - sale3(u)) * 0.35, o.base.z);
-      const sq = (u < 1 ? 0.86 + 0.14 * sale3(u) : 1) * aterriza(tt, tObj[k] + 0.32, 0.12);
-      // golpe del sticker: el objeto se aplasta un poco
-      const st = tSt[k];
-      const g = aterriza(tt, st, 0.12, 0.3);
-      o.g.scale.set(1 / Math.sqrt(sq * g), sq * g, 1 / Math.sqrt(sq * g));
-      const us = tramo(tt, st - 0.08, st);
-      o.st.visible = us > 0;
-      const e = us < 1 ? 2.4 - 1.4 * (us * us) : 1;
-      o.st.scale.setScalar(e);
-      o.st.rotation.z = ((k % 2 ? -1 : 1) * 0.16) + (1 - us) * 0.5;
-    });
+    multitud(tt);
 
     // ---------- 02: empresa, caja y manual ----------
-    const enB = tt >= tCorte;
+    const enB = true;
     const uE = tramo(tt, tArma0 + 0.1, tArma0 + 0.55);
     empresa.poner({ x: BE.x, y: 0, z: BE.z, rumbo: 0.42, visible: enB && uE < 1, escala: 0.82 * (1 - sale3(uE) * 0.999), luces: 0.25 + 0.5 * tramo(tt, tPuerta - 0.2, tPuerta) });
     piso.material.opacity = 0.22 * (1 - tramo(tt, tArma0 + 0.2, tArma0 + 1.2));
@@ -395,7 +470,7 @@ export function montar(ctx) {
       if (k === 2 && tt > t.intenta) { const f = V3(Math.sin(est.rumbo), 0, Math.cos(est.rumbo)).multiplyScalar(0.42); x += f.x; z += f.z; y -= 0.55; gz = Math.PI * suave(tramo(tt, t.intenta, t.intenta + 0.3)); }   // C: al revés
       else if (k === 2) y += 0.05;
       const sq = aterriza(tt, tLl, 0.25, 0.3);
-      c.poner({ x, y, z, rumbo, giroX: gx, giroZ: gz, sy: sq, escala: uc > 0 && tt < tOtraLlega + 0.05 ? 1 : 0 });
+      c.poner({ x, y, z, rumbo, giroX: gx, giroZ: gz, sy: sq, sx: 1, abre: 0, escala: uc > 0 && tt < tOtraLlega + 0.05 ? 1 : 0 });
       // el portador se aplasta cuando le cae
       if (uc >= 1 && tt < tLl + 0.35) portador.poner({ sy: est.sy * aterriza(tt, tLl, 0.22, 0.32) });
     });
@@ -437,7 +512,7 @@ export function montar(ctx) {
       const sq = aterriza(tt, tOtraLlega, 0.32, 0.5);
       // al salir de debajo, la caja se voltea y se va
       const uv = tramo(tt, t.normal - 0.35, t.normal + 0.15);
-      otra.poner({ x: c.x + 0.05, y: c.y + (1 - caer(u)) * 9 + sale3(uv) * 0.4, z: c.z + 0.05, rumbo: ISO.az - 0.1, sy: sq, sx: 1 / Math.sqrt(sq), giroX: -1.4 * suave(uv), escala: u > 0 ? 1 - sale3(uv) : 0 });
+      otra.poner({ abre: 0, giroZ: 0, x: c.x + 0.05, y: c.y + (1 - caer(u)) * 9 + sale3(uv) * 0.4, z: c.z + 0.05, rumbo: ISO.az - 0.1, sy: sq, sx: 1 / Math.sqrt(sq), giroX: -1.4 * suave(uv), escala: u > 0 ? 1 - sale3(uv) : 0 });
     }
 
     // ---------- 06: las 99 y las seis ----------
@@ -520,5 +595,7 @@ export function montar(ctx) {
       }
     }
   }
-  return { pintar, t };
+  // fuera de su tramo, lo suyo en el DOM se apaga (los saltos de la línea de tiempo no pasan por pintar)
+  function siempre(tt) { if (tt < t.mientras + 0.15) return; pin.style.opacity = "0"; pinPunta.style.opacity = "0"; }
+  return { pintar, siempre, multitud, t, E, esc, equipo, empresa, cajas, otra, cajaIA, man, man2, inst, instP, cel, S, brillan, rayos, colBase, colLima, gente, cuerpoG, ojoB, ojoN, globos, XC, origen, BE, P1, flag, cal };
 }

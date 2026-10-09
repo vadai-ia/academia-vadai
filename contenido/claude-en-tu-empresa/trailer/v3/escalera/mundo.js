@@ -110,11 +110,15 @@ export function crearMundo(canvas, { ancho, alto }) {
     camara.up.set(0, 1, 0);
     camara.lookAt(vista.x, vista.y, vista.z);
     if (vista.giro) camara.rotateZ(vista.giro);
-    const h = vista.alto / 2;
+    const K = aspecto < 1 ? 1.9 : 1;
+    vista.altoReal = vista.alto * K;
+    const h = vista.altoReal / 2;
     camara.left = -h * aspecto; camara.right = h * aspecto; camara.top = h; camara.bottom = -h;
     camara.near = 1; camara.far = 2 * d;
     camara.updateProjectionMatrix();
     camara.updateMatrixWorld();
+    // en vertical la escena baja un poco: el tercio de arriba es del texto
+    if (K > 1) { const up = new THREE.Vector3().setFromMatrixColumn(camara.matrixWorld, 1).multiplyScalar(vista.altoReal * 0.07); camara.position.add(up); camara.updateMatrixWorld(); }
     // la luz sigue a la cámara: arriba-izquierda-frente respecto al cuadro, y su caja de sombra cubre la vista
     const luz = new THREE.Vector3(-0.55, 1, 0.35).applyAxisAngle(new THREE.Vector3(0, 1, 0), vista.az - ISO.az).normalize();
     sol.position.set(vista.x + luz.x * 60, vista.y + luz.y * 60, vista.z + luz.z * 60);

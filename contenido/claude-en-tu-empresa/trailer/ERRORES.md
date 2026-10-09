@@ -3,6 +3,27 @@
 Fallas encontradas y cómo se arreglaron. Se lee antes de tocar render, 3D o tipografía
 animada (MOTION-RULES 11). Lo más nuevo arriba.
 
+## 9-oct-2026 · Propuesta 3 «La escalera infinita» (three.js + capas DOM)
+
+### E45 · Las multitudes instanciadas desaparecían al acercar la cámara
+- **Síntoma:** en el primer acercamiento a la multitud no salía ningún globo «IA»; desde arriba sí.
+- **Causa:** `InstancedMesh` calcula su esfera de recorte una vez, con las matrices del primer cuadro (todas en el origen). Lejos del origen, three descarta la malla entera.
+- **Arreglo:** `frustumCulled = false` en toda malla instanciada (multitud, ojos, globos, las 99 escaleras, sus píldoras).
+
+### E44 · Dos líneas de texto a la vez
+- **Síntoma:** «Entonces, sé honesto» seguía en pantalla cuando entraba «¿cuánto…»; igual en «todo en un mismo lugar».
+- **Causa:** cada acto ponía la salida de su línea a mano y la salida (0.24 s más el escalonado) se montaba con la entrada de la siguiente.
+- **Arreglo:** las líneas se registran en `ctx.textos` y `scripts/v3e-html.mjs` programa todas las salidas al final: la que pidió el acto, pero nunca después de 0.24 s antes de la siguiente.
+
+### E43 · Un cuadro navy vacío a los 33 s
+- **Síntoma:** en la hoja de cálculo, la pantalla entera navy y solo se veía «reportes a mano».
+- **Causa:** el pulso del contador «DÍA» usaba `exp(-(t - inicio)/0.12)` también antes de su tramo: con t < inicio el exponente era positivo y la etiqueta (letras navy) crecía hasta cubrir el cuadro.
+- **Arreglo:** el pulso solo existe dentro del tramo de los días. **Regla:** toda curva con `exp` se acota a su tramo.
+
+### E42 · La última hoja del calendario no aparecía
+- **Causa:** `tramo(t, Infinity, Infinity)` da `NaN`; la rotación quedaba en `NaN` y three no pintaba la hoja.
+- **Arreglo:** la hoja que no gira tiene rotación 0 explícita. Nunca se pasa `Infinity` como límite de un tramo.
+
 ## 11-oct-2026 · v2 2D curso (toma C) y verticales
 
 ### E41 · El vertical salía con una franja negra de 8 px a la derecha

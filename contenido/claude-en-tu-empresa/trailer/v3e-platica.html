@@ -1,22 +1,9 @@
-// Propuesta 3 «La escalera infinita» · genera las composiciones desde una plantilla.
-//   node scripts/v3e-html.mjs [rebanada]   → v3e-platica.html (completo) y, con «rebanada», v3e-rebanada.html
-// Capas (de abajo arriba): #fondo (aurora por tramo, retícula, palabras gigantes) · lienzo WebGL transparente
-// (el mundo) · #lineas (hilos y redes, SVG) · #ui (tarjetas, etiquetas) · #tipo (texto cinético) · #cursor
-// (el líder) · #golpes (tarjetas de golpe a todo color) · grano · viñeta. Vertical: lienzo de 1088 (ERRORES E41).
-import { writeFileSync } from "node:fs";
-import { join, resolve, dirname } from "node:path";
-import { fileURLToPath } from "node:url";
-import { DURACIONES } from "../v2/tiempos.js";
-
-const raiz = resolve(dirname(fileURLToPath(import.meta.url)), "..");
-const html = ({ W, H, V, cierre, DUR, audio }) => {
-  const WR = V ? 1088 : W;
-  return `<!doctype html>
-<html lang="es" data-resolution="${V ? "portrait" : "landscape"}">
+<!doctype html>
+<html lang="es" data-resolution="landscape">
 <head>
 <meta charset="UTF-8" />
-<meta name="viewport" content="width=${WR}, height=${H}" />
-<!-- GENERADO por scripts/v3e-html.mjs: no se edita a mano. Propuesta 3 «La escalera infinita» · ${cierre} · ${V ? "vertical" : "horizontal"}. -->
+<meta name="viewport" content="width=1920, height=1080" />
+<!-- GENERADO por scripts/v3e-html.mjs: no se edita a mano. Propuesta 3 «La escalera infinita» · platica · horizontal. -->
 <script src="./estilo/semilla.js"></script>
 <script>
   window.__hf = window.__hf || {}; window.__hf.buildReady = window.__hf.buildReady || {};
@@ -29,29 +16,29 @@ const html = ({ W, H, V, cierre, DUR, audio }) => {
   @font-face { font-family: "Inter"; src: url("./assets/fonts/Inter-Variable.ttf") format("truetype"); font-weight: 100 900; font-display: block; }
   @font-face { font-family: "Instrument Serif"; src: url("./assets/fonts/InstrumentSerif-Italic.ttf") format("truetype"); font-style: italic; font-weight: 400; font-display: block; }
   * { margin: 0; padding: 0; box-sizing: border-box; }
-  html, body { width: ${WR}px; height: ${H}px; overflow: hidden; background: #E8EFF5; }
+  html, body { width: 1920px; height: 1080px; overflow: hidden; background: #E8EFF5; }
   #root { position: relative; width: 100%; height: 100%; overflow: hidden; background: #E8EFF5; }
-  #fondo, #gl, #lineas, #ui, #tipo, #cursor, #golpes, #grano, #vineta { position: absolute; left: 0; top: 0; width: ${W}px; height: ${H}px; overflow: hidden; pointer-events: none; }
+  #fondo, #gl, #lineas, #ui, #tipo, #cursor, #golpes, #grano, #vineta { position: absolute; left: 0; top: 0; width: 1920px; height: 1080px; overflow: hidden; pointer-events: none; }
   #tipo { perspective: 1400px; }
   #grano { opacity: 0.05; mix-blend-mode: multiply; }
 </style>
 </head>
 <body>
-<div id="root" data-composition-id="main" data-start="0" data-duration="${DUR}" data-width="${WR}" data-height="${H}" data-fps="60">
+<div id="root" data-composition-id="main" data-start="0" data-duration="94" data-width="1920" data-height="1080" data-fps="60">
   <div id="fondo"></div>
-  <canvas id="gl" width="${W}" height="${H}"></canvas>
-  <svg id="lineas" width="${W}" height="${H}" viewBox="0 0 ${W} ${H}"></svg>
-  <div id="ui" class="clip" data-start="0" data-duration="${DUR}" data-track-index="1"></div>
-  <div id="tipo" class="clip" data-start="0" data-duration="${DUR}" data-track-index="2"></div>
+  <canvas id="gl" width="1920" height="1080"></canvas>
+  <svg id="lineas" width="1920" height="1080" viewBox="0 0 1920 1080"></svg>
+  <div id="ui" class="clip" data-start="0" data-duration="94" data-track-index="1"></div>
+  <div id="tipo" class="clip" data-start="0" data-duration="94" data-track-index="2"></div>
   <div id="cursor"></div>
-  <div id="golpes" class="clip" data-start="0" data-duration="${DUR}" data-track-index="4"></div>
-  <svg id="grano" width="${W}" height="${H}"><filter id="gr"><feTurbulence id="gr-ruido" type="fractalNoise" baseFrequency="0.9" numOctaves="2" seed="1" stitchTiles="stitch" /><feColorMatrix type="matrix" values="0 0 0 0 0  0 0 0 0 0.05  0 0 0 0 0.12  0 0 0 1 0" /></filter><rect width="${W}" height="${H}" filter="url(#gr)" /></svg>
+  <div id="golpes" class="clip" data-start="0" data-duration="94" data-track-index="4"></div>
+  <svg id="grano" width="1920" height="1080"><filter id="gr"><feTurbulence id="gr-ruido" type="fractalNoise" baseFrequency="0.9" numOctaves="2" seed="1" stitchTiles="stitch" /><feColorMatrix type="matrix" values="0 0 0 0 0  0 0 0 0 0.05  0 0 0 0 0.12  0 0 0 1 0" /></filter><rect width="1920" height="1080" filter="url(#gr)" /></svg>
   <div id="vineta"></div>
-  <audio id="mezcla-master" src="./assets/v2/mezcla/${audio}" data-start="0" data-duration="${DUR}" data-track-index="3" data-volume="1"></audio>
+  <audio id="mezcla-master" src="./assets/v2/mezcla/master-v3e-platica-previa.m4a" data-start="0" data-duration="94" data-track-index="3" data-volume="1"></audio>
 </div>
 <script>
   const tl = gsap.timeline({ paused: true });
-  tl.set({}, {}, ${DUR});
+  tl.set({}, {}, 94);
   window.__tl = tl; window.__timelines["main"] = tl;
 </script>
 <script type="module">
@@ -63,14 +50,14 @@ const html = ({ W, H, V, cierre, DUR, audio }) => {
   import * as cierreM from "./v3/escalera/cierre.js";
   import { CHISPA_SVG } from "./estilo/ui.js";
 
-  const W = ${W}, H = ${H}, V = ${V}, DUR = ${DUR};
+  const W = 1920, H = 1080, V = false, DUR = 94;
   const tl = window.__tl;
   const $ = (id) => document.getElementById(id);
   (async () => {
     await document.fonts.load('600 54px "Inter"'); await document.fonts.load('800 60px "Inter"'); await document.fonts.load('900 60px "Inter"'); await document.fonts.load('italic 60px "Instrument Serif"');
-    const T = await tiempos("${cierre}");
+    const T = await tiempos("platica");
     const m = crearMundo($("gl"), { ancho: W, alto: H });
-    const ctx = { m, T, tl, raiz: $("tipo"), ui: $("ui"), lineas: $("lineas"), golpes: $("golpes"), W, H, V, cierre: "${cierre}", paleta: [], marquesinas: [], cursorClaves: [], textos: [] };
+    const ctx = { m, T, tl, raiz: $("tipo"), ui: $("ui"), lineas: $("lineas"), golpes: $("golpes"), W, H, V, cierre: "platica", paleta: [], marquesinas: [], cursorClaves: [], textos: [] };
     // en vertical el texto va en la zona segura (x 90–950, y desde 250) y envuelve en dos o tres renglones
     ctx.textoV = (op) => ({ maxAncho: 880, y: op.y && op.y > 200 ? 560 : 270, tam: Math.round((op.tam || 60) * 0.92), placa: true });
     ctx.CHISPA_SVG = CHISPA_SVG().replace("<svg ", '<svg width="100%" height="100%" ');
@@ -112,13 +99,3 @@ const html = ({ W, H, V, cierre, DUR, audio }) => {
 </script>
 </body>
 </html>
-`;
-};
-const archivos = [
-  { archivo: "v3e-platica.html", W: 1920, H: 1080, V: false, cierre: "platica", DUR: DURACIONES.platica, audio: "master-v3e-platica-previa.m4a" },
-  { archivo: "v3e-curso.html", W: 1920, H: 1080, V: false, cierre: "curso", DUR: DURACIONES.curso, audio: "master-v3e-curso-previa.m4a" },
-  { archivo: "v3e-platica-v.html", W: 1080, H: 1920, V: true, cierre: "platica", DUR: DURACIONES.platica, audio: "master-v3e-platica-previa.m4a" },
-  { archivo: "v3e-curso-v.html", W: 1080, H: 1920, V: true, cierre: "curso", DUR: DURACIONES.curso, audio: "master-v3e-curso-previa.m4a" },
-];
-if (process.argv.includes("rebanada")) archivos.push({ archivo: "v3e-rebanada.html", W: 1920, H: 1080, V: false, cierre: "platica", DUR: 31.5, audio: "master-v3e-platica-previa.m4a" });
-for (const f of archivos) { writeFileSync(join(raiz, f.archivo), html(f)); console.log("escrito", f.archivo); }

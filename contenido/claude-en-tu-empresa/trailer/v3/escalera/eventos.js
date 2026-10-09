@@ -21,7 +21,7 @@ export function eventos(T) {
   // 01 · objetos y stickers; el sticker gigante en la cámara
   E.tObj = [0, 1, 2, 3, 4].map((k) => k * 0.07);
   E.tSt = [t.habla - 0.02, t.habla + 0.27, t.inteligencia, t.inteligencia + 0.32, t.artificial];
-  E.tLente = t.artificial + 0.62; E.tDespega = t.pero + 0.02; E.tCorte = E.tLente + 0.1;
+  E.tCorte = 0;   // un solo plano: de la multitud a la puerta sin corte
   // 02 · la caja IA y el manual en blanco
   E.tCae = t.casi - 0.18; E.tLlega = t.nadie + 0.02;
   E.tAbre = t.dice; E.tSaleMan = t.que - 0.05; E.tAbreMan = t.hacer + 0.02;
