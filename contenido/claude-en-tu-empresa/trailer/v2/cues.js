@@ -1,7 +1,6 @@
 // v2 · hoja de cues ÚNICA: los momentos del relato, anclados a palabras. La usan la versión 3D, la 2D
 // y la mezcla (cada efecto de sonido cae en el mismo instante que su evento visual). Sin DOM.
 //   cues(T, estilo) → { C, S }   estilo: "3d" | "2d" (algunos efectos son de una sola versión)
-import { GOLPE } from "./tiempos.js";
 
 // las herramientas que aparecen en cada tramo del bucle (v2/logos.js); Claude llega con «sale otra»
 export const OLEADAS = [
@@ -60,15 +59,16 @@ export function cues(T, estilo = "3d") {
   C.herramienta = T.w(7, "herramienta.");
   C.falta = T.f(8).inicio;
   C.metodo = T.w(8, "método.");
-  C.golpe = GOLPE;
+  C.golpe = T.golpe;
   C.ramal = T.f(9).inicio;
   // ---------------- cierres ----------------
-  const iR = v === "platica" ? 11 : 12, iP = iR + 1, iN = iR + 2, iD = iR + 3;
+  // 11-oct: los dos cierres tienen la misma estructura (ocho frases); cambian el 9, el 10, el 14 y el 15
+  const iR = 11, iP = iR + 1, iN = iR + 2, iD = iR + 3;
   C.respaldan = T.f(iR).inicio;
   C.vadai = T.w(iR, "VADAI");
   C.total = T.w(iR, "Total");
-  C.cuarenta = v === "platica" ? T.w(iR, "cientos") : T.w(iR, "cuarenta");
-  C.capacitadas = v === "platica" ? T.w(iR, "capacitadas") : T.w(iR, "capacitadas.");
+  C.cuarenta = T.w(iR, "cientos");
+  C.capacitadas = T.w(iR, "capacitadas");
   C.porque2 = T.f(iP).inicio;
   C.ia2 = T.w(iP, "inteligencia");
   C.nosotros = T.f(iN).inicio;
@@ -80,48 +80,57 @@ export function cues(T, estilo = "3d") {
   C.caro = T.f(16).inicio;
   C.mano2 = T.w(16, "mano.");
   C.fin = T.f(16).fin;
-  C.tarjeta = C.fin + (v === "platica" ? 0.8 : 0.3);   // entra la tarjeta final
+  C.tarjeta = C.fin + 0.8;                     // entra la tarjeta final (deja leer «A MANO.»)
+  // 10 · lo que aprendes: misma escena en los dos (Claude al centro, la gráfica, la ciudad, el vidrio)
+  C.contamos = T.f(10).inicio;
+  C.todo = T.w(10, "todo");
+  C.lugar = T.w(10, "lugar,");
+  C.claude = T.w(10, "Claude");
+  C.metodo2 = T.w(10, "método,");
+  C.equipo2 = T.w(10, "equipo");
+  C.resuelva = T.w(10, "resuelva");
+  C.esperarte = T.w(10, "esperarte.");
+  // qué aparición de cada palabra corta lleva «todo en un mismo lugar, con Claude y…, para que tu equipo…»
+  const n = v === "platica" ? { en: 1, y: 2, que: 4, tu: 1 } : { en: 3, y: 3, que: 2, tu: 4 };   // «qué» cuenta como «que» (clave sin acentos)
+  C.lugar1 = [C.todo, T.w(10, "en", n.en), T.w(10, "un", 1), T.w(10, "mismo", 1), C.lugar];
+  C.lugar2 = [T.w(10, "con", 2), C.claude, T.w(10, "y", n.y), T.w(10, "un", 2), T.w(10, "mismo", 2), C.metodo2];
+  C.lugar3 = [T.w(10, "que", n.que), T.w(10, "tu", n.tu), C.equipo2, C.resuelva, T.w(10, "sin"), C.esperarte];
+  C.truena = T.w(10, "bucle:") + 0.13;
   if (v === "platica") {
     C.platica = T.w(9, "plática");
     C.vivo = T.w(9, "vivo");
     C.duenos = T.w(9, "dueños");
-    C.contamos = T.f(10).inicio;
     C.b = [T.w(10, "qué", 1), T.w(10, "qué", 2), T.w(10, "cómo")];   // las tres cosas que te contamos
-    C.todo = T.w(10, "todo");
-    C.lugar = T.w(10, "lugar,");
-    C.claude = T.w(10, "Claude");
-    C.metodo2 = T.w(10, "método,");
-    C.equipo2 = T.w(10, "equipo");
-    C.resuelva = T.w(10, "resuelva");
-    C.esperarte = T.w(10, "esperarte.");
-    C.cta = T.w(14, "aparta");
-    C.gratis = T.w(15, "gratis.");
-    // 10: la constelación de lo que aprendes alrededor de Claude; el bucle se infla y truena como vidrio
-    C.centro = C.contamos + 0.25;
     C.grafica = C.b[0];
     C.ciudad = C.b[1];
-    C.herr = Array.from({ length: 11 }, (_, k) => +(C.centro + 0.3 + k * 0.36).toFixed(3));
     C.aro = C.b[2];
-    C.truena = T.w(10, "bucle:") + 0.13;
-    // respaldo: el contador hasta el infinito; el mundo que habla de IA; la etiqueta y la escena roja
-    C.infinito = T.w(11, "capacitadas") + 0.2;
-    C.mundo = C.porque2 + 0.3;
+    C.cta = T.w(14, "aparta");
+    C.gratis = T.w(15, "gratis.");
     C.etiqueta = T.w(15, "esto") - 0.2;
-    C.rojo = C.caro - 0.18;
   } else {
-    C.claude = T.w(9, "Claude");
+    // 9 · «Por eso creamos Claude en tu Empresa: el curso donde aprendes, paso a paso…»
+    C.claude9 = T.w(9, "Claude", 1);
     C.empresaT = T.w(9, "Empresa:");
-    C.aprende = T.w(9, "aprende");
-    C.apps = [T.w(9, "Excel,"), T.w(9, "Word"), T.w(9, "correo")];
-    C.sin = [T.w(10, "sin", 1), T.w(10, "sin", 2), T.w(10, "sin", 3)];
-    C.todo = T.w(11, "todo");
-    C.lugar = T.w(11, "lugar,");
-    C.metodo2 = T.w(11, "método,");
-    C.equipo2 = T.w(11, "equipo");
-    C.resuelva = T.w(11, "resuelva");
-    C.esperarte = T.w(11, "esperarte.");
-    C.cta = T.w(15, "capacita");
+    C.curso = T.w(9, "curso");
+    C.paso = [T.w(9, "paso", 1), T.w(9, "a", 1), T.w(9, "paso", 2)];
+    C.trabajando = T.w(9, "trabajando");
+    // 10 · cinco cosas: hablarle a la IA, en qué punto está, cualquier herramienta, conectarla, salir
+    C.b = [T.w(10, "hablarle"), T.w(10, "cómo", 1), T.w(10, "cómo", 3)];
+    C.punto = T.w(10, "punto");
+    C.grafica = T.w(10, "en", 1);
+    C.ciudad = T.w(10, "cómo", 2);
+    C.aro = C.b[2];
+    C.cta = T.w(14, "inscribe");
+    C.gratis = T.w(15, "semana.");             // «SEMANA 1» se estampa en el calendario
+    C.etiqueta = T.w(15, "los") - 0.2;
   }
+  C.centro = C.contamos + 0.25;
+  // las herramientas entran una por una; en el curso, con «cualquier herramienta de tu día a día»
+  const h0 = v === "platica" ? C.centro + 0.3 : T.w(10, "cualquier") - 0.6, pasoH = v === "platica" ? 0.36 : 0.22;
+  C.herr = Array.from({ length: 11 }, (_, k) => +(h0 + k * pasoH).toFixed(3));
+  C.infinito = T.w(iR, "capacitadas") + 0.2;
+  C.mundo = C.porque2 + 0.3;
+  C.rojo = C.caro - 0.18;
 
   // ---------- 10-oct · Ronda E de Alejandro (2D) ----------
   // las excursiones de la chispa a los costados del bucle (personas corriendo, buscando, estresadas)
@@ -219,22 +228,22 @@ export function cues(T, estilo = "3d") {
     sfx("brillo1", C.platica, -8);
     sfx("pulso", C.vivo, -8);                                        // el punto «en vivo»
     sfx("pop", C.duenos, -6);
-    C.b.forEach((t, k) => { sfx("whoosh3", t - 0.05, -12, { ancla: "pico" }); if (k < 2 || estilo !== "2d") sfx("pop", t, -6, { tono: k * 2 }); });
-    if (estilo === "2d") {
-      sfx("brillo2", C.centro, -6);                                  // Claude en el centro
-      C.herr.forEach((t, k) => sfx("blip", t, -10, { tono: ESCALA[k % ESCALA.length] }));
-      sfx("plumon3", C.grafica + 0.05, -11);
-      sfx("plumon1", C.ciudad + 0.05, -11);
-      for (let k = 0; k < 6; k++) sfx("pop", C.ciudad + 0.9 + k * 0.12, -11, { tono: 4 + k });
-      sfx("plumon3", C.aro + 0.05, -10);
-      sfx("vidrio1", C.truena, -2, { ancla: "pico" });               // el bucle truena como vidrio
-      sfx("vidrio2", C.truena + 0.12, -9);
-      sfx("impacto2", C.truena, -9);
-    }
   } else {
-    sfx("brillo2", C.claude, -4);
-    C.apps.forEach((t, k) => sfx("blip", t, -5, { tono: 4 + k * 3 }));
-    C.sin.forEach((t, k) => sfx("marcador", t + 0.32, -3, { tono: k }));   // cada «sin» se tacha
+    sfx("brillo2", C.claude9, -5);                                   // la chispa aterriza como asterisco
+    C.paso.forEach((t, k) => sfx("pop", t, -7, { tono: 2 + k * 3 })); // cada escalón del paso a paso
+    sfx("plumon3", C.paso[0] - 0.1, -11);
+  }
+  C.b.forEach((t, k) => { sfx("whoosh3", t - 0.05, -12, { ancla: "pico" }); if (k < 2 || estilo !== "2d") sfx("pop", t, -6, { tono: k * 2 }); });
+  if (estilo === "2d") {
+    sfx("brillo2", C.centro, -6);                                    // Claude en el centro
+    C.herr.forEach((t, k) => sfx("blip", t, -10, { tono: ESCALA[k % ESCALA.length] }));
+    sfx("plumon3", C.grafica + 0.05, -11);
+    sfx("plumon1", C.ciudad + 0.05, -11);
+    for (let k = 0; k < 6; k++) sfx("pop", C.ciudad + 0.9 + k * 0.12, -11, { tono: 4 + k });
+    sfx("plumon3", C.aro + 0.05, -10);
+    sfx("vidrio1", C.truena, -2, { ancla: "pico" });                 // el bucle truena como vidrio
+    sfx("vidrio2", C.truena + 0.12, -9);
+    sfx("impacto2", C.truena, -9);
   }
   for (let k = 0; k < 6; k++) sfx("blip", C.todo + k * 0.09, -9, { tono: 12 - k * 2 });  // todo entra a un mismo lugar
   if (v === "platica") sfx("brillo2", C.claude, -5);
@@ -244,7 +253,7 @@ export function cues(T, estilo = "3d") {
   sfx("pop", C.vadai, -4);
   sfx("pop", C.total, -4, { tono: 3 });
   sfx("contador", C.cuarenta, -3);
-  if (v === "platica" && estilo === "2d") {
+  if (estilo === "2d") {
     sfx("plumon3", C.respaldan + 0.1, -12);                          // la chispa rodea la placa
     sfx("brillo1", C.respaldan + 1.7, -12);                          // el brillo que cruza la placa
     sfx("multitud", C.cuarenta + 0.2, -16, { dur: 3.0 });            // las empresas que no paran de llegar
@@ -255,15 +264,15 @@ export function cues(T, estilo = "3d") {
     sfx("plumon1", C.mundo + 1.62, -13);                             // la gráfica
     for (let k = 0; k < 7; k++) sfx("pop", C.mundo + 0.7 + k * 0.16, -13, { tono: k * 2 });   // los globos de diálogo
   }
-  sfx("murmullo", C.porque2, -11, { dur: v === "platica" ? 3.2 : 2.0 });
+  sfx("murmullo", C.porque2, -11, { dur: 3.2 });
   sfx("whoosh3", C.ia2, -10, { ancla: "pico" });
   sfx("brillo1", C.ella, -6);
   sfx("clic", C.clic, 0, { ancla: "pico" });
   sfx("pop", C.cta, -4);
-  if (v === "platica") sfx("campanita", C.gratis, -9);
-  if (v === "platica" && estilo === "2d") {
+  sfx("campanita", C.gratis, -9);
+  if (estilo === "2d") {
     sfx("plumon3", C.etiqueta + 0.05, -10);                          // la etiqueta
-    sfx("sello", C.gratis, -3, { ancla: "pico" });                   // GRATIS se estampa
+    sfx("sello", C.gratis, -3, { ancla: "pico" });                   // GRATIS / SEMANA 1 se estampa
     sfx("whoosh2", C.rojo, -8, { ancla: "pico" });                   // el telón navy
     sfx("monedas", C.caro + 0.05, -6);                               // lo caro
     sfx("impacto1", C.caro, -12);

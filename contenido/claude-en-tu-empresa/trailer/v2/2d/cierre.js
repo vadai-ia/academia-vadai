@@ -19,7 +19,7 @@ export function montar(ctx) {
   // por frase en durazno o azul; sobre el degradado final el énfasis va en blanco (contraste)
   const ROTA = ["golpe", "sube", "barre", "cae"];
   let nFrase = 0;
-  const ENFASIS = { "GRATUITA": "durazno", "VIVO": "cieloClaro", "IA": "cieloClaro", "APROVECHAN": "durazno", "BUCLE": "azul", "LUGAR": "cieloClaro",
+  const ENFASIS = { "PASO": "durazno", "TRABAJANDO": "cieloClaro", "HOY": "durazno", "HERRAMIENTA": "cieloClaro", "INFORMACIÓN": "cieloClaro", "SEMANA.": "durazno", "GRATUITA": "durazno", "VIVO": "cieloClaro", "IA": "cieloClaro", "APROVECHAN": "durazno", "BUCLE": "azul", "LUGAR": "cieloClaro",
     "ESPERARTE.": "durazno", "CAPACITADAS": "cieloClaro", "ELLA.": "durazno", "ARTIFICIAL": "cieloClaro", "PROGRAMAS": "cieloClaro", "TECNOLOGÍA": "azul", "NUEVO.": "durazno",
     "EXCEL": "cieloClaro", "IA": "cieloClaro" };
   const frase = (lineas, anclas, fin, o = {}) => {
@@ -71,6 +71,7 @@ export function montar(ctx) {
   chispa.quieta(C.metodo - 0.04, C.ramal, CX + q(600, 400), m.yL, 4);
 
   let tLibre;   // cuándo empieza el respaldo (común)
+  let esq;      // dónde queda la chispa al terminar el 09
   if (platica) {
     // ---------------- 09 · la plática gratuita y en vivo ----------------
     const S = q({ x: CX, y: 640, w: 760, h: 430 }, { x: CX, y: 1060, w: 800, h: 470 });
@@ -92,7 +93,7 @@ export function montar(ctx) {
     reloj(C.vivo - 0.05, fin09, (t) => { const u = ease.sale3(tramo(t, C.vivo, C.vivo + 0.25)); vivo.setAttribute("r", (11 * u * (1 + 0.25 * Math.sin((t - C.vivo) * 7))).toFixed(2)); });
     onda(tl, pant, x0 + 34, y0 + 34, C.vivo, { r0: 10, r1: 60 });
     const fPl = frase([["PLÁTICA", "GRATUITA"], ["Y", "EN", "VIVO"]], [C.platica, w(9, "gratuita"), w(9, "y"), w(9, "en"), C.vivo], fin09, { estilo: "golpe" });
-    const esq = { x: x1, y: y0 + 30 };
+    esq = { x: x1, y: y0 + 30 };
     chispa.quieta(C.ramal + 1.2, w(9, "gratuita") - 0.32, esq.x, esq.y, 4);
     const tLib = golpear(fPl.palabras[1], w(9, "gratuita"), esq, esq);
     chispa.quieta(tLib, C.contamos, esq.x, esq.y, 4);
@@ -108,6 +109,58 @@ export function montar(ctx) {
       reloj(t0, t0 + 1.4, (t) => { const u = tramo(t, t0, t0 + 1.3); sp.setAttribute("transform", `translate(${cx0.toFixed(1)} ${(y0 + S.h * 0.7 - u * S.h * 0.9).toFixed(1)}) scale(0.8) translate(-12 -12)`); sp.setAttribute("opacity", (Math.sin(u * Math.PI) * 0.9).toFixed(3)); });
     }
 
+  } else {
+    // ---------------- 09 · Claude en tu Empresa: el curso, paso a paso (11-oct) ----------------
+    // la chispa aterriza como el asterisco del título; luego dibuja una escalera (el paso a paso) y arriba
+    // tu empresa, donde Claude se queda trabajando
+    const fin09 = C.contamos - 0.2;
+    const tit = q({ y: 560, tam: 170 }, { y: 780, tam: 150 });
+    const fT = frase([["CLAUDE"], ["EN", "TU", "EMPRESA"]], [C.claude9, w(9, "en", 1), w(9, "tu", 1), C.empresaT], C.curso - 0.3, { y: tit.y, tam: tit.tam, max: q(1500, 800), inter: 1.12, estilo: "golpe" });
+    fT.palabras[0].glifos.forEach((g) => { g.setAttribute("fill", K("durazno")); g.setAttribute("stroke", K("durazno")); });
+    const cl = fT.palabras[0], ast = { x: cl.x1 + q(56, 50), y: cl.y - cl.tam * 0.62 };
+    chispa.pierna(`M${CX + q(600, 400)},${m.yL} Q${ast.x + 200},${ast.y - 260} ${ast.x},${ast.y}`, C.ramal, C.claude9 + 0.05, { cola: 260, e: ease.suave });
+    chispa.quieta(C.claude9 + 0.05, C.curso - 0.35, ast.x, ast.y, 0);
+    chispa.escala((t) => 1 + 0.5 * ease.sale3(tramo(t, C.claude9, C.claude9 + 0.3)) * (1 - tramo(t, C.curso - 0.5, C.curso - 0.3)));
+    onda(tl, fijo, ast.x, ast.y, C.claude9 + 0.05, { r0: 20, r1: 260, color: K("durazno"), ancho: 4 });
+    // la escalera
+    const esc = grupoVentana(escena, C.curso - 0.4, fin09);
+    const ES = q({ x: 470, y: 965, dx: 310, dy: 125, s: 4.6 }, { x: 150, y: 1370, dx: 215, dy: 150, s: 3.4 });
+    let dE = `M${ES.x},${ES.y}`;
+    for (let k = 0; k < 3; k++) dE += ` L${ES.x + (k + 1) * ES.dx},${ES.y - k * ES.dy} L${ES.x + (k + 1) * ES.dx},${ES.y - (k + 1) * ES.dy}`;
+    const tope = { x: ES.x + 3 * ES.dx, y: ES.y - 3 * ES.dy };
+    const tEsc = [C.paso[0] - 0.05, C.paso[2] + 0.42];
+    chispa.pierna(`M${ast.x},${ast.y} Q${(ast.x + ES.x) / 2},${ES.y - 80} ${ES.x},${ES.y}`, C.curso - 0.35, tEsc[0], { cola: 220, e: ease.suave });
+    linea(dE, tEsc[0], tEsc[1], { padre: esc, ancho: 7, e: ease.lineal });
+    // en cada escalón, lo que vas a aprender: hablarle (diálogo), en qué punto está (gráfica), conectarla (enchufe)
+    const ICONO = [D.dialogo(84, 52), D.graficaSube(90, 64), D.iconoConectores(1.1)];
+    [0, 1, 2].forEach((k) => {
+      const cx = ES.x + (k + 0.5) * ES.dx, cy = ES.y - k * ES.dy - q(70, 64), t0 = C.paso[k] + 0.05;
+      const ig = el("g", { transform: `translate(${cx.toFixed(1)} ${cy.toFixed(1)})` }, esc);
+      const dd = k === 1 ? mover(ICONO[k], -45, 30) : ICONO[k];
+      dibujo(ig, dd, t0, 0.3, { color: K("cieloClaro"), ancho: 4 });
+      onda(tl, esc, cx, cy, t0, { r0: 20, r1: 90 });
+    });
+    // arriba: tu empresa, y Claude trabajando en ella
+    const tCl = w(9, "Claude", 2);
+    const pEd = linea(mover(D.edificio(ES.s), tope.x + 60, tope.y), tEsc[1], tCl - 0.08, { padre: esc, ancho: 5 });
+    const CLh9 = HERRAMIENTAS.find((h) => h.id === "claude");
+    const badge = { x: tope.x + 60, y: tope.y - 34 * ES.s - 46 };
+    const gB = el("g", { transform: `translate(${badge.x.toFixed(1)} ${badge.y.toFixed(1)})` }, esc);
+    const gBi = el("g", {}, gB);
+    el("circle", { r: 36, fill: K("blanco") }, gBi);
+    el("path", { d: CLh9.d, fill: CLh9.hex, transform: `scale(${((36 * 1.12) / 24).toFixed(3)}) translate(-12 -12)` }, gBi);
+    tl.fromTo(gBi, { scale: 0, opacity: 0, transformOrigin: "50% 50%" }, { scale: 1, opacity: 1, duration: 0.4, ease: "back.out(2.6)" }, tCl);
+    onda(tl, esc, badge.x, badge.y, tCl, { r0: 36, r1: 150, color: K("durazno"), ancho: 4 });
+    frase(q([["EL", "CURSO", "DONDE", "APRENDES"], ["PASO", "A", "PASO"]], [["EL", "CURSO"], ["DONDE", "APRENDES"], ["PASO", "A", "PASO"]]), [w(9, "el"), C.curso, w(9, "donde"), w(9, "aprendes,"), C.paso[0], C.paso[1], C.paso[2]], w(9, "a", 2) - 0.26);
+    const fTr = frase(q([["A", "TENER", "A", "CLAUDE"], ["TRABAJANDO", "EN", "TU", "EMPRESA"]], [["A", "TENER", "A"], ["CLAUDE", "TRABAJANDO"], ["EN", "TU", "EMPRESA"]]), [w(9, "a", 2), w(9, "tener"), w(9, "a", 3), tCl, C.trabajando, w(9, "en", 2), w(9, "tu", 2), w(9, "empresa", 2)], fin09);
+    fTr.palabras[3].glifos.forEach((g) => { g.setAttribute("fill", K("durazno")); g.setAttribute("stroke", K("durazno")); });
+    // la chispa sube la escalera dibujando, construye tu empresa y se queda encima de Claude
+    esq = { x: badge.x + q(70, -70), y: badge.y + 6 };   // a un lado de Claude: arriba está el texto
+    const finEd = pEd.path.getPointAtLength(pEd.L);
+    chispa.pierna(`M${finEd.x.toFixed(1)},${finEd.y.toFixed(1)} Q${badge.x + 60},${badge.y - 90} ${esq.x},${esq.y}`, tCl - 0.08, tCl, { cola: 140 });
+    chispa.quieta(tCl, C.contamos, esq.x, esq.y, 4);
+  }
+  {
     // ---------------- 10 · lo que te contamos: lo que aprendes, con Claude en el centro ----------------
     // (10-oct, nota de Alejandro: «los iconos que hagan alusión a lo que les vamos a enseñar… los logos de
     // las herramientas que van a aprender… PERO TODO CON EL CENTRO DE APRENDER CLAUDE»; y salir del bucle
@@ -253,76 +306,21 @@ export function montar(ctx) {
     chispa.escala((t) => 1 + 0.9 * Math.exp(-Math.pow((t - tSale + 0.03) / 0.06, 2)));
     vuelo(IMP, { x: CO.x, y: CO.y }, tSale + 0.02, tSale + 0.25, 60);
     chispa.quieta(tSale + 0.25, C.todo - 0.4, CO.x, CO.y, 3);
-    frase(q([["QUÉ", "ESTÁ", "PASANDO"], ["CON", "LA", "IA"]], [["QUÉ", "ESTÁ"], ["PASANDO"], ["CON", "LA", "IA"]]), [C.b[0], w(10, "está"), w(10, "pasando"), w(10, "con", 1), w(10, "la", 1), w(10, "IA,")], C.b[1] - 0.26);
-    frase(q([["QUÉ", "HACEN", "LAS", "QUE"], ["SÍ", "LA", "APROVECHAN"]], [["QUÉ", "HACEN"], ["LAS", "QUE", "SÍ"], ["LA", "APROVECHAN"]]), [C.b[1], w(10, "hacen"), w(10, "las"), w(10, "que", 3), w(10, "sí"), w(10, "la", 2), w(10, "aprovechan,")], C.b[2] - 0.24);
+    if (platica) {
+      frase(q([["QUÉ", "ESTÁ", "PASANDO"], ["CON", "LA", "IA"]], [["QUÉ", "ESTÁ"], ["PASANDO"], ["CON", "LA", "IA"]]), [C.b[0], w(10, "está"), w(10, "pasando"), w(10, "con", 1), w(10, "la", 1), w(10, "IA,")], C.b[1] - 0.26);
+      frase(q([["QUÉ", "HACEN", "LAS", "QUE"], ["SÍ", "LA", "APROVECHAN"]], [["QUÉ", "HACEN"], ["LAS", "QUE", "SÍ"], ["LA", "APROVECHAN"]]), [C.b[1], w(10, "hacen"), w(10, "las"), w(10, "que", 3), w(10, "sí"), w(10, "la", 2), w(10, "aprovechan,")], C.b[2] - 0.24);
+    } else {
+      // curso: lo que aprendes, una cosa a la vez (11-oct, nota de Alejandro: «hablarle a la IA, en qué punto
+      // está, usarla en cualquier herramienta de su día a día, conectarla con su información y su correo»)
+      const f2 = w(10, "en", 1), f3 = w(10, "en", 2), f4 = w(10, "conectarla");
+      frase(q([["APRENDES", "A", "HABLARLE"], ["A", "LA", "IA"]], [["APRENDES", "A"], ["HABLARLE"], ["A", "LA", "IA"]]), [w(10, "aprendes"), w(10, "a", 1), w(10, "hablarle"), w(10, "a", 2), w(10, "la", 1), w(10, "IA,")], f2 - 0.26);
+      frase([["EN", "QUÉ", "PUNTO"], ["ESTÁ", "HOY"]], [f2, w(10, "qué"), C.punto, w(10, "está"), w(10, "hoy,")], f3 - 0.26);
+      frase(q([["EN", "CUALQUIER", "HERRAMIENTA"], ["DE", "TU", "DÍA", "A", "DÍA"]], [["EN", "CUALQUIER"], ["HERRAMIENTA"], ["DE", "TU", "DÍA", "A", "DÍA"]]), [f3, w(10, "cualquier"), w(10, "herramienta"), w(10, "de", 1), w(10, "tu", 1), w(10, "día", 1), w(10, "a", 3), w(10, "día", 2)], f4 - 0.26);
+      frase(q([["CONECTARLA", "CON", "TU"], ["INFORMACIÓN", "Y", "TU", "CORREO"]], [["CONECTARLA"], ["CON", "TU", "INFORMACIÓN"], ["Y", "TU", "CORREO"]]), [f4, w(10, "con", 1), w(10, "tu", 2), w(10, "información"), w(10, "y", 1), w(10, "tu", 3), w(10, "correo,")], C.b[2] - 0.24);
+    }
     frase(q([["CÓMO", "SALIR"], ["DEL", "BUCLE"]], [["CÓMO", "SALIR"], ["DEL", "BUCLE"]]), [C.b[2], w(10, "salir"), w(10, "del"), w(10, "bucle:")], C.todo - 0.3);
-    unLugar(CO.x, CO.y, [C.todo, w(10, "en", 1), w(10, "un", 1), w(10, "mismo", 1), C.lugar], [w(10, "con", 2), C.claude, w(10, "y", 2), w(10, "un", 2), w(10, "mismo", 2), C.metodo2], true);
-    resuelven([w(10, "que", 4), w(10, "tu"), C.equipo2, C.resuelva, w(10, "sin"), C.esperarte]);
-  } else {
-    // ---------------- 09 · Claude en tu Empresa ----------------
-    const tit = q({ y: 480, tam: 160 }, { y: 920, tam: 140 });
-    const fT = frase([["CLAUDE"], ["EN", "TU", "EMPRESA"]], [C.claude, w(9, "en"), w(9, "tu", 1), C.empresaT], C.aprende - 0.55, { y: tit.y, tam: tit.tam, max: q(1500, 900), inter: 1.12 });
-    fT.palabras[0].glifos.forEach((g) => { g.setAttribute("fill", K("durazno")); g.setAttribute("stroke", K("durazno")); });
-    const cl = fT.palabras[0];
-    const ast = { x: cl.x1 + q(56, 50), y: cl.y - q(100, 88) };
-    chispa.pierna(`M${CX + q(600, 400)},${m.yL} Q${ast.x + 200},${ast.y - 260} ${ast.x},${ast.y}`, C.ramal, C.claude + 0.05, { cola: 260, e: ease.suave });
-    chispa.quieta(C.claude + 0.05, C.aprende - 0.55, ast.x, ast.y, 0);
-    chispa.escala((t) => 1 + 0.5 * ease.sale3(tramo(t, C.claude, C.claude + 0.3)) * (1 - tramo(t, C.aprende - 0.7, C.aprende - 0.5)));
-    onda(tl, fijo, ast.x, ast.y, C.claude + 0.05, { r0: 20, r1: 260, color: K("durazno"), ancho: 4 });
-    // ---------------- 09b · tu equipo aprende, dentro de lo que ya usa ----------------
-    const eq = grupoVentana(escena, C.aprende - 0.6, C.apps[0] - 0.35);
-    const AV = q({ y: 640, dx: 230, s: 1.15 }, { y: 1160, dx: 190, s: 1.0 });
-    const avs = [-2, -1, 0, 1, 2].map((n, i) => { avatar(eq, CX + n * AV.dx, AV.y, AV.s, C.aprende - 0.4 + i * 0.08); return { x: CX + n * AV.dx, y: AV.y - 70 * AV.s }; });
-    avs.forEach((a, i) => { const s = el("path", { d: ctx.CHISPA_D, transform: `translate(${a.x} ${a.y - 34}) scale(1.4) translate(-12 -12)`, fill: K("durazno") }, eq); tl.fromTo(s, { opacity: 0, scale: 0.2, transformOrigin: "50% 50%" }, { opacity: 1, scale: 1, duration: 0.35, ease: "back.out(2.5)" }, w(9, "usar") + i * 0.07); });
-    chispa.pierna(`M${ast.x},${ast.y} Q${CX},${AV.y - 380} ${avs[2].x},${avs[2].y - 90}`, C.aprende - 0.55, C.aprende - 0.1, { cola: 200 });
-    chispa.quieta(C.aprende - 0.1, C.apps[0] - 0.4, avs[2].x, avs[2].y - 90, 5);
-    frase([["TU", "EQUIPO", "APRENDE"], ["A", "USAR", "LA", "IA"]], [w(9, "tu", 2), w(9, "equipo"), C.aprende, w(9, "a"), w(9, "usar"), w(9, "la"), w(9, "inteligencia")], C.apps[0] - 0.4);
-    const AP = q({ y: 620, dx: 470, s: 1 }, { y: 1150, dx: 320, s: 0.82 });
-    const appsG = grupoVentana(escena, C.apps[0] - 0.4, C.sin[0] - 0.3);
-    const nombres = [["EXCEL"], ["WORD"], ["CORREO"]];
-    C.apps.forEach((ta, k) => {
-      const ax = CX + (k - 1) * AP.dx, ay = AP.y, s = AP.s;
-      const g = el("g", { transform: `translate(${ax} ${ay}) scale(${s})` }, appsG);
-      onda(tl, appsG, ax, ay, ta, { r0: 30, r1: 200 * s });
-      dibujo(g, "M-130,-100 L130,-100 Q140,-100 140,-90 L140,90 Q140,100 130,100 L-130,100 Q-140,100 -140,90 L-140,-90 Q-140,-100 -130,-100", ta - 0.05, 0.4, { ancho: 5 });
-      if (k === 0) for (let r = 0; r < 4; r++) { dibujo(g, `M-120,${-60 + r * 45} L120,${-60 + r * 45}`, ta + 0.15 + r * 0.04, 0.25, { color: K("cieloClaro"), ancho: 2 }); dibujo(g, `M${-120 + r * 80},-80 L${-120 + r * 80},80`, ta + 0.2 + r * 0.04, 0.25, { color: K("cieloClaro"), ancho: 2 }); }
-      if (k === 1) [200, 240, 180, 220, 140].forEach((lw, r) => dibujo(g, `M-110,${-60 + r * 30} L${-110 + lw},${-60 + r * 30}`, ta + 0.15 + r * 0.05, 0.25, { color: K("cieloClaro"), ancho: 6 }));
-      if (k === 2) dibujo(g, "M-110,-60 L0,20 L110,-60", ta + 0.15, 0.35, { color: K("cieloClaro"), ancho: 6 });
-      const sp = el("path", { d: ctx.CHISPA_D, transform: "translate(104 -64) scale(1.9) translate(-12 -12)", fill: K("durazno"), filter: "url(#brillo)" }, g);
-      tl.fromTo(sp, { opacity: 0, scale: 0.1, transformOrigin: "50% 50%", rotation: -90 }, { opacity: 1, scale: 1, rotation: 0, duration: 0.4, ease: "back.out(2.6)" }, ta + 0.12);
-      const n = texto(fuente, appsG, [nombres[k]], { x: ax, y: ay + 175 * s, tam: q(64, 56) });
-      dibujar(tl, n.palabras[0], ta, { dur: 0.3 });
-    });
-    chispa.pierna(`M${avs[2].x},${avs[2].y - 90} L${CX - AP.dx},${AP.y - 200}`, C.apps[0] - 0.4, C.apps[0] + 0.05, { cola: 160 });
-    chispa.pierna(`M${CX - AP.dx},${AP.y - 200} Q${CX - AP.dx / 2},${AP.y - 320} ${CX},${AP.y - 200}`, C.apps[1] - 0.25, C.apps[1] + 0.05, { cola: 160 });
-    chispa.pierna(`M${CX},${AP.y - 200} Q${CX + AP.dx / 2},${AP.y - 320} ${CX + AP.dx},${AP.y - 200}`, C.apps[2] - 0.25, C.apps[2] + 0.05, { cola: 160 });
-    chispa.quieta(C.apps[2] + 0.05, C.sin[0] - 0.3, CX + AP.dx, AP.y - 200, 5);
-    // ---------------- 10 · sin cambiar, sin saber, sin contratar ----------------
-    const SI = q({ y: 640, s: 1.3 }, { y: 1180, s: 1.3 });
-    const ICONOS_SIN = [
-      "M-60,-50 L60,-50 Q70,-50 70,-40 L70,40 Q70,50 60,50 L-60,50 Q-70,50 -70,40 L-70,-40 Q-70,-50 -60,-50 M0,-28 L0,22 M-20,4 L0,24 L20,4",   // otro programa que instalar
-      "M-30,-40 L-70,0 L-30,40 M30,-40 L70,0 L30,40 M14,-52 L-14,52",                                                                  // código
-      "M-20,-40 a24,24 0 1 1 0.1,0 M-64,48 Q-64,6 -20,6 Q24,6 24,48 M48,-6 L48,34 M28,14 L68,14",                                          // alguien nuevo
-    ];
-    const fines = [C.sin[1] - 0.25, C.sin[2] - 0.25, C.todo - 0.35];
-    const lineasSin = [[["SIN", "CAMBIAR"], ["DE", "PROGRAMAS"]], [["SIN", "SABER"], ["DE", "TECNOLOGÍA"]], q([["SIN", "CONTRATAR"], ["A", "NADIE", "NUEVO."]], [["SIN", "CONTRATAR"], ["A", "NADIE"], ["NUEVO."]])];
-    const anclasSin = [
-      [C.sin[0], w(10, "cambiar"), w(10, "de", 1), w(10, "programas,")],
-      [C.sin[1], w(10, "saber"), w(10, "de", 2), w(10, "tecnología")],
-      [C.sin[2], w(10, "contratar"), w(10, "a"), w(10, "nadie"), w(10, "nuevo.")],
-    ];
-    C.sin.forEach((ts, k) => {
-      const g = grupoVentana(escena, ts - 0.1, fines[k]);
-      const ig = el("g", { transform: `translate(${CX} ${SI.y}) scale(${SI.s})` }, g);
-      dibujo(ig, ICONOS_SIN[k], ts, 0.4, { ancho: 5, color: K("cieloClaro") });
-      dibujo(ig, "M-90,70 L90,-70", ts + 0.32, 0.16, { ancho: 9, color: hueso });   // tachado
-      onda(tl, g, CX, SI.y, ts + 0.34, { r0: 40, r1: 220, color: hueso });
-      frase(lineasSin[k], anclasSin[k], fines[k]);
-    });
-    chispa.pierna(`M${CX + AP.dx},${AP.y - 200} Q${CX + 300},${SI.y - 300} ${CX + 200 * SI.s},${SI.y - 150 * SI.s}`, C.sin[0] - 0.3, C.sin[0] + 0.1, { cola: 160 });
-    chispa.quieta(C.sin[0] + 0.1, C.todo - 0.4, CX + 200 * SI.s, SI.y - 150 * SI.s, 5);
-    unLugar(CX + 200 * SI.s, SI.y - 150 * SI.s, [C.todo, w(11, "en"), w(11, "un", 1), w(11, "mismo", 1), C.lugar], [w(11, "con"), w(11, "un", 2), w(11, "mismo", 2), C.metodo2], false);
-    resuelven([w(11, "que"), w(11, "tu"), C.equipo2, C.resuelva, w(11, "sin"), C.esperarte]);
+    unLugar(CO.x, CO.y, C.lugar1, C.lugar2, true);
+    resuelven(C.lugar3);
   }
 
   // ---------------- todo en un mismo lugar: una sola ventana con la chispa en el encabezado ----------------
@@ -396,11 +394,11 @@ export function montar(ctx) {
 
   // ---------------- respaldo (plática): VADAI × Total Coach más grandes y con movimiento; cientos de empresas
   // que no paran de llegar, hasta el infinito (10-oct, notas de Alejandro) ----------------
-  const iR = platica ? 11 : 12;
+  const iR = 11;
   const finR = C.porque2 - 0.3;
   const hV = 62, wV = (3839 / 1302) * hV, hT = 58, wT = (1110 / 252) * hT, gap = 70;   // la placa final de la tarjeta
   let finRespaldo;   // dónde queda la chispa al terminar el respaldo
-  if (platica) {
+  {
     const PL = q({ x: CX, y: 452, w: 1060, h: 214, yArriba: 214 }, { x: CX, y: 700, w: 800, h: 180, yArriba: 395 });
     const placaG = el("g", {}, escena), placa = el("g", {}, placaG);
     el("rect", { x: -PL.w / 2, y: -PL.h / 2, width: PL.w, height: PL.h, rx: PL.h / 2, fill: K("blanco") }, placa);
@@ -479,40 +477,10 @@ export function montar(ctx) {
         cd.g.setAttribute("opacity", t < cd.t0 ? 0 : (0.75 + 0.25 * Math.sin(t * 3 + cd.f)) * (1 - tramo(t, finR, finR + 0.3)));
       }
     });
-  } else {
-    const PL = q({ y: 330, w: 760, h: 150 }, { y: 640, w: 900, h: 150 });
-    const placa = el("g", {}, escena);
-    el("rect", { x: CX - PL.w / 2, y: PL.y - PL.h / 2, width: PL.w, height: PL.h, rx: PL.h / 2, fill: K("blanco") }, placa);
-    const tot = wV + gap + wT, lx = CX - tot / 2;
-    const iV = el("image", { href: "./assets/marca/vadai-horizontal-recorte.png", x: lx, y: PL.y - hV / 2, width: wV, height: hV }, placa);
-    el("rect", { x: lx + wV + gap / 2 - 1, y: PL.y - 25, width: 2, height: 50, fill: hueso }, placa);
-    const iT = el("image", { href: "./assets/marca/totalcoach-recorte.png", x: lx + wV + gap, y: PL.y - hT / 2, width: wT, height: hT }, placa);
-    tl.fromTo(placa, { opacity: 0, scale: 0.7, transformOrigin: "50% 50%" }, { opacity: 1, scale: 1, duration: 0.5, ease: "back.out(2)" }, C.respaldan);
-    tl.fromTo(iV, { opacity: 0, y: 14 }, { opacity: 1, y: 0, duration: 0.35, ease: "expo.out" }, C.vadai);
-    tl.fromTo(iT, { opacity: 0, y: 14 }, { opacity: 1, y: 0, duration: 0.35, ease: "expo.out" }, C.total);
-    tl.fromTo(placa, { opacity: 1 }, { opacity: 0, duration: 0.3, immediateRender: false }, finR);
-    const PT = q({ y: 840, paso: 56 }, { y: 1300, paso: 64 });
-    const pts = el("g", {}, escena);
-    for (let n = 0; n < 40; n++) {
-      const i = Math.floor(n / 10), j = n % 10;
-      const c = el("circle", { cx: CX + (j - 4.5) * PT.paso, cy: PT.y + (i - 1.5) * PT.paso * 0.9, r: 0, fill: K("cieloClaro") }, pts);
-      tl.fromTo(c, { attr: { r: 0 } }, { attr: { r: 13 }, duration: 0.25, ease: "back.out(3)" }, C.cuarenta + n * 0.022);
-    }
-    tl.fromTo(pts, { opacity: 1 }, { opacity: 0, duration: 0.3, immediateRender: false }, finR);
-    const cont = dom("div", "contador", "+0");
-    Object.assign(cont.style, { left: "0px", right: "0px", top: `${q(420, 760)}px`, textAlign: "center" });
-    tl.fromTo(cont, { opacity: 0, y: 30 }, { opacity: 1, y: 0, duration: 0.4, ease: "expo.out" }, C.cuarenta - 0.1);
-    const n40 = { v: 0 };
-    tl.fromTo(n40, { v: 0 }, { v: 40, duration: 0.9, ease: "power2.out", onUpdate: () => { cont.textContent = `+${Math.round(n40.v)}`; }, modifiers: { v: (x) => { cont.textContent = `+${Math.round(+x)}`; return x; } } }, C.cuarenta);
-    tl.to(cont, { opacity: 0, duration: 0.25 }, finR);
-    frase(q([["EMPRESAS", "MEXICANAS", "CAPACITADAS"]], [["EMPRESAS", "MEXICANAS"], ["CAPACITADAS"]]), [w(iR, "empresas"), w(iR, "mexicanas"), C.capacitadas], finR, { y: q(690, 1040), tam: q(72, 76) });
-    const hv = ctx.ventanaFinal.head;
-    chispa.pierna(`M${hv.x},${hv.y} Q${CX + PL.w / 2 + 120},${PL.y - 160} ${CX + PL.w / 2 + 30},${PL.y - PL.h / 2 - 10}`, C.respaldan - 0.3, C.respaldan + 0.1, { cola: 200 });
-    chispa.quieta(C.respaldan + 0.1, C.porque2, CX + PL.w / 2 + 30, PL.y - PL.h / 2 - 10, 5);
-    finRespaldo = () => ({ x: CX + PL.w / 2 + 30, y: PL.y - PL.h / 2 - 10 });
   }
+
   // cada tiempo del cierre vive con un empuje lento de cámara; el cambio de tiempo es un corte
-  const tiempos = (platica ? [C.ramal, C.contamos, C.todo, C.equipo2, C.respaldan, C.porque2, C.nosotros] : [C.ramal, C.aprende - 0.4, C.apps[0] - 0.4, C.sin[0] - 0.1, C.sin[1] - 0.1, C.sin[2] - 0.1, C.todo, C.equipo2, C.respaldan, C.porque2, C.nosotros]).concat([C.dale - 0.12]);
+  const tiempos = (platica ? [C.ramal, C.contamos, C.todo, C.equipo2, C.respaldan, C.porque2, C.nosotros] : [C.ramal, C.curso - 0.4, C.contamos, C.todo, C.equipo2, C.respaldan, C.porque2, C.nosotros]).concat([C.dale - 0.12]);
   tiempos.slice(0, -1).forEach((t0, i) => { cam.corte(t0, CX, CYm, 1); cam.clave(tiempos[i + 1] - 0.02, CX, CYm, 1.045, ease.seno); });
   cam.corte(C.dale - 0.12, CX, CYm, 1);
 
@@ -520,7 +488,7 @@ export function montar(ctx) {
   const iP = iR + 1, iN = iR + 2;
   const ARRIBA = { x: CX, y: q(330, 480) };
   const desdeR = finRespaldo(C.porque2);
-  if (platica) {
+  {
     // el mundo globalizado que ya habla de IA: la chispa dibuja el planeta, la gente encima platica, y las
     // gráficas de tendencia a los lados (10-oct, nota de Alejandro: «gente hablando y tendencias y gráficas
     // y un mundo… todo con íconos y dibujos creados por el logo de Claude»)
@@ -567,22 +535,6 @@ export function montar(ctx) {
     vuelo({ x: finGf.x, y: finGf.y - 26 }, ARRIBA, C.nosotros - 0.25, C.nosotros + 0.3, 60);
     chispa.quieta(C.nosotros + 0.3, C.nosotros + 0.6, ARRIBA.x, ARRIBA.y, 7);
     tl.to(gM, { y: 90, opacity: 0, duration: 0.35, ease: "power2.in" }, C.nosotros - 0.3);
-  } else {
-    chispa.pierna(`M${desdeR.x},${desdeR.y} Q${CX + 200},${ARRIBA.y - 120} ${ARRIBA.x},${ARRIBA.y}`, C.porque2, C.porque2 + 0.4, { cola: 200 });
-    chispa.quieta(C.porque2 + 0.4, C.nosotros + 0.6, ARRIBA.x, ARRIBA.y, 7);
-    const r2 = azar(4040);
-    for (let k = 0; k < 36; k++) {
-      const a = -Math.PI * (0.03 + 0.94 * r2()), L = 1000 + r2() * 900;
-      const ex = ARRIBA.x + Math.cos(a) * L, ey = ARRIBA.y + Math.sin(a) * L;
-      let nx = Math.sin(a), ny = -Math.cos(a); if (ny > 0) { nx = -nx; ny = -ny; }
-      const b1 = 120 + r2() * 260;
-      const p = el("path", { d: `M${ARRIBA.x},${ARRIBA.y} Q${(ARRIBA.x + Math.cos(a) * L * 0.5 + nx * b1).toFixed(1)},${(ARRIBA.y + Math.sin(a) * L * 0.5 + ny * b1).toFixed(1)} ${ex.toFixed(1)},${ey.toFixed(1)}`, fill: "none", stroke: [K("azul"), K("cieloClaro"), hueso][k % 3], "stroke-width": (1.4 + r2() * 2.2).toFixed(1), "stroke-linecap": "round" }, escena);
-      const t0 = C.porque2 + 0.45 + k * 0.05, op = +(0.35 + r2() * 0.5).toFixed(2);
-      tl.fromTo(p, { opacity: 0 }, { opacity: op, duration: 0.001 }, t0);
-      tl.fromTo(p, { opacity: op }, { opacity: 0, duration: 0.001, immediateRender: false }, t0 + 1.1);
-      tl.fromTo(p, { drawSVG: "0% 0%" }, { drawSVG: "0% 38%", duration: 0.3, ease: "power1.in" }, t0);
-      tl.fromTo(p, { drawSVG: "0% 38%" }, { drawSVG: "100% 100%", duration: 0.78, ease: "power1.out", immediateRender: false }, t0 + 0.3);
-    }
   }
   const yIA = q(598, 790);
   frase(q([["INTELIGENCIA", "ARTIFICIAL"]], [["INTELIGENCIA"], ["ARTIFICIAL"]]), [C.ia2, w(iP, "artificial.")], C.nosotros - 0.3, { y: yIA, tam: 150, max: q(1700, 800), dur: 0.3, estilo: "traza" });
@@ -602,7 +554,7 @@ export function montar(ctx) {
   chispa.escala((t) => 1 - ease.entra2(tramo(t, tTelon + 0.3, tTelon + 0.55)) + ease.sale3(tramo(t, C.fin + 0.1, C.fin + 0.5)));
   const N2 = { color: navy };
   const tituloF = platica ? [["PLÁTICA", "GRATUITA"], ["Y", "EN", "VIVO"]] : [["CLAUDE"], ["EN", "TU", "EMPRESA"]];
-  const ctaF = platica ? [["APARTA", "TU", "LUGAR"]] : [["CAPACITA", "A", "TU", "EQUIPO"]];
+  const ctaF = platica ? [["APARTA", "TU", "LUGAR"]] : q([["INSCRIBE", "A", "TU", "EQUIPO"]], [["INSCRIBE", "A"], ["TU", "EQUIPO"]]);
   // la flecha lima: aparece en «clic», late hasta el final
   const FL = q({ x: CX, y: 760 }, { x: CX, y: 1330 });
   const flecha = el("g", {}, letras);
@@ -620,8 +572,8 @@ export function montar(ctx) {
   });
   onda(tl, letras, FL.x, FL.y - 60, C.clic, { r0: 20, r1: 180, color: navy, ancho: 4 });
   const YC = q(420, 860);
-  const cta1 = frase(ctaF, platica ? [C.cta, w(14, "tu"), w(14, "lugar.")] : [C.cta, w(15, "a"), w(15, "tu"), w(15, "equipo.")], platica ? w(15, "esto") - 0.25 : C.caro - 0.3, { y: YC, tam: q(150, 130), color: navy, max: q(1600, 800) });
-  if (platica) {
+  const cta1 = frase(ctaF, platica ? [C.cta, w(14, "tu"), w(14, "lugar.")] : [C.cta, w(14, "a"), w(14, "tu"), w(14, "equipo.")], C.etiqueta - 0.05, { y: YC, tam: q(150, 130), color: navy, max: q(1600, 800) });
+  {
     // ---------- «esto es gratis»: una segunda chispa (por encima del degradado) dibuja una etiqueta de
     // precio y GRATIS se estampa en ella; luego «lo caro» es otra escena: navy, con rojo y durazno
     // (10-oct, nota de Alejandro: «más creativa… más colores, un poquito de rojo para resaltar lo CARO… que
@@ -634,6 +586,8 @@ export function montar(ctx) {
     const nace2 = q({ x: 1560, y: 200 }, { x: 880, y: 420 });
     ch2.tramo(0, tE - 0.15, () => nace2);
     ch2.escala((t) => (t < tE - 0.15 || t >= tF ? 0.001 : Math.max(0.001, pop(tramo(t, tE - 0.15, tE + 0.1)))));
+    let esqTag;
+    if (platica) {
     const colgador = { x: TG.x - 34, y: TG.cuelga };
     const relleno = el("path", { d: mover(`M0,0 L60,${-TG.h / 2} L${TG.w},${-TG.h / 2} L${TG.w},${TG.h / 2} L60,${TG.h / 2} Z`, TG.x, TG.y, 1, ROT), fill: K("blanco"), opacity: 0 }, gTag);
     const hoyo = { x: TG.x + 28 * Math.cos(ROT), y: TG.y + 28 * Math.sin(ROT) };
@@ -644,7 +598,7 @@ export function montar(ctx) {
     const fGr = texto(fuente, gTx, [["GRATIS."]], { x: TG.x + 60 + (TG.w - 60) / 2, y: TG.y + 55, tam: 150, maxAncho: TG.w - 130, color: navy, estilo: "golpe", trazo: 3 });
     dibujar(tl, fGr.palabras[0], C.gratis, { dur: 0.2, adelanto: 0 });
     onda(tl, letras, TG.x + TG.w / 2, TG.y, C.gratis, { r0: 120, r1: 520, color: navy, ancho: 5, dur: 0.55 });
-    const esqTag = { x: TG.x + TG.w * Math.cos(ROT) + (TG.h / 2) * Math.sin(ROT) + 10, y: TG.y + TG.w * Math.sin(ROT) - (TG.h / 2) * Math.cos(ROT) - 34 };
+    esqTag = { x: TG.x + TG.w * Math.cos(ROT) + (TG.h / 2) * Math.sin(ROT) + 10, y: TG.y + TG.w * Math.sin(ROT) - (TG.h / 2) * Math.cos(ROT) - 34 };
     const finTag = pTag.path.getPointAtLength(pTag.L);
     ch2.pierna(`M${finTag.x.toFixed(1)},${finTag.y.toFixed(1)} Q${esqTag.x},${esqTag.y - 120} ${esqTag.x.toFixed(1)},${esqTag.y.toFixed(1)}`, tE + 0.48, C.gratis - 0.02, { cola: 120 });
     ch2.tramo(C.gratis - 0.02, C.rojo, (t) => ({ x: esqTag.x, y: esqTag.y + 12 * Math.exp(-Math.pow((t - C.gratis - 0.02) / 0.05, 2)) - 5 * Math.sin((t - C.gratis) * 2.4) }));
@@ -656,6 +610,55 @@ export function montar(ctx) {
       gTag.setAttribute("transform", `translate(0 ${(cae * 760).toFixed(1)}) rotate(${(mece + cae * 18).toFixed(2)} ${colgador.x} ${colgador.y})`);
       gTag.setAttribute("opacity", (1 - cae).toFixed(3));
     });
+    } else {
+      // ---------- curso · «los resultados se ven desde la primera semana»: la chispa dibuja un calendario,
+      // su primera fila se palomea y PRIMERA SEMANA se estampa encima (11-oct) ----------
+      const CA = q({ x: CX, y: 530, w: 560, h: 280 }, { x: CX, y: 1050, w: 600, h: 340 });
+      const x0 = CA.x - CA.w / 2, y0 = CA.y - CA.h / 2, x1 = CA.x + CA.w / 2, y1 = CA.y + CA.h / 2, rr = 26;
+      const borde = `M${x0 + rr},${y0} L${x1 - rr},${y0} Q${x1},${y0} ${x1},${y0 + rr} L${x1},${y1 - rr} Q${x1},${y1} ${x1 - rr},${y1} L${x0 + rr},${y1} Q${x0},${y1} ${x0},${y1 - rr} L${x0},${y0 + rr} Q${x0},${y0} ${x0 + rr},${y0} Z`;
+      el("path", { d: borde, fill: K("blanco"), opacity: 0, class: "relleno" }, gTag);
+      const relleno = gTag.lastChild;
+      const banda = el("path", { d: `M${x0 + rr},${y0} L${x1 - rr},${y0} Q${x1},${y0} ${x1},${y0 + rr} L${x1},${y0 + 70} L${x0},${y0 + 70} L${x0},${y0 + rr} Q${x0},${y0} ${x0 + rr},${y0} Z`, fill: K("durazno"), opacity: 0 }, gTag);
+      const pCal = ch2.pierna(`${borde} M${x0},${y0 + 70} L${x1},${y0 + 70} M${x0 + 130},${y0 - 26} L${x0 + 130},${y0 + 22} M${x1 - 130},${y0 - 26} L${x1 - 130},${y0 + 22}`, tE, tE + 0.5, { modo: "dibuja", ancho: 7, color: navy, padre: gTag, e: ease.suave });
+      tl.fromTo([relleno, banda], { opacity: 0 }, { opacity: 1, duration: 0.18 }, tE + 0.4);
+      ch2.pierna(`M${nace2.x},${nace2.y} Q${(nace2.x + x0) / 2},${nace2.y - 90} ${x0 + rr},${y0}`, tE - 0.15, tE, { cola: 160 });
+      // la cuadrícula del mes; la primera semana se palomea día por día
+      const cw = (CA.w - 60) / 7, chh = (CA.h - 110) / 3;
+      for (let fil = 0; fil < 3; fil++) for (let col = 0; col < 7; col++) {
+        const cx = x0 + 30 + col * cw, cy = y0 + 88 + fil * chh;
+        const c = el("rect", { x: cx + 5, y: cy + 5, width: cw - 10, height: chh - 10, rx: 8, fill: "none", stroke: K("gris"), "stroke-width": 2.5, opacity: 0 }, gTag);
+        tl.fromTo(c, { opacity: 0 }, { opacity: 1, duration: 0.15 }, tE + 0.45 + (fil * 7 + col) * 0.012);
+        if (fil === 0) {
+          const ck = el("g", { transform: `translate(${(cx + cw / 2).toFixed(1)} ${(cy + chh / 2).toFixed(1)})` }, gTag);
+          const cc = el("circle", { r: 0, fill: K("azul") }, ck);
+          const tk = C.gratis - 0.95 + col * 0.1;
+          tl.fromTo(cc, { attr: { r: 0 } }, { attr: { r: Math.min(cw, chh) * 0.32 }, duration: 0.22, ease: "back.out(3)" }, tk);
+          dibujo(ck, "M-8,0 L-2,7 L9,-7", tk + 0.05, 0.14, { ancho: 3.5 });
+        }
+      }
+      // el sello
+      const gSe = el("g", { transform: `rotate(-8 ${CA.x} ${CA.y + 20})` }, gTag);
+      const fSe = texto(fuente, gSe, [["PRIMERA"], ["SEMANA"]], { x: CA.x, y: CA.y + 2, tam: q(96, 96), maxAncho: CA.w - 120, color: navy, estilo: "golpe", trazo: 3 });
+      const sx0 = Math.min(...fSe.palabras.map((p) => p.x0)) - 28, sx1 = Math.max(...fSe.palabras.map((p) => p.x1)) + 28;
+      const sy0 = fSe.palabras[0].y - fSe.palabras[0].tam * 0.78, sy1 = fSe.palabras[1].y + 22;
+      const marco = el("rect", { x: sx0, y: sy0, width: sx1 - sx0, height: sy1 - sy0, rx: 14, fill: K("lima"), stroke: navy, "stroke-width": 7 }, gSe);
+      gSe.insertBefore(marco, gSe.firstChild);
+      tl.fromTo(marco, { opacity: 0, scale: 1.5, svgOrigin: `${CA.x} ${CA.y}` }, { opacity: 1, scale: 1, svgOrigin: `${CA.x} ${CA.y}`, duration: 0.2, ease: "power4.out" }, C.gratis);
+      fSe.palabras.forEach((pp) => dibujar(tl, pp, C.gratis, { dur: 0.2, adelanto: 0 }));
+      onda(tl, letras, CA.x, CA.y, C.gratis, { r0: 120, r1: 520, color: navy, ancho: 5, dur: 0.55 });
+      esqTag = { x: x1 + 14, y: y0 - 40 };
+      const finCal = pCal.path.getPointAtLength(pCal.L);
+      ch2.pierna(`M${finCal.x.toFixed(1)},${finCal.y.toFixed(1)} Q${esqTag.x},${esqTag.y - 120} ${esqTag.x.toFixed(1)},${esqTag.y.toFixed(1)}`, tE + 0.5, tE + 0.8, { cola: 120 });
+      ch2.tramo(tE + 0.8, C.rojo, (t) => ({ x: esqTag.x, y: esqTag.y + 12 * Math.exp(-Math.pow((t - C.gratis - 0.02) / 0.05, 2)) - 5 * Math.sin((t - C.gratis) * 2.4) }));
+      ch2.escala((t) => 1 + 0.7 * Math.exp(-Math.pow((t - C.gratis) / 0.07, 2)));
+      frase(q([["LOS", "RESULTADOS", "SE", "VEN", "DESDE", "LA"]], [["LOS", "RESULTADOS"], ["SE", "VEN", "DESDE", "LA"]]), [w(15, "los"), w(15, "resultados"), w(15, "se"), w(15, "ven"), w(15, "desde"), w(15, "la")], C.rojo - 0.1, { y: q(292, 680), tam: q(76, 88), color: navy, max: q(1300, 800) });
+      // el calendario se mece con el sello y se cae cuando entra el telón navy
+      reloj(C.gratis - 0.01, C.rojo + 0.35, (t) => {
+        const u = Math.max(0, t - C.gratis), mece = 3 * Math.exp(-2.2 * u) * Math.sin(u * 8.5), cae = ease.entra2(tramo(t, C.rojo - 0.12, C.rojo + 0.25));
+        gTag.setAttribute("transform", `translate(0 ${(cae * 760).toFixed(1)}) rotate(${(mece + cae * 14).toFixed(2)} ${CA.x} ${y0})`);
+        gTag.setAttribute("opacity", (1 - cae).toFixed(3));
+      });
+    }
     // el telón navy, con un halo rojo; «LO CARO» en rojo, billetes «$» que se van por los lados
     const gRojo = el("g", {}, telon);   // se reacomoda al final de montar: encima de los rayos del degradado
     ctx.alFinal = () => telon.appendChild(gRojo);
@@ -702,9 +705,6 @@ export function montar(ctx) {
     ch2.pierna(`M${encM.x.toFixed(1)},${encM.y.toFixed(1)} Q${CX + 300},${astF0.y + 60} ${astF0.x},${astF0.y}`, C.mano2 + 0.28, tF - 0.04, { cola: 200 });
     ch2.quieta(tF - 0.04, 999, astF0.x, astF0.y, 0);
     ch2.montar();
-  } else {
-    frase(q([["LO", "CARO", "ES", "QUE", "SIGAN"], ["HACIENDO", "LAS", "COSAS", "A", "MANO."]], [["LO", "CARO", "ES"], ["QUE", "SIGAN"], ["HACIENDO", "LAS"], ["COSAS", "A", "MANO."]]),
-      ["lo", "caro", "es", "que", "sigan", "haciendo", "las", "cosas", "a", "mano."].map((x) => w(16, x)), C.fin + 0.15, { y: q(330, 640), tam: q(110, 104), color: navy, max: q(1700, 800) });
   }
   // tarjeta final
   const fTit = frase(tituloF, tituloF.flat().map((_, i) => tF + i * 0.06), null, { y: q(280, 600), tam: q(150, 140), color: navy, max: q(1600, 800), inter: platica ? 1.0 : 1.12 });

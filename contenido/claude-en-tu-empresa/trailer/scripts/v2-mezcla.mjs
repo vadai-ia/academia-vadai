@@ -6,7 +6,7 @@ import { execFileSync, spawnSync } from "node:child_process";
 import { writeFileSync, mkdirSync, readFileSync } from "node:fs";
 import { join, resolve, dirname } from "node:path";
 import { fileURLToPath } from "node:url";
-import { tiempos, DURACION, MUSICA_RETRASO } from "../v2/tiempos.js";
+import { tiempos, MUSICA_RETRASO } from "../v2/tiempos.js";
 import { cues } from "../v2/cues.js";
 
 const raiz = resolve(dirname(fileURLToPath(import.meta.url)), "..");
@@ -30,7 +30,7 @@ const F = {
 const MEDIDAS = JSON.parse(readFileSync(join(raiz, "assets/sfx/medidas.json"), "utf8"));
 const REF = -30;
 // la canción ya editada a la voz (scripts/v2-musica-editar.py): trae su propio retraso
-const MUSICA = "assets/v2/musica/n5-editada.wav";   // nivel RMS del cuerpo de un efecto con db 0 (la voz va a −16 LUFS)
+const MUSICA_DE = (v) => `assets/v2/musica/n5-editada-${v}.wav`;   // nivel RMS del cuerpo de un efecto con db 0 (la voz va a −16 LUFS)
 const ffm = (args) => execFileSync("ffmpeg", ["-v", "error", "-y", ...args]);
 const medir = (f) => JSON.parse(spawnSync("ffmpeg", ["-hide_banner", "-nostats", "-i", f, "-af", "loudnorm=print_format=json", "-f", "null", "-"], { encoding: "utf8" }).stderr.match(/\{[\s\S]*\}/)[0]);
 const wavF32 = (ruta, d) => {
@@ -47,6 +47,7 @@ const args = process.argv.slice(2);
 const estilos = args.filter((a) => a === "3d" || a === "2d"), cierres = args.filter((a) => a === "platica" || a === "curso");
 for (const v of cierres.length ? cierres : ["platica", "curso"]) for (const estilo of estilos.length ? estilos : ["3d", "2d"]) {
   const T = await tiempos(v);
+  const DURACION = T.duracion;
   const { S, C } = cues(T, estilo);
   const id = `${estilo}-${v}`;
   // curva de la música: −17 dB bajo la voz mientras habla, −7 entre frases (respecto de su cama)
@@ -73,9 +74,9 @@ for (const v of cierres.length ? cierres : ["platica", "curso"]) for (const esti
     env[i] = Math.pow(10, (g + sil + tension) / 20);
   }
   wavF32(join(M, `curva-${v}.wav`), env);
-  const Lv = +medir(join(M, `voz-${v}.wav`)).input_i, Lm = +medir(join(raiz, MUSICA)).input_i;
+  const Lv = +medir(join(M, `voz-${v}.wav`)).input_i, Lm = +medir(join(raiz, MUSICA_DE(v))).input_i;
   ffm(["-i", join(M, `voz-${v}.wav`), "-af", `volume=${(-16 - Lv).toFixed(2)}dB,aformat=sample_fmts=fltp:sample_rates=48000:channel_layouts=stereo,apad=whole_dur=${DURACION},atrim=0:${DURACION}`, "-c:a", "pcm_f32le", join(M, `stem-voz-${v}.wav`)]);
-  ffm(["-i", join(raiz, MUSICA), "-i", join(M, `curva-${v}.wav`), "-filter_complex",
+  ffm(["-i", join(raiz, MUSICA_DE(v)), "-i", join(M, `curva-${v}.wav`), "-filter_complex",
     `[0:a]aresample=48000,volume=${(-16 - Lm).toFixed(2)}dB,aformat=sample_fmts=fltp:channel_layouts=stereo,adelay=${Math.round(MUSICA_RETRASO * 1000)}:all=1,apad=whole_dur=${DURACION},atrim=0:${DURACION}[m];[1:a]aformat=sample_fmts=fltp:sample_rates=48000:channel_layouts=stereo[e];[m][e]amultiply[o]`,
     "-map", "[o]", "-c:a", "pcm_f32le", join(M, `stem-musica-${v}.wav`)]);
   // cada archivo entra una sola vez y se reparte con asplit; el grafo va en un archivo (10-oct: con 170

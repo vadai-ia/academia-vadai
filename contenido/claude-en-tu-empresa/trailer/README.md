@@ -2,12 +2,13 @@
 
 ## Dónde están los videos
 
-**`entregables/platica/`**: lo que se está revisando, solo el cierre de la plática.
+**`entregables/`**: los videos finales, por cierre (plática gratuita / curso).
 
 | Carpeta | Qué contiene |
 |---|---|
 | `entregables/platica/2d/` | Versión 2D «Un solo trazo» (voz de Camila, toma G). Desde el 10-oct es la única que se trabaja; la 3D se borró de entregables y su código sigue en `v2/3d/` y en git. |
 | `entregables/platica/2d-vertical/` | El mismo video en 1080×1920 para Reels / TikTok / Shorts. Todo lo importante va dentro de la zona segura de redes (x 90–950, y 250–1440), que `scripts/v2-hoja-vertical.py` marca en las hojas de revisión. |
+| `entregables/curso/2d/`, `entregables/curso/2d-vertical/` | El mismo video con el CTA al curso (11-oct): mismo cuerpo, cierre propio («Claude en tu Empresa… paso a paso», «inscribe a tu equipo»), voz de Camila toma C. Composiciones `v2-2d-curso.html` y `v2-2d-curso-v.html`. |
 
 En cada carpeta hay tres archivos:
 - `…-telefono.mp4`: para verlo en el celular (< 30 MB).

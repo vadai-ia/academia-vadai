@@ -4,7 +4,9 @@
 #   (el clímax sostiene el llamado) · 34–35 (el acorde final). Cortes en tiempo fuerte con fundido de 25 ms.
 # El desfase va al principio: el compás 23 cae en «método» (10-oct, toma G de Camila: 51.95 s). Si el
 # desfase sale negativo se recorta la entrada, que es casi silencio (compás 0 a −34 dB).
-#   python scripts/v2-musica-editar.py → assets/v2/musica/n5-editada.wav
+#   python scripts/v2-musica-editar.py [platica|curso] → assets/v2/musica/n5-editada-<versión>.wav
+# Curso (11-oct, toma C, «método» en 47.25 s): también se quitan el 19 y el 20 (crescendo dentro del silencio de
+# tráiler) y el clímax repite 26–33 para que el acorde final caiga con «a mano».
 import json, subprocess, sys, pathlib
 import numpy as np
 
@@ -16,8 +18,12 @@ x = np.frombuffer(subprocess.run(["ffmpeg", "-v", "error", "-i", str(raiz / "ass
 compas = 4 * an["pulso"]
 t0 = an["fase"]
 inicio = lambda c: int(round((t0 + c * compas) * SR))
-METODO, RETRASO = 51.949, None
-tramos = [(0, 16), (18, 34), (29, 34), (34, None)]
+VERSION = sys.argv[1] if len(sys.argv) > 1 else "platica"
+METODO, tramos = {
+    "platica": (51.949, [(0, 16), (18, 34), (29, 34), (34, None)]),
+    "curso": (47.25, [(0, 16), (18, 19), (21, 34), (26, 34), (34, None)]),
+}[VERSION]
+RETRASO = None
 piezas = []
 for a, b in tramos:
     ia = 0 if a == 0 else inicio(a)
@@ -30,9 +36,10 @@ for k, p in enumerate(piezas):
     if k < len(piezas) - 1: p[-F:] *= r[::-1]
 y = np.concatenate(piezas)
 # dónde quedó el compás 23 (el golpe) en la pista editada → retraso para que caiga en «método»
-golpe = len(piezas[0]) / SR + (inicio(23) - inicio(tramos[1][0])) / SR
+k23 = next(k for k, (a, b) in enumerate(tramos) if a <= 23 and (b is None or 23 < b))
+golpe = sum(len(p) for p in piezas[:k23]) / SR + (inicio(23) - inicio(tramos[k23][0])) / SR
 RETRASO = round(METODO - golpe, 3)
 y = np.concatenate([np.zeros((int(RETRASO * SR), 2), dtype=np.float32), y]) if RETRASO > 0 else y[int(-RETRASO * SR):]
-sal = raiz / "assets/v2/musica/n5-editada.wav"
+sal = raiz / f"assets/v2/musica/n5-editada-{VERSION}.wav"
 subprocess.run(["ffmpeg", "-v", "error", "-y", "-f", "f32le", "-ar", str(SR), "-ac", "2", "-i", "-", "-c:a", "pcm_s24le", str(sal)], input=y.tobytes(), check=True)
 print(f"golpe (compás 23) en {golpe:.3f} s del montaje · retraso {RETRASO:+.3f} s → cae en {METODO} s · duración {len(y) / SR:.2f} s")

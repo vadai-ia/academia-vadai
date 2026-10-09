@@ -26,14 +26,16 @@ export const SECCIONES = {
     "Esto es gratis.",
     "Lo caro es que sigan haciendo las cosas a mano.",
   ],
+  // 11-oct-2026 (aprobado por Alejandro): mismo cuerpo y misma estructura de cierre que la plática; el
+  // CTA lleva al curso. Sin precios, sesiones ni módulos. «Resultados desde la primera semana» es de la página.
   curso: [
-    "Por eso creamos Claude en tu Empresa: tu equipo aprende a usar la inteligencia artificial dentro del Excel, el Word y el correo que ya usa.",
-    "Sin cambiar de programas, sin saber de tecnología y sin contratar a nadie nuevo.",
-    "Todo en un mismo lugar, con un mismo método, para que tu equipo resuelva sin tener que esperarte.",
-    "Lo respaldan VADAI y Total Coach, con más de cuarenta empresas mexicanas capacitadas.",
+    "Por eso creamos Claude en tu Empresa: el curso donde aprendes, paso a paso, a tener a Claude trabajando en tu empresa.",
+    "Aprendes a hablarle a la IA, en qué punto está hoy, cómo usarla en cualquier herramienta de tu día a día, cómo conectarla con tu información y tu correo, y cómo salir del bucle: todo en un mismo lugar, con Claude y un mismo método, para que tu equipo resuelva sin tener que esperarte.",
+    "Lo respaldan VADAI y Total Coach, con cientos de empresas mexicanas capacitadas en el uso de IA.",
     "Porque todo mundo te va a seguir hablando de inteligencia artificial.",
     "Nosotros te enseñamos qué hacer con ella.",
-    "Dale clic aquí abajo y capacita a tu equipo.",
+    "Dale clic aquí abajo e inscribe a tu equipo.",
+    "Los resultados se ven desde la primera semana.",
     "Lo caro es que sigan haciendo las cosas a mano.",
   ],
 };

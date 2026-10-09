@@ -7,10 +7,10 @@ import { fileURLToPath } from "node:url";
 
 const raiz = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 // la duración sale de v2/tiempos.js (voz + acorde final): nunca fija aquí (ERRORES E31)
-import { DURACION as DUR } from "../v2/tiempos.js";
+import { DURACION as DUR, DURACIONES } from "../v2/tiempos.js";
 
-const html2d = ({ W, H, V, archivo }) => `<!doctype html>
-<html lang="es" data-resolution="${V ? "portrait" : "landscape"}" data-composition-variables='[{"id":"cierre","type":"string","label":"Cierre","default":"platica"}]'>
+const html2d = ({ W, H, V, archivo, cierre }) => { const DUR = DURACIONES[cierre]; return `<!doctype html>
+<html lang="es" data-resolution="${V ? "portrait" : "landscape"}" data-composition-variables='[{"id":"cierre","type":"string","label":"Cierre","default":"${cierre}"}]'>
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=${W}, height=${H}" />
@@ -79,7 +79,7 @@ const html2d = ({ W, H, V, archivo }) => `<!doctype html>
         </svg>
       </div>
       <div id="tipo" class="clip" data-start="0" data-duration="${DUR}" data-track-index="2"></div>
-      <audio id="mezcla-master" src="./assets/v2/mezcla/master-2d-platica-previa.m4a" data-start="0" data-duration="${DUR}" data-track-index="3" data-volume="1"></audio>
+      <audio id="mezcla-master" src="./assets/v2/mezcla/master-2d-${cierre}-previa.m4a" data-start="0" data-duration="${DUR}" data-track-index="3" data-volume="1"></audio>
     </div>
 
     <script>
@@ -101,7 +101,7 @@ const html2d = ({ W, H, V, archivo }) => `<!doctype html>
 
       const DUR = ${DUR}, W = ${W}, H = ${H}, V = ${V};
       const tl = window.__tl;
-      let cierre = "platica";
+      let cierre = "${cierre}";
       try { const v = window.__hyperframes && window.__hyperframes.getVariables ? window.__hyperframes.getVariables() : null; if (v && v.cierre) cierre = v.cierre; } catch (e) {}
       // reloj: cada rutina corre SIEMPRE con su tiempo acotado a su tramo (ERRORES E12, E17)
       const rutinas = [];
@@ -162,7 +162,7 @@ const html2d = ({ W, H, V, archivo }) => `<!doctype html>
     </script>
   </body>
 </html>
-`;
+`; };
 
 const html3d = ({ W, H, V }) => `<!doctype html>
 <html lang="es" data-resolution="${V ? "portrait" : "landscape"}" data-formato="${V ? "v" : "h"}" data-composition-variables='[{"id":"cierre","type":"string","label":"Cierre","default":"platica"},{"id":"capas","type":"string","label":"Capas","default":"limpio"}]'>
@@ -281,7 +281,8 @@ const html3d = ({ W, H, V }) => `<!doctype html>
 </html>
 `;
 
-for (const f of [{ W: 1920, H: 1080, V: false, archivo: "v2-2d.html" }, { W: 1080, H: 1920, V: true, archivo: "v2-2d-v.html" }]) {
+// 2D: plática (v2-2d.html) y curso (v2-2d-curso.html), cada uno con su duración y su mezcla
+for (const f of [{ archivo: "v2-2d.html", cierre: "platica" }, { archivo: "v2-2d-curso.html", cierre: "curso" }].flatMap((c) => [{ ...c, W: 1920, H: 1080, V: false }, { ...c, W: 1080, H: 1920, V: true, archivo: c.archivo.replace(".html", "-v.html") }])) {
   writeFileSync(join(raiz, f.archivo), html2d(f));
   console.log("escrito", f.archivo);
 }

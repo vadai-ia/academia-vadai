@@ -6,8 +6,9 @@
 //   3. termina en la última palabra con un fundido: nada de la toma después (ERRORES: en la v2 anterior
 //      se colaba el arranque del cierre del curso y se oía una palabra cortada).
 //   4. tiempos: whisper sobre la pista armada + afinado por islas de energía (ERRORES E9).
-// Salidas: assets/v2/mezcla/voz-platica.wav · v2/vo-platica.js
-//   node scripts/v2-voz-platica.mjs
+// Salidas: assets/v2/mezcla/voz-<versión>.wav · v2/vo-<versión>.js
+//   node scripts/v2-voz-platica.mjs --base camila-g [--version platica|curso]
+// (11-oct: también arma el curso; cada versión es su propia toma completa, nunca un empalme)
 import { execFileSync } from "node:child_process";
 import { readFileSync, writeFileSync, mkdirSync, renameSync, existsSync } from "node:fs";
 import { join, resolve, dirname } from "node:path";
@@ -19,7 +20,9 @@ const raiz = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 const V = join(raiz, "assets/v2/voz"), M = join(raiz, "assets/v2/mezcla");
 mkdirSync(M, { recursive: true });
 const SR = 48000;
-const FRASES = [...SECCIONES.cuerpo, ...SECCIONES.platica];
+const iVer = process.argv.indexOf("--version");
+const VERSION = iVer > 0 ? process.argv[iVer + 1] : "platica";
+const FRASES = [...SECCIONES.cuerpo, ...SECCIONES[VERSION]];
 const RESPALDO = SECCIONES.cuerpo.length + 2;            // índice de la frase del respaldo
 const PAUSA_DRAMATICA = { 6: 1.3, 8: 0.9 };              // tope del silencio DESPUÉS de esa frase
 const TOPE_ENTRE = 0.5, TOPE_DENTRO = 0.6;
@@ -113,7 +116,7 @@ trozos.forEach((q0, k) => {
 // fundido final: la pista muere en la última palabra
 const FF = Math.round(0.25 * SR); for (let i = 0; i < FF; i++) z[z.length - 1 - i] *= i / FF;
 console.log(`silencios: ${ops.filter((x) => x.quita).length} recortados, ${ops.filter((x) => x.pon).length} alargados · ${(y.length / SR).toFixed(2)} s → ${(z.length / SR).toFixed(2)} s`);
-const wav = join(M, "voz-platica.wav");
+const wav = join(M, `voz-${VERSION}.wav`);
 const b = Buffer.alloc(44 + z.length * 4);
 b.write("RIFF", 0); b.writeUInt32LE(36 + z.length * 4, 4); b.write("WAVE", 8); b.write("fmt ", 12); b.writeUInt32LE(16, 16);
 b.writeUInt16LE(3, 20); b.writeUInt16LE(1, 22); b.writeUInt32LE(SR, 24); b.writeUInt32LE(SR * 4, 28); b.writeUInt16LE(4, 32); b.writeUInt16LE(32, 34);
@@ -122,7 +125,7 @@ for (let i = 0; i < z.length; i++) b.writeFloatLE(z[i], 44 + i * 4);
 writeFileSync(wav, b);
 
 // ---------- 3 · tiempos de cada palabra en la pista final ----------
-const jsonFinal = join(M, "voz-platica.json");
+const jsonFinal = join(M, `voz-${VERSION}.json`);
 if (existsSync(jsonFinal)) renameSync(jsonFinal, jsonFinal + ".viejo");
 const t = alinear(transcribir(wav, jsonFinal));
 // afinado: cada frase se pega a los bordes de sus silencios reales; dentro, solo se parte en pausas que
@@ -173,6 +176,6 @@ for (let i = 1; i < t.length; i++) if (t[i].start < t[i - 1].start + 0.04) { t[i
 const CORRIGE = { "camila-g": { [FRASES.length - 1]: [[88.45, 88.59], [88.63, 88.99], [89.02, 89.13], [89.15, 89.22], [89.22, 89.49], [89.52, 89.94], [89.98, 90.13], [90.15, 90.42], [90.42, 90.5], [90.5, 90.73]] } };
 for (const [fi, ts] of Object.entries(CORRIGE[BASE] || {})) t.filter((w) => w.f === +fi).forEach((w, k) => { [w.start, w.end] = ts[k]; });
 const nC = SECCIONES.cuerpo.length;
-const palabras = t.map((w) => ({ text: w.text, s: w.f < nC ? "cuerpo" : "platica", start: +w.start.toFixed(3), end: +w.end.toFixed(3) }));
-writeFileSync(join(raiz, "v2/vo-platica.js"), `// GENERADO por scripts/v2-voz-platica.mjs (Camila Rodríguez). Tiempos de cada palabra del guion en la pista de voz.\nexport const DURACION_VOZ = ${(z.length / SR).toFixed(3)};\nexport const PALABRAS = ${JSON.stringify(palabras)};\n`);
+const palabras = t.map((w) => ({ text: w.text, s: w.f < nC ? "cuerpo" : VERSION, start: +w.start.toFixed(3), end: +w.end.toFixed(3) }));
+writeFileSync(join(raiz, `v2/vo-${VERSION}.js`), `// GENERADO por scripts/v2-voz-platica.mjs (Camila Rodríguez). Tiempos de cada palabra del guion en la pista de voz.\nexport const DURACION_VOZ = ${(z.length / SR).toFixed(3)};\nexport const PALABRAS = ${JSON.stringify(palabras)};\n`);
 console.log(`afinado: ${sil.length} silencios, ${movidas} palabras movidas · ${palabras.length} palabras · habla hasta ${finHabla.toFixed(2)} s · pista ${durZ.toFixed(2)} s`);

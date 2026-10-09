@@ -3,6 +3,17 @@
 Fallas encontradas y cómo se arreglaron. Se lee antes de tocar render, 3D o tipografía
 animada (MOTION-RULES 11). Lo más nuevo arriba.
 
+## 11-oct-2026 · v2 2D curso (toma C) y verticales
+
+### E39 · «qué» y «que» cuentan como la misma palabra al anclar
+- **Síntoma:** en el curso, un «QUE» suelto se quedaba en pantalla desde «en qué punto» y se encimaba con los textos siguientes.
+- **Causa:** `clave()` quita acentos, así que `T.w(10, "que", 1)` encontró el «qué» de «en qué punto» y no el «que» de «para que tu equipo».
+- **Arreglo:** las apariciones van contadas a mano por versión (`C.lugar1/2/3` en `v2/cues.js`). Al escribir un ancla con «que», «qué», «el», «él» o «tu», «tú», se cuentan también las acentuadas.
+
+### E40 · Cada voz pide su propia edición de la canción
+- **Síntoma:** con la toma C (3.4 s más rápida que la G), el hueco de los compases quietos caía justo en «sale otra», el clímax del bucle.
+- **Arreglo:** `scripts/v2-musica-editar.py <versión>` guarda la lista de compases de cada toma y escribe `n5-editada-<versión>.wav`. La edición se revisa con el nivel de la música segundo por segundo contra las frases.
+
 ## 10-oct-2026 · v2 2D plática, Ronda E (toma G, escenas nuevas)
 
 ### E38 · Whisper estira la última frase hasta una respiración
