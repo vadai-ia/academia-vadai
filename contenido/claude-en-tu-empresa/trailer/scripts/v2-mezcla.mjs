@@ -45,7 +45,7 @@ const wavF32 = (ruta, d) => {
 
 // node scripts/v2-mezcla.mjs [3d|2d] [platica|curso] … (sin argumentos: las cuatro)
 const args = process.argv.slice(2);
-const estilos = args.filter((a) => a === "3d" || a === "2d" || a === "v3"), cierres = args.filter((a) => a === "platica" || a === "curso");
+const estilos = args.filter((a) => a === "3d" || a === "2d" || a === "v3" || a === "v3e"), cierres = args.filter((a) => a === "platica" || a === "curso");
 for (const v of cierres.length ? cierres : ["platica", "curso"]) for (const estilo of estilos.length ? estilos : ["3d", "2d"]) {
   const T = await tiempos(v);
   const DURACION = T.duracion;

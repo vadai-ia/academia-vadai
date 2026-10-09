@@ -4,6 +4,7 @@
 |---|---|---|---|---|
 | Titular y cifra | Anton | `Anton-latin.woff2` (HTML) · `Anton-Regular.ttf` (instalar) | OFL 1.1 | Impact |
 | Cuerpo | Inter (variable) | `Inter-latin.woff2` · `Inter-Variable.ttf` | OFL 1.1 | Segoe UI / Arial |
+| Acento editorial (Propuesta 3) | Instrument Serif Italic | `InstrumentSerif-Italic.ttf` | OFL 1.1 (`InstrumentSerif-OFL.txt`) | Georgia italic |
 | Mono | JetBrains Mono (variable) | `JetBrainsMono-latin.woff2` · `JetBrainsMono-Variable.ttf` | OFL 1.1 | Consolas |
 
 - El deck HTML **incrusta** las woff2 como data URI: un solo archivo, funciona sin red.

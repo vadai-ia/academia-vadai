@@ -1,0 +1,68 @@
+<!doctype html>
+<html lang="es" data-resolution="landscape">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=1920, height=1080" />
+<!-- GENERADO por scripts/v3e-html.mjs: no se edita a mano. Propuesta 3 «La escalera infinita» · platica · horizontal. -->
+<script src="./estilo/semilla.js"></script>
+<script>
+  window.__hf = window.__hf || {}; window.__hf.buildReady = window.__hf.buildReady || {};
+  window.__hf.buildReady["escalera"] = new Promise((ok, mal) => { window.__escOk = ok; window.__escMal = mal; });
+</script>
+<script src="./vendor/gsap/gsap.min.js"></script>
+<script src="./estilo/gsap.js"></script>
+<script type="importmap">{ "imports": { "three": "./vendor/three/build/three.module.js", "three/addons/": "./vendor/three/addons/" } }</script>
+<style>
+  @font-face { font-family: "Inter"; src: url("./assets/fonts/Inter-Variable.ttf") format("truetype"); font-weight: 100 900; font-display: block; }
+  @font-face { font-family: "Instrument Serif"; src: url("./assets/fonts/InstrumentSerif-Italic.ttf") format("truetype"); font-style: italic; font-weight: 400; font-display: block; }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  html, body { width: 1920px; height: 1080px; overflow: hidden; background: #E8EFF5; }
+  #root { position: relative; width: 100%; height: 100%; overflow: hidden; background: #E8EFF5; }
+  #fondo { position: absolute; left: 0; top: 0; width: 1920px; height: 1080px; background: radial-gradient(120% 90% at 50% 38%, #F6F9FC 0%, #E9F0F6 52%, #D7E3EE 100%); }
+  #gl { position: absolute; left: 0; top: 0; width: 1920px; height: 1080px; }
+  #tipo { position: absolute; left: 0; top: 0; width: 1920px; height: 1080px; perspective: 1400px; }
+  #grano { position: absolute; left: 0; top: 0; width: 1920px; height: 1080px; pointer-events: none; opacity: 0.045; mix-blend-mode: multiply; }
+</style>
+</head>
+<body>
+<div id="root" data-composition-id="main" data-start="0" data-duration="31.5" data-width="1920" data-height="1080" data-fps="60">
+  <div id="fondo"></div>
+  <canvas id="gl" width="1920" height="1080"></canvas>
+  <div id="tipo" class="clip" data-start="0" data-duration="31.5" data-track-index="1"></div>
+  <svg id="grano" width="1920" height="1080"><filter id="gr"><feTurbulence id="gr-ruido" type="fractalNoise" baseFrequency="0.9" numOctaves="2" seed="1" stitchTiles="stitch" /><feColorMatrix type="matrix" values="0 0 0 0 0  0 0 0 0 0.05  0 0 0 0 0.12  0 0 0 1 0" /></filter><rect width="1920" height="1080" filter="url(#gr)" /></svg>
+  <audio id="mezcla-master" src="./assets/v2/mezcla/master-v3e-platica-previa.m4a" data-start="0" data-duration="31.5" data-track-index="3" data-volume="1"></audio>
+</div>
+<script>
+  const tl = gsap.timeline({ paused: true });
+  tl.set({}, {}, 31.5);
+  window.__tl = tl; window.__timelines["main"] = tl;
+</script>
+<script type="module">
+  import { tiempos } from "./v2/tiempos.js";
+  import { crearMundo } from "./v3/escalera/mundo.js";
+  import * as apertura from "./v3/escalera/apertura.js";
+
+  const W = 1920, H = 1080, V = false, DUR = 31.5;
+  const tl = window.__tl;
+  const $ = (id) => document.getElementById(id);
+  (async () => {
+    await document.fonts.load('600 54px "Inter"'); await document.fonts.load('800 60px "Inter"'); await document.fonts.load('italic 60px "Instrument Serif"');
+    const T = await tiempos("platica");
+    const m = crearMundo($("gl"), { ancho: W, alto: H });
+    const ctx = { m, T, tl, raiz: $("tipo"), W, H, V, cierre: "platica" };
+    const ap = apertura.montar(ctx);
+    const ruido = $("gr-ruido");
+    function pintar(t0) {
+      const t = Math.round(t0 * 60) / 60;      // al cuadro: mismo resultado en todos los workers
+      ap.pintar(t);
+      m.pintar();
+      ruido.setAttribute("seed", String(1 + (Math.floor(t * 30) % 997)));
+    }
+    const R = { t: 0 };
+    tl.fromTo(R, { t: 0 }, { t: DUR, duration: DUR, ease: "none", modifiers: { t: (x) => { pintar(+x); return x; } } }, 0);
+    window.addEventListener("hf-seek", (e) => pintar(e.detail.time));
+    pintar(tl.time());
+  })().then(window.__escOk, (e) => { console.error("escalera: no se construyó", e); window.__escMal(e); });
+</script>
+</body>
+</html>

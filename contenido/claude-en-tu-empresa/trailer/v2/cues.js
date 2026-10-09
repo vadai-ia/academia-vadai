@@ -1,3 +1,4 @@
+import { sfxEscalera } from "../v3/escalera/sonido.js";
 // v2 · hoja de cues ÚNICA: los momentos del relato, anclados a palabras. La usan la versión 3D, la 2D
 // y la mezcla (cada efecto de sonido cae en el mismo instante que su evento visual). Sin DOM.
 //   cues(T, estilo) → { C, S }   estilo: "3d" | "2d" (algunos efectos son de una sola versión)
@@ -153,6 +154,8 @@ export function cues(T, estilo = "3d") {
   C.traga = C.cuanto - 0.5;                    // el punto «tú» se traga los signos
   C.chats = [0, 1, 2, 3].map((k) => +(C.cuanto + 0.25 + k * 0.62).toFixed(3));
 
+  // Propuesta 3 «La escalera infinita»: su propia hoja de efectos (v3/escalera/sonido.js)
+  if (estilo === "v3e") return { C, S: sfxEscalera(T) };
   // ---------- efectos de sonido ----------
   // f: archivo (scripts/v2-mezcla.mjs) · t: instante del evento · db: nivel relativo (0 = presente,
   // −10 = de fondo) · ancla: qué parte del efecto cae en t ("inicio" o "pico") · tono: semitonos
