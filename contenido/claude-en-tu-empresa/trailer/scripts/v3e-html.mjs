@@ -1,5 +1,5 @@
 // Propuesta 3 «La escalera infinita» · genera las composiciones desde una plantilla.
-//   node scripts/v3e-html.mjs [rebanada]   → v3e-platica.html (completo) y, con «rebanada», v3e-rebanada.html
+//   node scripts/v3e-html.mjs   → v3e-platica.html, v3e-curso.html y sus verticales (-v)
 // Capas (de abajo arriba): #fondo (aurora por tramo, retícula, palabras gigantes) · lienzo WebGL transparente
 // (el mundo) · #lineas (hilos y redes, SVG) · #ui (tarjetas, etiquetas) · #tipo (texto cinético) · #cursor
 // (el líder) · #golpes (tarjetas de golpe a todo color) · grano · viñeta. Vertical: lienzo de 1088 (ERRORES E41).
@@ -120,5 +120,4 @@ const archivos = [
   { archivo: "v3e-platica-v.html", W: 1080, H: 1920, V: true, cierre: "platica", DUR: DURACIONES.platica, audio: "master-v3e-platica-previa.m4a" },
   { archivo: "v3e-curso-v.html", W: 1080, H: 1920, V: true, cierre: "curso", DUR: DURACIONES.curso, audio: "master-v3e-curso-previa.m4a" },
 ];
-if (process.argv.includes("rebanada")) archivos.push({ archivo: "v3e-rebanada.html", W: 1920, H: 1080, V: false, cierre: "platica", DUR: 31.5, audio: "master-v3e-platica-previa.m4a" });
 for (const f of archivos) { writeFileSync(join(raiz, f.archivo), html(f)); console.log("escrito", f.archivo); }
