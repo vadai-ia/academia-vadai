@@ -2,6 +2,8 @@ import 'server-only'
 
 import { cache } from 'react'
 
+import { esCuentaQa, esCursoQa } from '@/lib/qa'
+import { obtenerSesion } from '@/lib/auth/sesion'
 import { crearClienteServidor } from '@/lib/supabase/server'
 
 export type SesionDelAlumno = {
@@ -66,7 +68,12 @@ export const sesionesDelAlumno = cache(async function sesionesDelAlumno(): Promi
     cohorts: { name: string; courses: { slug: string; title: string } }
   }
 
-  const filas = data as unknown as Anidada[]
+  // Al equipo RLS le enseña las sesiones de todas las generaciones, también
+  // las del curso de pruebas (sus fechas se siembran a una semana de hoy):
+  // una cuenta real no las ve (lib/qa.ts, 9-oct-2026).
+  const sesion = await obtenerSesion()
+  const cuentaQa = sesion.tipo === 'activo' && esCuentaQa(sesion.perfil.email)
+  const filas = (data as unknown as Anidada[]).filter((s) => cuentaQa || !esCursoQa(s.cohorts.courses.slug))
 
   // ¿Alguna grabación está en una sesión exclusiva que no puedo abrir?
   const grabaciones = filas.flatMap((s) => (s.recording_lesson_id ? [s.recording_lesson_id] : []))

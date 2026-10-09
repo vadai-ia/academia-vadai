@@ -2,6 +2,7 @@ import 'server-only'
 
 import { cache } from 'react'
 
+import { esCuentaQa, esCursoQa } from '@/lib/qa'
 import { esEquipo, obtenerSesion, type Perfil } from '@/lib/auth/sesion'
 import { crearClienteServidor } from '@/lib/supabase/server'
 import type { Tabla } from '@/lib/supabase/types'
@@ -269,7 +270,11 @@ export async function misDinamicas(cursoId?: string): Promise<DinamicaEnListaAlu
     return []
   }
 
-  const lista = (dinamicas.data ?? []) as unknown as DinamicaConCurso[]
+  // Una cuenta real no ve las dinámicas del curso de pruebas (lib/qa.ts).
+  const cuentaQa = esCuentaQa(perfil.email)
+  const lista = ((dinamicas.data ?? []) as unknown as DinamicaConCurso[]).filter(
+    (d) => cuentaQa || !esCursoQa(d.courses?.slug)
+  )
   if (lista.length === 0) return []
 
   const idsDinamicas = new Set(lista.map((d) => d.id))
@@ -433,9 +438,11 @@ export async function contarDinamicasAbiertas(cursoId: string, cohortId: string 
  */
 export async function dinamicasAbiertasParaCampana(): Promise<DinamicaParaCampana[]> {
   const supabase = await crearClienteServidor()
+  const sesion = await obtenerSesion()
+  const cuentaQa = sesion.tipo === 'activo' && esCuentaQa(sesion.perfil.email)
   const { data, error } = await supabase
     .from('dynamics')
-    .select('id, title, status, closes_at, opened_at, courses(title)')
+    .select('id, title, status, closes_at, opened_at, courses(title, slug)')
     .eq('status', 'open')
     .order('opened_at', { ascending: false })
 
@@ -450,11 +457,11 @@ export async function dinamicasAbiertasParaCampana(): Promise<DinamicaParaCampan
     status: string
     closes_at: string | null
     opened_at: string | null
-    courses: { title: string } | null
+    courses: { title: string; slug: string } | null
   }
 
   return ((data ?? []) as unknown as Fila[]).flatMap((d) =>
-    d.opened_at && estaAbierta(d)
+    d.opened_at && estaAbierta(d) && (cuentaQa || !esCursoQa(d.courses?.slug))
       ? [{ id: d.id, titulo: d.title, cursoTitulo: d.courses?.title ?? 'Curso', abiertaEn: d.opened_at }]
       : []
   )

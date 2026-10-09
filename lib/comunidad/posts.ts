@@ -1,5 +1,7 @@
 import 'server-only'
 
+import { esCuentaQa } from '@/lib/qa'
+import { obtenerSesion } from '@/lib/auth/sesion'
 import { crearClienteServidor } from '@/lib/supabase/server'
 import type { Json } from '@/lib/supabase/types'
 
@@ -276,12 +278,23 @@ export async function publicacionesParaAlumno(
 
   let consulta = supabase
     .from('posts')
-    .select('id, title, content_rich, cover_url, post_type, published_at')
+    .select('id, title, content_rich, cover_url, post_type, published_at, audience_course_id, audience_cohort_id')
     .order('published_at', { ascending: false })
 
   if (tipo) consulta = consulta.eq('post_type', tipo)
 
-  const { data, error } = await consulta
+  // Al equipo RLS le enseña todos los anuncios, también los del curso de
+  // pruebas: una cuenta real no los ve (lib/qa.ts, 9-oct-2026).
+  const [{ data, error }, sesion, { data: cursosQa }] = await Promise.all([
+    consulta,
+    obtenerSesion(),
+    supabase.from('courses').select('id, cohorts(id)').like('slug', 'qa-%'),
+  ])
+  const cuentaQa = sesion.tipo === 'activo' && esCuentaQa(sesion.perfil.email)
+  type CursoQa = { id: string; cohorts: Array<{ id: string }> | null }
+  const deQa = new Set(
+    ((cursosQa ?? []) as unknown as CursoQa[]).flatMap((c) => [c.id, ...(c.cohorts ?? []).map((g) => g.id)])
+  )
 
   if (error) {
     console.error(JSON.stringify({ operacion: 'publicacionesParaAlumno', error: error.message }))
@@ -295,10 +308,17 @@ export async function publicacionesParaAlumno(
     cover_url: string | null
     post_type: 'announcement' | 'blog'
     published_at: string | null
+    audience_course_id: string | null
+    audience_cohort_id: string | null
   }
 
-  return (data as Fila[])
+  return ((data ?? []) as Fila[])
     .filter((p) => p.published_at !== null)
+    .filter(
+      (p) =>
+        cuentaQa ||
+        !((p.audience_course_id && deQa.has(p.audience_course_id)) || (p.audience_cohort_id && deQa.has(p.audience_cohort_id)))
+    )
     .map((p) => ({
       id: p.id,
       titulo: p.title,
