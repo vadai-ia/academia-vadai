@@ -4,6 +4,7 @@ import Link from 'next/link'
 import { CodigoQr } from '@/components/encuestas/codigo-qr'
 import { MarcaVaip } from '@/components/marca/logo-vaip'
 import { Cifra, Seccion, Tarjeta, Titulo } from '@/components/ui-vadai/superficie'
+import { TemasDelMuro } from '@/components/admin/temas-del-muro'
 import { SincronizarAccesos } from '@/components/vaip/sincronizar-accesos'
 import { fechaLarga } from '@/components/vaip/tu-membresia'
 import { Badge } from '@/components/ui/badge'
@@ -49,9 +50,12 @@ export default async function PaginaVaipAdmin() {
   }
 
   const supabase = await crearClienteServidor()
-  const [panel, { data: cursos }] = await Promise.all([
+  const [panel, { data: cursos }, { data: temas }] = await Promise.all([
     panelVaip(plan.id),
     supabase.from('courses').select('id, title, slug, status').eq('plan_id', plan.id).order('created_at'),
+    plan.casa
+      ? supabase.from('community_topics').select('id, name, archived').eq('course_id', plan.casa.id).order('position')
+      : Promise.resolve({ data: [] }),
   ])
 
   const base = (process.env.NEXT_PUBLIC_APP_URL ?? '').replace(/\/+$/, '')
@@ -243,6 +247,18 @@ export default async function PaginaVaipAdmin() {
           ))}
         </ul>
       </Seccion>
+
+      {plan.casa ? (
+        <Seccion
+          titulo="Temas del muro"
+          apoyo="El muro de V-AI-P es uno solo; los temas sirven para filtrarlo y se eligen al publicar."
+        >
+          <TemasDelMuro
+            cursoId={plan.casa.id}
+            temas={(temas ?? []).map((t) => ({ id: t.id, nombre: t.name, archivado: t.archived }))}
+          />
+        </Seccion>
+      ) : null}
 
       <Seccion titulo="Cobros recientes">
         {panel.cobros.length === 0 ? (

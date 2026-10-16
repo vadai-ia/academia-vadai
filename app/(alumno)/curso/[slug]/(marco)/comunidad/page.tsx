@@ -8,6 +8,7 @@ import { cursoDelAlumno } from '@/lib/alumno/consultas'
 import { generacionesParaEquipo } from '@/lib/alumno/generaciones-equipo'
 import { esEquipo, exigirPerfil } from '@/lib/auth/sesion'
 import { feedDelCurso } from '@/lib/comunidad/posts'
+import { temasDelCurso } from '@/lib/comunidad/temas'
 
 export const dynamic = 'force-dynamic'
 
@@ -26,11 +27,11 @@ export default async function PaginaComunidad({
   searchParams,
 }: {
   params: Promise<{ slug: string }>
-  searchParams: Promise<{ p?: string; por?: string; gen?: string }>
+  searchParams: Promise<{ p?: string; por?: string; gen?: string; tema?: string }>
 }) {
   const perfil = await exigirPerfil()
   const { slug } = await params
-  const { p, por, gen } = await searchParams
+  const { p, por, gen, tema } = await searchParams
 
   const curso = await cursoDelAlumno(slug)
   if (!curso) notFound()
@@ -47,9 +48,13 @@ export default async function PaginaComunidad({
   const generacion = generaciones.find((g) => g.id === gen) ?? curso.generacion
   const cohortId = generacion?.id ?? null
 
+  // M17: los temas filtran; el muro principal (sin `tema`) muestra todo.
+  const temas = await temasDelCurso(curso.id)
+  const temaElegido = temas.find((t) => t.slug === tema) ?? null
   const feed = await feedDelCurso(curso.id, cohortId, perfil.user_id, {
     pagina: Number(p) || 1,
     porPagina: por === undefined ? 10 : Number(por),
+    temaId: temaElegido?.id ?? null,
   })
   const extra: Record<string, string> = gen && generacion?.id === gen ? { gen } : {}
 
@@ -97,6 +102,8 @@ export default async function PaginaComunidad({
             porPagina={feed.porPagina}
             total={feed.total}
             extra={extra}
+            temas={temas}
+            temaActual={temaElegido?.slug ?? null}
           />
         </>
       )}

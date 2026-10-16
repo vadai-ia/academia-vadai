@@ -8,12 +8,13 @@ import { cdmxAUtc, diaDeLaSemana, sumarDias } from '@/lib/admin/fechas'
 import type { LlamadaRpc } from '@/lib/alumno/catalogo'
 import { crearEnlacesDurables } from '@/lib/auth/enlace-durable'
 import { RUTAS } from '@/lib/auth/rutas'
-import { exigirAdmin, exigirEquipo } from '@/lib/auth/sesion'
+import { exigirAdmin, exigirEquipo, type Perfil } from '@/lib/auth/sesion'
 import { describirHorario, enlaceGoogle, enlaceOutlook } from '@/lib/calendario/enlaces'
 import { urlIcsDeCohorte } from '@/lib/calendario/firma'
 import { hoyCdmx } from '@/lib/calendario/mes'
 import { plantillaCalendario } from '@/lib/correo/plantillas'
 import { enviarCorreosEnLote } from '@/lib/correo/resend'
+import type { Json } from '@/lib/supabase/types'
 import { crearClienteServidor } from '@/lib/supabase/server'
 
 import type { EstadoAccion } from './tipos'
@@ -352,7 +353,7 @@ export async function eliminarGeneracion(_previo: EstadoAccion, datos: FormData)
 // ==========================================================================
 
 export async function crearSesion(_previo: EstadoAccion, datos: FormData): Promise<EstadoAccion> {
-  await exigirEquipo()
+  const perfil = await exigirEquipo()
 
   const cohorteId = String(datos.get('cohort_id') ?? '')
   if (!cohorteId) return { error: 'Falta la generación.' }
@@ -370,23 +371,96 @@ export async function crearSesion(_previo: EstadoAccion, datos: FormData): Promi
   if (!enUtc) return { error: 'La fecha o la hora no son válidas.' }
 
   const supabase = await crearClienteServidor()
-  const { error } = await supabase.from('cohort_sessions').insert({
-    cohort_id: cohorteId,
-    title: resultado.data.title,
-    scheduled_at: enUtc,
-    meet_url: resultado.data.meet_url || null,
-    description: resultado.data.description || null,
-  })
+  const { data: nueva, error } = await supabase
+    .from('cohort_sessions')
+    .insert({
+      cohort_id: cohorteId,
+      title: resultado.data.title,
+      scheduled_at: enUtc,
+      meet_url: resultado.data.meet_url || null,
+      description: resultado.data.description || null,
+    })
+    .select('id, title, scheduled_at, meet_url')
+    .single()
 
-  if (error) {
-    registrarFallo('crearSesion', { cohorteId }, error.message)
+  if (error || !nueva) {
+    registrarFallo('crearSesion', { cohorteId }, error?.message ?? 'sin fila')
     return { error: 'No se pudo crear la sesión.' }
   }
 
   revalidatePath('/admin/cursos/[id]', 'page')
   // También se agenda desde el panel principal, que lista las próximas.
   revalidatePath('/admin')
-  return { aviso: 'Sesión agendada.' }
+  const extra = await avisarDeSesionesNuevas(perfil, cohorteId, [nueva], datos)
+  return { aviso: `Sesión agendada.${extra}` }
+}
+
+type SesionNueva = { id: string; title: string; scheduled_at: string; meet_url: string | null }
+
+/**
+ * Lo que sigue a agendar (M17, V-AI-P): Alejandro decidió que cada clase nueva
+ * salga como ANUNCIO (con fecha, hora y la liga para entrar) y como CORREO a
+ * todos los inscritos, con su archivo de calendario. Son dos casillas del
+ * formulario; en V-AI-P vienen marcadas. Un fallo aquí no deshace la sesión:
+ * ya quedó agendada, y el aviso lo dice.
+ */
+async function avisarDeSesionesNuevas(
+  perfil: Perfil,
+  cohorteId: string,
+  sesiones: SesionNueva[],
+  datos: FormData
+): Promise<string> {
+  const partes: string[] = []
+  if (datos.get('anunciar') === 'si') {
+    partes.push((await anunciarSesiones(perfil, cohorteId, sesiones)) ? ' Salió el anuncio.' : ' El anuncio no se pudo publicar.')
+  }
+  if (datos.get('avisar') === 'si') {
+    const r = await mandarFechas(perfil, cohorteId, '', sesiones.map((x) => x.id))
+    partes.push(r.error ? ` El correo falló: ${r.error}` : ` ${r.aviso ?? ''}`)
+  }
+  return partes.join('')
+}
+
+/** El anuncio de una o varias clases nuevas, para la generación, con la liga para entrar. */
+async function anunciarSesiones(perfil: Perfil, cohorteId: string, sesiones: SesionNueva[]): Promise<boolean> {
+  const supabase = await crearClienteServidor()
+  const { data: cohorte } = await supabase.from('cohorts').select('course_id').eq('id', cohorteId).maybeSingle()
+  if (!cohorte) return false
+  const { data: curso } = await supabase.from('courses').select('slug').eq('id', cohorte.course_id).maybeSingle()
+  const base = (process.env.NEXT_PUBLIC_APP_URL ?? '').replace(/\/+$/, '')
+  const enVivo = curso ? `${base}/curso/${curso.slug}/en-vivo` : null
+
+  const texto = (t: string, href?: string | null) =>
+    href ? { type: 'text', text: t, marks: [{ type: 'link', attrs: { href } }] } : { type: 'text', text: t }
+  const parrafos = sesiones.map((x) => ({
+    type: 'paragraph',
+    content: [
+      { type: 'text', text: `${x.title}: `, marks: [{ type: 'bold' }] },
+      texto(`${describirHorario(x.scheduled_at)}. `),
+      ...(x.meet_url ? [texto('Entrar a la clase', x.meet_url)] : []),
+    ],
+  }))
+  const contenido: Json = {
+    type: 'doc',
+    content: [
+      ...parrafos,
+      ...(enVivo
+        ? [{ type: 'paragraph', content: [texto('La liga y el calendario están siempre en '), texto('En vivo', enVivo), texto('.')] }]
+        : []),
+    ],
+  }
+
+  const { error } = await supabase.from('posts').insert({
+    title: sesiones.length === 1 ? `Clase en vivo: ${sesiones[0]?.title ?? ''}` : `${sesiones.length} clases en vivo agendadas`,
+    post_type: 'announcement',
+    content_rich: contenido,
+    audience_course_id: cohorte.course_id,
+    audience_cohort_id: cohorteId,
+    author_id: perfil.user_id,
+    published_at: new Date().toISOString(),
+  })
+  if (error) registrarFallo('anunciarSesiones', { cohorteId }, error.message)
+  return !error
 }
 
 /**
@@ -450,16 +524,31 @@ export async function enviarCalendarioPorCorreo(
   const para = String(datos.get('para') ?? '').trim().toLowerCase()
   if (!cohorteId) return { error: 'Falta la generación.' }
   if (para && !/^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(para)) return { error: 'Ese correo no parece válido.' }
+  return mandarFechas(admin, cohorteId, para)
+}
 
+/**
+ * El envío del calendario, aparte de su acción (M17) para que agendar una clase
+ * pueda avisar SOLO de las sesiones nuevas (`soloIds`). Sin `soloIds`, todas
+ * las futuras, como siempre.
+ */
+async function mandarFechas(
+  admin: Perfil,
+  cohorteId: string,
+  para: string,
+  soloIds?: string[]
+): Promise<EstadoAccion> {
   const supabase = await crearClienteServidor()
+  let consultaSesiones = supabase
+    .from('cohort_sessions')
+    .select('id, title, description, scheduled_at, meet_url')
+    .eq('cohort_id', cohorteId)
+    .gte('scheduled_at', new Date(Date.now() - 3 * 60 * 60 * 1000).toISOString())
+    .order('scheduled_at')
+  if (soloIds) consultaSesiones = consultaSesiones.in('id', soloIds)
   const [{ data: cohorte }, { data: sesiones }] = await Promise.all([
     supabase.from('cohorts').select('id, name, course_id').eq('id', cohorteId).maybeSingle(),
-    supabase
-      .from('cohort_sessions')
-      .select('id, title, description, scheduled_at, meet_url')
-      .eq('cohort_id', cohorteId)
-      .gte('scheduled_at', new Date(Date.now() - 3 * 60 * 60 * 1000).toISOString())
-      .order('scheduled_at'),
+    consultaSesiones,
   ])
   if (!cohorte) return { error: 'La generación no existe.' }
   if (!sesiones || sesiones.length === 0) return { error: 'No hay sesiones futuras que mandar.' }
@@ -576,6 +665,8 @@ const esquemaSerie = z.object({
   hora: z.string().trim().min(4, 'Falta la hora.'),
   cantidad: z.coerce.number().int().min(1, 'Al menos una.').max(40, 'Hasta 40 por serie.'),
   dias: z.array(z.coerce.number().int().min(0).max(6)),
+  /** M17: «cada 15 días» desde la primera fecha, para las clases de V-AI-P. */
+  cada: z.enum(['dias', 'quincena']).default('dias'),
   meet_url: z.string().trim(),
   description: z.string().trim(),
 })
@@ -594,7 +685,7 @@ export async function crearSesionesEnSerie(
   _previo: EstadoAccion,
   datos: FormData
 ): Promise<EstadoAccion> {
-  await exigirEquipo()
+  const perfil = await exigirEquipo()
 
   const resultado = esquemaSerie.safeParse({
     cohort_id: datos.get('cohort_id'),
@@ -603,6 +694,7 @@ export async function crearSesionesEnSerie(
     hora: datos.get('hora'),
     cantidad: datos.get('cantidad'),
     dias: datos.getAll('dias').filter((v): v is string => typeof v === 'string'),
+    cada: datos.get('cada') || undefined,
     meet_url: datos.get('meet_url') ?? '',
     description: datos.get('description') ?? '',
   })
@@ -612,9 +704,13 @@ export async function crearSesionesEnSerie(
   const dias = resultado.data.dias.length > 0 ? new Set(resultado.data.dias) : new Set([diaDeLaSemana(fecha)])
 
   const fechas: string[] = []
-  for (let n = 0; n < 400 && fechas.length < cantidad; n += 1) {
-    const dia = sumarDias(fecha, n)
-    if (dias.has(diaDeLaSemana(dia))) fechas.push(dia)
+  if (resultado.data.cada === 'quincena') {
+    for (let i = 0; i < cantidad; i += 1) fechas.push(sumarDias(fecha, i * 14))
+  } else {
+    for (let n = 0; n < 400 && fechas.length < cantidad; n += 1) {
+      const dia = sumarDias(fecha, n)
+      if (dias.has(diaDeLaSemana(dia))) fechas.push(dia)
+    }
   }
 
   const filas = fechas.flatMap((dia, i) => {
@@ -634,9 +730,12 @@ export async function crearSesionesEnSerie(
   if (filas.length === 0) return { error: 'La fecha o la hora no son válidas.' }
 
   const supabase = await crearClienteServidor()
-  const { error } = await supabase.from('cohort_sessions').insert(filas)
-  if (error) {
-    registrarFallo('crearSesionesEnSerie', { cohort_id, cuantas: filas.length }, error.message)
+  const { data: nuevas, error } = await supabase
+    .from('cohort_sessions')
+    .insert(filas)
+    .select('id, title, scheduled_at, meet_url')
+  if (error || !nuevas) {
+    registrarFallo('crearSesionesEnSerie', { cohort_id, cuantas: filas.length }, error?.message ?? 'sin filas')
     return { error: 'No se pudieron agendar las sesiones.' }
   }
 
@@ -644,8 +743,9 @@ export async function crearSesionesEnSerie(
   revalidatePath('/admin')
   const primera = fechas[0]
   const ultima = fechas[fechas.length - 1]
+  const extra = await avisarDeSesionesNuevas(perfil, cohort_id, nuevas, datos)
   return {
-    aviso: `${filas.length} sesiones agendadas, del ${primera} al ${ultima}. Ahora ponle a cada una su tema.`,
+    aviso: `${filas.length} sesiones agendadas, del ${primera} al ${ultima}. Ahora ponle a cada una su tema.${extra}`,
   }
 }
 

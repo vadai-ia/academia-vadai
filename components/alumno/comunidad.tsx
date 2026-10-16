@@ -124,6 +124,9 @@ function BorrarConAviso({
   )
 }
 
+/** Un tema del muro (M17). Local: `lib/comunidad/temas.ts` es server-only. */
+type TemaDelMuro = { id: string; nombre: string; slug: string }
+
 function NuevaPublicacion({
   cursoId,
   cohortId,
@@ -131,6 +134,8 @@ function NuevaPublicacion({
   soyEquipo,
   cursoSlug,
   ruta,
+  temas,
+  temaActual,
 }: {
   cursoId: string
   cohortId: string | null
@@ -138,6 +143,8 @@ function NuevaPublicacion({
   soyEquipo: boolean
   cursoSlug: string
   ruta: string
+  temas: TemaDelMuro[]
+  temaActual: TemaDelMuro | null
 }) {
   const [estado, accion] = useActionState(publicarEnComunidad, {})
 
@@ -165,6 +172,25 @@ function NuevaPublicacion({
               Todas las generaciones del curso
             </label>
           </fieldset>
+        ) : null}
+
+        {temas.length > 0 ? (
+          <div className="flex flex-col gap-1.5">
+            <Label htmlFor="post-tema">Tema</Label>
+            <select
+              id="post-tema"
+              name="topic_id"
+              defaultValue={temaActual?.id ?? ''}
+              className="h-9 rounded-md border border-border bg-background px-2 text-sm"
+            >
+              <option value="">Sin tema</option>
+              {temas.map((t) => (
+                <option key={t.id} value={t.id}>
+                  {t.nombre}
+                </option>
+              ))}
+            </select>
+          </div>
         ) : null}
 
         <div className="flex flex-col gap-1.5">
@@ -257,7 +283,7 @@ function Respuesta({
 }) {
   return (
     <li className="flex gap-2.5 rounded-md bg-muted/40 px-3 py-2.5">
-      <Avatar nombre={comentario.autor.nombre} tamano={28} />
+      <Avatar nombre={comentario.autor.nombre} foto={comentario.autor.avatar} tamano={28} />
 
       <div className="flex min-w-0 flex-1 flex-col gap-1">
         <span className="flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-muted-foreground">
@@ -360,11 +386,13 @@ function Publicacion({
   cursoSlug,
   ruta,
   soyEquipo,
+  temaNombre = null,
 }: {
   post: PostDeComunidad
   cursoSlug: string
   ruta: string
   soyEquipo: boolean
+  temaNombre?: string | null
 }) {
   return (
     <li
@@ -377,7 +405,7 @@ function Publicacion({
           arrancan igual y hay que leer para saber quién habla. */}
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div className="flex min-w-0 flex-1 items-start gap-3">
-          <Avatar nombre={post.autor.nombre} tamano={38} />
+          <Avatar nombre={post.autor.nombre} foto={post.autor.avatar} tamano={38} />
 
           <div className="flex min-w-0 flex-col gap-0.5">
             <span className="flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-muted-foreground">
@@ -390,6 +418,11 @@ function Publicacion({
               <span>· {fechaCorta(post.creadoEn)}</span>
               {post.fijado ? (
                 <Badge className="bg-vadai-lima text-vadai-navy text-[11px]">Fijado</Badge>
+              ) : null}
+              {temaNombre ? (
+                <Badge variant="outline" className="border-primary/40 text-[11px] text-primary">
+                  {temaNombre}
+                </Badge>
               ) : null}
             </span>
 
@@ -628,6 +661,8 @@ export function Comunidad({
   porPagina,
   total,
   extra = {},
+  temas = [],
+  temaActual = null,
 }: {
   posts: PostDeComunidad[]
   cursoId: string
@@ -644,9 +679,43 @@ export function Comunidad({
   total: number
   /** Parámetros que la paginación debe conservar (el curso, en /comunidad). */
   extra?: Record<string, string>
+  /** M17: los temas del muro. Sin temas, el muro es como siempre. */
+  temas?: TemaDelMuro[]
+  /** El slug del tema que se está filtrando, o null para el muro principal. */
+  temaActual?: string | null
 }) {
+  const nombreDeTema = new Map(temas.map((t) => [t.id, t.nombre]))
+  const elegido = temas.find((t) => t.slug === temaActual) ?? null
+  const conTema = (slug: string | null) => {
+    const q = new URLSearchParams(extra)
+    if (slug) q.set('tema', slug)
+    const cadena = q.toString()
+    return cadena ? `${ruta}?${cadena}` : ruta
+  }
+
   return (
     <div className="flex flex-col gap-6">
+      {temas.length > 0 ? (
+        <nav aria-label="Temas del muro" className="flex flex-wrap gap-2">
+          {[{ slug: null, nombre: 'Todo' }, ...temas.map((t) => ({ slug: t.slug, nombre: t.nombre }))].map((t) => {
+            const activo = (t.slug ?? null) === (elegido?.slug ?? null)
+            return (
+              <a
+                key={t.slug ?? 'todo'}
+                href={conTema(t.slug)}
+                aria-current={activo ? 'true' : undefined}
+                className={cn(
+                  'rounded-full border px-3 py-1 text-sm transition-colors',
+                  activo ? 'border-primary bg-primary/10 font-medium text-primary' : 'border-border hover:border-primary/50'
+                )}
+              >
+                {t.nombre}
+              </a>
+            )
+          })}
+        </nav>
+      ) : null}
+
       {/* `key` es el reset: al publicarse algo cambia el conteo que manda el
           servidor, el <details> se remonta cerrado y los campos quedan limpios. */}
       <NuevaPublicacion
@@ -657,6 +726,8 @@ export function Comunidad({
         soyEquipo={soyEquipo}
         cursoSlug={cursoSlug}
         ruta={ruta}
+        temas={temas}
+        temaActual={elegido}
       />
 
       {posts.length === 0 ? (
@@ -673,6 +744,7 @@ export function Comunidad({
                 cursoSlug={cursoSlug}
                 ruta={ruta}
                 soyEquipo={soyEquipo}
+                temaNombre={post.temaId ? (nombreDeTema.get(post.temaId) ?? null) : null}
               />
             ))}
           </ul>
@@ -683,7 +755,7 @@ export function Comunidad({
             porPagina={porPagina}
             total={total}
             ruta={ruta}
-            extra={extra}
+            extra={elegido ? { ...extra, tema: elegido.slug } : extra}
           />
         </>
       )}

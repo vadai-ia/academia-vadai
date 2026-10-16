@@ -50,6 +50,7 @@ export function CalendarioDeGeneracion({
   compacto = false,
   sesionAbierta,
   prefijo = '?',
+  deVaip = false,
 }: {
   generacion: GeneracionConSesiones
   ligables: Array<{ id: string; titulo: string; modulo: string }>
@@ -60,6 +61,8 @@ export function CalendarioDeGeneracion({
   sesionAbierta?: string | null
   /** Lo que precede a `sesion=` en los enlaces (`?gen=<id>&`). */
   prefijo?: string
+  /** M17: la generación es de V-AI-P: clases quincenales con anuncio y correo. */
+  deVaip?: boolean
 }) {
   const ahora = Date.now()
   const proxima = cohorte.sesiones.find((s) => new Date(s.scheduled_at).getTime() >= ahora)
@@ -94,8 +97,8 @@ export function CalendarioDeGeneracion({
       {/* Lo que se puede hacer, como botones. Comparten `nombre`: abrir uno
           cierra los otros, sin JavaScript. */}
       <div className="flex flex-col gap-2">
-        <NuevaSesion cohorteId={cohorte.id} reinicio={cohorte.sesiones.length} nombre={acordeon} />
-        <SesionesEnSerie cohorteId={cohorte.id} reinicio={cohorte.sesiones.length} nombre={acordeon} />
+        <NuevaSesion cohorteId={cohorte.id} reinicio={cohorte.sesiones.length} nombre={acordeon} avisar={deVaip} />
+        <SesionesEnSerie cohorteId={cohorte.id} reinicio={cohorte.sesiones.length} nombre={acordeon} avisar={deVaip} />
         <EnviarCalendario
           cohorteId={cohorte.id}
           inscritos={cohorte.inscritos}

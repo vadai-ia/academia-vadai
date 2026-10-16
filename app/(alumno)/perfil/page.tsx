@@ -2,6 +2,7 @@ import type { Metadata } from 'next'
 import Link from 'next/link'
 
 import { DatosDePerfil } from '@/components/alumno/datos-de-perfil'
+import { FotoYBio } from '@/components/alumno/foto-y-bio'
 import { LogoVaip } from '@/components/marca/logo-vaip'
 import { TuMembresia } from '@/components/vaip/tu-membresia'
 import { Button } from '@/components/ui/button'
@@ -43,6 +44,11 @@ export default async function PaginaPerfil() {
       <section className="flex flex-col gap-4">
         <h2 className="text-lg font-semibold">Datos</h2>
         <DatosDePerfil nombre={perfil.full_name} correo={perfil.email} />
+      </section>
+
+      <section className="flex flex-col gap-4 border-t border-border pt-8">
+        <h2 className="text-lg font-semibold">Tu foto y tu bio</h2>
+        <FotoYBio nombre={perfil.full_name || perfil.email} foto={perfil.avatar_url} bio={perfil.bio} />
       </section>
 
       {/* M17: la membresía se ve y se administra desde aquí. Sin membresía, una

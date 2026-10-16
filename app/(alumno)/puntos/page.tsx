@@ -3,9 +3,14 @@ import Link from 'next/link'
 
 import { Ranking } from '@/components/alumno/ranking'
 import { Seccion, Tarjeta, Titulo } from '@/components/ui-vadai/superficie'
+import { Logros } from '@/components/vaip/logros'
 import { misCursos } from '@/lib/alumno/consultas'
 import { exigirPerfil } from '@/lib/auth/sesion'
 import { miNivel } from '@/lib/gamificacion/consultas'
+import { logrosDe } from '@/lib/gamificacion/logros'
+import { planVaip } from '@/lib/membresia/consultas'
+import { rankingVaip } from '@/lib/membresia/espacio'
+import { crearClienteServidor } from '@/lib/supabase/server'
 import { COMO_GANAR, NIVELES, PUNTOS } from '@/lib/gamificacion/reglas'
 
 /**
@@ -43,7 +48,22 @@ const DESGLOSE = [
 export default async function PaginaPuntos() {
   const perfil = await exigirPerfil()
 
-  const [nivel, cursos] = await Promise.all([miNivel(perfil.user_id), misCursos()])
+  const [nivel, cursos, plan] = await Promise.all([miNivel(perfil.user_id), misCursos(), planVaip()])
+
+  // M17: los logros, con lo que haya hecho en toda la academia. Los de
+  // antigüedad y ranking solo cuentan si es miembro de V-AI-P.
+  const supabase = await crearClienteServidor()
+  const [{ data: membresias }, ranking] = plan
+    ? await Promise.all([
+        supabase.from('memberships').select('started_at').eq('plan_id', plan.id),
+        rankingVaip(plan.id, perfil.user_id),
+      ])
+    : [{ data: [] }, null]
+  const logros = logrosDe({
+    actividad: nivel.actividad,
+    miembroDesde: (membresias ?? []).map((m) => m.started_at).sort()[0] ?? null,
+    lugar: ranking?.yo?.lugar ?? null,
+  })
 
   const filas = DESGLOSE.map((d) => {
     const cuantas = nivel.actividad[d.llave]
@@ -193,6 +213,10 @@ export default async function PaginaPuntos() {
       ) : null}
 
       {/* --- Cómo ganar más ------------------------------------------------ */}
+      <Seccion titulo="Tus logros" apoyo={`${logros.filter((l) => l.ganado).length} de ${logros.length}`}>
+        <Logros logros={logros} />
+      </Seccion>
+
       <Seccion titulo="Cómo ganar más puntos">
         <Tarjeta className="flex flex-col gap-2 p-5">
           <ul className="flex flex-col gap-1.5 text-sm">

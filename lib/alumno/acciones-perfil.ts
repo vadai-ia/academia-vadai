@@ -55,3 +55,57 @@ export async function actualizarNombre(
 
   return { aviso: 'Nombre actualizado.' }
 }
+
+const LIMITE_FOTO = 3 * 1024 * 1024
+
+/**
+ * Foto y bio (M17): lo que ven los demás miembros de V-AI-P en el perfil y lo
+ * que sale junto al nombre en el muro.
+ *
+ * La foto se sube con la sesión de la persona a `academia-media/avatares/<su
+ * id>/`: las políticas de storage de 0015 solo la dejan escribir en su propia
+ * carpeta. El bucket es público, como las imágenes del muro.
+ */
+const esquemaBio = z.object({
+  bio: z.string().trim().max(160, 'La bio es de una línea: hasta 160 caracteres.'),
+})
+
+export async function actualizarFotoYBio(
+  _previo: EstadoPerfil,
+  datos: FormData
+): Promise<EstadoPerfil> {
+  const perfil = await exigirPerfil()
+  const resultado = esquemaBio.safeParse({ bio: datos.get('bio') ?? '' })
+  if (!resultado.success) return { error: resultado.error.issues[0]?.message ?? 'Revisa tu bio.' }
+
+  const supabase = await crearClienteServidor()
+  const cambios: { bio: string | null; avatar_url?: string | null } = { bio: resultado.data.bio || null }
+
+  const foto = datos.get('foto')
+  if (datos.get('quitar_foto') === 'si') {
+    cambios.avatar_url = null
+  } else if (foto instanceof File && foto.size > 0) {
+    if (!foto.type.startsWith('image/')) return { error: 'La foto tiene que ser una imagen.' }
+    if (foto.size > LIMITE_FOTO) return { error: 'La foto pesa más de 3 MB. Usa una más ligera.' }
+    const extension = (foto.name.split('.').pop() ?? 'jpg').toLowerCase().replace(/[^a-z0-9]/g, '').slice(0, 5) || 'jpg'
+    const ruta = `avatares/${perfil.user_id}/${Date.now()}.${extension}`
+    const { error: errorSubida } = await supabase.storage
+      .from('academia-media')
+      .upload(ruta, foto, { contentType: foto.type, upsert: false })
+    if (errorSubida) {
+      console.error(JSON.stringify({ operacion: 'actualizarFotoYBio:subida', ruta, error: errorSubida.message }))
+      return { error: 'No se pudo subir la foto.' }
+    }
+    cambios.avatar_url = supabase.storage.from('academia-media').getPublicUrl(ruta).data.publicUrl
+  }
+
+  const { error } = await supabase.from('profiles').update(cambios).eq('user_id', perfil.user_id)
+  if (error) {
+    console.error(JSON.stringify({ operacion: 'actualizarFotoYBio', error: error.message }))
+    return { error: 'No se pudo guardar.' }
+  }
+
+  revalidatePath('/perfil')
+  revalidatePath('/vaip')
+  return { aviso: 'Listo: así te ven los demás miembros.' }
+}

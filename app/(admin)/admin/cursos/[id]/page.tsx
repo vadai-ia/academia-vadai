@@ -241,6 +241,7 @@ export default async function PaginaCurso({
             compacto
             sesionAbierta={filtros.sesion ?? null}
             prefijo={`?gen=${generacion.id}&`}
+            deVaip={curso.plan_id !== null}
           />
         </section>
       ) : null}

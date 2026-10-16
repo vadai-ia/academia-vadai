@@ -20,7 +20,7 @@ type Nodo = {
   type?: string
   text?: string
   content?: Nodo[]
-  marks?: Array<{ type?: string }>
+  marks?: Array<{ type?: string; attrs?: Record<string, unknown> }>
   attrs?: Record<string, unknown>
 }
 
@@ -37,6 +37,16 @@ function conMarcas(texto: string, marcas: Nodo['marks']): ReactNode {
         return <code className="rounded bg-muted px-1 py-0.5 font-mono text-[0.9em]">{dentro}</code>
       case 'strike':
         return <s>{dentro}</s>
+      case 'link': {
+        // Solo http(s): un `javascript:` guardado en el JSON no llega a ser enlace.
+        const href = typeof marca.attrs?.href === 'string' ? marca.attrs.href : ''
+        if (!/^https?:\/\//i.test(href)) return dentro
+        return (
+          <a href={href} target="_blank" rel="noopener noreferrer" className="font-medium text-primary underline-offset-4 hover:underline">
+            {dentro}
+          </a>
+        )
+      }
       default:
         return dentro
     }

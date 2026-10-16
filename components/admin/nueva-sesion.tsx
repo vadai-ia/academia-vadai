@@ -4,6 +4,7 @@ import { useActionState } from 'react'
 import { useFormStatus } from 'react-dom'
 
 import { AvisoAccion } from '@/components/admin/aviso-accion'
+import { AvisosDeSesion } from '@/components/admin/avisos-de-sesion'
 import { CerrarDesplegable } from '@/components/admin/cerrar-desplegable'
 import { Desplegable } from '@/components/admin/desplegable'
 import { claseSelect } from '@/components/admin/estilos'
@@ -49,12 +50,15 @@ export function NuevaSesion({
   generaciones,
   reinicio,
   nombre,
+  avisar = false,
 }: {
   cohorteId?: string
   generaciones?: GeneracionParaAgendar[]
   reinicio: number
   /** Acordeón: los desplegables con el mismo nombre se cierran entre sí. */
   nombre?: string
+  /** M17: anuncio y correo marcados de inicio (V-AI-P). */
+  avisar?: boolean
 }) {
   const [estado, accion] = useActionState(crearSesion, SIN_ESTADO)
   const sufijo = cohorteId ?? 'panel'
@@ -140,6 +144,8 @@ export function NuevaSesion({
             placeholder="Qué se ve en esta sesión. Opcional."
           />
         </div>
+
+        <AvisosDeSesion marcadas={avisar} />
 
         <AvisoAccion estado={estado} />
 

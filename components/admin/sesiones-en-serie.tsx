@@ -4,6 +4,7 @@ import { useActionState } from 'react'
 import { useFormStatus } from 'react-dom'
 
 import { AvisoAccion } from '@/components/admin/aviso-accion'
+import { AvisosDeSesion } from '@/components/admin/avisos-de-sesion'
 import { CerrarDesplegable } from '@/components/admin/cerrar-desplegable'
 import { Desplegable } from '@/components/admin/desplegable'
 import { Button } from '@/components/ui/button'
@@ -31,11 +32,14 @@ export function SesionesEnSerie({
   cohorteId,
   reinicio,
   nombre,
+  avisar = false,
 }: {
   cohorteId: string
   reinicio: number
   /** Acordeón: los desplegables con el mismo nombre se cierran entre sí. */
   nombre?: string
+  /** M17: en V-AI-P las clases son cada 15 días y se anuncian. */
+  avisar?: boolean
 }) {
   const [estado, accion] = useActionState(crearSesionesEnSerie, SIN_ESTADO)
 
@@ -71,7 +75,13 @@ export function SesionesEnSerie({
             <Input id="serie-fecha" name="fecha" type="date" required />
           </div>
           <fieldset className="flex flex-col gap-1.5">
-            <legend className="text-sm font-medium">Días de la semana</legend>
+            <legend className="text-sm font-medium">Cómo se repite</legend>
+            <select name="cada" defaultValue={avisar ? 'quincena' : 'dias'} className="h-9 rounded-md border border-border bg-background px-2 text-sm">
+              <option value="dias">En los días marcados</option>
+              <option value="quincena">Cada 15 días, desde la primera fecha</option>
+            </select>
+            <p className="text-xs text-muted-foreground">Con «cada 15 días» los días de abajo no cuentan.</p>
+            <span className="mt-1 text-sm font-medium">Días de la semana</span>
             <div className="flex flex-wrap gap-1.5">
               {DIAS.map((dia, i) => (
                 <label
@@ -94,6 +104,8 @@ export function SesionesEnSerie({
           <Input id="serie-liga" name="meet_url" type="url" placeholder="https://us02web.zoom.us/j/…" />
           <p className="text-xs text-muted-foreground">La misma para todas. Se puede cambiar una por una después.</p>
         </div>
+
+        <AvisosDeSesion marcadas={avisar} />
 
         <AvisoAccion estado={estado} />
 

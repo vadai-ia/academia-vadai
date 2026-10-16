@@ -12,6 +12,7 @@ import {
   IconoDinamicas,
   IconoPerfil,
   IconoPuntos,
+  IconoVaip,
 } from '@/components/marca/iconos-navegacion'
 import { BarraDeNavegacion } from '@/components/marca/barra-de-navegacion'
 import { SaltarAlContenido } from '@/components/marca/saltar-al-contenido'
@@ -61,6 +62,8 @@ export async function MarcoAlumno({ perfil, children }: { perfil: Perfil; childr
             novedades: canales.comunidad,
           },
           { href: '/blog', etiqueta: 'Blog', icono: IconoBlog, novedades: canales.blog },
+          // M17: para el miembro es su espacio; para los demás, la invitación.
+          { href: '/vaip', etiqueta: 'V-AI-P', icono: IconoVaip },
           { href: '/puntos', etiqueta: 'Tus puntos', icono: IconoPuntos },
           // Diploma de generación VADAI · Total Coach (15-oct-2026).
           { href: '/certificaciones', etiqueta: 'Mis certificaciones', icono: IconoCertificaciones },

@@ -1,13 +1,12 @@
 import type { Metadata } from 'next'
-import Link from 'next/link'
 import { notFound } from 'next/navigation'
 
-import { MarcaVaip } from '@/components/marca/logo-vaip'
+import { EspacioDeMiembro } from '@/components/vaip/espacio'
 import { TuMembresia } from '@/components/vaip/tu-membresia'
 import { VentaVaip } from '@/components/vaip/venta'
-import { Button } from '@/components/ui/button'
-import { obtenerSesion } from '@/lib/auth/sesion'
+import { esEquipo, obtenerSesion } from '@/lib/auth/sesion'
 import { enlaceDelPortal, enlaceDeSuscripcion, miMembresia, planVaip } from '@/lib/membresia/consultas'
+import { espacioVaip } from '@/lib/membresia/espacio'
 
 export const metadata: Metadata = {
   title: 'VADAI V-AI-P',
@@ -19,7 +18,7 @@ export const dynamic = 'force-dynamic'
 /**
  * /vaip (M17): una sola URL para todos, que es la que lleva el QR.
  *
- *   - miembro vigente → su membresía y la entrada a la comunidad;
+ *   - miembro vigente (o alguien del equipo) → el espacio de V-AI-P;
  *   - cualquier otra persona, con o sin sesión → la página de venta.
  *
  * Con sesión, el link de pago lleva el correo y el id de la cuenta, para que
@@ -39,27 +38,17 @@ export default async function PaginaVaip() {
       : null
   const portal = plan.portal ? enlaceDelPortal(plan.portal, perfil?.email ?? null) : null
 
-  if (membresia?.vigente) {
+  // El miembro vigente ve su espacio; el equipo también, para revisarlo.
+  if (perfil && (membresia?.vigente || esEquipo(perfil))) {
+    const espacio = await espacioVaip(perfil, plan)
     return (
-      <div className="flex max-w-3xl flex-col gap-8">
-        <header className="flex flex-col gap-4">
-          <MarcaVaip />
-          <h1 className="text-2xl font-semibold tracking-tight text-balance sm:text-3xl">
-            Ya eres parte de V-AI-P.
-          </h1>
-          <p className="max-w-[60ch] text-pretty text-muted-foreground">
-            Las clases en vivo, el muro y lo nuevo que se publique para miembros están en la comunidad.
-          </p>
-          {plan.casa?.publicada ? (
-            <div>
-              <Button asChild variant="acento" size="lg">
-                <Link href={`/curso/${plan.casa.slug}`}>Entrar a la comunidad</Link>
-              </Button>
-            </div>
-          ) : null}
-        </header>
-        <TuMembresia membresia={membresia} portal={portal} enlaceDeSuscripcion={enlace} />
-      </div>
+      <EspacioDeMiembro
+        nombre={perfil.full_name || perfil.email}
+        userId={perfil.user_id}
+        casaSlug={plan.casa?.publicada || esEquipo(perfil) ? (plan.casa?.slug ?? null) : null}
+        espacio={espacio}
+        portal={membresia ? portal : null}
+      />
     )
   }
 

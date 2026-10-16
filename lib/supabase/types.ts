@@ -305,6 +305,7 @@ export type Database = {
           broadcast_id: string | null
           attended_at: string | null
           attended_by: string | null
+          topic_id: string | null
         }
         Insert: {
           id?: string
@@ -321,6 +322,7 @@ export type Database = {
           broadcast_id?: string | null
           attended_at?: string | null
           attended_by?: string | null
+          topic_id?: string | null
         }
         Update: {
           id?: string
@@ -337,6 +339,7 @@ export type Database = {
           broadcast_id?: string | null
           attended_at?: string | null
           attended_by?: string | null
+          topic_id?: string | null
         }
         Relationships: []
       }
@@ -363,6 +366,36 @@ export type Database = {
           comment_id?: string | null
           user_id?: string
           emoji?: '👍' | '👏' | '🚀' | '❤️' | '💡' | '🔥'
+          created_at?: string
+        }
+        Relationships: []
+      }
+      community_topics: {
+        Row: {
+          id: string
+          course_id: string
+          name: string
+          slug: string
+          position: number
+          archived: boolean
+          created_at: string
+        }
+        Insert: {
+          id?: string
+          course_id: string
+          name: string
+          slug: string
+          position?: number
+          archived?: boolean
+          created_at?: string
+        }
+        Update: {
+          id?: string
+          course_id?: string
+          name?: string
+          slug?: string
+          position?: number
+          archived?: boolean
           created_at?: string
         }
         Relationships: []
@@ -1390,6 +1423,7 @@ export type Database = {
           last_sign_in_at: string | null
           blog_seen_at: string | null
           community_seen_at: string | null
+          bio: string | null
         }
         Insert: {
           user_id: string
@@ -1405,6 +1439,7 @@ export type Database = {
           last_sign_in_at?: string | null
           blog_seen_at?: string | null
           community_seen_at?: string | null
+          bio?: string | null
         }
         Update: {
           user_id?: string
@@ -1420,6 +1455,7 @@ export type Database = {
           last_sign_in_at?: string | null
           blog_seen_at?: string | null
           community_seen_at?: string | null
+          bio?: string | null
         }
         Relationships: []
       }

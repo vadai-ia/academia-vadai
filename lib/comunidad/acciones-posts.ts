@@ -140,6 +140,9 @@ export async function publicarEnComunidad(
     images: imagenes,
     pinned: false,
     status: 'visible' as const,
+    // M17: el tema del muro (la base comprueba que sea de este curso). Solo
+    // si trae uno: sin tema, la fila es la de siempre.
+    ...(/^[0-9a-f-]{36}$/i.test(String(datos.get('topic_id') ?? '')) ? { topic_id: String(datos.get('topic_id')) } : {}),
   }
 
   // «Todas las generaciones»: una copia por generación, hermanadas por

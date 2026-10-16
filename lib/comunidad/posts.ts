@@ -28,6 +28,8 @@ export type PostDeComunidad = {
   imagenes: ImagenDePost[]
   fijado: boolean
   creadoEn: string
+  /** M17: el tema del muro, o null. */
+  temaId: string | null
   autor: Autor
   esMio: boolean
   reacciones: ReaccionesDe
@@ -104,7 +106,7 @@ export async function feedDelCurso(
   cursoId: string,
   cohortId: string | null,
   usuarioActual: string,
-  opciones: { pagina?: number; porPagina?: number } = {}
+  opciones: { pagina?: number; porPagina?: number; temaId?: string | null } = {}
 ): Promise<FeedDeComunidad> {
   const supabase = await crearClienteServidor()
 
@@ -114,14 +116,16 @@ export async function feedDelCurso(
   const pedida = Math.max(1, opciones.pagina ?? 1)
 
   const base = () => {
-    const consulta = supabase
+    let consulta = supabase
       .from('community_posts')
       .select(
-        'id, user_id, title, content_rich, images, pinned, created_at, community_comments(id, user_id, content, created_at, status)',
+        'id, user_id, title, content_rich, images, pinned, created_at, topic_id, community_comments(id, user_id, content, created_at, status)',
         { count: 'exact' }
       )
       .eq('course_id', cursoId)
       .eq('status', 'visible')
+    // M17: el muro principal muestra todo; el tema solo filtra.
+    if (opciones.temaId) consulta = consulta.eq('topic_id', opciones.temaId)
     return (cohortId ? consulta.eq('cohort_id', cohortId) : consulta.is('cohort_id', null))
       .order('pinned', { ascending: false })
       .order('created_at', { ascending: false })
@@ -156,6 +160,7 @@ export async function feedDelCurso(
     images: Json
     pinned: boolean
     created_at: string
+    topic_id: string | null
     community_comments: Array<{
       id: string
       user_id: string
@@ -193,6 +198,7 @@ export async function feedDelCurso(
     imagenes: leerImagenes(p.images),
     fijado: p.pinned,
     creadoEn: p.created_at,
+    temaId: p.topic_id,
     autor: autores.get(p.user_id) ?? ANONIMO,
     esMio: p.user_id === usuarioActual,
     reacciones: reacciones.posts.get(p.id) ?? SIN_REACCIONES,
@@ -262,6 +268,8 @@ export type AnuncioParaAlumno = {
   portada: string | null
   tipo: 'announcement' | 'blog'
   publicadoEn: string
+  /** El curso al que va dirigido, o null si es para toda la academia (M17: el espacio de V-AI-P filtra los suyos). */
+  cursoId: string | null
 }
 
 /**
@@ -326,5 +334,6 @@ export async function publicacionesParaAlumno(
       portada: p.cover_url,
       tipo: p.post_type,
       publicadoEn: p.published_at as string,
+      cursoId: p.audience_course_id,
     }))
 }

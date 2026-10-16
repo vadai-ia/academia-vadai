@@ -178,11 +178,28 @@ export function Avatar({
   nombre,
   tamano = 36,
   className,
+  foto,
 }: {
   nombre: string
   tamano?: number
   className?: string
+  /** M17: la foto que subió la persona. Sin foto, sus iniciales como siempre. */
+  foto?: string | null
 }) {
+  if (foto) {
+    return (
+      // eslint-disable-next-line @next/next/no-img-element -- foto pública del bucket, ya del tamaño justo
+      <img
+        src={foto}
+        alt=""
+        aria-hidden
+        width={tamano}
+        height={tamano}
+        className={cn('inline-block shrink-0 rounded-full object-cover', className)}
+        style={{ width: tamano, height: tamano }}
+      />
+    )
+  }
   const iniciales =
     nombre
       .trim()
