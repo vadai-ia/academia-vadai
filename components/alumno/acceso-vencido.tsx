@@ -1,3 +1,5 @@
+import Link from 'next/link'
+
 import { Button } from '@/components/ui/button'
 import type { CursoDelAlumno } from '@/lib/alumno/consultas'
 
@@ -8,6 +10,29 @@ import type { CursoDelAlumno } from '@/lib/alumno/consultas'
  * argumento para volver: nadie quiere empezar de cero.
  */
 export function AccesoVencido({ curso }: { curso: CursoDelAlumno }) {
+  // M17: un curso de V-AI-P no se recompra suelto; se reactiva la membresía.
+  if (curso.enVaip) {
+    return (
+      <section className="flex flex-col gap-4 rounded-lg border border-primary/40 bg-primary/5 p-5">
+        <div className="flex flex-col gap-1.5">
+          <h2 className="font-medium">Tu membresía V-AI-P ya no está activa</h2>
+          <p className="text-sm text-pretty text-muted-foreground">
+            Puedes seguir viendo el temario, y tu avance sigue guardado:{' '}
+            <span className="text-foreground">
+              {curso.completadas} de {curso.totalLecciones} lecciones
+            </span>
+            . Al reactivarla retomas justo donde te quedaste.
+          </p>
+        </div>
+        <div>
+          <Button asChild variant="acento">
+            <Link href="/vaip">Reactivar V-AI-P</Link>
+          </Button>
+        </div>
+      </section>
+    )
+  }
+
   const hayLinks = Boolean(curso.linkRecompraMxn ?? curso.linkRecompraUsd)
 
   return (

@@ -16,6 +16,8 @@ export const RUTAS = {
   misCursos: '/mis-cursos',
   misEncuestas: '/mis-encuestas',
   admin: '/admin',
+  vaip: '/vaip',
+  vaipGracias: '/vaip/gracias',
 } as const
 
 /** Rutas que se ven sin haber iniciado sesión. */
@@ -24,6 +26,11 @@ const PUBLICAS = [
   RUTAS.login,
   RUTAS.recuperar,
   RUTAS.nuevaContrasena,
+  // V-AI-P (M17): la página de venta es el destino del QR impreso, y quien lo
+  // escanea puede no tener cuenta. Exactas y no por prefijo: el perfil de
+  // miembro (/vaip/miembros/…) sí exige sesión.
+  RUTAS.vaip,
+  RUTAS.vaipGracias,
 ]
 
 /**

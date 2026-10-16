@@ -64,6 +64,8 @@ export type CursoDelAlumno = {
   /** Enlaces de recompra, para el CTA de §6.3 cuando el acceso venció. */
   linkRecompraMxn: string | null
   linkRecompraUsd: string | null
+  /** M17: el curso es de V-AI-P; renovar es reactivar la membresía, no recomprar el curso. */
+  enVaip: boolean
 }
 
 /**
@@ -286,6 +288,7 @@ export async function misCursos(): Promise<CursoDelAlumno[]> {
         modulos: [],
         linkRecompraMxn: curso.stripe_payment_link_mxn,
         linkRecompraUsd: curso.stripe_payment_link_usd,
+        enVaip: curso.plan_id !== null,
       }
     })
     .sort((a, b) => Number(b.vigente) - Number(a.vigente) || a.titulo.localeCompare(b.titulo))
@@ -404,6 +407,7 @@ export const cursoDelAlumno = cache(async function cursoDelAlumno(
     modulos: armarModulos(filas, titulos, completadas, equipo),
     linkRecompraMxn: curso.stripe_payment_link_mxn,
     linkRecompraUsd: curso.stripe_payment_link_usd,
+    enVaip: curso.plan_id !== null,
   }
 })
 

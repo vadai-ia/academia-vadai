@@ -39,6 +39,7 @@ const SUITES = [
   { llave: 'dinamicas', archivo: 'test-dinamicas.mjs', titulo: 'Dinámicas empresariales', milestone: 'M13' },
   { llave: 'cm', archivo: 'test-cm.mjs', titulo: 'Community manager', milestone: '0036' },
   { llave: 'exclusivas', archivo: 'test-exclusivas.mjs', titulo: 'Sesiones exclusivas', milestone: '0038' },
+  { llave: 'membresia', archivo: 'test-membresia.mjs', titulo: 'Membresía V-AI-P', milestone: 'M17' },
 ]
 
 /** Corre una suite heredando stdio y devuelve su código de salida. */

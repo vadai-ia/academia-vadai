@@ -47,8 +47,20 @@ function leerFormulario(datos: FormData, campos: readonly string[]) {
 const CAMPOS_CURSO = [
   'title', 'slug', 'description', 'cover_url', 'price_mxn', 'price_usd',
   'stripe_payment_link_mxn', 'stripe_payment_link_usd', 'access_days',
-  'course_type', 'status', 'certificate_enabled', 'is_default', 'in_catalog', 'is_free',
+  'course_type', 'status', 'certificate_enabled', 'is_default', 'in_catalog', 'is_free', 'en_vaip',
 ] as const
+
+/**
+ * La casilla «Incluido en V-AI-P» (M17) se guarda como `plan_id`. El plan se
+ * busca por su slug: hoy hay uno.
+ */
+async function conPlan<T extends { en_vaip: boolean }>(datos: T) {
+  const { en_vaip, ...curso } = datos
+  if (!en_vaip) return { ...curso, plan_id: null }
+  const supabase = await crearClienteServidor()
+  const { data } = await supabase.from('membership_plans').select('id').eq('slug', 'v-ai-p').maybeSingle()
+  return { ...curso, plan_id: data?.id ?? null }
+}
 
 const CAMPOS_LECCION = [
   'module_id', 'title', 'lesson_type', 'status', 'is_required',
@@ -79,7 +91,7 @@ export async function crearCurso(_previo: EstadoAccion, datos: FormData): Promis
   const supabase = await crearClienteServidor()
   const { data, error } = await supabase
     .from('courses')
-    .insert(resultado.data)
+    .insert(await conPlan(resultado.data))
     .select('id')
     .single()
 
@@ -109,7 +121,7 @@ export async function actualizarCurso(_previo: EstadoAccion, datos: FormData): P
   }
 
   const supabase = await crearClienteServidor()
-  const { error } = await supabase.from('courses').update(resultado.data).eq('id', id)
+  const { error } = await supabase.from('courses').update(await conPlan(resultado.data)).eq('id', id)
 
   if (error) {
     registrarFallo('actualizarCurso', { id }, error.message)

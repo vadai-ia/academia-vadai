@@ -132,3 +132,11 @@ export const IconoCertificaciones = marco(
     <path d="m12 6.6.8 1.7 1.8.2-1.3 1.2.3 1.8-1.6-.9-1.6.9.3-1.8-1.3-1.2 1.8-.2Z" />
   </>
 )
+
+/** V-AI-P (M17): un pase con muescas y el destello de la IA. */
+export const IconoVaip = marco(
+  <>
+    <path d="M4 5h16a2 2 0 0 1 2 2v3a2 2 0 0 0 0 4v3a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2v-3a2 2 0 0 0 0-4V7a2 2 0 0 1 2-2Z" />
+    <path d="M12 8.5c.3 1.6.9 2.2 2.5 2.5-1.6.3-2.2.9-2.5 2.5-.3-1.6-.9-2.2-2.5-2.5 1.6-.3 2.2-.9 2.5-2.5Z" />
+  </>
+)

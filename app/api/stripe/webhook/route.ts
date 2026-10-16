@@ -1,6 +1,7 @@
 import { NextResponse, type NextRequest } from 'next/server'
 import type Stripe from 'stripe'
 
+import { manejarEventoDeMembresia } from '@/lib/membresia/webhook'
 import { crearClienteStripe, secretoDeWebhook } from '@/lib/stripe/cliente'
 import { darDeAlta, revocarPorReembolso } from '@/lib/stripe/provisioning'
 import { crearClienteServiceRole } from '@/lib/supabase/service-role'
@@ -31,6 +32,11 @@ function log(operacion: string, detalle: Record<string, unknown>) {
 /**
  * Idempotencia (§7.1): la PK de `stripe_events` es el propio `event.id`, así que
  * un reenvío choca contra la llave primaria. Devuelve true si es la primera vez.
+ *
+ * La marca se pone ANTES de procesar y se quita si el proceso falla
+ * (`desmarcar`). Hasta el 15-oct-2026 no se quitaba: un evento que fallaba
+ * respondía 500, Stripe lo reintentaba, el reintento chocaba con la marca y se
+ * contestaba 200 como duplicado. El evento se perdía sin que nadie lo notara.
  */
 async function marcarProcesado(evento: Stripe.Event): Promise<boolean> {
   const supabase = crearClienteServiceRole()
@@ -50,6 +56,13 @@ async function marcarProcesado(evento: Stripe.Event): Promise<boolean> {
   // Ante la duda se procesa: perder un alta es peor que intentarla dos veces,
   // porque el alta en sí es idempotente.
   return true
+}
+
+/** Quita la marca de un evento que falló, para que el reintento de Stripe sí se procese. */
+async function desmarcar(evento: Stripe.Event) {
+  const supabase = crearClienteServiceRole()
+  const { error } = await supabase.from('stripe_events').delete().eq('event_id', evento.id)
+  if (error) log('webhook:errorDesmarcar', { evento: evento.id, error: error.message })
 }
 
 async function manejarCompra(sesion: Stripe.Checkout.Session) {
@@ -198,6 +211,12 @@ export async function POST(request: NextRequest) {
   }
 
   try {
+    // La membresía V-AI-P va primero (M17): sus checkouts no traen
+    // `metadata.course_id` y el camino de cursos los daría por ajenos.
+    if (await manejarEventoDeMembresia(evento)) {
+      return NextResponse.json({ recibido: true })
+    }
+
     switch (evento.type) {
       case 'checkout.session.completed':
       case 'checkout.session.async_payment_succeeded':
@@ -222,6 +241,7 @@ export async function POST(request: NextRequest) {
     })
     // 500 hace que Stripe reintente. El alta es idempotente, así que reintentar
     // es seguro y preferible a perder una compra.
+    await desmarcar(evento)
     return NextResponse.json({ error: 'Error al procesar.' }, { status: 500 })
   }
 

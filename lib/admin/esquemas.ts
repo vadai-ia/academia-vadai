@@ -82,6 +82,8 @@ export const esquemaCurso = z.object({
   in_catalog: z.coerce.boolean(),
   /** M15: se empieza desde el catálogo sin pagar. */
   is_free: z.coerce.boolean(),
+  /** M17: entra en la membresía V-AI-P. Se guarda como `plan_id`. */
+  en_vaip: z.coerce.boolean(),
 })
 
 export const esquemaIdDeCurso = z.object({

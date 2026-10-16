@@ -264,6 +264,25 @@ export function FormularioCurso({ curso }: { curso?: Curso }) {
             </span>
           </label>
         </div>
+
+        {/* M17: los cursos que entran en la membresía. */}
+        <div className="flex flex-col gap-2">
+          <Label htmlFor="en_vaip">V-AI-P</Label>
+          <label className="flex min-h-9 items-start gap-2 text-sm">
+            <input
+              id="en_vaip"
+              name="en_vaip"
+              type="checkbox"
+              value="true"
+              defaultChecked={Boolean(curso?.plan_id)}
+              className="mt-1 size-4 accent-vadai-cyan"
+            />
+            <span>
+              Incluido en V-AI-P: todo miembro con la membresía vigente lo tiene. Al publicarlo,
+              usa «Sincronizar accesos» en V-AI-P para dárselo a los miembros actuales.
+            </span>
+          </label>
+        </div>
       </section>
 
       <section className="flex flex-col gap-4">

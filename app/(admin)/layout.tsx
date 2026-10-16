@@ -12,10 +12,11 @@ import {
   IconoPanel,
   IconoPerfil,
   IconoPuntos,
+  IconoVaip,
 } from '@/components/marca/iconos-navegacion'
 import { BarraDeNavegacion } from '@/components/marca/barra-de-navegacion'
 import { SaltarAlContenido } from '@/components/marca/saltar-al-contenido'
-import { exigirEquipo } from '@/lib/auth/sesion'
+import { esAdmin, exigirEquipo } from '@/lib/auth/sesion'
 
 /** Marco del área de administración. Un alumno que llegue aquí es devuelto. */
 export default async function LayoutAdmin({ children }: { children: ReactNode }) {
@@ -49,6 +50,8 @@ export default async function LayoutAdmin({ children }: { children: ReactNode })
           { href: '/admin/dinamicas', etiqueta: 'Dinámicas', icono: IconoDinamicas },
           // Diplomas de generación: quién lo abrió, quién lo descargó (15-oct-2026).
           { href: '/admin/certificaciones', etiqueta: 'Certificaciones', icono: IconoCertificaciones },
+          // M17: solo admin. Son cobros, y el community manager no ve pagos.
+          ...(esAdmin(perfil) ? [{ href: '/admin/vaip', etiqueta: 'V-AI-P', icono: IconoVaip }] : []),
           // Antes «Vista de alumno»: no es una vista simulada, es el portal
           // real, el mismo que usan los alumnos (3-oct-2026).
           { href: '/mis-cursos', etiqueta: 'Portal de alumnos', icono: IconoCursos },

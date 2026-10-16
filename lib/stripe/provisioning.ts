@@ -48,7 +48,15 @@ type Opciones = {
    * generaciones). Un id: esa, explícita.
    */
   cohortId?: string | null
-  origen: 'stripe' | 'manual'
+  /** `membresia` (M17): la alta la hace el webhook de V-AI-P. */
+  origen: 'stripe' | 'manual' | 'membresia'
+  /**
+   * Vencimiento explícito de la inscripción (M17). Gana sobre `access_days`:
+   * la membresía da acceso hasta donde diga su suscripción, y un checkout
+   * reenviado no puede convertirlo en acceso de por vida. `undefined` = usar
+   * `access_days`, como siempre.
+   */
+  expiraEn?: string | null
   /**
    * Solo se manda cuando la intención es FIJAR el rol —el alta de equipo—.
    * Omitirlo conserva el rol que la persona ya tenga, que es lo que quieren el
@@ -259,9 +267,11 @@ export async function darDeAlta(opciones: Opciones): Promise<ResultadoAlta> {
   // 4. La inscripción, solo si el alta trae curso. Alguien del equipo entra por
   //    su rol, no por estar inscrito en nada.
   const expiraEn =
-    curso?.access_days != null
-      ? new Date(Date.now() + curso.access_days * 24 * 60 * 60 * 1000).toISOString()
-      : null
+    opciones.expiraEn !== undefined
+      ? opciones.expiraEn
+      : curso?.access_days != null
+        ? new Date(Date.now() + curso.access_days * 24 * 60 * 60 * 1000).toISOString()
+        : null
 
   // ¿Ya tenía este curso? Se mira ANTES del upsert: es lo que decide si a una
   // cuenta existente se le avisa "tienes un curso nuevo" o no se le dice nada.
@@ -316,7 +326,8 @@ export async function darDeAlta(opciones: Opciones): Promise<ResultadoAlta> {
   //     equipo entra por su rol y un invitado de encuesta no compró nada.
   const rolFinal = opciones.rol ?? (asciendeDeInvitado ? 'alumno' : rolPrevio)
   if (rolFinal === 'alumno') {
-    await inscribirEnCursosBase(usuario.id, opciones.origen)
+    // Los cursos base no son de la membresía: si la membresía vence, siguen.
+    await inscribirEnCursosBase(usuario.id, opciones.origen === 'membresia' ? 'stripe' : opciones.origen)
   }
 
   // 5. El correo para definir contraseña, como paso aparte y no bloqueante.
@@ -364,7 +375,7 @@ export async function darDeAlta(opciones: Opciones): Promise<ResultadoAlta> {
 }
 
 /** La generación abierta a inscripciones del curso, o null. Service role: aquí no hay sesión. */
-async function generacionAbierta(cursoId: string): Promise<string | null> {
+export async function generacionAbierta(cursoId: string): Promise<string | null> {
   const supabase = crearClienteServiceRole()
   const { data } = await supabase
     .from('cohorts')

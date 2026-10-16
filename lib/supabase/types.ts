@@ -408,6 +408,7 @@ export type Database = {
           is_default: boolean
           in_catalog: boolean
           is_free: boolean
+          plan_id: string | null
         }
         Insert: {
           id?: string
@@ -428,6 +429,7 @@ export type Database = {
           is_default?: boolean
           in_catalog?: boolean
           is_free?: boolean
+          plan_id?: string | null
         }
         Update: {
           id?: string
@@ -448,6 +450,7 @@ export type Database = {
           is_default?: boolean
           in_catalog?: boolean
           is_free?: boolean
+          plan_id?: string | null
         }
         Relationships: []
       }
@@ -673,7 +676,7 @@ export type Database = {
           user_id: string
           course_id: string
           cohort_id: string | null
-          source: 'stripe' | 'manual' | 'catalogo'
+          source: 'stripe' | 'manual' | 'catalogo' | 'membresia'
           starts_at: string
           expires_at: string | null
           status: 'active' | 'revoked'
@@ -685,7 +688,7 @@ export type Database = {
           user_id: string
           course_id: string
           cohort_id?: string | null
-          source?: 'stripe' | 'manual' | 'catalogo'
+          source?: 'stripe' | 'manual' | 'catalogo' | 'membresia'
           starts_at?: string
           expires_at?: string | null
           status?: 'active' | 'revoked'
@@ -697,7 +700,7 @@ export type Database = {
           user_id?: string
           course_id?: string
           cohort_id?: string | null
-          source?: 'stripe' | 'manual' | 'catalogo'
+          source?: 'stripe' | 'manual' | 'catalogo' | 'membresia'
           starts_at?: string
           expires_at?: string | null
           status?: 'active' | 'revoked'
@@ -845,6 +848,150 @@ export type Database = {
           video_duration_sec?: number | null
           is_required?: boolean
           status?: 'draft' | 'published'
+          created_at?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      membership_invoices: {
+        Row: {
+          stripe_invoice_id: string
+          stripe_subscription_id: string
+          plan_id: string
+          user_id: string | null
+          email: string | null
+          amount: number
+          currency: string
+          period_start: string | null
+          period_end: string | null
+          status: 'paid' | 'failed'
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          stripe_invoice_id: string
+          stripe_subscription_id: string
+          plan_id: string
+          user_id?: string | null
+          email?: string | null
+          amount: number
+          currency: string
+          period_start?: string | null
+          period_end?: string | null
+          status: 'paid' | 'failed'
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          stripe_invoice_id?: string
+          stripe_subscription_id?: string
+          plan_id?: string
+          user_id?: string | null
+          email?: string | null
+          amount?: number
+          currency?: string
+          period_start?: string | null
+          period_end?: string | null
+          status?: 'paid' | 'failed'
+          created_at?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      membership_plans: {
+        Row: {
+          id: string
+          slug: string
+          name: string
+          price_mxn: number
+          hub_course_id: string | null
+          stripe_product_id: string | null
+          stripe_price_id: string | null
+          stripe_payment_link: string | null
+          portal_login_url: string | null
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          slug: string
+          name: string
+          price_mxn: number
+          hub_course_id?: string | null
+          stripe_product_id?: string | null
+          stripe_price_id?: string | null
+          stripe_payment_link?: string | null
+          portal_login_url?: string | null
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          slug?: string
+          name?: string
+          price_mxn?: number
+          hub_course_id?: string | null
+          stripe_product_id?: string | null
+          stripe_price_id?: string | null
+          stripe_payment_link?: string | null
+          portal_login_url?: string | null
+          created_at?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      memberships: {
+        Row: {
+          id: string
+          plan_id: string
+          user_id: string | null
+          email: string | null
+          stripe_customer_id: string | null
+          stripe_subscription_id: string
+          status: 'incomplete' | 'incomplete_expired' | 'trialing' | 'active' | 'past_due' | 'canceled' | 'unpaid' | 'paused'
+          current_period_start: string | null
+          current_period_end: string | null
+          cancel_at_period_end: boolean
+          ended_at: string | null
+          access_until: string | null
+          last_event_at: string | null
+          started_at: string
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          plan_id: string
+          user_id?: string | null
+          email?: string | null
+          stripe_customer_id?: string | null
+          stripe_subscription_id: string
+          status: 'incomplete' | 'incomplete_expired' | 'trialing' | 'active' | 'past_due' | 'canceled' | 'unpaid' | 'paused'
+          current_period_start?: string | null
+          current_period_end?: string | null
+          cancel_at_period_end?: boolean
+          ended_at?: string | null
+          access_until?: string | null
+          last_event_at?: string | null
+          started_at?: string
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          plan_id?: string
+          user_id?: string | null
+          email?: string | null
+          stripe_customer_id?: string | null
+          stripe_subscription_id?: string
+          status?: 'incomplete' | 'incomplete_expired' | 'trialing' | 'active' | 'past_due' | 'canceled' | 'unpaid' | 'paused'
+          current_period_start?: string | null
+          current_period_end?: string | null
+          cancel_at_period_end?: boolean
+          ended_at?: string | null
+          access_until?: string | null
+          last_event_at?: string | null
+          started_at?: string
           created_at?: string
           updated_at?: string
         }

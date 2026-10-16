@@ -65,6 +65,20 @@ export async function eliminarCuenta(_previo: EstadoAccion, datos: FormData): Pr
     return { error: 'El correo no coincide. Escríbelo tal cual para confirmar.' }
   }
 
+  // M17: borrar la cuenta no cancela Stripe. Con una membresía viva, la
+  // persona seguiría pagando cada mes por una cuenta que ya no existe.
+  const { count: membresiasVivas } = await servicio
+    .from('memberships')
+    .select('id', { count: 'exact', head: true })
+    .eq('user_id', userId)
+    .in('status', ['active', 'past_due', 'trialing', 'unpaid'])
+  if ((membresiasVivas ?? 0) > 0) {
+    return {
+      error:
+        'Tiene una membresía V-AI-P activa. Cancélala primero en Stripe; si no, se le seguirá cobrando cada mes.',
+    }
+  }
+
   // Lo que se va, para el registro.
   const [inscripciones, progreso, comentarios, entregas, certificados] = await Promise.all([
     servicio.from('enrollments').select('id', { count: 'exact', head: true }).eq('user_id', userId),

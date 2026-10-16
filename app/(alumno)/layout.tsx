@@ -1,23 +1,7 @@
-import Link from 'next/link'
-import { Suspense, type ReactNode } from 'react'
+import type { ReactNode } from 'react'
 
-import { Campana } from '@/components/marca/campana'
-import { Encabezado } from '@/components/marca/encabezado'
-import {
-  IconoBlog,
-  IconoCertificaciones,
-  IconoComunidad,
-  IconoCursos,
-  IconoInicio,
-  IconoDinamicas,
-  IconoPerfil,
-  IconoPuntos,
-} from '@/components/marca/iconos-navegacion'
-import { BarraDeNavegacion } from '@/components/marca/barra-de-navegacion'
-import { SaltarAlContenido } from '@/components/marca/saltar-al-contenido'
-import { esEquipo, exigirPerfil } from '@/lib/auth/sesion'
-import { novedadesDeCanales } from '@/lib/notificaciones/canales'
-import { notificacionesDelAlumno } from '@/lib/notificaciones/consultas'
+import { MarcoAlumno } from '@/components/alumno/marco-alumno'
+import { exigirPerfil } from '@/lib/auth/sesion'
 
 /**
  * Marco del área de alumno. `exigirPerfil` es la segunda barrera: el middleware
@@ -25,67 +9,5 @@ import { notificacionesDelAlumno } from '@/lib/notificaciones/consultas'
  */
 export default async function LayoutAlumno({ children }: { children: ReactNode }) {
   const perfil = await exigirPerfil()
-  const equipo = esEquipo(perfil)
-  // La campana va en el layout: en cualquier pantalla del alumno se ve si hay
-  // algo nuevo, sin tener que volver al inicio.
-  // Las dos van juntas: no dependen entre sí y encadenarlas costaría un viaje
-  // de más en CADA pantalla del alumno.
-  const [novedades, canales] = await Promise.all([
-    notificacionesDelAlumno(perfil),
-    novedadesDeCanales(perfil),
-  ])
-
-  return (
-    <div className="relative flex min-h-dvh flex-col">
-      <SaltarAlContenido />
-      {/* Sin señal entre el clic y la página nueva, la gente vuelve a apretar.
-          Suspense porque lee la URL y algunas rutas del árbol son estáticas. */}
-      <Suspense fallback={null}>
-        <BarraDeNavegacion />
-      </Suspense>
-      <Encabezado
-        perfil={perfil}
-        extra={<Campana lista={novedades.lista} nuevas={novedades.nuevas} />}
-        navegacion={[
-          { href: '/mis-cursos', etiqueta: 'Inicio', icono: IconoInicio, exacto: true },
-          // M15: los cursos propios y el catálogo, separados.
-          { href: '/cursos', etiqueta: 'Cursos', icono: IconoCursos },
-          // Segunda a propósito: es lo que se toca durante la sesión.
-          { href: '/dinamicas', etiqueta: 'Dinámicas', icono: IconoDinamicas },
-          {
-            href: '/comunidad',
-            etiqueta: 'Comunidad',
-            icono: IconoComunidad,
-            novedades: canales.comunidad,
-          },
-          { href: '/blog', etiqueta: 'Blog', icono: IconoBlog, novedades: canales.blog },
-          { href: '/puntos', etiqueta: 'Tus puntos', icono: IconoPuntos },
-          // Diploma de generación VADAI · Total Coach (15-oct-2026).
-          { href: '/certificaciones', etiqueta: 'Mis certificaciones', icono: IconoCertificaciones },
-          { href: '/perfil', etiqueta: 'Mi perfil', icono: IconoPerfil },
-        ]}
-        // Solo para quien puede entrar al panel: un enlace que rebota es peor que
-        // no tenerlo. Era una pastilla más al final del menú, "Panel", que nadie
-        // leía como "salir de la vista de alumno". Ahora es un botón con ese
-        // nombre, junto al avatar y en la fila pegajosa: siempre a la vista.
-        accion={
-          equipo ? (
-            <Link
-              href="/admin"
-              className="inline-flex h-8 shrink-0 items-center gap-1.5 rounded-full border border-primary/40 px-3 text-sm font-medium whitespace-nowrap text-primary transition-colors hover:bg-primary/10 focus-visible:ring-3 focus-visible:ring-ring/50 focus-visible:outline-none"
-            >
-              <span aria-hidden>←</span>
-              <span className="sm:hidden">Panel</span>
-              <span className="hidden sm:inline">
-                Volver al panel
-              </span>
-            </Link>
-          ) : null
-        }
-      />
-      <main id="contenido" className="mx-auto w-full max-w-6xl flex-1 px-5 py-8 sm:py-10">
-        {children}
-      </main>
-    </div>
-  )
+  return <MarcoAlumno perfil={perfil}>{children}</MarcoAlumno>
 }

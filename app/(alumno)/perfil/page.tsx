@@ -2,9 +2,12 @@ import type { Metadata } from 'next'
 import Link from 'next/link'
 
 import { DatosDePerfil } from '@/components/alumno/datos-de-perfil'
+import { LogoVaip } from '@/components/marca/logo-vaip'
+import { TuMembresia } from '@/components/vaip/tu-membresia'
 import { Button } from '@/components/ui/button'
 import { exigirPerfil } from '@/lib/auth/sesion'
 import { misCertificados } from '@/lib/certificados/consultas'
+import { enlaceDelPortal, enlaceDeSuscripcion, miMembresia, planVaip } from '@/lib/membresia/consultas'
 
 export const metadata: Metadata = { title: 'Mi perfil' }
 export const dynamic = 'force-dynamic'
@@ -27,7 +30,8 @@ function fecha(iso: string): string {
  */
 export default async function PaginaPerfil() {
   const perfil = await exigirPerfil()
-  const certificados = await misCertificados()
+  const [certificados, plan] = await Promise.all([misCertificados(), planVaip()])
+  const membresia = plan ? await miMembresia(plan.id) : null
 
   return (
     <div className="flex max-w-2xl flex-col gap-10">
@@ -40,6 +44,36 @@ export default async function PaginaPerfil() {
         <h2 className="text-lg font-semibold">Datos</h2>
         <DatosDePerfil nombre={perfil.full_name} correo={perfil.email} />
       </section>
+
+      {/* M17: la membresía se ve y se administra desde aquí. Sin membresía, una
+          invitación discreta solo cuando la suscripción ya abrió. */}
+      {plan && (membresia || plan.abierto) ? (
+        <section className="flex flex-col gap-4 border-t border-border pt-8">
+          <h2 className="text-lg font-semibold">Tu membresía V-AI-P</h2>
+          {membresia ? (
+            <TuMembresia
+              membresia={membresia}
+              portal={plan.portal ? enlaceDelPortal(plan.portal, perfil.email) : null}
+              enlaceDeSuscripcion={
+                plan.abierto && plan.linkDePago
+                  ? enlaceDeSuscripcion(plan.linkDePago, { correo: perfil.email, userId: perfil.user_id })
+                  : null
+              }
+            />
+          ) : (
+            <Link
+              href="/vaip"
+              className="flex items-center gap-4 rounded-[10px] border border-border p-4 transition-colors hover:border-primary/50 focus-visible:ring-3 focus-visible:ring-ring/50 focus-visible:outline-none"
+            >
+              <LogoVaip className="h-8" />
+              <span className="text-sm text-pretty text-muted-foreground">
+                Una clase en vivo cada quince días y lo nuevo para miembros.{' '}
+                <span className="font-medium text-primary">Conoce V-AI-P</span>
+              </span>
+            </Link>
+          )}
+        </section>
+      ) : null}
 
       <section className="flex flex-col gap-4 border-t border-border pt-8">
         <h2 className="text-lg font-semibold">
