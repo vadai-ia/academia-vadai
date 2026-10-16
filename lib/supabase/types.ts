@@ -451,6 +451,39 @@ export type Database = {
         }
         Relationships: []
       }
+      diploma_events: {
+        Row: {
+          user_id: string
+          clave: string
+          abierto_primero: string | null
+          abierto_ultimo: string | null
+          aperturas: number
+          descargado_primero: string | null
+          descargado_ultimo: string | null
+          descargas: number
+        }
+        Insert: {
+          user_id: string
+          clave: string
+          abierto_primero?: string | null
+          abierto_ultimo?: string | null
+          aperturas?: number
+          descargado_primero?: string | null
+          descargado_ultimo?: string | null
+          descargas?: number
+        }
+        Update: {
+          user_id?: string
+          clave?: string
+          abierto_primero?: string | null
+          abierto_ultimo?: string | null
+          aperturas?: number
+          descargado_primero?: string | null
+          descargado_ultimo?: string | null
+          descargas?: number
+        }
+        Relationships: []
+      }
       dynamic_boards: {
         Row: {
           id: string

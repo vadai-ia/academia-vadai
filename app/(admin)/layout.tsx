@@ -3,6 +3,7 @@ import { Suspense, type ReactNode } from 'react'
 import { CampanaDeComunidad } from '@/components/admin/campana-comunidad'
 import { Encabezado } from '@/components/marca/encabezado'
 import {
+  IconoCertificaciones,
   IconoComunidad,
   IconoCursos,
   IconoDinamicas,
@@ -46,6 +47,8 @@ export default async function LayoutAdmin({ children }: { children: ReactNode })
           { href: '/admin/empresas', etiqueta: 'Empresas', icono: IconoEmpresas },
           { href: '/admin/encuestas', etiqueta: 'Encuestas', icono: IconoEncuestas },
           { href: '/admin/dinamicas', etiqueta: 'Dinámicas', icono: IconoDinamicas },
+          // Diplomas de generación: quién lo abrió, quién lo descargó (15-oct-2026).
+          { href: '/admin/certificaciones', etiqueta: 'Certificaciones', icono: IconoCertificaciones },
           // Antes «Vista de alumno»: no es una vista simulada, es el portal
           // real, el mismo que usan los alumnos (3-oct-2026).
           { href: '/mis-cursos', etiqueta: 'Portal de alumnos', icono: IconoCursos },

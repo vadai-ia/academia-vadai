@@ -58,7 +58,7 @@ export default async function PaginaCertificaciones() {
               Vista del equipo: los alumnos lo ven a partir del {hora(d.programa.visibleDesde)}.
             </p>
           ) : null}
-          <RevelarDiploma nombre={d.nombre} programa={d.programa.curso}>
+          <RevelarDiploma clave={d.programa.clave} nombre={d.nombre} programa={d.programa.curso}>
             <Diploma
               programa={d.programa}
               nombre={d.nombre}

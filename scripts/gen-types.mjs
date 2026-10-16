@@ -14,7 +14,7 @@
  *   node scripts/gen-types.mjs
  */
 
-import { writeFileSync } from 'node:fs'
+import { readFileSync, writeFileSync } from 'node:fs'
 import { resolve } from 'node:path'
 
 import { RAIZ, ESQUEMA, cargarEnv, conectarPostgres, linea, titulo } from './lib/entorno.mjs'
@@ -65,6 +65,18 @@ async function main() {
 
   const vars = cargarEnv()
   const cliente = await conectarPostgres(vars)
+
+  // `--con archivo.sql` (repetible): aplica migraciones aún no aplicadas dentro
+  // de una transacción que se revierte al final. Sirve para que el código de una
+  // migración nueva compile antes de que Alejandro la aplique en la base.
+  const pendientes = process.argv.flatMap((a, i, todos) => (a === '--con' && todos[i + 1] ? [todos[i + 1]] : []))
+  if (pendientes.length > 0) {
+    await cliente.query('begin')
+    for (const archivo of pendientes) {
+      await cliente.query(readFileSync(resolve(archivo), 'utf8'))
+      linea('ok', archivo, 'aplicada en transacción (se revierte al terminar)')
+    }
+  }
 
   try {
     const { rows: relaciones } = await cliente.query(
@@ -244,6 +256,7 @@ export type Vista<V extends keyof EsquemaAcademia['Views']> =
     linea('ok', 'lib/supabase/types.ts', `${tablas.length} tablas, ${vistas.length} vistas`)
     console.log('')
   } finally {
+    if (pendientes.length > 0) await cliente.query('rollback').catch(() => {})
     await cliente.end().catch(() => {})
   }
 }

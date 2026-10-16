@@ -3,6 +3,7 @@
 import { useMemo, useState, type ReactNode } from 'react'
 
 import { Button } from '@/components/ui/button'
+import { marcarDiploma } from '@/lib/diplomas/acciones'
 
 /**
  * La sorpresa al abrir el diploma (15-oct-2026).
@@ -59,11 +60,19 @@ function Confeti() {
   )
 }
 
+/** Registra sin estorbar: si falla, la animación y la descarga siguen igual. */
+function registrar(clave: string, evento: 'abierto' | 'descargado') {
+  marcarDiploma(clave, evento).catch(() => {})
+}
+
 export function RevelarDiploma({
+  clave,
   nombre,
   programa,
   children,
 }: {
+  /** La clave del programa: con ella se registra quién lo abrió y quién lo descargó. */
+  clave: string
   nombre: string
   programa: string
   children: ReactNode
@@ -72,6 +81,7 @@ export function RevelarDiploma({
   const primerNombre = nombre.trim().split(/\s+/)[0] ?? nombre
 
   function abrir() {
+    registrar(clave, 'abierto')
     const sinMovimiento = window.matchMedia('(prefers-reduced-motion: reduce)').matches
     if (sinMovimiento) {
       setFase('abierto')
@@ -142,7 +152,10 @@ export function RevelarDiploma({
         </div>
         {children}
         <div className="flex flex-wrap justify-center gap-3 print:hidden">
-          <Button type="button" variant="acento" size="lg" onClick={() => window.print()}>
+          <Button type="button" variant="acento" size="lg" onClick={() => {
+              registrar(clave, 'descargado')
+              window.print()
+            }}>
             Descargar en PDF
           </Button>
           <Button type="button" variant="outline" size="lg" onClick={() => setFase('cerrado')}>
