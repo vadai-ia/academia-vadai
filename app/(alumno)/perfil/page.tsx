@@ -55,7 +55,8 @@ export default async function PaginaPerfil() {
           plan (M18). Sin V-AI-P, una invitación discreta solo cuando ya abrió. */}
       {membresias.map(({ plan: suyo, membresia }) => (
         <section key={suyo.id} className="flex flex-col gap-4 border-t border-border pt-8">
-          <h2 className="text-lg font-semibold">{`Tu membresía ${suyo.slug === 'v-ai-p' ? 'V-AI-P' : suyo.nombre}`}</h2>
+          {/* V-AI-P ya se nombra con su logo en la tarjeta: el título no lo repite. */}
+          <h2 className="text-lg font-semibold">{suyo.slug === 'v-ai-p' ? 'Tu membresía' : `Tu membresía ${suyo.nombre}`}</h2>
           <TuMembresia
             plan={suyo}
             membresia={membresia}
@@ -70,7 +71,7 @@ export default async function PaginaPerfil() {
       ))}
       {plan && !tieneVaip && plan.abierto ? (
         <section className="flex flex-col gap-4 border-t border-border pt-8">
-          <h2 className="text-lg font-semibold">V-AI-P</h2>
+          <h2 className="text-lg font-semibold">Comunidad</h2>
           <Link
             href="/vaip"
             className="flex items-center gap-4 rounded-[10px] border border-border p-4 transition-colors hover:border-primary/50 focus-visible:ring-3 focus-visible:ring-ring/50 focus-visible:outline-none"

@@ -515,7 +515,8 @@ try {
   afirmar('Pantallas', 'y es la página de venta', true, (await anonimo.text()).includes('MXN al mes'))
   const sesionMiembro = await entrar(CORREO)
   const perfil = await (await pedir('/perfil', sesionMiembro)).text()
-  afirmar('Pantallas', '/perfil muestra la membresía', true, perfil.includes('Tu membresía V-AI-P'))
+  // El título ya no repite el nombre: V-AI-P va en el logo (su nombre accesible).
+  afirmar('Pantallas', '/perfil muestra la membresía', true, perfil.includes('>Tu membresía<') && perfil.includes('aria-label="VADAI V-AI-P"'))
   const cm = await entrar(CORREO_CM)
   // M19: el portal es del equipo; los cobros siguen siendo solo de admin.
   afirmar('Pantallas', 'el community manager entra al portal de V-AI-P', 200, (await pedir('/admin/vaip', cm)).status)

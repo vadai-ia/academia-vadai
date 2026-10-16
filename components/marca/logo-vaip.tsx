@@ -71,16 +71,11 @@ export function LogoVaip({ className, titulo = 'VADAI V-AI-P' }: { className?: s
 }
 
 /** El logo con su nombre al lado, para encabezados. */
+/**
+ * La marca de V-AI-P en los encabezados: SOLO el logo (Alejandro, 16-oct-2026:
+ * logo más texto repetía el nombre). El nombre sigue en el título accesible del
+ * SVG, así que un lector de pantalla lo dice igual.
+ */
 export function MarcaVaip({ className, compacta = false }: { className?: string; compacta?: boolean }) {
-  return (
-    <span className={cn('inline-flex items-center gap-2.5', className)}>
-      <LogoVaip className={compacta ? 'h-6' : 'h-9'} />
-      <span className="flex flex-col leading-none">
-        <span className="text-[0.65rem] font-semibold tracking-[0.18em] text-muted-foreground uppercase">
-          VADAI
-        </span>
-        <span className={cn('font-semibold tracking-tight', compacta ? 'text-sm' : 'text-lg')}>V-AI-P</span>
-      </span>
-    </span>
-  )
+  return <LogoVaip className={cn('self-start', compacta ? 'h-7' : 'h-11', className)} />
 }
