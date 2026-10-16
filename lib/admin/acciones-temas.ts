@@ -41,7 +41,7 @@ export async function crearTema(_previo: EstadoAccion, datos: FormData): Promise
     return { error: 'No se pudo crear el tema.' }
   }
 
-  revalidatePath('/admin/vaip')
+  revalidatePath('/admin/vaip/muro')
   revalidatePath('/curso/[slug]/comunidad', 'page')
   return { aviso: `Tema «${r.data.nombre}» creado.` }
 }
@@ -57,6 +57,6 @@ export async function alternarTema(datos: FormData): Promise<void> {
     .update({ archived: datos.get('archivar') === 'si' })
     .eq('id', id)
   if (error) console.error(JSON.stringify({ operacion: 'alternarTema', id, error: error.message }))
-  revalidatePath('/admin/vaip')
+  revalidatePath('/admin/vaip/muro')
   revalidatePath('/curso/[slug]/comunidad', 'page')
 }

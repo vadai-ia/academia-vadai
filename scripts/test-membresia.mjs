@@ -367,6 +367,8 @@ async function verComo(bd, userId) {
 const bd = await conectarPostgres(vars)
 let verde = false
 let previasVitalicio = null
+/** El nombre de qa-alumno1 al empezar: si algo falla a medias, se le regresa. */
+let nombreOriginal = null
 if (SOLO_LIMPIAR) {
   await purgar(bd)
   await borrarCuentaDeLaSuite(bd)
@@ -476,6 +478,7 @@ try {
   const vitalicioPerfil = await una(bd, `select user_id, full_name from academia.profiles where email = $1`, [CORREO_VITALICIO])
   const vitalicioId = vitalicioPerfil?.user_id
   const nombreVitalicio = vitalicioPerfil?.full_name
+  nombreOriginal = nombreVitalicio ?? null
   await bd.query(
     `insert into academia.enrollments (user_id, course_id, source, status, expires_at) values ($1, $2, 'manual', 'active', null)`,
     [vitalicioId, ids.vitalicio]
@@ -514,8 +517,10 @@ try {
   const perfil = await (await pedir('/perfil', sesionMiembro)).text()
   afirmar('Pantallas', '/perfil muestra la membresía', true, perfil.includes('Tu membresía V-AI-P'))
   const cm = await entrar(CORREO_CM)
-  const adminCm = await pedir('/admin/vaip', cm)
-  afirmar('Pantallas', '/admin/vaip rebota al community manager', true, adminCm.status === 307 || adminCm.status === 303)
+  // M19: el portal es del equipo; los cobros siguen siendo solo de admin.
+  afirmar('Pantallas', 'el community manager entra al portal de V-AI-P', 200, (await pedir('/admin/vaip', cm)).status)
+  const cobrosCm = await pedir('/admin/vaip/cobros', cm)
+  afirmar('Pantallas', 'pero Cobros lo rebota', true, cobrosCm.status === 307 || cobrosCm.status === 303)
   const admin = await entrar(CORREO_ADMIN)
   const panel = await pedir('/admin/vaip', admin)
   afirmar('Pantallas', '/admin/vaip abre para admin', 200, panel.status)
@@ -530,6 +535,17 @@ try {
     [miembroId]
   )
   afirmar('Baja', 'el miembro activo cuenta como activo para la baja', true, activas.n > 0)
+
+  // 16b. «Corregir nombre» en la ficha: desde que un alta ya no pisa el nombre
+  // (16-oct-2026), es la forma deliberada de cambiarlo.
+  const rutaFicha = `/admin/alumnos/${vitalicioId}`
+  const corregir = formularioCon(await (await pedir(rutaFicha, admin)).text(), 'nuevo_nombre')
+  afirmar('Nombre', 'la ficha trae «Corregir nombre»', true, corregir !== null)
+  const nombreDe = async () => (await una(bd, `select full_name from academia.profiles where user_id = $1`, [vitalicioId]))?.full_name
+  await enviarFormulario(rutaFicha, { ...corregir, nuevo_nombre: '  QA   Nombre Corregido ' }, admin)
+  afirmar('Nombre', 'el equipo corrige el nombre (y le quita espacios de más)', 'QA Nombre Corregido', await nombreDe())
+  await enviarFormulario(rutaFicha, { ...corregir, nuevo_nombre: nombreVitalicio }, admin)
+  afirmar('Nombre', 'y lo puede regresar', nombreVitalicio, await nombreDe())
 
   // ===================================================================
   // FASE 2: el espacio de miembros.
@@ -671,6 +687,11 @@ try {
 } finally {
   // El curso base real que el alta le dio a qa-alumno1 se quita siempre: no hace falta para fotografiar.
   if (previasVitalicio) await quitarLoNuevo(bd, CORREO_VITALICIO, previasVitalicio).catch((e) => console.error('  Limpieza incompleta:', e.message))
+  if (nombreOriginal) {
+    await bd
+      .query(`update academia.profiles set full_name = $2 where email = $1 and full_name <> $2`, [CORREO_VITALICIO, nombreOriginal])
+      .catch((e) => console.error('  Limpieza incompleta:', e.message))
+  }
   if (CONSERVAR) {
     console.log(`  --conservar: el escenario sigue armado (${CORREO}). Bórralo con --limpiar.\n`)
   } else {

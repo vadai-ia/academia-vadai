@@ -328,6 +328,14 @@ avisaba: un menú que se esconde es peor que uno que no existe. En escritorio la
 pastillas **envuelven** si no caben; en móvil se desplazan con un degradado en el
 borde (`mask-image`) que dice "hay más". No es un sidebar a propósito.
 
+**El panel de admin es la excepción: barra lateral agrupada** (M19, 16-oct-2026, pedido
+de Alejandro). Con doce destinos la fila envolvía y no decía qué iba con qué. Grupos:
+Panel · Academia (Cursos, Entregas, Publicaciones) · Comunidad (Bandeja, Puntos) ·
+Contactos (Alumnos, Empresas) · Actividades (Encuestas, Dinámicas, Certificaciones) ·
+Membresía (V-AI-P), y al pie «Portal de alumnos». En escritorio es una columna fija; en
+teléfono, un `<details>` «Menú» (`components/admin/barra-lateral.tsx`). El encabezado del
+panel queda en una fila: marca, campana y cuenta. El portal de alumnos sigue con dos filas.
+
 Estructura copiada de Skool: **pestañas por sección dentro del curso**
 (`components/ui-vadai/pestanas.tsx`) — Contenido · En vivo · Comunidad —, rejilla
 de cursos con portada 16:9 y barra de avance, y feed con avatar a la izquierda.

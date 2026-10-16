@@ -201,6 +201,8 @@ export type Database = {
           recording_lesson_id: string | null
           created_at: string
           updated_at: string
+          kind: 'clase' | 'evento'
+          location: string | null
         }
         Insert: {
           id?: string
@@ -212,6 +214,8 @@ export type Database = {
           recording_lesson_id?: string | null
           created_at?: string
           updated_at?: string
+          kind?: 'clase' | 'evento'
+          location?: string | null
         }
         Update: {
           id?: string
@@ -223,6 +227,8 @@ export type Database = {
           recording_lesson_id?: string | null
           created_at?: string
           updated_at?: string
+          kind?: 'clase' | 'evento'
+          location?: string | null
         }
         Relationships: []
       }
@@ -379,6 +385,7 @@ export type Database = {
           position: number
           archived: boolean
           created_at: string
+          solo_equipo: boolean
         }
         Insert: {
           id?: string
@@ -388,6 +395,7 @@ export type Database = {
           position?: number
           archived?: boolean
           created_at?: string
+          solo_equipo?: boolean
         }
         Update: {
           id?: string
@@ -397,6 +405,7 @@ export type Database = {
           position?: number
           archived?: boolean
           created_at?: string
+          solo_equipo?: boolean
         }
         Relationships: []
       }
@@ -441,6 +450,7 @@ export type Database = {
           is_default: boolean
           in_catalog: boolean
           is_free: boolean
+          category: 'creativas' | 'administrativas' | 'comerciales' | null
         }
         Insert: {
           id?: string
@@ -461,6 +471,7 @@ export type Database = {
           is_default?: boolean
           in_catalog?: boolean
           is_free?: boolean
+          category?: 'creativas' | 'administrativas' | 'comerciales' | null
         }
         Update: {
           id?: string
@@ -481,6 +492,7 @@ export type Database = {
           is_default?: boolean
           in_catalog?: boolean
           is_free?: boolean
+          category?: 'creativas' | 'administrativas' | 'comerciales' | null
         }
         Relationships: []
       }

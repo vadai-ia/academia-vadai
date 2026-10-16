@@ -114,9 +114,11 @@ export function HeroSesion({
           <h2 className="flex flex-wrap items-center gap-2 text-[1.75rem] leading-tight font-medium tracking-tight text-balance">
             {sesion.titulo}
             <Insignia estado={estado} />
+            {sesion.tipo === 'evento' ? <Badge variant="outline">Evento</Badge> : null}
           </h2>
           <p className="text-sm text-muted-foreground">
             {p.diaSemanaLargo} {p.diaNumero} de {p.mesLargo} · {rangoHorario(sesion.programadaEn)} {CDMX}
+            {sesion.lugar ? ` · ${sesion.lugar}` : ''}
           </p>
           {sesion.descripcion ? (
             <p className="text-sm whitespace-pre-line text-muted-foreground">{sesion.descripcion}</p>
@@ -523,6 +525,11 @@ function Renglon({
         <span className="flex flex-wrap items-center gap-2">
           <span className="font-medium">{sesion.titulo}</span>
           <Insignia estado={estado} />
+          {sesion.tipo === 'evento' ? (
+            <Badge variant="outline" className="text-[11px]">
+              Evento{sesion.lugar ? ` · ${sesion.lugar}` : ''}
+            </Badge>
+          ) : null}
           {sesion.grabacionLeccionId ? (
             <Badge variant="outline" className="text-[11px]">
               Grabación

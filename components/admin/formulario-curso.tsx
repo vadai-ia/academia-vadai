@@ -283,6 +283,20 @@ export function FormularioCurso({ curso, enVaip = false }: { curso?: Curso; enVa
             </span>
           </label>
         </div>
+
+        {/* M19: una herramienta es un curso con sus videos, marcado por área. */}
+        <div className="flex flex-col gap-2">
+          <Label htmlFor="category">Herramienta de V-AI-P</Label>
+          <select id="category" name="category" defaultValue={curso?.category ?? ''} className={claseSelect}>
+            <option value="">No es herramienta (curso normal)</option>
+            <option value="creativas">Herramienta creativa</option>
+            <option value="administrativas">Herramienta administrativa</option>
+            <option value="comerciales">Herramienta comercial</option>
+          </select>
+          <p className="text-xs text-muted-foreground">
+            Las herramientas salen en la sección Herramientas del espacio de miembros, agrupadas por área.
+          </p>
+        </div>
       </section>
 
       <section className="flex flex-col gap-4">

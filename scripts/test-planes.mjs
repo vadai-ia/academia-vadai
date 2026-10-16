@@ -404,7 +404,7 @@ try {
   const cmPlanes = await pedir('/admin/vaip/planes', cm)
   afirmar('Panel', 'Planes rebota al community manager', true, cmPlanes.status === 307 || cmPlanes.status === 303)
   const lista = await html('/admin/vaip/planes', admin)
-  afirmar('Panel', 'Planes abre para admin', true, lista.includes('Tus planes'))
+  afirmar('Panel', 'Planes abre para admin', true, lista.includes('Cada plan es una suscripción mensual'))
 
   const nuevo = conCampo(lista, 'precio')
   const malo = await enviar('/admin/vaip/planes', { ...nuevo, nombre: 'QA Plan Malo', slug: 'qa-plan-malo', precio: '300', tachado: '200' }, admin)

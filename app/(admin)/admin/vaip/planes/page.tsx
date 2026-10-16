@@ -3,7 +3,7 @@ import Link from 'next/link'
 
 import { FormularioPlan } from '@/components/admin/formulario-plan'
 import { moneda } from '@/components/membresias/precio'
-import { Seccion, Tarjeta, Titulo } from '@/components/ui-vadai/superficie'
+import { Seccion, Tarjeta } from '@/components/ui-vadai/superficie'
 import { exigirAdmin } from '@/lib/auth/sesion'
 import { SLUG_VAIP } from '@/lib/membresia/consultas'
 import { ETIQUETA_ESTADO_PLAN, listarPlanes } from '@/lib/membresia/planes'
@@ -23,14 +23,6 @@ export default async function PaginaPlanes() {
 
   return (
     <div className="flex flex-col gap-10">
-      <div className="flex flex-col gap-2">
-        <Link href="/admin/vaip" className="w-fit text-sm text-muted-foreground hover:text-primary">
-          ← V-AI-P
-        </Link>
-        <Titulo apoyo="Cada plan es una suscripción mensual en Stripe que da uno o varios cursos. V-AI-P es uno de ellos.">
-          Planes
-        </Titulo>
-      </div>
 
       {!stripeAdminConfigurado() ? (
         <Tarjeta className="border-dashed p-5 text-sm text-pretty">
@@ -39,7 +31,10 @@ export default async function PaginaPlanes() {
         </Tarjeta>
       ) : null}
 
-      <Seccion titulo="Tus planes" apoyo={`${planes.length} en total.`}>
+      <Seccion
+        titulo="Planes"
+        apoyo={`Cada plan es una suscripción mensual en Stripe que da uno o varios cursos. V-AI-P es uno de ellos. ${planes.length} en total.`}
+      >
         <ul className="grid gap-3 lg:grid-cols-2">
           {planes.map((p) => (
             <li key={p.id}>

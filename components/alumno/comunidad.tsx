@@ -125,7 +125,7 @@ function BorrarConAviso({
 }
 
 /** Un tema del muro (M17). Local: `lib/comunidad/temas.ts` es server-only. */
-type TemaDelMuro = { id: string; nombre: string; slug: string }
+type TemaDelMuro = { id: string; nombre: string; slug: string; soloEquipo: boolean }
 
 function NuevaPublicacion({
   cursoId,
@@ -146,6 +146,7 @@ function NuevaPublicacion({
   temas: TemaDelMuro[]
   temaActual: TemaDelMuro | null
 }) {
+  const temasParaPublicar = temas.filter((t) => soyEquipo || !t.soloEquipo)
   const [estado, accion] = useActionState(publicarEnComunidad, {})
 
   return (
@@ -174,17 +175,19 @@ function NuevaPublicacion({
           </fieldset>
         ) : null}
 
-        {temas.length > 0 ? (
+        {/* M19: un alumno no ve los temas donde solo publica el equipo (Noticias);
+            la base lo rechazaría igual (academia_0043). */}
+        {temasParaPublicar.length > 0 ? (
           <div className="flex flex-col gap-1.5">
             <Label htmlFor="post-tema">Tema</Label>
             <select
               id="post-tema"
               name="topic_id"
-              defaultValue={temaActual?.id ?? ''}
+              defaultValue={temasParaPublicar.some((t) => t.id === temaActual?.id) ? temaActual?.id : ''}
               className="h-9 rounded-md border border-border bg-background px-2 text-sm"
             >
               <option value="">Sin tema</option>
-              {temas.map((t) => (
+              {temasParaPublicar.map((t) => (
                 <option key={t.id} value={t.id}>
                   {t.nombre}
                 </option>

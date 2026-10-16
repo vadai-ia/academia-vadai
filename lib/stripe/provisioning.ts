@@ -51,13 +51,6 @@ type Opciones = {
   /** `membresia` (M17): la alta la hace el webhook de V-AI-P. */
   origen: 'stripe' | 'manual' | 'membresia'
   /**
-   * El nombre que trae el alta solo LLENA un perfil sin nombre; no pisa el que
-   * ya tenía (M18). Lo usa la membresía: el nombre del formulario de Stripe es
-   * el de la tarjeta («JUAN P GARCIA»), y el del perfil es el que la persona
-   * eligió y el que se imprime en sus certificados.
-   */
-  conservarNombre?: boolean
-  /**
    * Vencimiento explícito de la inscripción (M17). Gana sobre `access_days`:
    * la membresía da acceso hasta donde diga su suscripción, y un checkout
    * reenviado no puede convertirlo en acceso de por vida. `undefined` = usar
@@ -238,6 +231,13 @@ export async function darDeAlta(opciones: Opciones): Promise<ResultadoAlta> {
   //
   // Ahora un alta nunca rebaja a nadie: el rol solo cambia si el llamador lo
   // pide explícitamente, que es únicamente el alta de equipo.
+  //
+  // Y el nombre que trae el alta solo LLENA un perfil sin nombre (decidido por
+  // Alejandro, 16-oct-2026). Antes un nombre no vacío pisaba el que ya había, y
+  // venía de fuentes que no son la persona: el formulario de Stripe (el nombre
+  // de la tarjeta, «JUAN P GARCIA»), una fila del padrón, lo que tecleó en una
+  // encuesta en vivo. El nombre lo cambia la persona en Mi perfil, o el equipo
+  // con «Corregir nombre» en su ficha (`corregirNombreDeAlumno`).
   const { data: previo } = await supabase
     .from('profiles')
     .select('role, full_name')
@@ -258,9 +258,7 @@ export async function darDeAlta(opciones: Opciones): Promise<ResultadoAlta> {
     {
       user_id: usuario.id,
       email,
-      full_name: opciones.conservarNombre
-        ? previo?.full_name || opciones.nombre?.trim() || ''
-        : opciones.nombre?.trim() || previo?.full_name || '',
+      full_name: previo?.full_name?.trim() || opciones.nombre?.trim() || '',
       role: opciones.rol ?? (asciendeDeInvitado ? 'alumno' : rolPrevio),
       // Solo si el llamador dijo algo: un alta sin empresa no borra la que ya tenía.
       ...(opciones.companyId !== undefined ? { company_id: opciones.companyId } : {}),

@@ -760,6 +760,47 @@ export async function suspenderCuenta(_previo: EstadoAccion, datos: FormData): P
  *   - Inscripciones, progreso, puntos y certificados no se tocan: cuelgan del
  *     id, no del correo.
  */
+/**
+ * «Corregir nombre» en la ficha (16-oct-2026). Desde que un alta ya no pisa el
+ * nombre de quien tiene cuenta, esta es la forma en que el equipo lo cambia a
+ * propósito. Es el nombre que se imprime en los certificados. Como el correo:
+ * el de alguien del equipo solo lo cambia un superadmin.
+ */
+export async function corregirNombreDeAlumno(
+  _previo: EstadoAccion,
+  datos: FormData
+): Promise<EstadoAccion> {
+  const quien = await exigirEquipo()
+
+  const userId = String(datos.get('user_id') ?? '')
+  const nuevo = String(datos.get('nuevo_nombre') ?? '').trim().replace(/\s+/g, ' ')
+  if (!userId) return { error: 'Falta la cuenta.' }
+  if (nuevo.length < 2) return { error: 'Escribe el nombre completo.' }
+  if (nuevo.length > 120) return { error: 'Hasta 120 caracteres.' }
+
+  const servicio = crearClienteServiceRole()
+  const { data: actual } = await servicio
+    .from('profiles')
+    .select('full_name, role')
+    .eq('user_id', userId)
+    .maybeSingle()
+  if (!actual) return { error: 'Esa cuenta no existe.' }
+  if (actual.full_name === nuevo) return { error: 'Ya se llama así.' }
+  if (esRolDeEquipo(actual.role) && quien.role !== 'superadmin') {
+    return { error: 'Solo un superadmin cambia el nombre de alguien del equipo.' }
+  }
+
+  const { error } = await servicio.from('profiles').update({ full_name: nuevo }).eq('user_id', userId)
+  if (error) {
+    console.error(JSON.stringify({ operacion: 'corregirNombre', userId, error: error.message }))
+    return { error: 'No se pudo guardar el nombre.' }
+  }
+  console.log(JSON.stringify({ operacion: 'corregirNombre:ok', porQuien: quien.email, userId, de: actual.full_name, a: nuevo }))
+  revalidatePath('/admin/alumnos')
+  revalidatePath(`/admin/alumnos/${userId}`)
+  return { aviso: `Listo: ahora se llama ${nuevo}. Así sale en sus certificados nuevos.` }
+}
+
 export async function cambiarCorreoDeAlumno(
   _previo: EstadoAccion,
   datos: FormData

@@ -18,7 +18,7 @@ function Crear() {
   )
 }
 
-export type TemaDelPanel = { id: string; nombre: string; archivado: boolean }
+export type TemaDelPanel = { id: string; nombre: string; archivado: boolean; soloEquipo?: boolean }
 
 /** Los temas del muro de un curso (M17): agregar y archivar. */
 export function TemasDelMuro({ cursoId, temas }: { cursoId: string; temas: TemaDelPanel[] }) {
@@ -33,7 +33,10 @@ export function TemasDelMuro({ cursoId, temas }: { cursoId: string; temas: TemaD
               <form action={alternarTema} className="flex items-center gap-1.5 rounded-full border border-border py-1 pr-1 pl-3 text-sm">
                 <input type="hidden" name="id" value={t.id} />
                 <input type="hidden" name="archivar" value={t.archivado ? 'no' : 'si'} />
-                <span className={t.archivado ? 'text-muted-foreground line-through' : ''}>{t.nombre}</span>
+                <span className={t.archivado ? 'text-muted-foreground line-through' : ''}>
+                  {t.nombre}
+                  {t.soloEquipo ? <span className="text-xs text-muted-foreground"> · solo equipo</span> : null}
+                </span>
                 <Button type="submit" variant="ghost" size="xs">
                   {t.archivado ? 'Reactivar' : 'Archivar'}
                 </Button>

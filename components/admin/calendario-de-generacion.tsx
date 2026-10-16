@@ -61,7 +61,7 @@ export function CalendarioDeGeneracion({
   sesionAbierta?: string | null
   /** Lo que precede a `sesion=` en los enlaces (`?gen=<id>&`). */
   prefijo?: string
-  /** M17: la generación es de V-AI-P: clases quincenales con anuncio y correo. */
+  /** M17: la generación es de V-AI-P: la serie propone cada quince días, con anuncio y correo. */
   deVaip?: boolean
 }) {
   const ahora = Date.now()
@@ -135,7 +135,11 @@ export function CalendarioDeGeneracion({
                       <span className="font-medium">{sesion.title}</span>
                       {pasada ? <Badge variant="outline">Ya ocurrió</Badge> : null}
                       {esProxima ? <Badge>Próxima</Badge> : null}
-                      {!sesion.meet_url && !pasada ? (
+                      {/* M19: un evento externo, con su lugar. */}
+                      {sesion.kind === 'evento' ? (
+                        <Badge variant="secondary">Evento{sesion.location ? ` · ${sesion.location}` : ''}</Badge>
+                      ) : null}
+                      {!sesion.meet_url && !pasada && !(sesion.kind === 'evento' && sesion.location) ? (
                         <Badge variant="outline" className="border-destructive/40 text-destructive">
                           Sin liga
                         </Badge>

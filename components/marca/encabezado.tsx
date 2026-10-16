@@ -33,15 +33,22 @@ import { nombreVisible, type Perfil } from '@/lib/auth/sesion'
  * Pegajoso: en una lección larga, tener que subir hasta arriba para cambiar de
  * sección es de las cosas que hacen sentir pesada una plataforma. Y como está
  * en el flujo del documento (no `fixed`), no tapa el primer contenido.
+ *
+ * El PANEL de admin es la excepción (M19, 16-oct-2026): con doce destinos
+ * agrupados va con barra lateral (`components/admin/barra-lateral.tsx`), y aquí
+ * solo queda la primera fila, a todo el ancho (`anchoCompleto`).
  */
 export function Encabezado({
   perfil,
   navegacion = [],
   accion,
   extra,
+  anchoCompleto = false,
 }: {
   perfil: Perfil
   navegacion?: Destino[]
+  /** El panel con barra lateral: el encabezado ocupa todo el ancho, no los 72rem del portal. */
+  anchoCompleto?: boolean
   /**
    * Un control a la izquierda del avatar, en la fila pegajosa: siempre a la
    * vista. Lo usa el área de alumno para que el equipo vuelva a su panel.
@@ -52,7 +59,7 @@ export function Encabezado({
 }) {
   return (
     <header className="sticky top-0 z-30 border-b border-border bg-background/85 backdrop-blur-md">
-      <div className="mx-auto w-full max-w-6xl px-5">
+      <div className={anchoCompleto ? 'w-full px-5' : 'mx-auto w-full max-w-6xl px-5'}>
         {/* --- Fila 1: marca y cuenta ------------------------------------ */}
         <div className="flex h-14 items-center justify-between gap-4">
           <Link
@@ -66,7 +73,7 @@ export function Encabezado({
           <div className="flex min-w-0 items-center gap-2">
             {extra}
             {accion}
-            <MenuDeCuenta perfil={perfil} />
+            <MenuDeCuenta perfil={perfil} anchoCompleto={anchoCompleto} />
           </div>
         </div>
 
@@ -105,7 +112,7 @@ export function Encabezado({
  * pegajoso y mide 56 px— y a la derecha del contenedor de 72rem, que es donde
  * está el avatar. `100%` y no `100vw`: el segundo cuenta la barra de scroll.
  */
-function MenuDeCuenta({ perfil }: { perfil: Perfil }) {
+function MenuDeCuenta({ perfil, anchoCompleto }: { perfil: Perfil; anchoCompleto: boolean }) {
   const nombre = nombreVisible(perfil)
   const equipo = esRolDeEquipo(perfil.role)
   const idMenu = 'menu-de-cuenta'
@@ -128,7 +135,7 @@ function MenuDeCuenta({ perfil }: { perfil: Perfil }) {
       <div
         id={idMenu}
         popover="auto"
-        className="inset-auto top-[3.75rem] right-[max(1.25rem,calc((100%-72rem)/2+1.25rem))] m-0 w-64 overflow-hidden rounded-[12px] border border-border bg-card p-0 text-foreground shadow-[0_4px_16px_rgba(0,0,0,0.08),0_1px_3px_rgba(0,0,0,0.06)]"
+        className={`inset-auto top-[3.75rem] ${anchoCompleto ? 'right-5' : 'right-[max(1.25rem,calc((100%-72rem)/2+1.25rem))]'} m-0 w-64 overflow-hidden rounded-[12px] border border-border bg-card p-0 text-foreground shadow-[0_4px_16px_rgba(0,0,0,0.08),0_1px_3px_rgba(0,0,0,0.06)]`}
       >
         <div className="flex items-center gap-3 border-b border-border px-4 py-3">
           <Avatar nombre={nombre} tamano={36} />

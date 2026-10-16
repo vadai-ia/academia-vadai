@@ -96,6 +96,23 @@ export function NuevaSesion({
           </div>
         )}
 
+        {/* M19: en V-AI-P también se agendan eventos externos, con su lugar. */}
+        {avisar ? (
+          <div className="grid gap-3 sm:grid-cols-2">
+            <div className="flex flex-col gap-1.5">
+              <Label htmlFor={`sesion-tipo-${sufijo}`}>Tipo</Label>
+              <select id={`sesion-tipo-${sufijo}`} name="kind" defaultValue="clase" className={claseSelect}>
+                <option value="clase">Clase en vivo</option>
+                <option value="evento">Evento</option>
+              </select>
+            </div>
+            <div className="flex flex-col gap-1.5">
+              <Label htmlFor={`sesion-lugar-${sufijo}`}>Lugar (para eventos)</Label>
+              <Input id={`sesion-lugar-${sufijo}`} name="location" maxLength={200} placeholder="Oficinas VADAI, Monterrey" />
+            </div>
+          </div>
+        ) : null}
+
         <div className="flex flex-col gap-1.5">
           <Label htmlFor={`sesion-titulo-${sufijo}`}>Título</Label>
           <Input

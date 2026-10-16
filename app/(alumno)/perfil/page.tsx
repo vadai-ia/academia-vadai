@@ -77,7 +77,7 @@ export default async function PaginaPerfil() {
           >
             <LogoVaip className="h-8" />
             <span className="text-sm text-pretty text-muted-foreground">
-              Una clase en vivo cada quince días y lo nuevo para miembros.{' '}
+              Clases en vivo personalizadas y el equipo de VADAI acompañándote.{' '}
               <span className="font-medium text-primary">Conoce V-AI-P</span>
             </span>
           </Link>

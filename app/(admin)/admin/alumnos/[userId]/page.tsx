@@ -14,6 +14,7 @@ import { Button } from '@/components/ui/button'
 import {
   cambiarAcceso,
   cambiarCorreoDeAlumno,
+  corregirNombreDeAlumno,
   extenderAcceso,
   quitarDelCurso,
   reactivarCuenta,
@@ -277,6 +278,29 @@ export default async function PaginaFicha({
             </form>
 
             <EnlaceDeAcceso email={ficha.email} />
+
+            {/* Corregir el nombre: un alta ya no lo pisa (16-oct-2026), así que el
+                equipo lo cambia aquí, a propósito. Es el de sus certificados. */}
+            <ConfirmarConModal
+              idModal={`corregir-nombre-${ficha.userId}`}
+              accion={corregirNombreDeAlumno}
+              campos={{ user_id: ficha.userId }}
+              boton={{ texto: 'Corregir nombre', etiquetaAccesible: `Corregir el nombre de ${quien}`, variante: 'outline' }}
+              titulo={`Corregir el nombre de ${quien}`}
+              confirmar={{ texto: 'Guardar nombre', enCurso: 'Guardando…' }}
+            >
+              <input
+                type="text"
+                name="nuevo_nombre"
+                required
+                minLength={2}
+                maxLength={120}
+                defaultValue={ficha.nombre ?? ''}
+                autoComplete="off"
+                className="h-10 w-full rounded-lg border border-input bg-transparent px-3 text-sm text-foreground"
+              />
+              <p>Es el nombre que se imprime en sus certificados. La persona también lo puede cambiar en Mi perfil.</p>
+            </ConfirmarConModal>
 
             {/* Cambiar el correo: con confirmación, y al nuevo le llega el de
                 crear contraseña. Es lo que prueba que el cambio fue para la

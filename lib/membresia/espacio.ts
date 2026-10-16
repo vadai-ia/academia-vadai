@@ -8,6 +8,8 @@ import { publicacionesParaAlumno, type AnuncioParaAlumno } from '@/lib/comunidad
 import { logrosDe, type Logro } from '@/lib/gamificacion/logros'
 import { ACTIVIDAD_VACIA, nivelDe, puntosDe, sumarActividad, type Actividad, type Nivel } from '@/lib/gamificacion/reglas'
 import type { PlanVaip } from '@/lib/membresia/consultas'
+import { noticiasDeVaip } from '@/lib/membresia/noticias'
+import type { PostDeComunidad } from '@/lib/comunidad/posts'
 import { crearClienteServidor } from '@/lib/supabase/server'
 
 /**
@@ -96,6 +98,11 @@ export async function rankingVaip(planId: string, userId: string): Promise<Ranki
 export type EspacioVaip = {
   proximaClase: SesionDelAlumno | null
   anuncios: AnuncioParaAlumno[]
+  /** M19: las últimas del tema «Noticias» del muro. */
+  noticias: PostDeComunidad[]
+  /** M19: las herramientas (cursos con área), por área. */
+  herramientas: Record<'creativas' | 'administrativas' | 'comerciales', CursoDelAlumno[]>
+  /** Los demás cursos del plan. */
   biblioteca: CursoDelAlumno[]
   ranking: RankingVaip
   logros: Logro[]
@@ -117,6 +124,11 @@ export async function espacioVaip(perfil: Perfil, plan: PlanVaip): Promise<Espac
 
   const casa = plan.casa
   const ahora = Date.now()
+  const enLaCasa = cursos.find((c) => c.id === casa?.id)
+  const { noticias } = casa
+    ? await noticiasDeVaip(casa.id, perfil.user_id, { generacionId: enLaCasa?.generacion?.id ?? null, cuantas: 3 })
+    : { noticias: [] }
+  const delPlan = cursos.filter((c) => c.enVaip && c.id !== casa?.id)
   const proximaClase =
     sesiones.find(
       (s) => s.cursoSlug === casa?.slug && new Date(s.programadaEn).getTime() + VENTANA_EN_CURSO > ahora
@@ -126,7 +138,13 @@ export async function espacioVaip(perfil: Perfil, plan: PlanVaip): Promise<Espac
   return {
     proximaClase,
     anuncios: anuncios.filter((a) => a.cursoId !== null && a.cursoId === casa?.id).slice(0, 3),
-    biblioteca: cursos.filter((c) => c.enVaip && c.id !== casa?.id),
+    noticias,
+    herramientas: {
+      creativas: delPlan.filter((c) => c.categoria === 'creativas'),
+      administrativas: delPlan.filter((c) => c.categoria === 'administrativas'),
+      comerciales: delPlan.filter((c) => c.categoria === 'comerciales'),
+    },
+    biblioteca: delPlan.filter((c) => c.categoria === null),
     ranking,
     logros: logrosDe({
       actividad: ranking.yo?.actividad ?? ACTIVIDAD_VACIA,

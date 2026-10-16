@@ -82,8 +82,12 @@ export const esquemaCurso = z.object({
   in_catalog: z.coerce.boolean(),
   /** M15: se empieza desde el catálogo sin pagar. */
   is_free: z.coerce.boolean(),
-  /** M17: entra en la membresía V-AI-P. Se guarda como `plan_id`. */
+  /** M17: entra en la membresía V-AI-P. Desde M18, una fila de `membership_plan_courses`. */
   en_vaip: z.coerce.boolean(),
+  /** M19: una herramienta de V-AI-P, por área. Vacío = curso normal. */
+  category: z
+    .union([z.enum(['creativas', 'administrativas', 'comerciales']), z.literal('')])
+    .transform((v) => (v === '' ? null : v)),
 })
 
 export const esquemaIdDeCurso = z.object({

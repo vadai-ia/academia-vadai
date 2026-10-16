@@ -214,7 +214,7 @@ export default async function PaginaMembresia({ searchParams }: { searchParams: 
               </li>
             ) : esVaip ? (
               <li>
-                <Tarjeta className="p-4 text-sm text-pretty">Una clase en vivo cada quince días, con su grabación.</Tarjeta>
+                <Tarjeta className="p-4 text-sm text-pretty">Las clases en vivo personalizadas, con su grabación, y el acompañamiento del equipo.</Tarjeta>
               </li>
             ) : null}
             {cursos.length > 0 ? (

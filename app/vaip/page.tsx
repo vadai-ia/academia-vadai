@@ -11,7 +11,7 @@ import { espacioVaip } from '@/lib/membresia/espacio'
 export const metadata: Metadata = {
   title: 'VADAI V-AI-P',
   description:
-    'La comunidad de la academia VADAI: una clase en vivo cada quince días, cursos nuevos para miembros y un muro para compartir lo que ya te funciona con IA.',
+    'La comunidad de la academia VADAI: clases en vivo personalizadas, acompañamiento del equipo, lo nuevo de todas las plataformas de IA y negocios que ya la usan.',
 }
 export const dynamic = 'force-dynamic'
 

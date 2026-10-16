@@ -159,7 +159,6 @@ async function enlazarPersona(
     nombre: datos.nombre,
     courseId: casa?.id ?? null,
     origen: 'membresia',
-    conservarNombre: true,
     expiraEn: membresia.access_until,
     titulosParaCorreo: cursos.map((c) => c.title),
     urlRedireccion: `${process.env.NEXT_PUBLIC_APP_URL ?? ''}/nueva-contrasena`,

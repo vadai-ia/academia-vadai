@@ -16,36 +16,75 @@ import type { PlanPublico } from '@/lib/membresia/consultas'
  *
  * Voz de la marca: directa, en segunda persona, cosas comprobables. Cada línea
  * describe algo que la membresía trae.
+ *
+ * El texto se reescribió el 16-oct-2026 a pedido de Alejandro: que se sienta
+ * ACOMPAÑAMIENTO (el equipo y la comunidad), que las clases sean
+ * «personalizadas» sin prometer una frecuencia, que hable de todas las
+ * plataformas de IA y no solo de Excel y ventas, y que se vea el valor de la
+ * comunidad («Por qué en comunidad»).
  */
 
 const INCLUYE = [
   {
-    titulo: 'Una clase en vivo cada quince días',
-    detalle: 'Por Meet, con la liga en tu correo y el evento en tu calendario. Si no llegas, queda la grabación.',
+    titulo: 'Clases en vivo personalizadas',
+    detalle: 'Se arman con lo que preguntan los miembros: llevas tu caso y lo resolvemos en vivo. Si no llegas, queda la grabación.',
+  },
+  {
+    titulo: 'El equipo VADAI contigo',
+    detalle: 'Preguntas en el muro y te responde el equipo. No te quedas atorado con un prompt ni con una herramienta.',
+  },
+  {
+    titulo: 'Todas las plataformas de IA',
+    detalle: 'Claude, ChatGPT, Gemini, Copilot y las herramientas de imagen, video y automatización que van saliendo: qué sirve, para qué y cómo usarla.',
   },
   {
     titulo: 'Noticias de IA casi a diario',
-    detalle: 'Lo que cambió en Claude, ChatGPT y Gemini, explicado para tu negocio y con su fuente. Las comentas en el muro.',
+    detalle: 'Lo que cambió esta semana, explicado para tu negocio y con su fuente. Lo comentas con la comunidad.',
   },
   {
-    titulo: 'Herramientas creativas, administrativas y comerciales',
-    detalle: 'Cada una con su video: para tus presentaciones, tus reportes en Excel, tu correo y tus ventas.',
+    titulo: 'Herramientas y cursos que siguen creciendo',
+    detalle: 'Creativas, administrativas y comerciales, cada una con su video paso a paso. Todo lo nuevo para miembros es tuyo mientras sigas dentro.',
   },
   {
-    titulo: 'Los cursos y clases que se suban para miembros',
-    detalle: 'Todo lo nuevo que se publique en V-AI-P es tuyo mientras seas miembro.',
-  },
-  {
-    titulo: 'Un muro con temas',
-    detalle: 'Preguntas, plantillas y lo que ya te funciona con Excel, Word o tu correo, ordenado por tema.',
-  },
-  {
-    titulo: 'Puntos, nivel y logros',
-    detalle: 'Tu actividad suma en el ranking de la comunidad y se ve en tu perfil de miembro.',
+    titulo: 'Una comunidad que ya lo está haciendo',
+    detalle: 'Dueños de negocio y equipos que comparten plantillas, prompts y lo que les funcionó. Sumas puntos, subes de nivel y ganas logros.',
   },
 ] as const
 
+/** Por qué en comunidad y no solo: el valor que Alejandro quiere que se vea (16-oct-2026). */
+const POR_QUE = [
+  {
+    titulo: 'La IA cambia cada semana',
+    detalle: 'Lo que hoy hace ChatGPT, mañana lo hace mejor Claude o Gemini. Aquí te enteras a tiempo, sin pasarte la tarde leyendo.',
+  },
+  {
+    titulo: 'Nadie se queda atorado',
+    detalle: 'Cuando algo no sale, lo preguntas y te responden el equipo y otros miembros que ya pasaron por ahí.',
+  },
+  {
+    titulo: 'Aprendes de casos reales',
+    detalle: 'Ves cómo otros negocios ya usan IA en ventas, administración y creatividad, y te llevas lo que te sirve.',
+  },
+] as const
+
+/** Lo que VADAI ya afirma en público (CLAUDE.md · Voz). */
+const CREDENCIALES = [
+  { cifra: '+40', etiqueta: 'empresas capacitadas' },
+  { cifra: '4.9/5', etiqueta: 'de calificación' },
+  { cifra: '#1', etiqueta: 'agencia de IA en México' },
+] as const
+
 const PREGUNTAS = [
+  {
+    pregunta: '¿Cómo son las clases?',
+    respuesta:
+      'En vivo, por Meet, y personalizadas: se arman con las dudas y los casos de los miembros. Te llega la liga a tu correo y el evento a tu calendario; si no llegas, queda la grabación.',
+  },
+  {
+    pregunta: '¿Necesito saber de IA para entrar?',
+    respuesta:
+      'No. Hay de todo: quien apenas abrió ChatGPT y quien ya automatiza su negocio. Empiezas donde estás y el equipo te acompaña.',
+  },
   {
     pregunta: '¿Cómo cancelo?',
     respuesta:
@@ -59,11 +98,6 @@ const PREGUNTAS = [
   {
     pregunta: '¿Qué pasa con mi avance si cancelo?',
     respuesta: 'Se queda guardado. Si vuelves, lo encuentras donde lo dejaste.',
-  },
-  {
-    pregunta: '¿Necesito haber tomado un curso de la academia?',
-    respuesta:
-      'No. Si ya tienes cuenta, suscríbete con el mismo correo y todo queda en tu misma cuenta. Si no, la cuenta se crea sola y te llega un correo para entrar.',
   },
   {
     pregunta: '¿Incluye los cursos que se venden aparte?',
@@ -113,8 +147,9 @@ export function VentaVaip({
               Invierte en tu educación. <span className="text-vadai-lima">Avanzamos juntos.</span>
             </h1>
             <p className="max-w-[52ch] text-base text-pretty text-white/80 sm:text-lg">
-              La comunidad de la academia VADAI: una clase en vivo cada quince días, noticias de IA casi a
-              diario y herramientas con su video para tu Excel, tu correo y tus ventas.
+              Con la IA nadie debería aprender solo. En V-AI-P el equipo de VADAI te acompaña mes con mes:
+              clases en vivo personalizadas, lo nuevo de todas las plataformas de IA y una comunidad de
+              negocios que ya la usa en su día a día.
             </p>
           </div>
           <PrecioDelPlan
@@ -127,6 +162,15 @@ export function VentaVaip({
           />
         </div>
       </section>
+
+      <ul className="grid grid-cols-3 gap-4 border-y border-border py-6 text-center">
+        {CREDENCIALES.map((c) => (
+          <li key={c.etiqueta} className="flex flex-col gap-1">
+            <span className="text-2xl font-semibold tracking-tight text-primary tabular-nums sm:text-3xl">{c.cifra}</span>
+            <span className="text-xs text-pretty text-muted-foreground sm:text-sm">{c.etiqueta}</span>
+          </li>
+        ))}
+      </ul>
 
       <section className="flex flex-col gap-5">
         <h2 className="text-xl font-semibold tracking-tight">Qué incluye</h2>
@@ -153,12 +197,34 @@ export function VentaVaip({
       </section>
 
       <section className="flex flex-col gap-5">
+        <div className="flex flex-col gap-1.5">
+          <h2 className="text-xl font-semibold tracking-tight">Por qué en comunidad</h2>
+          <p className="max-w-[60ch] text-sm text-pretty text-muted-foreground">
+            Un curso te enseña una vez. Una comunidad te acompaña mientras la IA sigue cambiando.
+          </p>
+        </div>
+        <ol className="grid gap-4 sm:grid-cols-3">
+          {POR_QUE.map((razon, i) => (
+            <li key={razon.titulo}>
+              <Tarjeta className="flex h-full flex-col gap-2 p-5">
+                <span className="grid size-7 place-items-center rounded-full border border-primary/40 text-sm font-medium text-primary tabular-nums">
+                  {i + 1}
+                </span>
+                <span className="font-medium">{razon.titulo}</span>
+                <span className="text-sm text-pretty text-muted-foreground">{razon.detalle}</span>
+              </Tarjeta>
+            </li>
+          ))}
+        </ol>
+      </section>
+
+      <section className="flex flex-col gap-5">
         <h2 className="text-xl font-semibold tracking-tight">Cómo funciona</h2>
         <ol className="grid gap-4 sm:grid-cols-3">
           {[
             'Te suscribes con tarjeta en la página segura de Stripe.',
             'Te llega un correo para entrar. Si ya tenías cuenta, entras con la de siempre.',
-            'Entras a V-AI-P desde el menú de la plataforma, con todo lo que trae.',
+            'Entras a V-AI-P desde el menú de la plataforma, te presentas en el muro y el equipo te recibe.',
           ].map((paso, i) => (
             <li key={paso} className="flex gap-3">
               <span className="grid size-7 shrink-0 place-items-center rounded-full border border-primary/40 text-sm font-medium text-primary tabular-nums">

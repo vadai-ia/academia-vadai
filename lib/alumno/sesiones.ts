@@ -26,6 +26,9 @@ export type SesionDelAlumno = {
   grabacionExclusiva: boolean
   /** Cuándo se agendó o se cambió por última vez: es lo que avisa la campana. */
   actualizadaEn: string
+  /** M19: una clase (Meet) o un evento externo con su lugar. */
+  tipo: 'clase' | 'evento'
+  lugar: string | null
 }
 
 /**
@@ -65,6 +68,8 @@ export const sesionesDelAlumno = cache(async function sesionesDelAlumno(): Promi
     cohort_id: string
     created_at: string
     updated_at: string
+    kind: 'clase' | 'evento' | null
+    location: string | null
     cohorts: { name: string; courses: { slug: string; title: string } }
   }
 
@@ -97,6 +102,9 @@ export const sesionesDelAlumno = cache(async function sesionesDelAlumno(): Promi
       grabacionLeccionId: s.recording_lesson_id && !cerradas.has(s.recording_lesson_id) ? s.recording_lesson_id : null,
       grabacionExclusiva: Boolean(s.recording_lesson_id && cerradas.has(s.recording_lesson_id)),
       actualizadaEn: s.updated_at ?? s.created_at,
+      // Sin la migración 0043 la columna no viene: todo es clase.
+      tipo: s.kind === 'evento' ? ('evento' as const) : ('clase' as const),
+      lugar: s.location ?? null,
     }))
 })
 

@@ -67,6 +67,8 @@ export type CursoDelAlumno = {
   linkRecompraUsd: string | null
   /** M17: el curso es de V-AI-P; renovar es reactivar la membresía, no recomprar el curso. */
   enVaip: boolean
+  /** M19: una herramienta de V-AI-P y su área, o null si es un curso normal. */
+  categoria: 'creativas' | 'administrativas' | 'comerciales' | null
 }
 
 /**
@@ -293,6 +295,7 @@ export async function misCursos(): Promise<CursoDelAlumno[]> {
         linkRecompraMxn: curso.stripe_payment_link_mxn,
         linkRecompraUsd: curso.stripe_payment_link_usd,
         enVaip: deVaip.has(curso.id),
+        categoria: curso.category ?? null,
       }
     })
     .sort((a, b) => Number(b.vigente) - Number(a.vigente) || a.titulo.localeCompare(b.titulo))
@@ -412,6 +415,7 @@ export const cursoDelAlumno = cache(async function cursoDelAlumno(
     linkRecompraMxn: curso.stripe_payment_link_mxn,
     linkRecompraUsd: curso.stripe_payment_link_usd,
     enVaip: (await cursosDeVaip()).has(curso.id),
+    categoria: curso.category ?? null,
   }
 })
 

@@ -42,6 +42,9 @@ const esquemaSesion = z.object({
   hora: z.string().trim().min(4, 'Falta la hora.'),
   meet_url: z.string().trim(),
   description: z.string().trim(),
+  /** M19: clase (Meet) o evento externo con su lugar. Sin el campo, clase. */
+  kind: z.enum(['clase', 'evento']).default('clase'),
+  location: z.string().trim().max(200, 'El lugar: hasta 200 caracteres.').default(''),
 })
 
 function primerError(resultado: { error?: { issues: Array<{ message: string }> } }) {
@@ -364,8 +367,13 @@ export async function crearSesion(_previo: EstadoAccion, datos: FormData): Promi
     hora: datos.get('hora'),
     meet_url: datos.get('meet_url') ?? '',
     description: datos.get('description') ?? '',
+    kind: datos.get('kind') || undefined,
+    location: datos.get('location') ?? undefined,
   })
   if (!resultado.success) return { error: primerError(resultado) }
+  if (resultado.data.kind === 'evento' && !resultado.data.location && !resultado.data.meet_url) {
+    return { error: 'Un evento necesita su lugar o su liga.' }
+  }
 
   const enUtc = cdmxAUtc(resultado.data.fecha, resultado.data.hora)
   if (!enUtc) return { error: 'La fecha o la hora no son válidas.' }
@@ -379,6 +387,8 @@ export async function crearSesion(_previo: EstadoAccion, datos: FormData): Promi
       scheduled_at: enUtc,
       meet_url: resultado.data.meet_url || null,
       description: resultado.data.description || null,
+      kind: resultado.data.kind,
+      location: resultado.data.location || null,
     })
     .select('id, title, scheduled_at, meet_url')
     .single()
