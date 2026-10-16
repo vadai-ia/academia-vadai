@@ -123,3 +123,12 @@ export const IconoDinamicas = marco(
     <path d="M3 9h18M3 15h18M9 3v18M15 3v18" />
   </>
 )
+
+/** Mis certificaciones (15-oct-2026): una medalla con su listón. */
+export const IconoCertificaciones = marco(
+  <>
+    <circle cx="12" cy="9" r="6" />
+    <path d="m8.2 13.6-1.7 8.1L12 19l5.5 2.7-1.7-8.1" />
+    <path d="m12 6.6.8 1.7 1.8.2-1.3 1.2.3 1.8-1.6-.9-1.6.9.3-1.8-1.3-1.2 1.8-.2Z" />
+  </>
+)

@@ -61,6 +61,9 @@ const PREFIJOS_PUBLICOS = [
   // se abre desde el correo de fechas, donde no hay sesión. Sin firma válida
   // la ruta misma contesta 401.
   '/api/calendario/cohorte/',
+  // Verificación pública del diploma de generación (15-oct-2026), igual que
+  // /certificado/: quien lo verifica no tiene cuenta.
+  '/diploma/',
 ]
 
 export function esPublica(ruta: string): boolean {

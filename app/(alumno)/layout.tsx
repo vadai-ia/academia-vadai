@@ -5,6 +5,7 @@ import { Campana } from '@/components/marca/campana'
 import { Encabezado } from '@/components/marca/encabezado'
 import {
   IconoBlog,
+  IconoCertificaciones,
   IconoComunidad,
   IconoCursos,
   IconoInicio,
@@ -59,6 +60,8 @@ export default async function LayoutAlumno({ children }: { children: ReactNode }
           },
           { href: '/blog', etiqueta: 'Blog', icono: IconoBlog, novedades: canales.blog },
           { href: '/puntos', etiqueta: 'Tus puntos', icono: IconoPuntos },
+          // Diploma de generación VADAI · Total Coach (15-oct-2026).
+          { href: '/certificaciones', etiqueta: 'Mis certificaciones', icono: IconoCertificaciones },
           { href: '/perfil', etiqueta: 'Mi perfil', icono: IconoPerfil },
         ]}
         // Solo para quien puede entrar al panel: un enlace que rebota es peor que
