@@ -85,13 +85,13 @@ export function RevelarDiploma({
     <div className="relative">
       <style>{ESTILOS}</style>
       <noscript>
-        <style>{'.vt-sobre{display:none!important}.vt-contenido{opacity:1!important;transform:none!important}'}</style>
+        <style>{'.vt-sobre{display:none!important}.vt-contenido{display:flex!important}'}</style>
       </noscript>
 
       {fase !== 'cerrado' ? <Confeti /> : null}
 
       {fase !== 'abierto' ? (
-        <div className="vt-sobre absolute inset-0 z-10 flex items-center justify-center">
+        <div className="vt-sobre flex justify-center py-2">
           <div
             className={`relative flex w-full max-w-xl flex-col items-center gap-5 overflow-hidden rounded-2xl px-6 py-10 text-center text-white shadow-xl sm:px-10 ${
               fase === 'abriendo' ? 'vt-sobre-sale' : 'vt-sobre-entra'
@@ -130,7 +130,7 @@ export function RevelarDiploma({
         </div>
       ) : null}
 
-      <div className={`vt-contenido flex flex-col gap-6 ${fase === 'abierto' ? 'vt-aparece' : 'pointer-events-none opacity-0'}`}>
+      <div className={`vt-contenido flex-col gap-6 ${fase === 'abierto' ? 'vt-aparece flex' : 'hidden'}`}>
         <div className="flex flex-col items-center gap-2 text-center">
           <p className="text-3xl font-semibold tracking-tight text-balance sm:text-4xl">
             ¡Felicidades, <span className="text-primary">{primerNombre}</span>!

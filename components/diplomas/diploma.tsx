@@ -21,7 +21,8 @@ const CYAN = '#00A0DB'
 const LIMA = '#C6F24E'
 
 function SelloPartner() {
-  const texto = 'PARTNER DE CLAUDE · MÉXICO · PARTNER DE CLAUDE · MÉXICO · '
+  // Una vuelta exacta: `textLength` = circunferencia (2π·44), sin que el final pise el inicio.
+  const texto = 'PARTNER DE CLAUDE · MÉXICO · VADAI · '
   return (
     <svg viewBox="0 0 120 120" className="h-full w-full" role="img" aria-label="VADAI, partner de Claude en México">
       <defs>
@@ -30,8 +31,10 @@ function SelloPartner() {
       <circle cx="60" cy="60" r="57" fill={NAVY} />
       <circle cx="60" cy="60" r="52" fill="none" stroke={LIMA} strokeWidth="1.2" />
       <circle cx="60" cy="60" r="33" fill="none" stroke={CYAN} strokeWidth="0.8" />
-      <text fill="#F5F8FB" fontSize="8.2" fontWeight="700" letterSpacing="1.6" fontFamily="Inter, Arial, sans-serif">
-        <textPath href="#vt-circulo">{texto}</textPath>
+      <text fill="#F5F8FB" fontSize="8.4" fontWeight="700" fontFamily="Inter, Arial, sans-serif">
+        <textPath href="#vt-circulo" textLength="272" lengthAdjust="spacing">
+          {texto}
+        </textPath>
       </text>
       <path
         d="M60 36c1.6 8.6 4.8 11.8 13.4 13.4-8.6 1.6-11.8 4.8-13.4 13.4-1.6-8.6-4.8-11.8-13.4-13.4 8.6-1.6 11.8-4.8 13.4-13.4Z"
@@ -82,25 +85,31 @@ export function Diploma({
           style={{ background: CYAN }}
         />
 
-        <div className="relative flex h-full flex-col items-center px-[8cqw] pt-[6.2cqw] pb-[5.4cqw] text-center">
+        {/* Sello de partner, en la esquina: valida sin competir con el nombre. */}
+        <div className="absolute top-[5.4cqw] right-[6cqw] size-[10.5cqw] rotate-[-8deg]">
+          <SelloPartner />
+        </div>
+
+        <div className="relative flex h-full flex-col items-center justify-between px-[8cqw] pt-[6.2cqw] pb-[5cqw] text-center">
           <div className="flex items-center gap-[2.4cqw]">
             <img src="/vadai-wordmark.png" alt="VADAI" className="h-[3.6cqw] w-auto" />
             <span className="h-[3.4cqw] w-[0.12cqw]" style={{ background: '#B3D0DE' }} aria-hidden />
             <img src="/totalcoach-logo.png" alt="Total Coach" className="h-[3.2cqw] w-auto" />
           </div>
 
-          <p className="mt-[3.2cqw] text-[1.45cqw] font-bold tracking-[0.42em] uppercase" style={{ color: AZUL }}>
+          <div className="flex flex-col items-center">
+          <p className="text-[1.7cqw] font-bold tracking-[0.42em] uppercase" style={{ color: AZUL }}>
             Diploma de certificación
           </p>
-          <p className="mt-[1.6cqw] text-[1.5cqw]" style={{ color: '#4E6572' }}>
+          <p className="mt-[2cqw] text-[1.8cqw]" style={{ color: '#4E6572' }}>
             Se otorga a
           </p>
-          <h2 className="mt-[0.6cqw] max-w-[78cqw] text-[5.2cqw] leading-[1.05] font-semibold tracking-tight text-balance">
+          <h2 className="mt-[0.8cqw] max-w-[74cqw] text-[5.8cqw] leading-[1.05] font-semibold tracking-tight text-balance">
             {nombre}
           </h2>
-          <div className="mt-[1.2cqw] h-[0.45cqw] w-[16cqw] rounded-full" style={{ background: LIMA }} aria-hidden />
+          <div className="mt-[1.6cqw] h-[0.5cqw] w-[18cqw] rounded-full" style={{ background: LIMA }} aria-hidden />
 
-          <p className="mt-[2cqw] max-w-[66cqw] text-[1.6cqw] leading-[1.5] text-pretty" style={{ color: '#2B3E52' }}>
+          <p className="mt-[2.4cqw] max-w-[64cqw] text-[1.9cqw] leading-[1.5] text-pretty" style={{ color: '#2B3E52' }}>
             por haber cursado el programa{' '}
             <strong className="font-semibold" style={{ color: NAVY }}>
               {programa.curso}
@@ -108,26 +117,23 @@ export function Diploma({
             , {programa.generacion} ({programa.periodo.toLowerCase()}), en el que aplicó la inteligencia artificial
             de Claude al trabajo real de su empresa.
           </p>
+          </div>
 
-          <div className="mt-auto grid w-full grid-cols-[1fr_1fr_auto_1fr] items-end gap-[2.6cqw]">
-            {programa.firmantes.slice(0, 2).map((f) => (
-              <Firma key={f.nombre} nombre={f.nombre} cargo={f.cargo} />
-            ))}
-            <div className="mb-[0.4cqw] size-[11cqw]">
-              <SelloPartner />
-            </div>
-            {programa.firmantes.slice(2).map((f) => (
+          <div className="w-full">
+          <div className="grid w-full grid-cols-3 items-end gap-[4cqw] px-[2cqw]">
+            {programa.firmantes.map((f) => (
               <Firma key={f.nombre} nombre={f.nombre} cargo={f.cargo} />
             ))}
           </div>
 
-          <p className="mt-[2.2cqw] text-[1.05cqw]" style={{ color: '#4E6572' }}>
+          <p className="mt-[2.4cqw] text-[1.1cqw]" style={{ color: '#4E6572' }}>
             Emitido el {programa.emitido} · Folio{' '}
             <span className="font-mono font-semibold" style={{ color: NAVY }}>
               {folio}
             </span>{' '}
             · Verifícalo en {urlDeVerificacion.replace(/^https?:\/\//, '')}
           </p>
+          </div>
         </div>
       </article>
     </div>
@@ -137,12 +143,12 @@ export function Diploma({
 function Firma({ nombre, cargo }: { nombre: string; cargo: string }) {
   return (
     <div className="flex min-w-0 flex-col items-center">
-      <span className={`${firma.className} text-[3.6cqw] leading-none whitespace-nowrap`} style={{ color: AZUL }}>
+      <span className={`${firma.className} text-[2.7cqw] leading-none whitespace-nowrap`} style={{ color: AZUL }}>
         {nombre}
       </span>
       <span className="mt-[0.5cqw] h-[0.1cqw] w-full" style={{ background: NAVY }} aria-hidden />
-      <span className="mt-[0.7cqw] text-[1.2cqw] font-semibold">{nombre}</span>
-      <span className="text-[1.05cqw]" style={{ color: '#4E6572' }}>
+      <span className="mt-[0.8cqw] text-[1.3cqw] font-semibold whitespace-nowrap">{nombre}</span>
+      <span className="text-[1.15cqw]" style={{ color: '#4E6572' }}>
         {cargo}
       </span>
     </div>
