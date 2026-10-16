@@ -57,8 +57,10 @@ export default async function PaginaMiembro({ params }: { params: Promise<{ user
 
       {miembro.puesto ? (
         <div className="grid grid-cols-3 gap-4">
-          <Cifra valor={miembro.puesto.puntos} etiqueta="puntos en V-AI-P" destacada />
-          <Cifra valor={miembro.puesto.nivel.nombre} etiqueta="nivel" />
+          {/* El nivel va como número y su nombre de etiqueta: «Recién llegado» como cifra
+              no cabía en un tercio de 390 px. */}
+          <Cifra valor={miembro.puesto.puntos} etiqueta="puntos" destacada />
+          <Cifra valor={`Nivel ${miembro.puesto.nivel.numero}`} etiqueta={miembro.puesto.nivel.nombre} />
           <Cifra valor={`#${miembro.puesto.lugar}`} etiqueta="en el ranking" />
         </div>
       ) : null}

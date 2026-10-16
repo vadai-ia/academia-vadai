@@ -27,14 +27,16 @@ export function FotoYBio({ nombre, foto, bio }: { nombre: string; foto: string |
     <form action={accion} className="flex flex-col gap-4">
       <div className="flex items-center gap-4">
         <Avatar nombre={nombre} foto={foto} tamano={64} className="text-xl" />
-        <div className="flex flex-col gap-1.5">
+        {/* min-w-0 + w-full: el texto nativo del selector ("No se ha seleccionado
+            ningún archivo") no se parte, y sin tope empujaba la página más allá de 390 px. */}
+        <div className="flex min-w-0 flex-1 flex-col gap-1.5">
           <Label htmlFor="perfil-foto">Foto</Label>
           <input
             id="perfil-foto"
             name="foto"
             type="file"
             accept="image/*"
-            className="text-sm file:mr-3 file:rounded-md file:border file:border-border file:bg-background file:px-3 file:py-1.5 file:text-sm"
+            className="w-full min-w-0 text-sm file:mr-3 file:rounded-md file:border file:border-border file:bg-background file:px-3 file:py-1.5 file:text-sm"
           />
           {foto ? (
             <label className="flex items-center gap-2 text-xs text-muted-foreground">

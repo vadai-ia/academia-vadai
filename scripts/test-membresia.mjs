@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 /**
- * test-membresia.mjs — Criterio de cierre de M17, fase 1 (VADAI V-AI-P).
+ * test-membresia.mjs — Criterio de cierre de M17, fases 1 y 2 (VADAI V-AI-P).
  *
  * Como test-stripe.mjs: firma eventos sintéticos con el `whsec_` real y los manda
  * al endpoint, sin mover un peso. Cubre lo que un pago feliz nunca ejerce:
@@ -14,8 +14,17 @@
  * cursos `qa-vaip-*`, las suscripciones `sub_qavaip_*`, las facturas
  * `in_qavaip_*` y los eventos `evt_qavaip_*`. Al plan real no le toca nada.
  *
+ * Fase 2 (el espacio de miembros): temas del muro con su RLS y su trigger,
+ * ranking y logros en /vaip, el perfil de miembro (la casa real solo se toca
+ * dentro de una transacción que se revierte) y la serie quincenal del panel
+ * con su anuncio y su correo, que a una cuenta qa-* nunca sale.
+ *
  *   PORT=3117 pnpm start
  *   node scripts/test-membresia.mjs
+ *
+ * Para fotografiar el espacio de miembro (pnpm capturas -- --solo=vaip):
+ *   node scripts/test-membresia.mjs --conservar   # corre y deja el escenario armado
+ *   node scripts/test-membresia.mjs --limpiar     # lo borra, sin correr nada
  */
 
 import { createHmac } from 'node:crypto'
@@ -36,6 +45,8 @@ const CORREO_VITALICIO = 'qa-alumno1@academia.vadai.com.mx'
 const CORREO_CM = 'qa-cm@academia.vadai.com.mx'
 const CORREO_ADMIN = 'qa-admin@academia.vadai.com.mx'
 const DIA = 24 * 60 * 60
+const CONSERVAR = process.argv.includes('--conservar')
+const SOLO_LIMPIAR = process.argv.includes('--limpiar')
 
 // --- firma y envío ------------------------------------------------------------
 
@@ -153,8 +164,62 @@ async function entrar(email) {
   return frasco
 }
 
-const pedir = (ruta, frasco) =>
-  fetch(`${APP}${ruta}`, { redirect: 'manual', headers: frasco?.tamano ? { cookie: frasco.encabezado() } : {} })
+const pedir = (ruta, frasco, opciones = {}) =>
+  fetch(`${APP}${ruta}`, {
+    redirect: 'manual',
+    ...opciones,
+    headers: frasco?.tamano ? { cookie: frasco.encabezado() } : {},
+  })
+
+/**
+ * Los formularios de una página con su acción de servidor (mejora progresiva),
+ * como en test-cohortes: los `$ACTION_*` se copian tal cual y el servidor los
+ * interpreta. Se elige el formulario por un campo que solo él tiene.
+ */
+function formularioCon(html, campo) {
+  for (const bloque of html.matchAll(/<form\b[^>]*>([\s\S]*?)<\/form>/g)) {
+    if (!bloque[1].includes(`name="${campo}"`)) continue
+    const campos = {}
+    for (const etiqueta of bloque[1].matchAll(/<(?:input|select|textarea)\b[^>]*>/g)) {
+      const nombre = etiqueta[0].match(/name="([^"]*)"/)?.[1]
+      if (!nombre) continue
+      campos[nombre] = (etiqueta[0].match(/value="([^"]*)"/)?.[1] ?? '')
+        .replace(/&quot;/g, '"')
+        .replace(/&#x27;/g, "'")
+        .replace(/&amp;/g, '&')
+    }
+    return campos
+  }
+  return null
+}
+
+async function enviarFormulario(ruta, campos, frasco) {
+  const cuerpo = new FormData()
+  for (const [nombre, valor] of Object.entries(campos)) cuerpo.append(nombre, valor)
+  return pedir(ruta, frasco, { method: 'POST', body: cuerpo })
+}
+
+/** Una consulta con la sesión de alguien (RLS), dentro de una transacción que se revierte. */
+async function comoUsuario(bd, userId, sql, params = []) {
+  await bd.query('begin')
+  try {
+    await bd.query(`set local role authenticated`)
+    await bd.query(`select set_config('request.jwt.claims', $1, true)`, [JSON.stringify({ sub: userId, role: 'authenticated' })])
+    const { rows } = await bd.query(sql, params)
+    return { filas: rows, error: null }
+  } catch (error) {
+    return { filas: [], error: error.code ?? error.message }
+  } finally {
+    await bd.query('rollback')
+  }
+}
+
+/** Si un logro sale ganado o pendiente en el HTML (el texto oculto de cada tarjeta). */
+const estadoDeLogro = (html, nombre) =>
+  html.match(new RegExp(`${nombre}</span>[\\s\\S]*?<span class="sr-only">(Ganado|Pendiente)</span>`))?.[1] ?? 'no aparece'
+
+const fechaCdmx = (epoch) =>
+  new Intl.DateTimeFormat('en-CA', { timeZone: 'America/Mexico_City' }).format(new Date(epoch * 1000))
 
 // --- reporte --------------------------------------------------------------------
 
@@ -166,7 +231,7 @@ function imprimir() {
   const porGrupo = new Map()
   for (const r of resultados) porGrupo.set(r.grupo, [...(porGrupo.get(r.grupo) ?? []), r])
   const ancho = Math.max(...resultados.map((r) => r.descripcion.length))
-  console.log('\n  PRUEBA DE MEMBRESÍA — M17 · fase 1')
+  console.log('\n  PRUEBA DE MEMBRESÍA — M17 · fases 1 y 2')
   console.log(`  App: ${APP}`)
   for (const [grupo, casos] of porGrupo) {
     console.log(`\n  ${grupo}\n  ${'─'.repeat(ancho + 30)}`)
@@ -178,7 +243,7 @@ function imprimir() {
   console.log(`\n  ${'─'.repeat(ancho + 30)}`)
   console.log(
     fallidas.length === 0
-      ? `  M17 (fase 1) EN VERDE — ${resultados.length}/${resultados.length} aserciones pasaron.`
+      ? `  M17 (fases 1 y 2) EN VERDE — ${resultados.length}/${resultados.length} aserciones pasaron.`
       : `  ${fallidas.length} de ${resultados.length} aserciones FALLARON.`
   )
   for (const f of fallidas) console.log(`    ${f.grupo} · ${f.descripcion}: esperado ${f.esperado}, obtuvo ${f.real}`)
@@ -188,7 +253,46 @@ function imprimir() {
 
 // --- siembra y limpieza -----------------------------------------------------------
 
+/**
+ * Lo que el alta le deja a una cuenta QA FUERA de los cursos de la suite: los
+ * cursos base reales ("Academia VADAI") inscriben a todo alumno que se da de
+ * alta, también a uno QA. Se anota qué tenía al empezar y al final se quita
+ * solo lo que apareció durante la corrida.
+ */
+async function inscripcionesDe(bd, email) {
+  const { rows } = await bd.query(
+    `select e.course_id from academia.enrollments e join academia.profiles p on p.user_id = e.user_id where lower(p.email) = $1`,
+    [email]
+  )
+  return rows.map((r) => r.course_id)
+}
+
+async function quitarLoNuevo(bd, email, previas) {
+  await bd.query(
+    `delete from academia.enrollments e using academia.profiles p
+      where p.user_id = e.user_id and lower(p.email) = $1 and not (e.course_id = any($2::uuid[]))`,
+    [email, previas]
+  )
+}
+
+/** La cuenta que crea el alta de la suite. Solo esa, por correo exacto. */
+async function borrarCuentaDeLaSuite(bd) {
+  const fila = await una(bd, `select user_id from academia.profiles where lower(email) = $1`, [CORREO])
+  if (!fila) return
+  await bd.query(`delete from academia.enrollments where user_id = $1`, [fila.user_id])
+  await fetch(`${SUPABASE}/auth/v1/admin/users/${fila.user_id}`, {
+    method: 'DELETE',
+    headers: { apikey: SERVICE, Authorization: `Bearer ${SERVICE}` },
+  })
+  await bd.query(`delete from academia.profiles where user_id = $1`, [fila.user_id])
+}
+
 async function purgar(bd) {
+  const deLaSuite = `(select id from academia.courses where slug like 'qa-vaip-%')`
+  await bd.query(`delete from academia.posts where audience_course_id in ${deLaSuite}`)
+  await bd.query(`delete from academia.community_posts where course_id in ${deLaSuite}`)
+  await bd.query(`delete from academia.community_topics where course_id in ${deLaSuite}`)
+  await bd.query(`delete from academia.cohort_sessions where cohort_id in (select id from academia.cohorts where course_id in ${deLaSuite})`)
   await bd.query(
     `delete from academia.enrollments where course_id in (select id from academia.courses where slug like 'qa-vaip-%')`
   )
@@ -254,8 +358,18 @@ async function verComo(bd, userId) {
 
 const bd = await conectarPostgres(vars)
 let verde = false
+let previasVitalicio = null
+if (SOLO_LIMPIAR) {
+  await purgar(bd)
+  await borrarCuentaDeLaSuite(bd)
+  await bd.end()
+  console.log('\n  Escenario de test-membresia borrado.\n')
+  process.exit(0)
+}
 try {
   await purgar(bd)
+  await borrarCuentaDeLaSuite(bd)
+  previasVitalicio = await inscripcionesDe(bd, CORREO_VITALICIO)
   const ids = await sembrar(bd)
   const t0 = ahora()
   const inicio = t0 - DIA
@@ -405,11 +519,152 @@ try {
   )
   afirmar('Baja', 'el miembro activo cuenta como activo para la baja', true, activas.n > 0)
 
+  // ===================================================================
+  // FASE 2: el espacio de miembros.
+  // ===================================================================
+
+  // 17. Temas del muro: los crea el equipo, filtran, y no cruzan de curso.
+  const alumno2Id = (await una(bd, `select user_id from academia.profiles where email = $1`, ['qa-alumno2@academia.vadai.com.mx']))?.user_id
+  const intruso = await comoUsuario(
+    bd,
+    miembroId,
+    `insert into academia.community_topics (course_id, name, slug) values ($1, 'QA intruso', 'qa-intruso') returning id`,
+    [ids.casa]
+  )
+  afirmar('Temas', 'un alumno no puede crear temas (RLS)', '42501', intruso.error)
+  const delEquipo = await comoUsuario(
+    bd,
+    cmId,
+    `insert into academia.community_topics (course_id, name, slug) values ($1, 'QA del CM', 'qa-del-cm') returning id`,
+    [ids.casa]
+  )
+  afirmar('Temas', 'el community manager sí puede', null, delEquipo.error)
+
+  const tema = async (slug, nombre) =>
+    (
+      await bd.query(
+        `insert into academia.community_topics (course_id, name, slug, position) values ($1, $2, $3, 0) returning id`,
+        [ids.casa, nombre, slug]
+      )
+    ).rows[0].id
+  const temaPrompts = await tema('qa-prompts', 'QA Prompts')
+  const temaVentas = await tema('qa-ventas', 'QA Ventas')
+  const visibles = await comoUsuario(bd, miembroId, `select count(*)::int as n from academia.community_topics where course_id = $1`, [ids.casa])
+  afirmar('Temas', 'el miembro ve los temas de su curso', 2, visibles.filas[0]?.n)
+  const ajeno = await comoUsuario(bd, alumno2Id, `select count(*)::int as n from academia.community_topics where course_id = $1`, [ids.casa])
+  afirmar('Temas', 'quien no está inscrito no los ve', 0, ajeno.filas[0]?.n)
+
+  const publicar = (titulo, temaId, curso = ids.casa) =>
+    bd.query(
+      `insert into academia.community_posts (course_id, cohort_id, user_id, title, topic_id) values ($1, $2, $3, $4, $5)`,
+      [curso, curso === ids.casa ? ids.gen : null, miembroId, titulo, temaId]
+    )
+  await publicar('QA-TEMA-PROMPTS (test-membresia)', temaPrompts)
+  await publicar('QA-TEMA-VENTAS (test-membresia)', temaVentas)
+  let cruzado = null
+  try {
+    await publicar('QA-TEMA-CRUZADO (test-membresia)', temaPrompts, ids.extra)
+  } catch (error) {
+    cruzado = error.code
+  }
+  afirmar('Temas', 'un tema de otro curso se rechaza (trigger)', '23514', cruzado)
+
+  const muro = await (await pedir('/curso/qa-vaip-casa/comunidad', sesionMiembro)).text()
+  afirmar('Temas', 'el muro principal enseña todo', true, muro.includes('QA-TEMA-PROMPTS') && muro.includes('QA-TEMA-VENTAS'))
+  const filtrado = await (await pedir('/curso/qa-vaip-casa/comunidad?tema=qa-prompts', sesionMiembro)).text()
+  afirmar('Temas', 'filtrar por tema enseña solo ese tema', true, filtrado.includes('QA-TEMA-PROMPTS') && !filtrado.includes('QA-TEMA-VENTAS'))
+
+  // 18. El espacio: ranking y logros calculados con la actividad real.
+  const espacio = await (await pedir('/vaip', sesionMiembro)).text()
+  afirmar('Espacio', 'el miembro ve su espacio, no la venta', true, espacio.includes('Ranking de V-AI-P') && !espacio.includes('MXN al mes'))
+  afirmar('Espacio', 'va en primer lugar (es el único con actividad)', '1', espacio.match(/Vas <span[^>]*>#(?:<!-- -->)?(\d+)/)?.[1] ?? null)
+  afirmar('Espacio', 'logro «Rompió el hielo» por publicar', 'Ganado', estadoDeLogro(espacio, 'Rompió el hielo'))
+  afirmar('Espacio', 'logro «Miembro fundador» por entrar el primer mes', 'Ganado', estadoDeLogro(espacio, 'Miembro fundador'))
+  afirmar('Espacio', 'logro «Top 10» por su lugar', 'Ganado', estadoDeLogro(espacio, 'Top 10'))
+  afirmar('Espacio', 'un año todavía no', 'Pendiente', estadoDeLogro(espacio, 'Un año en V-AI-P'))
+
+  // 19. El perfil de miembro: solo entre miembros vigentes de la casa, o para el equipo.
+  // La casa REAL no se toca: las inscripciones viven dentro de una transacción que se revierte.
+  const hub = (await una(bd, `select hub_course_id from academia.membership_plans where slug = $1`, [PLAN]))?.hub_course_id
+  const verPerfil = async (quien, aQuien) => {
+    await bd.query(`select set_config('request.jwt.claims', $1, true)`, [JSON.stringify({ sub: quien, role: 'authenticated' })])
+    return (await bd.query(`select count(*)::int as n from academia.academia_perfil_de_miembro($1)`, [aQuien])).rows[0].n
+  }
+  await bd.query('begin')
+  try {
+    await bd.query(
+      `insert into academia.enrollments (user_id, course_id, source, status, expires_at)
+       values ($1, $3, 'manual', 'active', null), ($2, $3, 'manual', 'active', null)
+       on conflict (user_id, course_id) do nothing`,
+      [miembroId, vitalicioId, hub]
+    )
+    await bd.query(`set local role authenticated`)
+    afirmar('Perfil de miembro', 'un miembro ve a otro miembro', 1, await verPerfil(miembroId, vitalicioId))
+    afirmar('Perfil de miembro', 'quien no es miembro no ve a nadie', 0, await verPerfil(alumno2Id, miembroId))
+    afirmar('Perfil de miembro', 'un miembro no ve a quien no es miembro', 0, await verPerfil(miembroId, alumno2Id))
+    afirmar('Perfil de miembro', 'el equipo ve a cualquier miembro', 1, await verPerfil(cmId, miembroId))
+  } finally {
+    await bd.query('rollback')
+  }
+  const sesionAlumno2 = await entrar('qa-alumno2@academia.vadai.com.mx')
+  afirmar('Perfil de miembro', 'la página da 404 a quien no es miembro', 404, (await pedir(`/vaip/miembros/${miembroId}`, sesionAlumno2)).status)
+  afirmar('Perfil de miembro', 'y abre para el equipo', 200, (await pedir(`/vaip/miembros/${miembroId}`, admin)).status)
+
+  // 20. Serie quincenal desde el panel, con anuncio y correo (que a qa-* no sale).
+  const rutaGen = `/admin/cursos/${ids.casa}?gen=${ids.gen}`
+  const campos = formularioCon(await (await pedir(rutaGen, admin)).text(), 'titulo_base')
+  afirmar('Serie quincenal', 'el panel trae el formulario de la serie', true, campos !== null)
+  const primera = fechaCdmx(ahora() + 7 * DIA)
+  const respuesta = await enviarFormulario(
+    rutaGen,
+    {
+      ...campos,
+      titulo_base: 'QA Clase',
+      cantidad: '3',
+      fecha: primera,
+      hora: '19:00',
+      cada: 'quincena',
+      meet_url: 'https://meet.google.com/qa-vaip-prueba',
+      anunciar: 'si',
+      avisar: 'si',
+    },
+    admin
+  )
+  const avisoSerie = await respuesta.text()
+  const { rows: clases } = await bd.query(
+    `select title, extract(epoch from scheduled_at)::bigint as t from academia.cohort_sessions where cohort_id = $1 order by scheduled_at`,
+    [ids.gen]
+  )
+  afirmar('Serie quincenal', 'se agendan las 3 clases', 3, clases.length)
+  afirmar('Serie quincenal', 'la primera en la fecha pedida', primera, clases[0] ? fechaCdmx(Number(clases[0].t)) : null)
+  afirmar(
+    'Serie quincenal',
+    'cada 14 días exactos',
+    true,
+    clases.length === 3 && clases.every((c, i) => i === 0 || Number(c.t) - Number(clases[i - 1].t) === 14 * DIA)
+  )
+  const anuncio = await una(
+    bd,
+    `select title, content_rich::text as cuerpo from academia.posts where audience_course_id = $1 and audience_cohort_id = $2 and post_type = 'announcement'`,
+    [ids.casa, ids.gen]
+  )
+  afirmar('Serie quincenal', 'sale un anuncio para la generación', '3 clases en vivo agendadas', anuncio?.title ?? null)
+  afirmar('Serie quincenal', 'con la liga a En vivo', true, Boolean(anuncio?.cuerpo.includes('/curso/qa-vaip-casa/en-vivo')))
+  afirmar('Serie quincenal', 'el panel confirma el anuncio', true, avisoSerie.includes('Salió el anuncio.'))
+  afirmar('Serie quincenal', 'y el correo no le sale a ninguna cuenta qa-*', true, avisoSerie.includes('Las fechas salieron a 0 alumnos'))
+
   verde = imprimir()
 } catch (error) {
   console.error('\n  La prueba se cayó:', error)
 } finally {
-  await purgar(bd).catch((e) => console.error('  Limpieza incompleta:', e.message))
+  // El curso base real que el alta le dio a qa-alumno1 se quita siempre: no hace falta para fotografiar.
+  if (previasVitalicio) await quitarLoNuevo(bd, CORREO_VITALICIO, previasVitalicio).catch((e) => console.error('  Limpieza incompleta:', e.message))
+  if (CONSERVAR) {
+    console.log(`  --conservar: el escenario sigue armado (${CORREO}). Bórralo con --limpiar.\n`)
+  } else {
+    await purgar(bd).catch((e) => console.error('  Limpieza incompleta:', e.message))
+    await borrarCuentaDeLaSuite(bd).catch((e) => console.error('  Limpieza incompleta:', e.message))
+  }
   await bd.end()
   process.exitCode = verde ? 0 : 1
 }

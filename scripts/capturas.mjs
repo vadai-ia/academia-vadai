@@ -86,6 +86,7 @@ const SESIONES = {
       '/admin/dinamicas',
       '/admin/entregas',
       '/admin/publicaciones',
+      '/admin/vaip',
     ],
   },
   // El community manager (0036): lo que ve sin los botones de admin.
@@ -99,9 +100,15 @@ const SESIONES = {
       '/admin/alumnos',
     ],
   },
+  // V-AI-P (M17): el miembro de test-membresia. Solo existe mientras el
+  // escenario está armado: `node scripts/test-membresia.mjs --conservar`.
+  vaip: {
+    email: 'qa-vaip1@academia.vadai.com.mx',
+    rutas: ['/vaip', '/curso/qa-vaip-casa/comunidad', '/curso/qa-vaip-casa/comunidad?tema=qa-prompts', '/perfil'],
+  },
   publico: {
     email: null,
-    rutas: ['/login', '/recuperar'],
+    rutas: ['/login', '/recuperar', '/vaip'],
   },
 }
 
