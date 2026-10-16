@@ -51,15 +51,26 @@ const CAMPOS_CURSO = [
 ] as const
 
 /**
- * La casilla «Incluido en V-AI-P» (M17) se guarda como `plan_id`. El plan se
- * busca por su slug: hoy hay uno.
+ * La casilla «Incluido en V-AI-P» es una fila de `membership_plan_courses`
+ * (M18; antes, `courses.plan_id`). Los demás planes se arman en V-AI-P → Planes.
+ * La casa de V-AI-P no se puede quitar de su plan.
  */
-async function conPlan<T extends { en_vaip: boolean }>(datos: T) {
-  const { en_vaip, ...curso } = datos
-  if (!en_vaip) return { ...curso, plan_id: null }
+async function alinearConVaip(cursoId: string, enVaip: boolean): Promise<void> {
   const supabase = await crearClienteServidor()
-  const { data } = await supabase.from('membership_plans').select('id').eq('slug', 'v-ai-p').maybeSingle()
-  return { ...curso, plan_id: data?.id ?? null }
+  const { data: plan } = await supabase
+    .from('membership_plans')
+    .select('id, hub_course_id')
+    .eq('slug', 'v-ai-p')
+    .maybeSingle()
+  if (!plan) return
+  const { error } = enVaip
+    ? await supabase
+        .from('membership_plan_courses')
+        .upsert({ plan_id: plan.id, course_id: cursoId }, { onConflict: 'plan_id,course_id', ignoreDuplicates: true })
+    : plan.hub_course_id === cursoId
+      ? { error: null }
+      : await supabase.from('membership_plan_courses').delete().eq('plan_id', plan.id).eq('course_id', cursoId)
+  if (error) registrarFallo('alinearConVaip', { cursoId, enVaip }, error.message)
 }
 
 const CAMPOS_LECCION = [
@@ -88,17 +99,15 @@ export async function crearCurso(_previo: EstadoAccion, datos: FormData): Promis
     return { error: `Ya existe un curso con el slug "${resultado.data.slug}".` }
   }
 
+  const { en_vaip, ...curso } = resultado.data
   const supabase = await crearClienteServidor()
-  const { data, error } = await supabase
-    .from('courses')
-    .insert(await conPlan(resultado.data))
-    .select('id')
-    .single()
+  const { data, error } = await supabase.from('courses').insert(curso).select('id').single()
 
   if (error || !data) {
     registrarFallo('crearCurso', { slug: resultado.data.slug }, error?.message ?? 'sin id')
     return { error: 'No se pudo crear el curso.' }
   }
+  await alinearConVaip(data.id, en_vaip)
 
   revalidatePath('/admin/cursos')
   redirect(`/admin/cursos/${data.id}`)
@@ -120,13 +129,15 @@ export async function actualizarCurso(_previo: EstadoAccion, datos: FormData): P
     return { error: `Ya existe otro curso con el slug "${resultado.data.slug}".` }
   }
 
+  const { en_vaip, ...curso } = resultado.data
   const supabase = await crearClienteServidor()
-  const { error } = await supabase.from('courses').update(await conPlan(resultado.data)).eq('id', id)
+  const { error } = await supabase.from('courses').update(curso).eq('id', id)
 
   if (error) {
     registrarFallo('actualizarCurso', { id }, error.message)
     return { error: 'No se pudo guardar el curso.' }
   }
+  await alinearConVaip(id, en_vaip)
 
   revalidatePath('/admin/cursos')
   revalidatePath(`/admin/cursos/${id}`)

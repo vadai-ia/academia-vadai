@@ -51,6 +51,13 @@ type Opciones = {
   /** `membresia` (M17): la alta la hace el webhook de V-AI-P. */
   origen: 'stripe' | 'manual' | 'membresia'
   /**
+   * El nombre que trae el alta solo LLENA un perfil sin nombre; no pisa el que
+   * ya tenía (M18). Lo usa la membresía: el nombre del formulario de Stripe es
+   * el de la tarjeta («JUAN P GARCIA»), y el del perfil es el que la persona
+   * eligió y el que se imprime en sus certificados.
+   */
+  conservarNombre?: boolean
+  /**
    * Vencimiento explícito de la inscripción (M17). Gana sobre `access_days`:
    * la membresía da acceso hasta donde diga su suscripción, y un checkout
    * reenviado no puede convertirlo en acceso de por vida. `undefined` = usar
@@ -251,7 +258,9 @@ export async function darDeAlta(opciones: Opciones): Promise<ResultadoAlta> {
     {
       user_id: usuario.id,
       email,
-      full_name: opciones.nombre?.trim() || previo?.full_name || '',
+      full_name: opciones.conservarNombre
+        ? previo?.full_name || opciones.nombre?.trim() || ''
+        : opciones.nombre?.trim() || previo?.full_name || '',
       role: opciones.rol ?? (asciendeDeInvitado ? 'alumno' : rolPrevio),
       // Solo si el llamador dijo algo: un alta sin empresa no borra la que ya tenía.
       ...(opciones.companyId !== undefined ? { company_id: opciones.companyId } : {}),

@@ -8,6 +8,10 @@ import { crearClienteServiceRole } from '@/lib/supabase/service-role'
 /**
  * Pone las inscripciones de una persona al día con su membresía (M17).
  *
+ * Varios planes pueden traer el mismo curso (M18): el acceso a cada curso es
+ * el MAYOR entre todas las membresías de la persona cuyo plan lo incluye. Así,
+ * que venza un plan no le corta un curso que otro plan vigente también da.
+ *
  * El acceso a V-AI-P son inscripciones normales con `source = 'membresia'`, y
  * esta función es la única que las escribe. Por curso del plan:
  *
@@ -50,19 +54,47 @@ export async function accesoDePersona(userId: string, planId: string): Promise<s
 
 type CursoDelPlan = { id: string; title: string; slug: string; course_type: 'cohort' | 'evergreen' }
 
-/** Los cursos publicados del plan. Los QA solo cuentan para cuentas QA. */
+/** Los cursos publicados del plan (`membership_plan_courses`). Los QA solo cuentan para cuentas QA. */
 export async function cursosDelPlan(planId: string, incluirQa: boolean): Promise<CursoDelPlan[]> {
   const supabase = crearClienteServiceRole()
-  const { data, error } = await supabase
-    .from('courses')
-    .select('id, title, slug, course_type')
+  const { data: enlaces, error } = await supabase
+    .from('membership_plan_courses')
+    .select('course_id')
     .eq('plan_id', planId)
-    .eq('status', 'published')
-  if (error) {
-    registrar('membresia:cursosDelPlan', { planId, error: error.message })
+  const ids = (enlaces ?? []).map((e) => e.course_id)
+  const { data, error: errorCursos } = ids.length
+    ? await supabase
+        .from('courses')
+        .select('id, title, slug, course_type')
+        .in('id', ids)
+        .eq('status', 'published')
+    : { data: [], error: null }
+  if (error || errorCursos) {
+    registrar('membresia:cursosDelPlan', { planId, error: (error ?? errorCursos)?.message })
     return []
   }
   return (data ?? []).filter((c) => incluirQa || !esCursoQa(c.slug))
+}
+
+/**
+ * El acceso de una persona a cada curso: el mayor entre las membresías de
+ * TODOS los planes que lo incluyen, no solo del plan que se está sincronizando.
+ */
+async function accesoPorCurso(userId: string, cursos: string[]): Promise<Map<string, string | null>> {
+  const supabase = crearClienteServiceRole()
+  const [{ data: suyas }, { data: enlaces }] = await Promise.all([
+    supabase.from('memberships').select('plan_id, access_until').eq('user_id', userId),
+    supabase.from('membership_plan_courses').select('plan_id, course_id').in('course_id', cursos),
+  ])
+  const porPlan = new Map<string, string | null>()
+  for (const m of suyas ?? []) porPlan.set(m.plan_id, accesoMayor([porPlan.get(m.plan_id) ?? null, m.access_until]))
+
+  const salida = new Map<string, string | null>()
+  for (const curso of cursos) {
+    const planes = (enlaces ?? []).filter((e) => e.course_id === curso).map((e) => e.plan_id)
+    salida.set(curso, accesoMayor(planes.map((p) => porPlan.get(p) ?? null)))
+  }
+  return salida
 }
 
 export async function sincronizarMembresia(
@@ -82,6 +114,10 @@ export async function sincronizarMembresia(
   const hasta = await accesoDePersona(userId, planId)
   const cursos = await cursosDelPlan(planId, esCuentaQa(perfil.email))
   if (cursos.length === 0) return { ok: true, nuevos: [], actualizados: 0, hasta }
+  const accesos = await accesoPorCurso(
+    userId,
+    cursos.map((c) => c.id)
+  )
 
   const { data: previas, error: errorPrevias } = await supabase
     .from('enrollments')
@@ -103,17 +139,18 @@ export async function sincronizarMembresia(
 
   for (const curso of cursos) {
     const previa = porCurso.get(curso.id)
+    const hastaCurso = accesos.get(curso.id) ?? null
 
     if (!previa) {
       // Sin acceso hoy no se crea nada: no hay por qué dejar una inscripción vencida.
-      if (!vigente(hasta)) continue
+      if (!vigente(hastaCurso)) continue
       const { error } = await supabase.from('enrollments').insert({
         user_id: userId,
         course_id: curso.id,
         cohort_id: curso.course_type === 'cohort' ? await generacionAbierta(curso.id) : null,
         source: 'membresia',
         status: 'active',
-        expires_at: hasta,
+        expires_at: hastaCurso,
       })
       if (error) {
         fallas += 1
@@ -129,14 +166,14 @@ export async function sincronizarMembresia(
     let expiraEn: string | null | undefined
     if (previa.source === 'membresia') {
       // Sin acceso, el vencimiento es ahora: "estructura sí, contenido no".
-      expiraEn = hasta ?? new Date().toISOString()
-      if (expiraEn === previa.expires_at) expiraEn = undefined
+      expiraEn = hastaCurso ?? new Date().toISOString()
+      if (previa.expires_at !== null && Date.parse(expiraEn) === Date.parse(previa.expires_at)) expiraEn = undefined
     } else if (
       previa.expires_at !== null &&
-      hasta !== null &&
-      Date.parse(previa.expires_at) < Date.parse(hasta)
+      hastaCurso !== null &&
+      Date.parse(previa.expires_at) < Date.parse(hastaCurso)
     ) {
-      expiraEn = hasta
+      expiraEn = hastaCurso
     }
     if (expiraEn === undefined) continue
 
@@ -161,4 +198,30 @@ export async function sincronizarMembresia(
 
   registrar('membresia:sincronizada', { userId, hasta, nuevos: nuevos.length, actualizados, fallas })
   return { ok: fallas === 0, nuevos, actualizados, hasta }
+}
+
+export type ResultadoDelPlan = { personas: number; nuevos: number; fallas: number; error?: string }
+
+/**
+ * Pone al día a TODOS los miembros de un plan (quien tenga alguna suscripción
+ * suya, vigente o no: a quien venció, `sincronizarMembresia` solo le confirma
+ * el vencimiento). Lo usan «Sincronizar accesos» y guardar los cursos de un
+ * plan. A quien recibe un curso nuevo le llega su aviso por correo.
+ */
+export async function sincronizarPlan(planId: string): Promise<ResultadoDelPlan> {
+  const supabase = crearClienteServiceRole()
+  const { data, error } = await supabase.from('memberships').select('user_id').eq('plan_id', planId)
+  if (error) {
+    registrar('membresia:sincronizarPlan', { planId, error: error.message })
+    return { personas: 0, nuevos: 0, fallas: 0, error: error.message }
+  }
+  const personas = [...new Set((data ?? []).map((m) => m.user_id).filter((v): v is string => v !== null))]
+  let nuevos = 0
+  let fallas = 0
+  for (const userId of personas) {
+    const r = await sincronizarMembresia(userId, planId)
+    nuevos += r.nuevos.length
+    if (!r.ok) fallas += 1
+  }
+  return { personas: personas.length, nuevos, fallas }
 }

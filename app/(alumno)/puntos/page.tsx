@@ -55,7 +55,8 @@ export default async function PaginaPuntos() {
   const supabase = await crearClienteServidor()
   const [{ data: membresias }, ranking] = plan
     ? await Promise.all([
-        supabase.from('memberships').select('started_at').eq('plan_id', plan.id),
+        // Con user_id: la RLS deja al admin leer las membresías de todos.
+        supabase.from('memberships').select('started_at').eq('plan_id', plan.id).eq('user_id', perfil.user_id),
         rankingVaip(plan.id, perfil.user_id),
       ])
     : [{ data: [] }, null]

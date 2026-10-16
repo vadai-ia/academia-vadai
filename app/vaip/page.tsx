@@ -56,10 +56,15 @@ export default async function PaginaVaip() {
     <div className="flex flex-col gap-10">
       {membresia ? (
         <div className="max-w-3xl">
-          <TuMembresia membresia={membresia} portal={portal} enlaceDeSuscripcion={enlace} />
+          <TuMembresia
+            plan={{ slug: plan.slug, nombre: plan.nombre }}
+            membresia={membresia}
+            portal={portal}
+            enlaceDeSuscripcion={enlace}
+          />
         </div>
       ) : null}
-      <VentaVaip precioMxn={plan.precioMxn} enlace={membresia ? null : enlace} conSesion={Boolean(perfil)} />
+      <VentaVaip plan={plan} enlace={enlace} conSesion={Boolean(perfil)} />
     </div>
   )
 }

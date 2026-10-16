@@ -71,6 +71,9 @@ const PREFIJOS_PUBLICOS = [
   // Verificación pública del diploma de generación (15-oct-2026), igual que
   // /certificado/: quien lo verifica no tiene cuenta.
   '/diploma/',
+  // La página de venta de cada plan y su «gracias» (M18), como /vaip: es el
+  // destino de su QR. Un plan en borrador o archivado da 404 ahí mismo.
+  '/membresias/',
 ]
 
 export function esPublica(ruta: string): boolean {

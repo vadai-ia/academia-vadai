@@ -441,7 +441,6 @@ export type Database = {
           is_default: boolean
           in_catalog: boolean
           is_free: boolean
-          plan_id: string | null
         }
         Insert: {
           id?: string
@@ -462,7 +461,6 @@ export type Database = {
           is_default?: boolean
           in_catalog?: boolean
           is_free?: boolean
-          plan_id?: string | null
         }
         Update: {
           id?: string
@@ -483,7 +481,6 @@ export type Database = {
           is_default?: boolean
           in_catalog?: boolean
           is_free?: boolean
-          plan_id?: string | null
         }
         Relationships: []
       }
@@ -886,6 +883,42 @@ export type Database = {
         }
         Relationships: []
       }
+      membership_cancellations: {
+        Row: {
+          id: string
+          plan_id: string
+          stripe_subscription_id: string
+          user_id: string | null
+          reason: 'precio' | 'tiempo' | 'contenido' | 'otra_opcion' | 'calidad' | 'otro' | 'sin_motivo'
+          comment: string | null
+          origin: 'plataforma' | 'portal'
+          created_at: string
+          reverted_at: string | null
+        }
+        Insert: {
+          id?: string
+          plan_id: string
+          stripe_subscription_id: string
+          user_id?: string | null
+          reason: 'precio' | 'tiempo' | 'contenido' | 'otra_opcion' | 'calidad' | 'otro' | 'sin_motivo'
+          comment?: string | null
+          origin: 'plataforma' | 'portal'
+          created_at?: string
+          reverted_at?: string | null
+        }
+        Update: {
+          id?: string
+          plan_id?: string
+          stripe_subscription_id?: string
+          user_id?: string | null
+          reason?: 'precio' | 'tiempo' | 'contenido' | 'otra_opcion' | 'calidad' | 'otro' | 'sin_motivo'
+          comment?: string | null
+          origin?: 'plataforma' | 'portal'
+          created_at?: string
+          reverted_at?: string | null
+        }
+        Relationships: []
+      }
       membership_invoices: {
         Row: {
           stripe_invoice_id: string
@@ -931,6 +964,45 @@ export type Database = {
         }
         Relationships: []
       }
+      membership_plan_courses: {
+        Row: {
+          plan_id: string
+          course_id: string
+          created_at: string
+        }
+        Insert: {
+          plan_id: string
+          course_id: string
+          created_at?: string
+        }
+        Update: {
+          plan_id?: string
+          course_id?: string
+          created_at?: string
+        }
+        Relationships: []
+      }
+      membership_plan_prices: {
+        Row: {
+          stripe_price_id: string
+          plan_id: string
+          amount_mxn: number
+          created_at: string
+        }
+        Insert: {
+          stripe_price_id: string
+          plan_id: string
+          amount_mxn: number
+          created_at?: string
+        }
+        Update: {
+          stripe_price_id?: string
+          plan_id?: string
+          amount_mxn?: number
+          created_at?: string
+        }
+        Relationships: []
+      }
       membership_plans: {
         Row: {
           id: string
@@ -944,6 +1016,13 @@ export type Database = {
           portal_login_url: string | null
           created_at: string
           updated_at: string
+          price_compare_mxn: number | null
+          tagline: string | null
+          description: string | null
+          image_url: string | null
+          status: 'draft' | 'active' | 'archived'
+          stripe_payment_link_id: string | null
+          stripe_portal_config_id: string | null
         }
         Insert: {
           id?: string
@@ -957,6 +1036,13 @@ export type Database = {
           portal_login_url?: string | null
           created_at?: string
           updated_at?: string
+          price_compare_mxn?: number | null
+          tagline?: string | null
+          description?: string | null
+          image_url?: string | null
+          status?: 'draft' | 'active' | 'archived'
+          stripe_payment_link_id?: string | null
+          stripe_portal_config_id?: string | null
         }
         Update: {
           id?: string
@@ -970,6 +1056,13 @@ export type Database = {
           portal_login_url?: string | null
           created_at?: string
           updated_at?: string
+          price_compare_mxn?: number | null
+          tagline?: string | null
+          description?: string | null
+          image_url?: string | null
+          status?: 'draft' | 'active' | 'archived'
+          stripe_payment_link_id?: string | null
+          stripe_portal_config_id?: string | null
         }
         Relationships: []
       }

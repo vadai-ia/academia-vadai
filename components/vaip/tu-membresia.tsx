@@ -1,3 +1,5 @@
+import Link from 'next/link'
+
 import { LogoVaip } from '@/components/marca/logo-vaip'
 import { Tarjeta } from '@/components/ui-vadai/superficie'
 import { Button } from '@/components/ui/button'
@@ -6,9 +8,12 @@ import type { MiMembresia } from '@/lib/membresia/consultas'
 import { cn } from '@/lib/utils'
 
 /**
- * «Tu membresía V-AI-P»: el estado, las fechas y el botón para administrarla.
- * Va en /perfil y en /vaip. Cancelar, cambiar la tarjeta y ver los cobros
- * pasan en el portal de Stripe: la app nunca escribe en Stripe (M17).
+ * «Tu membresía»: el estado, las fechas y dónde administrarla. Va en /perfil
+ * y en /vaip, una por plan (M18).
+ *
+ * La tarjeta y los cobros, en el portal de Stripe. Cancelar, en los pasos de
+ * /perfil/membresia, con un enlace discreto: visible y fácil, pero no es el
+ * botón principal (decidido por Alejandro, 16-oct-2026).
  */
 
 const ETIQUETAS: Record<EstadoSuscripcion, string> = {
@@ -33,10 +38,12 @@ export function fechaLarga(iso: string): string {
 }
 
 export function TuMembresia({
+  plan,
   membresia,
   portal,
   enlaceDeSuscripcion,
 }: {
+  plan: { slug: string; nombre: string }
   membresia: MiMembresia
   /** El portal de Stripe con el correo ya puesto, o null si aún no se configura. */
   portal: string | null
@@ -48,7 +55,7 @@ export function TuMembresia({
   return (
     <Tarjeta className="flex flex-col gap-5 p-5 sm:p-6">
       <div className="flex flex-wrap items-center justify-between gap-3">
-        <LogoVaip className="h-9" />
+        {plan.slug === 'v-ai-p' ? <LogoVaip className="h-9" /> : <span className="font-medium">{plan.nombre}</span>}
         <span
           className={cn(
             'inline-flex items-center rounded-full px-2.5 py-1 text-xs font-medium',
@@ -83,7 +90,7 @@ export function TuMembresia({
       ) : null}
       {atrasada ? (
         <p className="text-sm text-pretty text-muted-foreground">
-          El último cobro no pasó. Actualiza tu tarjeta en Administrar suscripción para no perder el acceso.
+          El último cobro no pasó. Actualiza tu tarjeta en «Tarjeta y cobros» para no perder el acceso.
         </p>
       ) : null}
 
@@ -93,16 +100,22 @@ export function TuMembresia({
             <a href={enlaceDeSuscripcion}>Volver a suscribirme</a>
           </Button>
         ) : null}
-        {portal ? (
+        {portal && membresia.vigente ? (
           <Button asChild variant="outline">
-            <a href={portal}>Administrar suscripción</a>
+            <a href={portal}>Tarjeta y cobros</a>
           </Button>
         ) : null}
       </div>
-      {portal ? (
-        <p className="text-xs text-muted-foreground">
-          Ahí cancelas, cambias tu tarjeta y ves tus cobros. Te pide un código que llega a tu correo.
-        </p>
+      {membresia.vigente ? (
+        <div className="flex flex-col gap-1 text-xs text-muted-foreground">
+          {portal ? <p>La tarjeta y los cobros están en Stripe: te pide un código que llega a tu correo.</p> : null}
+          <Link
+            href={`/perfil/membresia?plan=${plan.slug}`}
+            className="w-fit underline-offset-4 hover:text-primary hover:underline"
+          >
+            Administrar membresía
+          </Link>
+        </div>
       ) : null}
     </Tarjeta>
   )

@@ -1,19 +1,35 @@
+import Image from 'next/image'
+
 import { LogoVaip } from '@/components/marca/logo-vaip'
+import { PrecioDelPlan } from '@/components/membresias/precio'
 import { Tarjeta } from '@/components/ui-vadai/superficie'
-import { Button } from '@/components/ui/button'
+import type { PlanPublico } from '@/lib/membresia/consultas'
 
 /**
- * La página de venta de VADAI V-AI-P (M17).
+ * La página de venta de VADAI V-AI-P (M17; flyer y precio de graduado en M18).
+ *
+ * Arriba, el flyer: la foto (generada con Higgsfield, public/vaip/flyer.jpg)
+ * con un velo navy, y encima en HTML el logo, el mensaje y el precio. El precio
+ * NO va dentro de la imagen: así es exacto, se lee con lector de pantalla y
+ * cambia con el plan sin volver a generar nada. $349 con $499 tachado es el
+ * «precio de graduado», para todos (decidido por Alejandro, 16-oct-2026).
  *
  * Voz de la marca: directa, en segunda persona, cosas comprobables. Cada línea
- * describe algo que la membresía ya trae; nada de frecuencias que no dependan
- * de Alejandro (la única que sí: la clase cada quince días, que él decidió).
+ * describe algo que la membresía trae.
  */
 
 const INCLUYE = [
   {
     titulo: 'Una clase en vivo cada quince días',
-    detalle: 'Por Meet, con la liga en tu correo y el evento en tu calendario.',
+    detalle: 'Por Meet, con la liga en tu correo y el evento en tu calendario. Si no llegas, queda la grabación.',
+  },
+  {
+    titulo: 'Noticias de IA casi a diario',
+    detalle: 'Lo que cambió en Claude, ChatGPT y Gemini, explicado para tu negocio y con su fuente. Las comentas en el muro.',
+  },
+  {
+    titulo: 'Herramientas creativas, administrativas y comerciales',
+    detalle: 'Cada una con su video: para tus presentaciones, tus reportes en Excel, tu correo y tus ventas.',
   },
   {
     titulo: 'Los cursos y clases que se suban para miembros',
@@ -33,7 +49,12 @@ const PREGUNTAS = [
   {
     pregunta: '¿Cómo cancelo?',
     respuesta:
-      'Desde Mi perfil, en «Tu membresía», con el botón Administrar suscripción. Te llega un código a tu correo, cancelas y sigues dentro hasta que termine el mes que ya pagaste.',
+      'Desde Mi perfil, en «Tu membresía», con «Administrar membresía». Son tres pasos dentro de la plataforma, sin llamadas ni correos, y sigues dentro hasta que termine el mes que ya pagaste.',
+  },
+  {
+    pregunta: '¿El precio me puede subir?',
+    respuesta:
+      'Mientras sigas suscrito, pagas lo mismo cada mes. Si el precio de V-AI-P cambia después, tu suscripción se queda con el tuyo.',
   },
   {
     pregunta: '¿Qué pasa con mi avance si cancelo?',
@@ -50,61 +71,61 @@ const PREGUNTAS = [
   },
 ] as const
 
-const moneda = (n: number) =>
-  new Intl.NumberFormat('es-MX', { style: 'currency', currency: 'MXN', maximumFractionDigits: 0 }).format(n)
-
 export function VentaVaip({
-  precioMxn,
+  plan,
   enlace,
   conSesion,
 }: {
-  precioMxn: number
+  plan: PlanPublico
   /** El link de pago ya personalizado, o null si la suscripción no abre todavía. */
   enlace: string | null
   conSesion: boolean
 }) {
   return (
     <div className="flex flex-col gap-14">
-      <section className="grid items-center gap-10 lg:grid-cols-[1.15fr_1fr]">
-        <div className="flex flex-col gap-6">
-          <LogoVaip className="h-14 sm:h-16" />
-          <div className="flex flex-col gap-4">
-            <h1 className="text-3xl font-semibold tracking-tight text-balance sm:text-4xl lg:text-[2.75rem] lg:leading-[1.1]">
-              Lo que sigue después del curso.{' '}
-              <span className="text-primary">Cada quince días, en vivo.</span>
-            </h1>
-            <p className="max-w-[56ch] text-base text-pretty text-muted-foreground sm:text-lg">
-              VADAI V-AI-P es la comunidad de la academia: una clase en vivo cada quince días, los cursos
-              y clases nuevos que se publican para miembros, y un muro donde compartes lo que ya te
-              funciona con IA en tu trabajo.
-            </p>
-          </div>
+      {/* --- El flyer ---------------------------------------------------- */}
+      <section className="relative isolate overflow-hidden rounded-2xl border border-border bg-vadai-navy text-white">
+        {/* En teléfono la foto va arriba, entera; en escritorio es el fondo y
+            el texto ocupa el tercio oscuro de la izquierda. */}
+        <div className="relative aspect-[16/9] lg:absolute lg:inset-0 lg:aspect-auto">
+          <Image
+            src={plan.imagen ?? '/vaip/flyer.jpg'}
+            // Una imagen de otro dominio (la pone el admin) no pasa por el optimizador.
+            unoptimized={Boolean(plan.imagen && !plan.imagen.startsWith('/'))}
+            alt="Cuatro dueños de negocio revisan juntos un reporte en la laptop."
+            fill
+            priority
+            sizes="(min-width: 1024px) 1200px, 100vw"
+            className="object-cover object-[70%_center]"
+          />
+          <div aria-hidden className="absolute inset-0 bg-gradient-to-t from-vadai-navy via-vadai-navy/10 to-transparent lg:hidden" />
+          <div
+            aria-hidden
+            className="absolute inset-0 hidden bg-gradient-to-r from-vadai-navy via-vadai-navy/85 to-transparent lg:block"
+          />
         </div>
 
-        <Tarjeta className="flex flex-col gap-5 p-6 sm:p-7">
-          <div className="flex items-baseline gap-2">
-            <span className="text-4xl font-semibold tracking-tight tabular-nums">{moneda(precioMxn)}</span>
-            <span className="text-muted-foreground">MXN al mes</span>
-          </div>
-          <p className="text-sm text-pretty text-muted-foreground">
-            Se cobra con tarjeta cada mes. Cancelas desde tu perfil cuando quieras y sigues dentro hasta
-            que termine el mes que pagaste.
-          </p>
-          {enlace ? (
-            <Button asChild variant="acento" size="lg" className="h-11 text-base">
-              <a href={enlace}>Suscribirme</a>
-            </Button>
-          ) : (
-            <p className="rounded-lg border border-dashed border-border px-4 py-3 text-center text-sm text-muted-foreground">
-              La suscripción abre muy pronto.
+        <div className="relative flex flex-col gap-7 p-6 sm:p-8 lg:min-h-[560px] lg:max-w-[54%] lg:justify-center lg:p-12">
+          <div className="flex flex-col gap-4">
+            {/* self-start: en una columna flex el SVG se estira a todo el ancho y centra su dibujo. */}
+            <LogoVaip className="h-12 self-start text-white sm:h-14" />
+            <h1 className="text-3xl leading-[1.1] font-semibold tracking-tight text-balance sm:text-4xl lg:text-[2.75rem]">
+              Invierte en tu educación. <span className="text-vadai-lima">Avanzamos juntos.</span>
+            </h1>
+            <p className="max-w-[52ch] text-base text-pretty text-white/80 sm:text-lg">
+              La comunidad de la academia VADAI: una clase en vivo cada quince días, noticias de IA casi a
+              diario y herramientas con su video para tu Excel, tu correo y tus ventas.
             </p>
-          )}
-          <p className="text-xs text-muted-foreground">
-            {conSesion
-              ? 'La suscripción queda en la cuenta con la que entraste.'
-              : 'Si ya tienes cuenta en la academia, usa el mismo correo al pagar.'}
-          </p>
-        </Tarjeta>
+          </div>
+          <PrecioDelPlan
+            precioMxn={plan.precioMxn}
+            tachadoMxn={plan.precioTachadoMxn}
+            frase={plan.frase}
+            enlace={enlace}
+            conSesion={conSesion}
+            sobreFoto
+          />
+        </div>
       </section>
 
       <section className="flex flex-col gap-5">

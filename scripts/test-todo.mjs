@@ -40,6 +40,9 @@ const SUITES = [
   { llave: 'cm', archivo: 'test-cm.mjs', titulo: 'Community manager', milestone: '0036' },
   { llave: 'exclusivas', archivo: 'test-exclusivas.mjs', titulo: 'Sesiones exclusivas', milestone: '0038' },
   { llave: 'membresia', archivo: 'test-membresia.mjs', titulo: 'Membresía V-AI-P', milestone: 'M17' },
+  // Necesita la app levantada con STRIPE_ADMIN_SIMULADO (ver docs/M18.md). Sin él
+  // falla con un mensaje claro y no toca Stripe: un plan qa-… nunca va al real.
+  { llave: 'planes', archivo: 'test-planes.mjs', titulo: 'Planes y cancelación', milestone: 'M18' },
 ]
 
 /** Corre una suite heredando stdio y devuelve su código de salida. */

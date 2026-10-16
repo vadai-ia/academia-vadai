@@ -5,8 +5,7 @@ import { revalidatePath } from 'next/cache'
 import type { EstadoAccion } from '@/lib/admin/tipos'
 import { exigirAdmin } from '@/lib/auth/sesion'
 import { planVaip } from '@/lib/membresia/consultas'
-import { sincronizarMembresia } from '@/lib/membresia/sincronizar'
-import { crearClienteServiceRole } from '@/lib/supabase/service-role'
+import { sincronizarPlan } from '@/lib/membresia/sincronizar'
 
 function registrarFallo(operacion: string, detalle: Record<string, unknown>, error: string) {
   console.error(JSON.stringify({ operacion, ...detalle, error }))
@@ -25,31 +24,22 @@ export async function sincronizarAccesos(_previo: EstadoAccion, _datos: FormData
   const plan = await planVaip()
   if (!plan) return { error: 'No existe el plan V-AI-P.' }
 
-  // Service role: la acción ya está autorizada y escribe inscripciones de otros.
-  const supabase = crearClienteServiceRole()
-  const { data, error } = await supabase.from('memberships').select('user_id').eq('plan_id', plan.id)
-  if (error) {
-    registrarFallo('sincronizarAccesos', { plan: plan.id }, error.message)
+  // Service role adentro: la acción ya está autorizada y escribe inscripciones de otros.
+  const r = await sincronizarPlan(plan.id)
+  if (r.error) {
+    registrarFallo('sincronizarAccesos', { plan: plan.id }, r.error)
     return { error: 'No se pudieron leer las membresías.' }
   }
-
-  const personas = [...new Set((data ?? []).map((m) => m.user_id).filter((v): v is string => v !== null))]
-  let nuevos = 0
-  let fallas = 0
-  for (const userId of personas) {
-    const r = await sincronizarMembresia(userId, plan.id)
-    nuevos += r.nuevos.length
-    if (!r.ok) fallas += 1
-  }
+  const { personas, nuevos, fallas } = r
 
   revalidatePath('/admin/vaip')
   if (fallas > 0) {
-    return { error: `${personas.length} miembros revisados; ${fallas} con errores. Revisa los registros.` }
+    return { error: `${personas} miembros revisados; ${fallas} con errores. Revisa los registros.` }
   }
   return {
     aviso:
       nuevos > 0
-        ? `${personas.length} miembros al día; ${nuevos} accesos nuevos, con su aviso por correo.`
-        : `${personas.length} miembros al día. No había cursos nuevos que dar.`,
+        ? `${personas} miembros al día; ${nuevos} accesos nuevos, con su aviso por correo.`
+        : `${personas} miembros al día. No había cursos nuevos que dar.`,
   }
 }

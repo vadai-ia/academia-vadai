@@ -17,6 +17,8 @@ import type { EstadoSuscripcion } from '@/lib/membresia/acceso'
 
 /** La marca que lleva cada objeto de la membresía en `metadata` (Payment Link y suscripción). */
 export const MARCA_PLAN = 'academia_plan'
+/** Desde M18 también el id del plan: el slug no cambia, pero el id es inequívoco. */
+export const MARCA_PLAN_ID = 'academia_plan_id'
 
 const ESTADOS: readonly EstadoSuscripcion[] = [
   'incomplete',
@@ -50,6 +52,10 @@ function marcaDe(metadata: unknown): string | null {
   return texto(propiedad(metadata, MARCA_PLAN))
 }
 
+function marcaIdDe(metadata: unknown): string | null {
+  return texto(propiedad(metadata, MARCA_PLAN_ID))
+}
+
 export type SuscripcionLeida = {
   subscriptionId: string
   customerId: string | null
@@ -59,7 +65,14 @@ export type SuscripcionLeida = {
   cancel_at_period_end: boolean
   ended_at: string | null
   plan: string | null
+  planId: string | null
   precios: string[]
+  /**
+   * `cancellation_details`: por qué terminó o va a terminar. `motivo` es lo
+   * que la persona eligió (portal o plataforma); `razon`, quién la terminó
+   * (`cancellation_requested`, `payment_failed`, `payment_disputed`).
+   */
+  cancelacion: { motivo: string | null; comentario: string | null; razon: string | null }
 }
 
 export function leerSuscripcion(sub: Stripe.Subscription): SuscripcionLeida | null {
@@ -81,7 +94,13 @@ export function leerSuscripcion(sub: Stripe.Subscription): SuscripcionLeida | nu
     cancel_at_period_end: sub.cancel_at_period_end === true,
     ended_at: epoch(sub.ended_at),
     plan: marcaDe(sub.metadata),
+    planId: marcaIdDe(sub.metadata),
     precios: items.map((i) => id(propiedad(i, 'price'))).filter((v): v is string => v !== null),
+    cancelacion: {
+      motivo: texto(propiedad(sub.cancellation_details, 'feedback')),
+      comentario: texto(propiedad(sub.cancellation_details, 'comment')),
+      razon: texto(propiedad(sub.cancellation_details, 'reason')),
+    },
   }
 }
 
@@ -97,6 +116,7 @@ export type FacturaLeida = {
   period_start: string | null
   period_end: string | null
   plan: string | null
+  planId: string | null
   precios: string[]
 }
 
@@ -127,6 +147,7 @@ export function leerFactura(inv: Stripe.Invoice, pagada: boolean): FacturaLeida 
     period_start: inicios.sort()[0] ?? null,
     period_end: fines.sort().reverse()[0] ?? null,
     plan: marcaDe(propiedad(detalles, 'metadata')),
+    planId: marcaIdDe(propiedad(detalles, 'metadata')),
     precios,
   }
 }
@@ -141,6 +162,7 @@ export type CheckoutLeido = {
   referencia: string | null
   pagado: boolean
   plan: string | null
+  planId: string | null
 }
 
 export function leerCheckout(sesion: Stripe.Checkout.Session): CheckoutLeido | null {
@@ -155,6 +177,7 @@ export function leerCheckout(sesion: Stripe.Checkout.Session): CheckoutLeido | n
     referencia: texto(sesion.client_reference_id),
     pagado: sesion.payment_status === 'paid',
     plan: marcaDe(sesion.metadata),
+    planId: marcaIdDe(sesion.metadata),
   }
 }
 

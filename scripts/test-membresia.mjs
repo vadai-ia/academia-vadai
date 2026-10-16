@@ -183,6 +183,9 @@ function formularioCon(html, campo) {
     for (const etiqueta of bloque[1].matchAll(/<(?:input|select|textarea)\b[^>]*>/g)) {
       const nombre = etiqueta[0].match(/name="([^"]*)"/)?.[1]
       if (!nombre) continue
+      // Como un navegador: una casilla sin marcar no se envía.
+      const tipo = etiqueta[0].match(/type="([^"]*)"/)?.[1]
+      if ((tipo === 'checkbox' || tipo === 'radio') && !/\schecked/.test(etiqueta[0])) continue
       campos[nombre] = (etiqueta[0].match(/value="([^"]*)"/)?.[1] ?? '')
         .replace(/&quot;/g, '"')
         .replace(/&#x27;/g, "'")
@@ -297,6 +300,7 @@ async function purgar(bd) {
     `delete from academia.enrollments where course_id in (select id from academia.courses where slug like 'qa-vaip-%')`
   )
   await bd.query(`delete from academia.membership_invoices where stripe_invoice_id like 'in_qavaip_%'`)
+  await bd.query(`delete from academia.membership_cancellations where stripe_subscription_id like 'sub_qavaip_%'`)
   await bd.query(`delete from academia.memberships where stripe_subscription_id like 'sub_qavaip_%'`)
   await bd.query(`delete from academia.cohorts where course_id in (select id from academia.courses where slug like 'qa-vaip-%')`)
   await bd.query(`delete from academia.courses where slug like 'qa-vaip-%'`)
@@ -306,14 +310,18 @@ async function purgar(bd) {
 async function sembrar(bd) {
   const plan = await una(bd, `select id from academia.membership_plans where slug = $1`, [PLAN])
   if (!plan) throw new Error('No existe el plan v-ai-p: aplica la migración academia_0040_membresia.')
-  const curso = async (slug, tipo) =>
-    (
+  // M18: qué cursos da un plan vive en membership_plan_courses.
+  const curso = async (slug, tipo) => {
+    const id = (
       await bd.query(
-        `insert into academia.courses (slug, title, course_type, status, certificate_enabled, plan_id)
-         values ($1, $2, $3, 'published', false, $4) returning id`,
-        [slug, `QA · ${slug} (test-membresia)`, tipo, plan.id]
+        `insert into academia.courses (slug, title, course_type, status, certificate_enabled)
+         values ($1, $2, $3, 'published', false) returning id`,
+        [slug, `QA · ${slug} (test-membresia)`, tipo]
       )
     ).rows[0].id
+    await bd.query(`insert into academia.membership_plan_courses (plan_id, course_id) values ($1, $2)`, [plan.id, id])
+    return id
+  }
   const casa = await curso('qa-vaip-casa', 'cohort')
   const extra = await curso('qa-vaip-extra', 'evergreen')
   const vitalicio = await curso('qa-vaip-vitalicio', 'evergreen')
@@ -450,10 +458,10 @@ try {
 
   // 10. Un curso nuevo en el plan llega con el siguiente evento.
   const { rows: [{ id: nuevo }] } = await bd.query(
-    `insert into academia.courses (slug, title, course_type, status, certificate_enabled, plan_id)
-     values ('qa-vaip-nuevo', 'QA · qa-vaip-nuevo (test-membresia)', 'evergreen', 'published', false, $1) returning id`,
-    [ids.plan]
+    `insert into academia.courses (slug, title, course_type, status, certificate_enabled)
+     values ('qa-vaip-nuevo', 'QA · qa-vaip-nuevo (test-membresia)', 'evergreen', 'published', false) returning id`
   )
+  await bd.query(`insert into academia.membership_plan_courses (plan_id, course_id) values ($1, $2)`, [ids.plan, nuevo])
   await enviar(evento('customer.subscription.updated', suscripcion({ id: 'sub_qavaip_2', inicio: t0, fin: t0 + 30 * DIA }), t0 + 60))
   afirmar('Ciclo', 'un curso agregado al plan llega a los miembros', 'membresia', (await inscripcion(bd, CORREO, nuevo))?.source)
 
@@ -465,7 +473,9 @@ try {
   afirmar('Guardas', 'un checkout de suscripción ajeno no da de alta', null, await membresia(bd, 'sub_qavaip_ajena2'))
 
   // 12. Un curso comprado aparte, de por vida, nunca se acorta.
-  const vitalicioId = (await una(bd, `select user_id from academia.profiles where email = $1`, [CORREO_VITALICIO]))?.user_id
+  const vitalicioPerfil = await una(bd, `select user_id, full_name from academia.profiles where email = $1`, [CORREO_VITALICIO])
+  const vitalicioId = vitalicioPerfil?.user_id
+  const nombreVitalicio = vitalicioPerfil?.full_name
   await bd.query(
     `insert into academia.enrollments (user_id, course_id, source, status, expires_at) values ($1, $2, 'manual', 'active', null)`,
     [vitalicioId, ids.vitalicio]
@@ -473,6 +483,8 @@ try {
   await enviar(evento('customer.subscription.created', suscripcion({ id: 'sub_qavaip_3', inicio: t0, fin: t0 + 30 * DIA }), t0 + 70))
   await enviar(evento('checkout.session.completed', checkout({ id: 'cs_qavaip_3', sub: 'sub_qavaip_3', email: 'otro-correo-en-stripe@example.com', referencia: vitalicioId }), t0 + 71))
   afirmar('Guardas', 'client_reference_id gana sobre el correo del pago', vitalicioId, (await membresia(bd, 'sub_qavaip_3'))?.user_id)
+  // El nombre del formulario de Stripe es el de la tarjeta: no pisa el del perfil (M18).
+  afirmar('Guardas', 'el nombre de una cuenta que ya existía no cambia', nombreVitalicio, (await una(bd, `select full_name from academia.profiles where user_id = $1`, [vitalicioId]))?.full_name)
   await enviar(evento('customer.subscription.deleted', suscripcion({ id: 'sub_qavaip_3', status: 'canceled', inicio: t0, fin: t0 + 30 * DIA, terminada: t0 }), t0 + 80))
   const vit = await inscripcion(bd, CORREO_VITALICIO, ids.vitalicio)
   afirmar('Guardas', 'el curso de por vida sigue de por vida', 'manual · null', `${vit?.source} · ${vit?.expires_at}`)

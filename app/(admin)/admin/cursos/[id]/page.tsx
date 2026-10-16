@@ -20,6 +20,7 @@ import { candidatosParaCurso, inscritosDelCurso } from '@/lib/admin/inscritos'
 import { ETIQUETA_ESTADO_CURSO } from '@/lib/admin/tipos'
 import { esAdmin, exigirEquipo } from '@/lib/auth/sesion'
 import { esPorGeneraciones, generacionPorOmision } from '@/lib/generaciones'
+import { cursosDeVaip } from '@/lib/membresia/consultas'
 
 export const dynamic = 'force-dynamic'
 
@@ -90,13 +91,15 @@ export default async function PaginaCurso({
   // Todo en una sola ronda (24-sep-2026): el id de la URL es el id del curso,
   // así que nada tiene que esperar al curso para arrancar. Si el curso no
   // existe, las demás vuelven vacías y se descartan con el notFound().
-  const [curso, generaciones, candidatos, empresas] = await Promise.all([
+  const [curso, generaciones, candidatos, empresas, deVaip] = await Promise.all([
     obtenerCurso(id),
     generacionesDelCurso(id),
     candidatosParaCurso(id, filtros.buscar ?? ''),
     listarEmpresas(),
+    cursosDeVaip(),
   ])
   if (!curso) notFound()
+  const enVaip = deVaip.has(curso.id)
   // La fila del curso sin su árbol, para lo que viaja al navegador.
   const { modulos: _modulos, ...datosDelCurso } = curso
 
@@ -241,7 +244,7 @@ export default async function PaginaCurso({
             compacto
             sesionAbierta={filtros.sesion ?? null}
             prefijo={`?gen=${generacion.id}&`}
-            deVaip={curso.plan_id !== null}
+            deVaip={enVaip}
           />
         </section>
       ) : null}
@@ -335,7 +338,7 @@ export default async function PaginaCurso({
             cliente y lo que recibe viaja al navegador. Con el curso entero
             se llevaba el árbol de TODAS las generaciones a la pestaña de una
             (M16), aunque el formulario solo edita título, slug y descripción. */}
-        <FormularioCurso curso={datosDelCurso} />
+        <FormularioCurso curso={datosDelCurso} enVaip={enVaip} />
         {!porGeneraciones && generaciones.length === 0 ? null : (
           <p className="text-xs text-muted-foreground">
             El tipo «Por generaciones» no se cambia aquí: se activa creando la primera generación, y

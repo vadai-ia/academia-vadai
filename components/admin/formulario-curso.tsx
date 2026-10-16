@@ -53,7 +53,7 @@ function Campo({
  * fue el clic. Al editar vive detrás de "Editar datos del curso" (M14): en la
  * página del curso lo que se abre a diario es el contenido, no el precio.
  */
-export function FormularioCurso({ curso }: { curso?: Curso }) {
+export function FormularioCurso({ curso, enVaip = false }: { curso?: Curso; enVaip?: boolean }) {
   const nuevo = !curso
   const [estado, accion] = useActionState(nuevo ? crearCurso : actualizarCurso, SIN_ESTADO)
 
@@ -274,7 +274,7 @@ export function FormularioCurso({ curso }: { curso?: Curso }) {
               name="en_vaip"
               type="checkbox"
               value="true"
-              defaultChecked={Boolean(curso?.plan_id)}
+              defaultChecked={enVaip}
               className="mt-1 size-4 accent-vadai-cyan"
             />
             <span>

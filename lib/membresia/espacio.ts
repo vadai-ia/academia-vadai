@@ -31,11 +31,11 @@ export type PuestoVaip = {
 
 export type RankingVaip = { puestos: PuestoVaip[]; yo: PuestoVaip | null; total: number }
 
-/** Los cursos del plan que ve quien pregunta (los publicados; RLS hace el resto). */
+/** Los cursos del plan (`membership_plan_courses`). La actividad de cada uno la filtra RLS. */
 async function idsDelPlan(planId: string): Promise<string[]> {
   const supabase = await crearClienteServidor()
-  const { data } = await supabase.from('courses').select('id').eq('plan_id', planId)
-  return (data ?? []).map((c) => c.id)
+  const { data } = await supabase.from('membership_plan_courses').select('course_id').eq('plan_id', planId)
+  return (data ?? []).map((c) => c.course_id)
 }
 
 /**
@@ -111,7 +111,8 @@ export async function espacioVaip(perfil: Perfil, plan: PlanVaip): Promise<Espac
     publicacionesParaAlumno('announcement'),
     misCursos(),
     rankingVaip(plan.id, perfil.user_id),
-    supabase.from('memberships').select('started_at').eq('plan_id', plan.id),
+    // Con user_id: la RLS deja al admin leer las membresías de todos.
+    supabase.from('memberships').select('started_at').eq('plan_id', plan.id).eq('user_id', perfil.user_id),
   ])
 
   const casa = plan.casa

@@ -91,6 +91,11 @@ function leerFormularios(html) {
     for (const etiqueta of bloque[1].matchAll(/<(?:input|select)\b[^>]*>/g)) {
       const nombre = etiqueta[0].match(/name="([^"]*)"/)?.[1]
       if (!nombre) continue
+      // Como un navegador: una casilla sin marcar no se envía. Sin esto, las
+      // casillas «anunciar» y «avisar» de agendar sesión (M17) iban siempre y
+      // la suite publicaba anuncios de verdad (16-oct-2026).
+      const tipo = etiqueta[0].match(/type="([^"]*)"/)?.[1]
+      if ((tipo === 'checkbox' || tipo === 'radio') && !/\schecked/.test(etiqueta[0])) continue
       // Next serializa la acción de dos formas según cómo se pasó:
       //   $ACTION_ID_<hash>                     -> <form action={accionServidor}>
       //   $ACTION_REF_n + $ACTION_n:0/:1 + KEY  -> useActionState

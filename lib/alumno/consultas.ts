@@ -4,6 +4,7 @@ import { cache } from 'react'
 
 import { esEquipo, obtenerSesion } from '@/lib/auth/sesion'
 import { esPorGeneraciones, generacionPorOmision } from '@/lib/generaciones'
+import { cursosDeVaip } from '@/lib/membresia/consultas'
 import { esCuentaQa, esCursoQa } from '@/lib/qa'
 import { crearClienteServidor } from '@/lib/supabase/server'
 import type { Json, Tabla, Vista } from '@/lib/supabase/types'
@@ -200,11 +201,14 @@ export async function misCursos(): Promise<CursoDelAlumno[]> {
   const supabase = await crearClienteServidor()
 
   // Filtrada por usuario a propósito. Ver `miUserId`.
-  const { data: inscripciones, error } = await supabase
-    .from('enrollments')
-    .select('course_id, expires_at, status, cohort_id, courses(*), cohorts(id, name, starts_on, ends_on)')
-    .eq('user_id', userId)
-    .eq('status', 'active')
+  const [{ data: inscripciones, error }, deVaip] = await Promise.all([
+    supabase
+      .from('enrollments')
+      .select('course_id, expires_at, status, cohort_id, courses(*), cohorts(id, name, starts_on, ends_on)')
+      .eq('user_id', userId)
+      .eq('status', 'active'),
+    cursosDeVaip(),
+  ])
 
   if (error) {
     console.error(JSON.stringify({ operacion: 'misCursos', error: error.message }))
@@ -288,7 +292,7 @@ export async function misCursos(): Promise<CursoDelAlumno[]> {
         modulos: [],
         linkRecompraMxn: curso.stripe_payment_link_mxn,
         linkRecompraUsd: curso.stripe_payment_link_usd,
-        enVaip: curso.plan_id !== null,
+        enVaip: deVaip.has(curso.id),
       }
     })
     .sort((a, b) => Number(b.vigente) - Number(a.vigente) || a.titulo.localeCompare(b.titulo))
@@ -407,7 +411,7 @@ export const cursoDelAlumno = cache(async function cursoDelAlumno(
     modulos: armarModulos(filas, titulos, completadas, equipo),
     linkRecompraMxn: curso.stripe_payment_link_mxn,
     linkRecompraUsd: curso.stripe_payment_link_usd,
-    enVaip: curso.plan_id !== null,
+    enVaip: (await cursosDeVaip()).has(curso.id),
   }
 })
 

@@ -13,6 +13,8 @@ import { ETIQUETA_ESTADO_CURSO } from '@/lib/admin/tipos'
 import { exigirAdmin } from '@/lib/auth/sesion'
 import { panelVaip, type MiembroDelPanel } from '@/lib/membresia/admin'
 import { planVaip } from '@/lib/membresia/consultas'
+import { etiquetaDeMotivo } from '@/lib/membresia/motivos'
+import { cancelacionesDelPlan } from '@/lib/membresia/planes'
 import { crearClienteServidor } from '@/lib/supabase/server'
 import { cn } from '@/lib/utils'
 
@@ -50,13 +52,20 @@ export default async function PaginaVaipAdmin() {
   }
 
   const supabase = await crearClienteServidor()
-  const [panel, { data: cursos }, { data: temas }] = await Promise.all([
+  const [panel, { data: enlaces }, { data: temas }, cancelaciones] = await Promise.all([
     panelVaip(plan.id),
-    supabase.from('courses').select('id, title, slug, status').eq('plan_id', plan.id).order('created_at'),
+    supabase.from('membership_plan_courses').select('course_id').eq('plan_id', plan.id),
     plan.casa
       ? supabase.from('community_topics').select('id, name, archived').eq('course_id', plan.casa.id).order('position')
       : Promise.resolve({ data: [] }),
+    cancelacionesDelPlan(plan.id, 5),
   ])
+
+  const ids = (enlaces ?? []).map((e) => e.course_id)
+  const { data: filas } = ids.length
+    ? await supabase.from('courses').select('id, title, slug, status').in('id', ids).order('created_at')
+    : { data: [] }
+  const cursos = filas ?? []
 
   const base = (process.env.NEXT_PUBLIC_APP_URL ?? '').replace(/\/+$/, '')
   const pagina = `${base}/vaip`
@@ -65,7 +74,14 @@ export default async function PaginaVaipAdmin() {
 
   return (
     <div className="flex flex-col gap-10">
-      <Titulo apoyo="La membresía mensual: el link para suscribirse, quién está dentro y sus cobros.">
+      <Titulo
+        apoyo="La membresía mensual: el link para suscribirse, quién está dentro y sus cobros."
+        acciones={
+          <Button asChild variant="outline">
+            <Link href="/admin/vaip/planes">Planes y precios</Link>
+          </Button>
+        }
+      >
         <MarcaVaip />
       </Titulo>
 
@@ -75,8 +91,11 @@ export default async function PaginaVaipAdmin() {
           <ul className="flex list-disc flex-col gap-1 pl-5 text-sm text-muted-foreground">
             {!plan.linkDePago ? (
               <li>
-                Corre <code className="font-mono text-foreground">node scripts/stripe-vaip.mjs --modo real</code> con
-                una llave de escritura temporal: crea el precio, el link de pago y el portal de clientes.
+                Publícalo en Stripe desde{' '}
+                <Link href={`/admin/vaip/planes/${plan.id}`} className="font-medium text-primary hover:underline">
+                  Planes
+                </Link>
+                : crea el precio, el link de pago y el portal de tarjeta y cobros.
               </li>
             ) : null}
             {plan.casa && !plan.casa.publicada ? (
@@ -234,7 +253,7 @@ export default async function PaginaVaipAdmin() {
         accion={<SincronizarAccesos />}
       >
         <ul className="flex flex-col gap-2">
-          {(cursos ?? []).map((c) => (
+          {cursos.map((c) => (
             <li key={c.id}>
               <Link
                 href={`/admin/cursos/${c.id}`}
@@ -259,6 +278,35 @@ export default async function PaginaVaipAdmin() {
           />
         </Seccion>
       ) : null}
+
+      <Seccion
+        titulo="Por qué se van"
+        apoyo="Las últimas cancelaciones, con el motivo que eligieron."
+        accion={
+          <Link href={`/admin/vaip/planes/${plan.id}`} className="text-sm font-medium text-primary hover:underline">
+            Ver todas
+          </Link>
+        }
+      >
+        {cancelaciones.length === 0 ? (
+          <p className="text-sm text-muted-foreground">Nadie ha cancelado.</p>
+        ) : (
+          <ul className="flex flex-col gap-2">
+            {cancelaciones.map((c) => (
+              <li key={c.id} className="flex flex-wrap items-baseline justify-between gap-2 rounded-[10px] border border-border px-4 py-3 text-sm">
+                <span>
+                  <span className="font-medium">{c.nombre || c.correo || 'Sin cuenta'}</span>
+                  <span className="text-muted-foreground"> · {etiquetaDeMotivo(c.motivo)}</span>
+                </span>
+                <span className="text-xs text-muted-foreground">
+                  {fechaLarga(c.fecha)}
+                  {c.revertida ? ' · volvió' : ''}
+                </span>
+              </li>
+            ))}
+          </ul>
+        )}
+      </Seccion>
 
       <Seccion titulo="Cobros recientes">
         {panel.cobros.length === 0 ? (

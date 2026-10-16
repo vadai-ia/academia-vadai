@@ -3,6 +3,7 @@ import 'server-only'
 import type Stripe from 'stripe'
 
 import { accesoHasta } from '@/lib/membresia/acceso'
+import { motivoDeStripe, type ClaveDeMotivo } from '@/lib/membresia/motivos'
 import { cursosDelPlan, sincronizarMembresia } from '@/lib/membresia/sincronizar'
 import {
   esUuid,
@@ -21,8 +22,10 @@ import { crearClienteServiceRole } from '@/lib/supabase/service-role'
  *
  * La cuenta de Stripe es COMPARTIDA con otros negocios de VADAI, y en cuanto el
  * endpoint escucha suscripciones recibe las de todos. Un evento es nuestro solo
- * si trae la marca del plan (`metadata.academia_plan`) o cobra el precio de un
- * plan nuestro. Lo demás se responde 200 sin tocar nada.
+ * si trae la marca del plan (`metadata.academia_plan` o, desde M18,
+ * `academia_plan_id`) o cobra un precio que un plan nuestro haya tenido
+ * (`membership_plan_prices`: quien pagó el precio viejo lo sigue pagando). Lo
+ * demás se responde 200 sin tocar nada.
  *
  * Stripe no garantiza el orden: la suscripción puede llegar antes que el
  * checkout, y un `updated` viejo después de uno nuevo. Por eso todo hace upsert
@@ -42,21 +45,33 @@ function registrar(operacion: string, detalle: Record<string, unknown>) {
   console.log(JSON.stringify({ operacion, ...detalle }))
 }
 
-type Plan = { id: string; slug: string; stripe_price_id: string | null; hub_course_id: string | null }
+export type Plan = { id: string; slug: string; hub_course_id: string | null; precios: string[] }
 
 async function planes(): Promise<Plan[]> {
   const supabase = crearClienteServiceRole()
-  const { data, error } = await supabase
-    .from('membership_plans')
-    .select('id, slug, stripe_price_id, hub_course_id')
-  if (error) throw new Error(`No se pudieron leer los planes: ${error.message}`)
-  return data ?? []
+  const [{ data, error }, { data: historial, error: errorHistorial }] = await Promise.all([
+    supabase.from('membership_plans').select('id, slug, stripe_price_id, hub_course_id'),
+    supabase.from('membership_plan_prices').select('plan_id, stripe_price_id'),
+  ])
+  if (error || errorHistorial) {
+    throw new Error(`No se pudieron leer los planes: ${(error ?? errorHistorial)?.message}`)
+  }
+  return (data ?? []).map((p) => ({
+    id: p.id,
+    slug: p.slug,
+    hub_course_id: p.hub_course_id,
+    precios: [
+      ...(p.stripe_price_id ? [p.stripe_price_id] : []),
+      ...(historial ?? []).filter((h) => h.plan_id === p.id).map((h) => h.stripe_price_id),
+    ],
+  }))
 }
 
-function planDe(todos: Plan[], marca: string | null, precios: string[]): Plan | null {
+function planDe(todos: Plan[], marca: { slug: string | null; id: string | null }, precios: string[]): Plan | null {
   return (
-    todos.find((p) => marca !== null && p.slug === marca) ??
-    todos.find((p) => p.stripe_price_id !== null && precios.includes(p.stripe_price_id)) ??
+    todos.find((p) => marca.id !== null && p.id === marca.id) ??
+    todos.find((p) => marca.slug !== null && p.slug === marca.slug) ??
+    todos.find((p) => p.precios.some((precio) => precios.includes(precio))) ??
     null
   )
 }
@@ -144,6 +159,7 @@ async function enlazarPersona(
     nombre: datos.nombre,
     courseId: casa?.id ?? null,
     origen: 'membresia',
+    conservarNombre: true,
     expiraEn: membresia.access_until,
     titulosParaCorreo: cursos.map((c) => c.title),
     urlRedireccion: `${process.env.NEXT_PUBLIC_APP_URL ?? ''}/nueva-contrasena`,
@@ -164,14 +180,30 @@ async function enlazarPersona(
   registrar('membresia:enlazada', { subscriptionId, userId: alta.userId, cuentaNueva: alta.creado })
 }
 
-async function aplicarSuscripcion(plan: Plan, s: SuscripcionLeida, creado: string): Promise<void> {
+/**
+ * `deStripeAhora`: la suscripción no viene de un evento sino de la respuesta de
+ * Stripe a un cambio que la plataforma acaba de hacer (cancelar o seguir). Es
+ * el estado actual, así que no pasa por el candado de eventos atrasados: con
+ * el reloj de Stripe un poco adelantado al nuestro, el evento anterior parecía
+ * más nuevo y «Seguir con mi membresía» no se aplicaba (lo encontró
+ * test-planes). `last_event_at` se queda en la fecha más reciente de las dos,
+ * para que el siguiente evento real sí entre.
+ */
+async function aplicarSuscripcion(
+  plan: Plan,
+  s: SuscripcionLeida,
+  creado: string,
+  deStripeAhora = false
+): Promise<void> {
   const supabase = crearClienteServiceRole()
   const previa = await membresiaPorSuscripcion(s.subscriptionId)
+  const anterior = previa?.last_event_at ? Date.parse(previa.last_event_at) : null
 
-  if (previa?.last_event_at && Date.parse(previa.last_event_at) > Date.parse(creado)) {
+  if (!deStripeAhora && anterior !== null && anterior > Date.parse(creado)) {
     registrar('membresia:eventoAtrasado', { subscriptionId: s.subscriptionId, creado })
     return
   }
+  const marca = anterior !== null && anterior > Date.parse(creado) ? new Date(anterior).toISOString() : creado
 
   const { error } = await supabase.from('memberships').upsert(
     {
@@ -184,7 +216,7 @@ async function aplicarSuscripcion(plan: Plan, s: SuscripcionLeida, creado: strin
       cancel_at_period_end: s.cancel_at_period_end,
       ended_at: s.ended_at,
       access_until: accesoHasta(s),
-      last_event_at: creado,
+      last_event_at: marca,
     },
     { onConflict: 'stripe_subscription_id' }
   )
@@ -196,7 +228,91 @@ async function aplicarSuscripcion(plan: Plan, s: SuscripcionLeida, creado: strin
     cancelaAlFinal: s.cancel_at_period_end,
   })
 
+  await anotarCancelacion(plan, s, previa?.user_id ?? null)
   if (previa?.user_id) await sincronizarMembresia(previa.user_id, plan.id)
+}
+
+/**
+ * La bitácora de cancelaciones (M18), desde lo que dice la suscripción:
+ *
+ *   - pidió cancelar (al fin del periodo, o terminó por petición) y no hay una
+ *     cancelación abierta: se abre con el motivo que dejó en el portal;
+ *   - volvió atrás (ya no cancela y sigue viva): la abierta se cierra.
+ *
+ * Una que termina por falta de pago no es una cancelación: no la eligió nadie.
+ * La plataforma abre la suya con su propio motivo (`anotarMotivoPropio`); si
+ * el webhook llega primero, la plataforma la corrige.
+ */
+async function anotarCancelacion(plan: Plan, s: SuscripcionLeida, userId: string | null): Promise<void> {
+  const supabase = crearClienteServiceRole()
+  const pidio =
+    s.cancel_at_period_end || (s.status === 'canceled' && s.cancelacion.razon === 'cancellation_requested')
+  const viva = s.status === 'active' || s.status === 'trialing' || s.status === 'past_due'
+
+  if (pidio) {
+    const { error } = await supabase.from('membership_cancellations').insert({
+      plan_id: plan.id,
+      stripe_subscription_id: s.subscriptionId,
+      user_id: userId,
+      reason: motivoDeStripe(s.cancelacion.motivo),
+      comment: s.cancelacion.comentario?.slice(0, 1000) ?? null,
+      origin: 'portal',
+    })
+    // 23505: ya había una abierta (la de la plataforma, o un evento repetido).
+    if (error && error.code !== '23505') {
+      registrar('membresia:cancelacionFallida', { subscriptionId: s.subscriptionId, error: error.message })
+    }
+  } else if (viva) {
+    await supabase
+      .from('membership_cancellations')
+      .update({ reverted_at: new Date().toISOString() })
+      .eq('stripe_subscription_id', s.subscriptionId)
+      .is('reverted_at', null)
+  }
+}
+
+/**
+ * El motivo elegido en los pasos de /perfil/membresia. Si el webhook ya abrió
+ * la cancelación (llegó antes que la respuesta de Stripe a la plataforma), se
+ * corrige con el motivo propio, que es más fino que el de Stripe.
+ */
+export async function anotarMotivoPropio(
+  planId: string,
+  datos: { subscriptionId: string; userId: string; motivo: ClaveDeMotivo; comentario: string | null }
+): Promise<void> {
+  const supabase = crearClienteServiceRole()
+  const fila = { reason: datos.motivo, comment: datos.comentario, origin: 'plataforma' as const }
+  const { error } = await supabase.from('membership_cancellations').insert({
+    ...fila,
+    plan_id: planId,
+    stripe_subscription_id: datos.subscriptionId,
+    user_id: datos.userId,
+  })
+  if (error?.code === '23505') {
+    await supabase
+      .from('membership_cancellations')
+      .update(fila)
+      .eq('stripe_subscription_id', datos.subscriptionId)
+      .is('reverted_at', null)
+  } else if (error) {
+    registrar('membresia:motivoFallido', { subscriptionId: datos.subscriptionId, error: error.message })
+  }
+}
+
+/**
+ * Lo que la plataforma acaba de cambiar en Stripe (cancelar o seguir), aplicado
+ * de inmediato sin esperar al webhook: la persona ve el resultado al recargar.
+ * Es el mismo camino que el evento; el evento que llegue después trae lo mismo.
+ */
+export async function aplicarDesdeLaPlataforma(plan: Plan, sub: Stripe.Subscription): Promise<void> {
+  const s = leerSuscripcion(sub)
+  if (!s) throw new Error('Stripe devolvió una suscripción que no se pudo leer.')
+  await aplicarSuscripcion(plan, s, new Date().toISOString(), true)
+}
+
+/** El plan con sus precios, para quien cambia una suscripción fuera del webhook. */
+export async function planParaStripe(planId: string): Promise<Plan | null> {
+  return (await planes()).find((p) => p.id === planId) ?? null
 }
 
 async function registrarFactura(plan: Plan, f: FacturaLeida, pagada: boolean): Promise<void> {
@@ -233,7 +349,7 @@ export async function manejarEventoDeMembresia(evento: Stripe.Event): Promise<bo
     case 'checkout.session.completed': {
       const c = leerCheckout(evento.data.object)
       if (!c) return false
-      const plan = planDe(await planes(), c.plan, [])
+      const plan = planDe(await planes(), { slug: c.plan, id: c.planId }, [])
       if (!plan) {
         registrar('membresia:checkoutAjeno', { sesion: c.sessionId })
         return true
@@ -254,7 +370,8 @@ export async function manejarEventoDeMembresia(evento: Stripe.Event): Promise<bo
       if (!s) return true
       const todos = await planes()
       const previa = await membresiaPorSuscripcion(s.subscriptionId)
-      const plan = planDe(todos, s.plan, s.precios) ?? todos.find((p) => p.id === previa?.plan_id) ?? null
+      const plan =
+        planDe(todos, { slug: s.plan, id: s.planId }, s.precios) ?? todos.find((p) => p.id === previa?.plan_id) ?? null
       if (!plan) {
         registrar('membresia:suscripcionAjena', { subscriptionId: s.subscriptionId })
         return true
@@ -270,7 +387,8 @@ export async function manejarEventoDeMembresia(evento: Stripe.Event): Promise<bo
       if (!f?.subscriptionId) return true
       const todos = await planes()
       const previa = await membresiaPorSuscripcion(f.subscriptionId)
-      const plan = planDe(todos, f.plan, f.precios) ?? todos.find((p) => p.id === previa?.plan_id) ?? null
+      const plan =
+        planDe(todos, { slug: f.plan, id: f.planId }, f.precios) ?? todos.find((p) => p.id === previa?.plan_id) ?? null
       if (!plan) {
         registrar('membresia:facturaAjena', { factura: f.invoiceId })
         return true

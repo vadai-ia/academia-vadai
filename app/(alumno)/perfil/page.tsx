@@ -8,7 +8,7 @@ import { TuMembresia } from '@/components/vaip/tu-membresia'
 import { Button } from '@/components/ui/button'
 import { exigirPerfil } from '@/lib/auth/sesion'
 import { misCertificados } from '@/lib/certificados/consultas'
-import { enlaceDelPortal, enlaceDeSuscripcion, miMembresia, planVaip } from '@/lib/membresia/consultas'
+import { enlaceDelPortal, enlaceDeSuscripcion, misMembresias, planVaip } from '@/lib/membresia/consultas'
 
 export const metadata: Metadata = { title: 'Mi perfil' }
 export const dynamic = 'force-dynamic'
@@ -31,8 +31,8 @@ function fecha(iso: string): string {
  */
 export default async function PaginaPerfil() {
   const perfil = await exigirPerfil()
-  const [certificados, plan] = await Promise.all([misCertificados(), planVaip()])
-  const membresia = plan ? await miMembresia(plan.id) : null
+  const [certificados, plan, membresias] = await Promise.all([misCertificados(), planVaip(), misMembresias()])
+  const tieneVaip = membresias.some((m) => m.plan.slug === plan?.slug)
 
   return (
     <div className="flex max-w-2xl flex-col gap-10">
@@ -51,33 +51,36 @@ export default async function PaginaPerfil() {
         <FotoYBio nombre={perfil.full_name || perfil.email} foto={perfil.avatar_url} bio={perfil.bio} />
       </section>
 
-      {/* M17: la membresía se ve y se administra desde aquí. Sin membresía, una
-          invitación discreta solo cuando la suscripción ya abrió. */}
-      {plan && (membresia || plan.abierto) ? (
+      {/* M17: la membresía se ve y se administra desde aquí, una tarjeta por
+          plan (M18). Sin V-AI-P, una invitación discreta solo cuando ya abrió. */}
+      {membresias.map(({ plan: suyo, membresia }) => (
+        <section key={suyo.id} className="flex flex-col gap-4 border-t border-border pt-8">
+          <h2 className="text-lg font-semibold">{`Tu membresía ${suyo.slug === 'v-ai-p' ? 'V-AI-P' : suyo.nombre}`}</h2>
+          <TuMembresia
+            plan={suyo}
+            membresia={membresia}
+            portal={suyo.portal ? enlaceDelPortal(suyo.portal, perfil.email) : null}
+            enlaceDeSuscripcion={
+              suyo.activo && suyo.linkDePago
+                ? enlaceDeSuscripcion(suyo.linkDePago, { correo: perfil.email, userId: perfil.user_id })
+                : null
+            }
+          />
+        </section>
+      ))}
+      {plan && !tieneVaip && plan.abierto ? (
         <section className="flex flex-col gap-4 border-t border-border pt-8">
-          <h2 className="text-lg font-semibold">Tu membresía V-AI-P</h2>
-          {membresia ? (
-            <TuMembresia
-              membresia={membresia}
-              portal={plan.portal ? enlaceDelPortal(plan.portal, perfil.email) : null}
-              enlaceDeSuscripcion={
-                plan.abierto && plan.linkDePago
-                  ? enlaceDeSuscripcion(plan.linkDePago, { correo: perfil.email, userId: perfil.user_id })
-                  : null
-              }
-            />
-          ) : (
-            <Link
-              href="/vaip"
-              className="flex items-center gap-4 rounded-[10px] border border-border p-4 transition-colors hover:border-primary/50 focus-visible:ring-3 focus-visible:ring-ring/50 focus-visible:outline-none"
-            >
-              <LogoVaip className="h-8" />
-              <span className="text-sm text-pretty text-muted-foreground">
-                Una clase en vivo cada quince días y lo nuevo para miembros.{' '}
-                <span className="font-medium text-primary">Conoce V-AI-P</span>
-              </span>
-            </Link>
-          )}
+          <h2 className="text-lg font-semibold">V-AI-P</h2>
+          <Link
+            href="/vaip"
+            className="flex items-center gap-4 rounded-[10px] border border-border p-4 transition-colors hover:border-primary/50 focus-visible:ring-3 focus-visible:ring-ring/50 focus-visible:outline-none"
+          >
+            <LogoVaip className="h-8" />
+            <span className="text-sm text-pretty text-muted-foreground">
+              Una clase en vivo cada quince días y lo nuevo para miembros.{' '}
+              <span className="font-medium text-primary">Conoce V-AI-P</span>
+            </span>
+          </Link>
         </section>
       ) : null}
 
