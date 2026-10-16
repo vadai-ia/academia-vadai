@@ -2,6 +2,7 @@ import 'server-only'
 
 import type Stripe from 'stripe'
 
+import { emitirEvento } from '@/lib/api/webhooks'
 import { accesoHasta } from '@/lib/membresia/acceso'
 import { motivoDeStripe, type ClaveDeMotivo } from '@/lib/membresia/motivos'
 import { cursosDelPlan, sincronizarMembresia } from '@/lib/membresia/sincronizar'
@@ -80,7 +81,7 @@ async function membresiaPorSuscripcion(subscriptionId: string) {
   const supabase = crearClienteServiceRole()
   const { data } = await supabase
     .from('memberships')
-    .select('id, plan_id, user_id, email, access_until, last_event_at')
+    .select('id, plan_id, user_id, email, status, access_until, last_event_at')
     .eq('stripe_subscription_id', subscriptionId)
     .maybeSingle()
   return data
@@ -177,6 +178,8 @@ async function enlazarPersona(
   // La bienvenida (o el aviso) ya nombró los cursos: aquí no se repite.
   await sincronizarMembresia(alta.userId, plan.id, { avisar: false })
   registrar('membresia:enlazada', { subscriptionId, userId: alta.userId, cuentaNueva: alta.creado })
+  // M20: a las plataformas que lo escuchan. Solo ids: nada de correos.
+  await emitirEvento('miembro.entro', { miembroId: alta.userId, plan: plan.slug })
 }
 
 /**
@@ -229,6 +232,12 @@ async function aplicarSuscripcion(
 
   await anotarCancelacion(plan, s, previa?.user_id ?? null)
   if (previa?.user_id) await sincronizarMembresia(previa.user_id, plan.id)
+  // M20: terminó (no «va a terminar»: eso es cancelar al final del periodo).
+  const terminada = (estado: string | null | undefined) =>
+    estado === 'canceled' || estado === 'unpaid' || estado === 'incomplete_expired'
+  if (previa?.user_id && terminada(s.status) && !terminada(previa.status)) {
+    await emitirEvento('miembro.salio', { miembroId: previa.user_id, plan: plan.slug })
+  }
 }
 
 /**

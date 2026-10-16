@@ -199,7 +199,9 @@ En su lugar: `pnpm db:migrate` → `scripts/migrate.mjs`, que aplica los `.sql` 
 - NO `any` en TypeScript
 - NO secrets en código (todo `.env.local` / Vercel)
 - NO lógica de negocio en componentes (va en `/lib`)
-- NO bypass de RLS en queries de usuario (service role solo para provisioning/webhooks/PDFs)
+- NO bypass de RLS en queries de usuario (service role solo para provisioning/webhooks/PDFs, y desde
+  M20 para la API con llave: `/api/v1`, cuyo único punto de entrada es `lib/api/contexto.ts`, que
+  verifica la llave, el permiso y la cuota antes de entregar el cliente)
 - NO fetch de datos en client components cuando un server component puede hacerlo
 - NO instalar dependencias no listadas en el stack sin justificación explícita
 - NO tocar `public` ni ningún schema ajeno bajo ninguna circunstancia
@@ -273,6 +275,15 @@ BUNNY_STREAM_CDN_HOSTNAME=
 RESEND_API_KEY=
 CORREO_REMITENTE=noreply@automail.vadai.com.mx
 CORREO_REMITENTE_NOMBRE=VADAI Academia
+
+# M18: llave restringida del panel de planes (escribe productos, precios, links,
+# portal y suscripciones). La del webhook (STRIPE_SECRET_KEY) sigue de solo lectura.
+STRIPE_ADMIN_KEY=
+
+# M20: la API y sus tareas programadas. Solo servidor, 32+ caracteres al azar.
+API_KEYS_PEPPER=      # HMAC de las llaves de la API; sin él ninguna llave entra
+WEBHOOKS_MASTER=      # deriva el secreto de cada webhook saliente
+CRON_SECRET=          # Vercel Cron lo manda en Authorization; sin él /api/cron no hace nada
 
 # Sal del hash de IP de la cuota de encuestas en vivo. Solo servidor.
 # Si falta, se deriva de la service role key y todo sigue funcionando; se

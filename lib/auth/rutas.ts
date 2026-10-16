@@ -74,6 +74,10 @@ const PREFIJOS_PUBLICOS = [
   // La página de venta de cada plan y su «gracias» (M18), como /vaip: es el
   // destino de su QR. Un plan en borrador o archivado da 404 ahí mismo.
   '/membresias/',
+  // La API (M20) y las tareas programadas: sin sesión. Cada ruta exige su
+  // llave (lib/api/contexto.ts) o CRON_SECRET; el middleware ni las toca.
+  '/api/v1/',
+  '/api/cron/',
 ]
 
 export function esPublica(ruta: string): boolean {

@@ -37,9 +37,12 @@ const API = 'https://api.resend.com/emails'
  */
 const DOMINIO_QA = '@academia.vadai.com.mx'
 
+/** La cuenta «Equipo VADAI» (M20): es un bot, su dirección no tiene buzón. */
+const SIN_BUZON = new Set(['equipo@academia.vadai.com.mx'])
+
 function esDireccionQA(para: string): boolean {
   const limpia = para.trim().toLowerCase()
-  return limpia.startsWith('qa-') && limpia.endsWith(DOMINIO_QA)
+  return (limpia.startsWith('qa-') && limpia.endsWith(DOMINIO_QA)) || SIN_BUZON.has(limpia)
 }
 
 export type ResultadoCorreo = {

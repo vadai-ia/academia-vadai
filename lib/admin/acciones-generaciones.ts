@@ -18,6 +18,7 @@ import type { Json } from '@/lib/supabase/types'
 import { crearClienteServidor } from '@/lib/supabase/server'
 
 import type { EstadoAccion } from './tipos'
+import { emitirEvento } from '@/lib/api/webhooks'
 
 /**
  * Generaciones y sesiones en vivo (§3.10, M16).
@@ -420,6 +421,7 @@ async function avisarDeSesionesNuevas(
   sesiones: SesionNueva[],
   datos: FormData
 ): Promise<string> {
+  await avisarAWebhooks(cohorteId, sesiones)
   const partes: string[] = []
   if (datos.get('anunciar') === 'si') {
     partes.push((await anunciarSesiones(perfil, cohorteId, sesiones)) ? ' Salió el anuncio.' : ' El anuncio no se pudo publicar.')
@@ -429,6 +431,26 @@ async function avisarDeSesionesNuevas(
     partes.push(r.error ? ` El correo falló: ${r.error}` : ` ${r.aviso ?? ''}`)
   }
   return partes.join('')
+}
+
+/**
+ * M20: si la generación es de la casa de un plan (V-AI-P), cada sesión nueva
+ * avisa a los webhooks que escuchan `sesion.creada`.
+ */
+async function avisarAWebhooks(cohorteId: string, sesiones: SesionNueva[]): Promise<void> {
+  const supabase = await crearClienteServidor()
+  const { data: cohorte } = await supabase.from('cohorts').select('course_id').eq('id', cohorteId).maybeSingle()
+  if (!cohorte) return
+  const { data: plan } = await supabase
+    .from('membership_plans')
+    .select('slug')
+    .eq('hub_course_id', cohorte.course_id)
+    .limit(1)
+    .maybeSingle()
+  if (!plan) return
+  for (const s of sesiones) {
+    await emitirEvento('sesion.creada', { sesionId: s.id, titulo: s.title, inicio: s.scheduled_at, plan: plan.slug })
+  }
 }
 
 /** El anuncio de una o varias clases nuevas, para la generación, con la liga para entrar. */

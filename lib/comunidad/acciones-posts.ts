@@ -4,9 +4,10 @@ import { revalidatePath } from 'next/cache'
 import { z } from 'zod'
 
 import { esEquipo, exigirPerfil } from '@/lib/auth/sesion'
+import { emitirEvento } from '@/lib/api/webhooks'
+import { comoDocumento } from '@/lib/comunidad/documento'
 import { filtroDeModeracion } from '@/lib/comunidad/moderacion'
 import { crearClienteServidor } from '@/lib/supabase/server'
-import type { Json } from '@/lib/supabase/types'
 
 export type EstadoPost = { error?: string; aviso?: string }
 
@@ -30,38 +31,9 @@ const esquemaPost = z.object({
   cuerpo: z.string().trim().max(5000, 'El mensaje es demasiado largo.'),
 })
 
-/**
- * Convierte el texto plano del alumno en el mismo documento que produce Tiptap.
- *
- * El alumno escribe en un textarea, no en un editor rico: está en el celular y
- * quiere soltar una duda, no maquetar. Pero `content_rich` guarda el formato de
- * Tiptap, y `RenderRico` sabe pintarlo — así que se traduce aquí en vez de tener
- * dos formatos de contenido conviviendo en la misma columna.
- *
- * Como el texto entra como texto y sale por nodos conocidos, tampoco hay forma
- * de inyectar markup.
- */
-function comoDocumento(texto: string): Json | null {
-  if (texto === '') return null
-
-  // Los <textarea> mandan CRLF, no LF: partir sin normalizar antes colapsa
-  // todos los párrafos en uno solo.
-  const parrafos = texto
-    .replace(/\r\n/g, '\n')
-    .split(/\n{2,}/)
-    .map((p) => p.trim())
-    .filter(Boolean)
-
-  if (parrafos.length === 0) return null
-
-  return {
-    type: 'doc',
-    content: parrafos.map((p) => ({
-      type: 'paragraph',
-      content: [{ type: 'text', text: p }],
-    })),
-  } as Json
-}
+// El texto plano del alumno se guarda como el documento de Tiptap con
+// `comoDocumento` (lib/comunidad/documento.ts): el alumno escribe en un
+// textarea, no en un editor rico, y `RenderRico` pinta ese formato.
 
 function registrar(operacion: string, detalle: Record<string, unknown>) {
   console.error(JSON.stringify({ operacion, ...detalle }))
@@ -166,6 +138,19 @@ export async function publicarEnComunidad(
       await supabase.storage.from(BUCKET).remove(imagenes.map((i) => i.storage_path))
     }
     return { error: error.code === '42501' ? 'No puedes publicar en esa generación.' : 'No se pudo publicar.' }
+  }
+
+  // M20: una noticia (el tema «Noticias») avisa a los webhooks.
+  const temaId = String(datos.get('topic_id') ?? '')
+  if (/^[0-9a-f-]{36}$/i.test(temaId)) {
+    const { data: tema } = await supabase.from('community_topics').select('slug').eq('id', temaId).maybeSingle()
+    if (tema?.slug === 'noticias') {
+      const base = (process.env.NEXT_PUBLIC_APP_URL ?? '').replace(/\/+$/, '')
+      await emitirEvento('noticia.publicada', {
+        titulo: String(datos.get('titulo') ?? ''),
+        url: `${base}/curso/${cursoSlug}/comunidad?tema=noticias`,
+      })
+    }
   }
 
   revalidatePath(`/curso/${cursoSlug}/comunidad`)

@@ -143,6 +143,8 @@ export async function listarAlumnos(filtros: FiltrosAlumnos = {}): Promise<Pagin
       // En cuanto uno compra o se le da de alta deja de ser invitado y aparece
       // aquí solo: lo asciende `darDeAlta()`.
       .neq('role', 'invitado')
+      // La cuenta «Equipo VADAI» (M20) no es una persona: no se lista.
+      .eq('es_bot', false)
       .eq('status', filtros.ver === 'suspendidos' ? 'suspended' : 'active')
     if (busqueda) c = c.or(busqueda)
     if (filtros.empresa === 'general') c = c.is('company_id', null)
@@ -160,6 +162,8 @@ export async function listarAlumnos(filtros: FiltrosAlumnos = {}): Promise<Pagin
       .from('profiles')
       .select('user_id', { count: 'exact', head: true })
       .neq('role', 'invitado')
+      // La cuenta «Equipo VADAI» (M20) no es una persona: no se lista.
+      .eq('es_bot', false)
       .eq('status', filtros.ver === 'suspendidos' ? 'suspended' : 'active')
     if (busqueda) c = c.or(busqueda)
     if (filtros.empresa === 'general') c = c.is('company_id', null)
@@ -312,7 +316,7 @@ export async function conteosDeAlumnos(filtros: Pick<FiltrosAlumnos, 'q' | 'empr
   const termino = limpiarTermino(filtros.q)
   const busqueda = expresionDeBusqueda(termino, await empresasQueCoinciden(supabase, termino))
 
-  let c = supabase.from('profiles').select('user_id, status, last_sign_in_at').neq('role', 'invitado')
+  let c = supabase.from('profiles').select('user_id, status, last_sign_in_at').neq('role', 'invitado').eq('es_bot', false)
   if (busqueda) c = c.or(busqueda)
   if (filtros.empresa === 'general') c = c.is('company_id', null)
   else if (filtros.empresa) c = c.eq('company_id', filtros.empresa)
@@ -342,7 +346,7 @@ export async function resumenDeAlumnos(): Promise<{
 }> {
   const supabase = await crearClienteServidor()
   const [perfiles, inscripciones] = await Promise.all([
-    supabase.from('profiles').select('user_id, last_sign_in_at').neq('role', 'invitado').eq('status', 'active'),
+    supabase.from('profiles').select('user_id, last_sign_in_at').neq('role', 'invitado').eq('es_bot', false).eq('status', 'active'),
     supabase.from('enrollments').select('user_id, expires_at').eq('status', 'active'),
   ])
 

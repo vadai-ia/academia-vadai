@@ -4,6 +4,7 @@ import { BarraLateral, type GrupoDeNavegacion } from '@/components/admin/barra-l
 import { CampanaDeComunidad } from '@/components/admin/campana-comunidad'
 import { Encabezado } from '@/components/marca/encabezado'
 import {
+  IconoAjustes,
   IconoBlog,
   IconoCertificaciones,
   IconoComunidad,
@@ -20,7 +21,7 @@ import {
 } from '@/components/marca/iconos-navegacion'
 import { BarraDeNavegacion } from '@/components/marca/barra-de-navegacion'
 import { SaltarAlContenido } from '@/components/marca/saltar-al-contenido'
-import { exigirEquipo } from '@/lib/auth/sesion'
+import { esAdmin, exigirEquipo } from '@/lib/auth/sesion'
 
 /**
  * Marco del área de administración. Un alumno que llegue aquí es devuelto.
@@ -72,6 +73,10 @@ export default async function LayoutAdmin({ children }: { children: ReactNode })
       // dentro, siguen siendo solo de admin (sus páginas lo exigen).
       destinos: [{ href: '/admin/vaip', etiqueta: 'V-AI-P', icono: IconoVaip }],
     },
+    // M20: llaves de la API y webhooks. Solo admin (la página lo exige también).
+    ...(esAdmin(perfil)
+      ? [{ titulo: 'Ajustes', destinos: [{ href: '/admin/ajustes/api', etiqueta: 'API', icono: IconoAjustes }] }]
+      : []),
   ]
 
   return (

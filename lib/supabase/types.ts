@@ -58,6 +58,96 @@ export type Database = {
         }
         Relationships: []
       }
+      api_bitacora: {
+        Row: {
+          id: number
+          key_id: string | null
+          metodo: string
+          ruta: string
+          status: number
+          duracion_ms: number
+          ip_huella: string | null
+          created_at: string
+        }
+        Insert: {
+          id?: number
+          key_id?: string | null
+          metodo: string
+          ruta: string
+          status: number
+          duracion_ms: number
+          ip_huella?: string | null
+          created_at?: string
+        }
+        Update: {
+          id?: number
+          key_id?: string | null
+          metodo?: string
+          ruta?: string
+          status?: number
+          duracion_ms?: number
+          ip_huella?: string | null
+          created_at?: string
+        }
+        Relationships: []
+      }
+      api_keys: {
+        Row: {
+          id: string
+          nombre: string
+          key_id: string
+          hash: string
+          permisos: string[]
+          creada_por: string | null
+          created_at: string
+          expires_at: string | null
+          revoked_at: string | null
+          last_used_at: string | null
+        }
+        Insert: {
+          id?: string
+          nombre: string
+          key_id: string
+          hash: string
+          permisos?: string[]
+          creada_por?: string | null
+          created_at?: string
+          expires_at?: string | null
+          revoked_at?: string | null
+          last_used_at?: string | null
+        }
+        Update: {
+          id?: string
+          nombre?: string
+          key_id?: string
+          hash?: string
+          permisos?: string[]
+          creada_por?: string | null
+          created_at?: string
+          expires_at?: string | null
+          revoked_at?: string | null
+          last_used_at?: string | null
+        }
+        Relationships: []
+      }
+      api_uso: {
+        Row: {
+          key_id: string
+          hora: string
+          cuenta: number
+        }
+        Insert: {
+          key_id: string
+          hora: string
+          cuenta?: number
+        }
+        Update: {
+          key_id?: string
+          hora?: string
+          cuenta?: number
+        }
+        Relationships: []
+      }
       assignment_submissions: {
         Row: {
           id: string
@@ -274,6 +364,8 @@ export type Database = {
           status: 'visible' | 'hidden' | 'deleted'
           created_at: string
           updated_at: string
+          via: 'humano' | 'api' | 'agente' | 'agente_revisado'
+          api_key_id: string | null
         }
         Insert: {
           id?: string
@@ -283,6 +375,8 @@ export type Database = {
           status?: 'visible' | 'hidden' | 'deleted'
           created_at?: string
           updated_at?: string
+          via?: 'humano' | 'api' | 'agente' | 'agente_revisado'
+          api_key_id?: string | null
         }
         Update: {
           id?: string
@@ -292,6 +386,8 @@ export type Database = {
           status?: 'visible' | 'hidden' | 'deleted'
           created_at?: string
           updated_at?: string
+          via?: 'humano' | 'api' | 'agente' | 'agente_revisado'
+          api_key_id?: string | null
         }
         Relationships: []
       }
@@ -312,6 +408,8 @@ export type Database = {
           attended_at: string | null
           attended_by: string | null
           topic_id: string | null
+          via: 'humano' | 'api' | 'agente' | 'agente_revisado'
+          api_key_id: string | null
         }
         Insert: {
           id?: string
@@ -329,6 +427,8 @@ export type Database = {
           attended_at?: string | null
           attended_by?: string | null
           topic_id?: string | null
+          via?: 'humano' | 'api' | 'agente' | 'agente_revisado'
+          api_key_id?: string | null
         }
         Update: {
           id?: string
@@ -346,6 +446,8 @@ export type Database = {
           attended_at?: string | null
           attended_by?: string | null
           topic_id?: string | null
+          via?: 'humano' | 'api' | 'agente' | 'agente_revisado'
+          api_key_id?: string | null
         }
         Relationships: []
       }
@@ -1529,6 +1631,7 @@ export type Database = {
           blog_seen_at: string | null
           community_seen_at: string | null
           bio: string | null
+          es_bot: boolean
         }
         Insert: {
           user_id: string
@@ -1545,6 +1648,7 @@ export type Database = {
           blog_seen_at?: string | null
           community_seen_at?: string | null
           bio?: string | null
+          es_bot?: boolean
         }
         Update: {
           user_id?: string
@@ -1561,6 +1665,7 @@ export type Database = {
           blog_seen_at?: string | null
           community_seen_at?: string | null
           bio?: string | null
+          es_bot?: boolean
         }
         Relationships: []
       }
@@ -1690,6 +1795,87 @@ export type Database = {
           event_id?: string
           event_type?: string | null
           processed_at?: string
+        }
+        Relationships: []
+      }
+      webhook_entregas: {
+        Row: {
+          id: string
+          webhook_id: string
+          evento_id: string
+          tipo: string
+          datos: Json
+          estado: 'pendiente' | 'entregada' | 'fallida'
+          intentos: number
+          proximo_intento: string
+          ultimo_error: string | null
+          created_at: string
+          entregada_at: string | null
+        }
+        Insert: {
+          id?: string
+          webhook_id: string
+          evento_id: string
+          tipo: string
+          datos: Json
+          estado?: 'pendiente' | 'entregada' | 'fallida'
+          intentos?: number
+          proximo_intento?: string
+          ultimo_error?: string | null
+          created_at?: string
+          entregada_at?: string | null
+        }
+        Update: {
+          id?: string
+          webhook_id?: string
+          evento_id?: string
+          tipo?: string
+          datos?: Json
+          estado?: 'pendiente' | 'entregada' | 'fallida'
+          intentos?: number
+          proximo_intento?: string
+          ultimo_error?: string | null
+          created_at?: string
+          entregada_at?: string | null
+        }
+        Relationships: []
+      }
+      webhooks_salientes: {
+        Row: {
+          id: string
+          nombre: string
+          url: string
+          eventos: string[]
+          activo: boolean
+          secreto_version: number
+          fallas_seguidas: number
+          creado_por: string | null
+          created_at: string
+          desactivado_en: string | null
+        }
+        Insert: {
+          id?: string
+          nombre: string
+          url: string
+          eventos: string[]
+          activo?: boolean
+          secreto_version?: number
+          fallas_seguidas?: number
+          creado_por?: string | null
+          created_at?: string
+          desactivado_en?: string | null
+        }
+        Update: {
+          id?: string
+          nombre?: string
+          url?: string
+          eventos?: string[]
+          activo?: boolean
+          secreto_version?: number
+          fallas_seguidas?: number
+          creado_por?: string | null
+          created_at?: string
+          desactivado_en?: string | null
         }
         Relationships: []
       }
