@@ -70,8 +70,12 @@ const NUNCA = /(evaluacion|quiz|correo|encuesta|investigacion|bitacora|readme|en
  */
 const FIREFLIES = {
   curso: CURSO,
-  /** Solo las frases de estos ponentes (por nombre en el transcript). */
-  ponentes: /alejandro|roberto/i,
+  /**
+   * Solo las frases de estos ponentes, por su nombre EXACTO en el transcript
+   * (sin acentos ni mayúsculas). Exacto a propósito: «Roberto Jiménez» es un
+   * participante, no Roberto Martínez de Total Coach.
+   */
+  ponentes: ['alejandro', 'alejandro martinez', 'alejandro martinez licon', 'roberto martinez'],
   reuniones: [
     { id: '01M32HE9FHR2YKKBRG1TZHK061', titulo: 'Clase en vivo · Sesión 1, alineación' },
     { id: '01M32HEZRJ4RTJXJC1P1MR5AHS', titulo: 'Clase en vivo · Sesión 2, la plataforma de Claude' },
@@ -146,6 +150,42 @@ function textoDeTiptap(doc) {
   return partes.join('').replace(/\n{3,}/g, '\n\n').trim()
 }
 
+const normal = (t) =>
+  (t ?? '')
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .toLowerCase()
+    .replace(/\s+/g, ' ')
+    .trim()
+
+function esPonente(nombre) {
+  return FIREFLIES.ponentes.includes(normal(nombre))
+}
+
+/** Palabras que salen en nombres o razones sociales pero no identifican a nadie. */
+const NO_SON_NOMBRES = new Set(
+  ('alejandro roberto martinez licon dir ing rrhh speaker galaxy ultra ceo lic del las los grupo servicios comercial ' +
+    'comercializadora industrial industrias mexico mexicana constructora construcciones sistemas soluciones corporativo ' +
+    'internacional empresa empresas general direccion ventas finanzas operaciones claude vadai total coach academia')
+    .split(' ')
+)
+
+function palabrasDeNombres(nombres) {
+  const palabras = new Set()
+  for (const n of nombres) {
+    for (const w of normal(n).split(/[^a-z0-9ñ]+/)) if (w.length >= 3 && !/\d/.test(w) && !NO_SON_NOMBRES.has(w)) palabras.add(w)
+  }
+  return palabras
+}
+
+/** Cambia por [participante] cada palabra de un nombre, solo si va con mayúscula (es un nombre, no una palabra común). */
+function sinNombres(texto, palabras) {
+  if (palabras.size === 0) return texto
+  return texto
+    .replace(/[\p{L}\p{N}]+/gu, (w) => (/^\p{Lu}/u.test(w) && palabras.has(normal(w)) ? '[participante]' : w))
+    .replace(/(\[participante\]\s*){2,}/g, '[participante] ')
+}
+
 function deVtt(vtt) {
   return vtt
     .split(/\r?\n/)
@@ -215,6 +255,19 @@ try {
     if (!llave) linea('aviso', 'fireflies: falta FIREFLIES_API_KEY en .env.local, se salta')
     else if (id === undefined) linea('aviso', `fireflies: no existe el curso ${FIREFLIES.curso}`)
     else {
+      // Los nombres a quitar: quien habló en CUALQUIER clase (alguien que solo
+      // habló en la sesión 1 aparece nombrado en la 3) y los alumnos del curso
+      // con sus empresas, de la base.
+      const { rows: inscritos } = await bd.query(
+        `select p.full_name, co.name as empresa
+           from academia.enrollments e
+           join academia.profiles p on p.user_id = e.user_id
+           left join academia.companies co on co.id = p.company_id
+          where e.course_id = $1 and p.role = 'alumno'`,
+        [id]
+      )
+      const nombres = new Set(inscritos.flatMap((i) => [i.full_name, i.empresa]).filter(Boolean))
+      const clases = []
       for (const r of FIREFLIES.reuniones) {
         const res = await fetch('https://api.fireflies.ai/graphql', {
           method: 'POST',
@@ -234,14 +287,21 @@ try {
         const frases = []
         for (const s of t.sentences ?? []) {
           porPonente.set(s.speaker_name ?? '¿?', (porPonente.get(s.speaker_name ?? '¿?') ?? 0) + 1)
-          if (FIREFLIES.ponentes.test(s.speaker_name ?? '')) frases.push(s.text)
+          if (esPonente(s.speaker_name)) frases.push(s.text)
         }
         const resumen = t.summary?.overview ? `Resumen de la clase:\n${t.summary.overview}\n\n` : ''
-        const texto = limpiar(`${resumen}Lo que explicó el equipo en la clase:\n${frases.join(' ')}`)
-        docs.push({ fuente: 'fireflies', clave: r.id, titulo: r.titulo, course_id: id, contenido: texto.slice(0, LIMITE) })
+        // El equipo nombra a los participantes («gracias, Blanca») y a sus empresas:
+        // esos nombres, sacados de la lista de quién habló, se cambian por [participante].
+        for (const n of porPonente.keys()) if (!esPonente(n)) nombres.add(n)
+        clases.push({ r, texto: limpiar(`${resumen}Lo que explicó el equipo en la clase:\n${frases.join(' ')}`) })
         const ponentes = [...porPonente.entries()].map(([p, k]) => `${p} ${k}`).join(', ')
         linea(frases.length ? 'ok' : 'aviso', `fireflies: ${r.titulo}`, `${frases.length} frases del equipo · ${ponentes}`)
       }
+      const quitar = palabrasDeNombres([...nombres])
+      for (const { r, texto } of clases) {
+        docs.push({ fuente: 'fireflies', clave: r.id, titulo: r.titulo, course_id: id, contenido: sinNombres(texto, quitar).slice(0, LIMITE) })
+      }
+      linea('ok', `fireflies: se quitan ${quitar.size} palabras de nombres de participantes y empresas`)
     }
   }
 
