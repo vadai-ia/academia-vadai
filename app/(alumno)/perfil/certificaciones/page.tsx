@@ -1,6 +1,7 @@
 import type { Metadata } from 'next'
 import Link from 'next/link'
 
+import { EncabezadoPerfil } from '@/components/alumno/encabezado-perfil'
 import { Diploma } from '@/components/diplomas/diploma'
 import { RevelarDiploma } from '@/components/diplomas/revelar'
 import { Tarjeta } from '@/components/ui-vadai/superficie'
@@ -9,7 +10,7 @@ import { exigirPerfil } from '@/lib/auth/sesion'
 import { misCertificados } from '@/lib/certificados/consultas'
 import { diplomasPorAbrir, misDiplomas } from '@/lib/diplomas/consultas'
 
-export const metadata: Metadata = { title: 'Mis certificaciones' }
+export const metadata: Metadata = { title: 'Certificaciones' }
 export const dynamic = 'force-dynamic'
 
 const hora = (iso: string) =>
@@ -23,8 +24,10 @@ const hora = (iso: string) =>
   }).format(new Date(iso))
 
 /**
- * Mis certificaciones (15-oct-2026): los diplomas de generación de VADAI y
- * Total Coach, con su apertura sorpresa, y los certificados por curso.
+ * Mi perfil → Certificaciones (15-oct-2026; pestaña de Perfil desde M22, antes
+ * /certificaciones): los diplomas de generación de VADAI y Total Coach, con su
+ * apertura sorpresa, y los certificados por curso. Es la única lista de
+ * certificados: Perfil e Inicio ya no la repiten.
  */
 export default async function PaginaCertificaciones() {
   const perfil = await exigirPerfil()
@@ -38,10 +41,7 @@ export default async function PaginaCertificaciones() {
 
   return (
     <div className="flex flex-col gap-10">
-      <header className="flex flex-col gap-1.5 print:hidden">
-        <h1 className="text-2xl font-semibold tracking-tight">Mis certificaciones</h1>
-        <p className="text-sm text-muted-foreground">Tus diplomas y certificados de la academia.</p>
-      </header>
+      <EncabezadoPerfil apoyo="Tus diplomas y certificados de la academia." />
 
       {porAbrir.map((p) => (
         <Tarjeta key={p.clave} className="flex flex-col items-center gap-2 p-8 text-center print:hidden">

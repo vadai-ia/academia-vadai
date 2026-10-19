@@ -42,6 +42,12 @@ export type Destino = {
   /** Exacto para la raíz de una sección; por prefijo para sus hijas. */
   exacto?: boolean
   /**
+   * Otras rutas que también encienden la pastilla (M22): «Mis cursos» vive en
+   * /cursos, pero dentro de un curso (/curso/…) o de una dinámica sigues en
+   * «Mis cursos».
+   */
+  tambien?: string[]
+  /**
    * Cuántas novedades hay sin ver en ese destino. 0 o ausente no pinta nada:
    * un cero en un contador es ruido, y peor, se lee como si algo fallara.
    */
@@ -66,7 +72,9 @@ export function NavegacionPrincipal({ destinos }: { destinos: Destino[] }) {
       )}
     >
       {destinos.map((d) => {
-        const activa = d.exacto ? ruta === d.href : ruta === d.href || ruta.startsWith(`${d.href}/`)
+        const activa =
+          (d.exacto ? ruta === d.href : ruta === d.href || ruta.startsWith(`${d.href}/`)) ||
+          (d.tambien ?? []).some((prefijo) => ruta.startsWith(prefijo))
 
         return (
           <Link
@@ -82,7 +90,9 @@ export function NavegacionPrincipal({ destinos }: { destinos: Destino[] }) {
                 : 'text-muted-foreground hover:bg-muted hover:text-foreground'
             )}
           >
-            <span className="shrink-0">{d.icono}</span>
+            {/* M22: sin icono en el teléfono. Con icono, cuatro pastillas suman
+                ~430 px y «Perfil» se cortaba a 390. */}
+            <span className="hidden shrink-0 sm:inline">{d.icono}</span>
             {d.etiqueta}
             {d.novedades && d.novedades > 0 ? (
               <span

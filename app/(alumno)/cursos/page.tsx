@@ -7,8 +7,9 @@ import { Alert, AlertDescription } from '@/components/ui/alert'
 import { catalogo } from '@/lib/alumno/catalogo'
 import { misCursos } from '@/lib/alumno/consultas'
 import { esEquipo, exigirPerfil } from '@/lib/auth/sesion'
+import { cursosFueraDeVaip } from '@/lib/membresia/espacio'
 
-export const metadata: Metadata = { title: 'Cursos' }
+export const metadata: Metadata = { title: 'Mis cursos' }
 export const dynamic = 'force-dynamic'
 
 /**
@@ -19,28 +20,33 @@ export const dynamic = 'force-dynamic'
  * Lo ofrecido sale del catálogo: solo los cursos que el equipo marcó con
  * «Mostrar en el catálogo». Los gratis se empiezan con un botón; los de pago
  * se compran con su Payment Link.
+ *
+ * M22: es la pastilla «Mis cursos» (antes «Cursos», con la misma rejilla que
+ * Inicio). La casa de V-AI-P y, para el miembro, sus herramientas no salen
+ * aquí: viven en V-AI-P.
  */
 export default async function PaginaCursos({
   searchParams,
 }: {
   searchParams: Promise<{ error?: string }>
 }) {
-  const [perfil, propios, { disponible, cursos: ofrecidos }, { error }] = await Promise.all([
+  const [perfil, todos, { disponible, cursos: ofrecidos }, { error }] = await Promise.all([
     exigirPerfil(),
     misCursos(),
     catalogo(),
     searchParams,
   ])
+  const propios = await cursosFueraDeVaip(todos)
 
   const equipo = esEquipo(perfil)
   // Al equipo `misCursos` le lista todos los cursos (entra sin inscripción);
   // para que vea el catálogo como un alumno, ahí cuenta solo la inscripción real.
-  const idsPropios = new Set(propios.map((c) => c.id))
+  const idsPropios = new Set(todos.map((c) => c.id))
   const porTomar = ofrecidos.filter((c) => !c.inscrito && (equipo || !idsPropios.has(c.id)))
 
   return (
     <div className="flex flex-col gap-10">
-      <Titulo apoyo="Los tuyos, y los que puedes empezar o comprar.">Cursos</Titulo>
+      <Titulo apoyo="Los tuyos, y los que puedes empezar o comprar.">Mis cursos</Titulo>
 
       {error ? (
         <Alert variant="destructive">

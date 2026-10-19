@@ -1,11 +1,12 @@
 import type { Metadata } from 'next'
-import { notFound } from 'next/navigation'
+import { notFound, redirect } from 'next/navigation'
 
 import { ListaDinamicas } from '@/components/dinamicas/lista-dinamicas'
 import { Tarjeta } from '@/components/ui-vadai/superficie'
 import { cursoDelAlumno } from '@/lib/alumno/consultas'
 import { esEquipo, exigirPerfil } from '@/lib/auth/sesion'
 import { misDinamicas } from '@/lib/dinamicas/consultas-alumno'
+import { esCasaDeVaip } from '@/lib/membresia/consultas'
 
 export const dynamic = 'force-dynamic'
 
@@ -39,6 +40,8 @@ export default async function PaginaDinamicasDelCurso({
   // El layout ya lo pidió y `cache()` lo memoriza: esto no cuesta otro viaje.
   const curso = await cursoDelAlumno(slug)
   if (!curso) notFound()
+  // M22: la casa de V-AI-P no es un curso; sus pestañas viven en /vaip.
+  if (await esCasaDeVaip(curso.id)) redirect('/vaip')
 
   const dinamicas = await misDinamicas(curso.id)
 

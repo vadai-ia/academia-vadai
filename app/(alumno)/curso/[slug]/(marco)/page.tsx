@@ -1,6 +1,6 @@
 import type { Metadata } from 'next'
 import Link from 'next/link'
-import { notFound } from 'next/navigation'
+import { notFound, redirect } from 'next/navigation'
 
 import { AccesoVencido } from '@/components/alumno/acceso-vencido'
 import { CertificadoDelCurso } from '@/components/alumno/certificado-del-curso'
@@ -15,6 +15,7 @@ import { proximaOActual } from '@/lib/calendario/estado'
 import { hoyCdmx } from '@/lib/calendario/mes'
 import { certificadoDelCurso } from '@/lib/certificados/consultas'
 import { revisarElegibilidad } from '@/lib/certificados/elegibilidad'
+import { esCasaDeVaip } from '@/lib/membresia/consultas'
 
 export const dynamic = 'force-dynamic'
 
@@ -35,6 +36,8 @@ export default async function PaginaCurso({ params }: { params: Promise<{ slug: 
   // El layout ya lo pidió y `cache()` lo memoriza: esto no cuesta otro viaje.
   const curso = await cursoDelAlumno(slug)
   if (!curso) notFound()
+  // M22: las grabaciones y el material de V-AI-P viven en V-AI-P → Clases.
+  if (await esCasaDeVaip(curso.id)) redirect('/vaip/clases')
 
   const [sesiones, folio, elegibilidad] = await Promise.all([
     sesionesDelCurso(slug),

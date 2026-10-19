@@ -272,7 +272,8 @@ try {
   afirmar('Miembros', 'la búsqueda filtra', false, buscado.includes(fila))
 
   // --- 4. Herramientas en el espacio ----------------------------------------
-  const espacio = await html('/vaip', miembro)
+  // M22: V-AI-P tiene pestañas; las herramientas viven en la suya.
+  const espacio = await html('/vaip/herramientas', miembro)
   afirmar('Herramientas', 'el espacio trae la sección', true, espacio.includes('>Herramientas<'))
   afirmar('Herramientas', 'con la herramienta en su área', true, /Creativas[\s\S]*qa-portal-herramienta/.test(espacio))
   // Las tarjetas pintadas (<h3>), no el texto: el título también viaja en el

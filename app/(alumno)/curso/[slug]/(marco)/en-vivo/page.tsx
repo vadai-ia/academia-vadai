@@ -15,6 +15,7 @@ import { sesionesDelCurso } from '@/lib/alumno/sesiones'
 import { exigirPerfil } from '@/lib/auth/sesion'
 import { estadoDe, proximaOActual } from '@/lib/calendario/estado'
 import { hoyCdmx, mesDe, mesValido, partesCdmx } from '@/lib/calendario/mes'
+import { esCasaDeVaip } from '@/lib/membresia/consultas'
 
 /**
  * La pestaña "En vivo" de un curso.
@@ -48,6 +49,9 @@ export default async function PaginaEnVivo({
 
   const [curso, sesiones] = await Promise.all([cursoDelAlumno(slug), sesionesDelCurso(slug)])
   if (!curso) notFound()
+  // M22: las clases de V-AI-P viven en V-AI-P → Clases (los correos de cada
+  // clase traen esta liga).
+  if (await esCasaDeVaip(curso.id)) redirect('/vaip/clases')
 
   const base = `/curso/${curso.slug}`
   // Con el acceso vencido no hay liga que enseñar: la pestaña ya sale apagada,

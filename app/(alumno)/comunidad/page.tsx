@@ -1,136 +1,27 @@
-import type { Metadata } from 'next'
-import Link from 'next/link'
+import { redirect } from 'next/navigation'
 
-import { Comunidad } from '@/components/alumno/comunidad'
-import { SelectorDeGeneracion } from '@/components/alumno/selector-de-generacion'
-import { Pestanas, type Pestana } from '@/components/ui-vadai/pestanas'
-import { Tarjeta, Titulo } from '@/components/ui-vadai/superficie'
-import { misCursos } from '@/lib/alumno/consultas'
-import { generacionesParaEquipo } from '@/lib/alumno/generaciones-equipo'
-import { esEquipo, exigirPerfil } from '@/lib/auth/sesion'
-import { cursosPorActividad, feedDelCurso } from '@/lib/comunidad/posts'
-import { sellarCanal } from '@/lib/notificaciones/canales'
+import { casaDeVaip } from '@/lib/membresia/consultas'
 
-/**
- * La comunidad, como destino propio de la navegación (21-sep-2026).
- *
- * Antes solo existía dentro del curso: había que entrar a Mis cursos, elegir el
- * curso, y ahí sí, la pestaña Comunidad. Tres clics para ver si alguien
- * contestó. Alejandro lo pidió así: "que puedan llegar a la comunidad desde los
- * botones principales sin necesidad de que entren al curso y luego a
- * comunidad".
- *
- * Con varios cursos se elige con pestañas y un `?curso=`, no con un menú de
- * JavaScript: son enlaces, funcionan sin JS y se pueden compartir.
- *
- * NO lleva `loading.tsx` ni lo necesita: aquí no hay `redirect()` ni
- * `notFound()`, un alumno sin cursos ve su vacío.
- */
 export const dynamic = 'force-dynamic'
 
-export const metadata: Metadata = { title: 'Comunidad' }
-
-export default async function PaginaComunidadGeneral({
-  searchParams,
-}: {
-  searchParams: Promise<{ curso?: string; p?: string; por?: string; gen?: string }>
-}) {
-  const perfil = await exigirPerfil()
-  const { curso: pedido, p, por, gen } = await searchParams
-
-  // Ordenados por conversación más reciente, no por como vengan: quien abre
-  // "Comunidad" quiere ver donde está pasando algo. Con el orden de `misCursos`
-  // caías en el curso base, que suele estar vacío, y parecía que no había nada.
-  // Abrir la comunidad apaga su contador. Se sella aquí y no en el layout: el
-  // layout corre en cada pantalla del alumno y apagaría el contador sin que
-  // nadie hubiera leído nada. Va en paralelo con los cursos: no dependen.
-  const [cursosCrudos] = await Promise.all([misCursos(), sellarCanal(perfil, 'comunidad')])
-  const cursos = await cursosPorActividad(cursosCrudos.filter((c) => c.vigente))
-
-  if (cursos.length === 0) {
-    return (
-      <div className="flex flex-col gap-6">
-        <Titulo apoyo="Lo que tu generación pregunta, comparte y responde.">Comunidad</Titulo>
-        <Tarjeta className="border-dashed px-5 py-12 text-center">
-          <p className="text-sm text-muted-foreground">
-            La comunidad vive dentro de cada curso. Cuando tengas uno con acceso vigente, aquí
-            aparecerán sus publicaciones.
-          </p>
-          <Link
-            href="/mis-cursos"
-            className="mt-3 inline-block text-sm text-primary underline-offset-4 hover:underline"
-          >
-            Ir a mis cursos →
-          </Link>
-        </Tarjeta>
-      </div>
-    )
-  }
-
-  const activo = cursos.find((c) => c.slug === pedido) ?? cursos[0]
-  if (!activo) return null
-
-  // El muro es por generación (M16): el alumno ve el suyo; el equipo elige.
-  const soyEquipo = esEquipo(perfil)
-  const generaciones = soyEquipo && activo.porGeneraciones ? await generacionesParaEquipo(activo.id) : []
-  const generacion = generaciones.find((g) => g.id === gen) ?? activo.generacion
-  const cohortId = generacion?.id ?? null
-
-  const feed = await feedDelCurso(activo.id, cohortId, perfil.user_id, {
-    pagina: Number(p) || 1,
-    porPagina: por === undefined ? 10 : Number(por),
-  })
-
-  const pestanas: Pestana[] = cursos.map((c) => ({
-    href: c.slug === cursos[0]?.slug ? '/comunidad' : `/comunidad?curso=${c.slug}`,
-    etiqueta: c.titulo,
-    activa: c.slug === activo.slug,
-  }))
-
-  return (
-    <div className="flex flex-col gap-6">
-      <Titulo apoyo="Lo que tu generación pregunta, comparte y responde. Cada publicación y cada comentario suman puntos.">
-        Comunidad
-      </Titulo>
-
-      {/* Con un solo curso, una fila de pestañas de un elemento es ruido. */}
-      {cursos.length > 1 ? <Pestanas pestanas={pestanas} etiqueta="Comunidades de tus cursos" /> : null}
-
-      {/* Para el equipo, aunque haya una sola generación: «¿de qué generación
-          están escribiendo?» tiene que contestarse sin adivinar (3-oct-2026). */}
-      {generaciones.length > 0 ? (
-        <SelectorDeGeneracion
-          base={activo.slug === cursos[0]?.slug ? '/comunidad' : `/comunidad?curso=${activo.slug}`}
-          generaciones={generaciones}
-          activa={cohortId}
-        />
-      ) : null}
-
-      {activo.sinGeneracion ? (
-        <p className="rounded-lg border border-dashed border-border px-5 py-8 text-center text-sm text-muted-foreground">
-          La comunidad es por generación, y todavía no estás en una. Escríbenos y te asignamos la
-          tuya.
-        </p>
-      ) : (
-        <Comunidad
-          posts={feed.posts}
-          cursoId={activo.id}
-          cohortId={cohortId}
-          porGeneraciones={activo.porGeneraciones}
-          cursoSlug={activo.slug}
-          soyEquipo={soyEquipo}
-          ruta="/comunidad"
-          pagina={feed.pagina}
-          paginas={feed.paginas}
-          porPagina={feed.porPagina}
-          total={feed.total}
-          // Al pasar de página no se pierde de qué curso ni de qué generación es.
-          extra={{
-            ...(cursos.length > 1 && activo.slug !== cursos[0]?.slug ? { curso: activo.slug } : {}),
-            ...(gen && generacion?.id === gen ? { gen } : {}),
-          }}
-        />
-      )}
-    </div>
-  )
+/**
+ * /comunidad ya no es una página (M22, 20-oct-2026). Era el mismo muro de cada
+ * curso en otra envoltura —sin temas ni ranking— y una de seis formas de
+ * llegar al muro de V-AI-P. Cada muro vive ahora en su espacio: el de V-AI-P
+ * en /vaip y el de cada curso en su pestaña Comunidad; Inicio muestra lo
+ * último de todos.
+ *
+ * Se queda como redirección para que ninguna liga vieja muera:
+ *   ?curso=<casa de V-AI-P> → /vaip
+ *   ?curso=<slug>           → /curso/<slug>/comunidad
+ *   sin curso               → Inicio
+ *
+ * Sin `loading.tsx` en esta carpeta, a propósito: con uno, el redirect saldría
+ * como un 200 con esqueleto (CLAUDE.md, anti-patterns).
+ */
+export default async function Comunidad({ searchParams }: { searchParams: Promise<{ curso?: string }> }) {
+  const { curso } = await searchParams
+  if (!curso || !/^[a-z0-9-]+$/.test(curso)) redirect('/mis-cursos')
+  const casa = await casaDeVaip()
+  redirect(casa?.slug === curso ? '/vaip' : `/curso/${curso}/comunidad`)
 }

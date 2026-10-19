@@ -154,7 +154,8 @@ export async function publicarEnComunidad(
   }
 
   revalidatePath(`/curso/${cursoSlug}/comunidad`)
-  revalidatePath('/comunidad')
+  revalidatePath(rutaDeVuelta(datos))
+  revalidatePath('/mis-cursos')
   return {
     aviso: generaciones.length > 1 ? `Publicado en ${generaciones.length} generaciones.` : 'Publicado.',
   }
@@ -187,6 +188,8 @@ export async function comentarEnPost(
   }
 
   revalidatePath(`/curso/${cursoSlug}/comunidad`)
+  revalidatePath(rutaDeVuelta(datos))
+  revalidatePath('/mis-cursos')
   return { aviso: 'Comentario publicado.' }
 }
 

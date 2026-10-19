@@ -248,19 +248,18 @@ async function main() {
 
   // Gamificación (20-sep-2026): dos lecciones son 20 puntos como mínimo. Se
   // afirma "al menos": si otra suite le dejó un quiz o un comentario, sube.
-  const tablero = await texto('/mis-cursos', vigente)
-  const puntos = Number(tablero.match(/data-puntos="(\d+)"/)?.[1] ?? -1)
-  afirmar(G2, 'el tablero muestra su nivel', true, tablero.includes('Tu nivel'))
+  // M22 (20-oct-2026): los puntos viven en Mi perfil → Puntos; Inicio y el muro
+  // ya no traen ranking por generación (ya se premió al top 3).
+  const misPuntos = await texto('/perfil/puntos', vigente)
+  const puntos = Number(misPuntos.match(/data-puntos="(\d+)"/)?.[1] ?? -1)
+  afirmar(G2, 'Mi perfil → Puntos muestra su nivel', true, misPuntos.includes('Nivel '))
   afirmar(G2, 'con al menos 20 puntos por dos lecciones', true, puntos >= 20)
-  afirmar(G2, 'y su lugar en la generación', true, /#\d+<\/span>/.test(tablero))
+  afirmar(G2, 'Inicio ya no trae la tarjeta de nivel', false, (await texto('/mis-cursos', vigente)).includes('Tu nivel'))
 
   const comunidad = await texto(`${rutaCurso}/comunidad`, vigente)
-  // React separa texto fijo y variable con un marcador `<!-- -->`: "Ranking
-  // de {quien}" llega como "Ranking de <!-- -->tu generación". Se compara el
-  // texto como se ve, sin el marcador.
-  afirmar(G2, 'la comunidad trae el ranking de la generación', true,
+  // React separa texto fijo y variable con un marcador `<!-- -->`.
+  afirmar(G2, 'el muro ya no trae el ranking de la generación', false,
     comunidad.replace(/<!-- -->/g, '').includes('Ranking de tu generación'))
-  afirmar(G2, 'y lo marca a él', true, comunidad.includes('(tú)'))
 
   // ======================================================================
   const G3 = 'ALUMNO VENCIDO — estructura sí, contenido no'

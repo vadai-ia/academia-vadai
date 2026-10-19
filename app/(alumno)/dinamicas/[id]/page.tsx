@@ -68,7 +68,11 @@ export default async function PaginaDinamica({ params }: { params: Promise<{ id:
 
   return (
     <div className="flex flex-col gap-8">
-      <Link href="/dinamicas" className="text-sm text-primary underline-offset-4 hover:underline">
+      {/* M22: Dinámicas ya no está en el menú; su casa es la pestaña de su curso. */}
+      <Link
+        href={d.cursoSlug ? `/curso/${d.cursoSlug}/dinamicas` : '/dinamicas'}
+        className="text-sm text-primary underline-offset-4 hover:underline"
+      >
         ← Dinámicas
       </Link>
 

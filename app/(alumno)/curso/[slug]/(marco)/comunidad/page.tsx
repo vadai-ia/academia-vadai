@@ -2,13 +2,13 @@ import type { Metadata } from 'next'
 import { notFound, redirect } from 'next/navigation'
 
 import { Comunidad } from '@/components/alumno/comunidad'
-import { Ranking } from '@/components/alumno/ranking'
 import { SelectorDeGeneracion } from '@/components/alumno/selector-de-generacion'
 import { cursoDelAlumno } from '@/lib/alumno/consultas'
 import { generacionesParaEquipo } from '@/lib/alumno/generaciones-equipo'
 import { esEquipo, exigirPerfil } from '@/lib/auth/sesion'
 import { feedDelCurso } from '@/lib/comunidad/posts'
 import { temasDelCurso } from '@/lib/comunidad/temas'
+import { esCasaDeVaip } from '@/lib/membresia/consultas'
 
 export const dynamic = 'force-dynamic'
 
@@ -35,6 +35,9 @@ export default async function PaginaComunidad({
 
   const curso = await cursoDelAlumno(slug)
   if (!curso) notFound()
+  // M22: el muro de V-AI-P vive en /vaip, con el tema que se pidió (las
+  // noticias que salen por webhook traen ?tema=noticias).
+  if (await esCasaDeVaip(curso.id)) redirect(tema && /^[a-z0-9-]+$/.test(tema) ? `/vaip?tema=${tema}` : '/vaip')
 
   // La comunidad es contenido, no estructura: con el acceso vencido no se entra.
   // El índice del curso sí se ve, y de ahí sale el CTA de recompra (§6.3).
@@ -63,9 +66,11 @@ export default async function PaginaComunidad({
       {/* Sin encabezado propio ni migaja de regreso: el layout del curso ya pone
           el título, el progreso y las pestañas, y la pestaña activa dice dónde
           estás. Repetirlo aquí era ruido y empujaba el contenido hacia abajo. */}
+      {/* M22: sin ranking ni «suman puntos». El puntaje era por generación y ya
+          se premió al top 3 (Alejandro, 20-oct-2026); el muro queda para
+          conversar. El ranking vivo es el de V-AI-P. */}
       <p className="text-sm text-muted-foreground">
-        Preguntas, avances y lo que quieras compartir con tu generación. Cada publicación y cada
-        comentario suman puntos.
+        Preguntas, avances y lo que quieras compartir con tu generación.
       </p>
 
       {/* Para el equipo, aunque haya una sola generación: «¿de qué generación
@@ -84,28 +89,22 @@ export default async function PaginaComunidad({
           tuya.
         </p>
       ) : (
-        <>
-          {/* El ranking va arriba del feed: es lo que hace que participar tenga
-              consecuencia visible. Los puntos salen de lib/gamificacion. */}
-          <Ranking cursoId={curso.id} cohortId={cohortId} userId={perfil.user_id} porGeneraciones={curso.porGeneraciones} />
-
-          <Comunidad
-            posts={feed.posts}
-            cursoId={curso.id}
-            cohortId={cohortId}
-            porGeneraciones={curso.porGeneraciones}
-            cursoSlug={slug}
-            soyEquipo={soyEquipo}
-            ruta={`/curso/${slug}/comunidad`}
-            pagina={feed.pagina}
-            paginas={feed.paginas}
-            porPagina={feed.porPagina}
-            total={feed.total}
-            extra={extra}
-            temas={temas}
-            temaActual={temaElegido?.slug ?? null}
-          />
-        </>
+        <Comunidad
+          posts={feed.posts}
+          cursoId={curso.id}
+          cohortId={cohortId}
+          porGeneraciones={curso.porGeneraciones}
+          cursoSlug={slug}
+          soyEquipo={soyEquipo}
+          ruta={`/curso/${slug}/comunidad`}
+          pagina={feed.pagina}
+          paginas={feed.paginas}
+          porPagina={feed.porPagina}
+          total={feed.total}
+          extra={extra}
+          temas={temas}
+          temaActual={temaElegido?.slug ?? null}
+        />
       )}
     </div>
   )

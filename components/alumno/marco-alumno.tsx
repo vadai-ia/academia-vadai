@@ -3,17 +3,7 @@ import { Suspense, type ReactNode } from 'react'
 
 import { Campana } from '@/components/marca/campana'
 import { Encabezado } from '@/components/marca/encabezado'
-import {
-  IconoBlog,
-  IconoCertificaciones,
-  IconoComunidad,
-  IconoCursos,
-  IconoInicio,
-  IconoDinamicas,
-  IconoPerfil,
-  IconoPuntos,
-  IconoVaip,
-} from '@/components/marca/iconos-navegacion'
+import { IconoCursos, IconoInicio, IconoPerfil, IconoVaip } from '@/components/marca/iconos-navegacion'
 import { BarraDeNavegacion } from '@/components/marca/barra-de-navegacion'
 import { SaltarAlContenido } from '@/components/marca/saltar-al-contenido'
 import { esEquipo, type Perfil } from '@/lib/auth/sesion'
@@ -49,25 +39,18 @@ export async function MarcoAlumno({ perfil, children }: { perfil: Perfil; childr
       <Encabezado
         perfil={perfil}
         extra={<Campana lista={novedades.lista} nuevas={novedades.nuevas} />}
+        // M22 (20-oct-2026): cuatro destinos, cada cosa en uno. Eran nueve y en
+        // el teléfono solo se veían tres y media. Lo que salió del menú tiene
+        // casa: Dinámicas dentro de cada curso (y en la campana e Inicio), Blog
+        // en Inicio cuando hay entradas, Comunidad en V-AI-P y en cada curso,
+        // Puntos y Certificaciones en Mi perfil. Las rutas viejas redirigen.
         navegacion={[
           { href: '/mis-cursos', etiqueta: 'Inicio', icono: IconoInicio, exacto: true },
-          // M15: los cursos propios y el catálogo, separados.
-          { href: '/cursos', etiqueta: 'Cursos', icono: IconoCursos },
-          // Segunda a propósito: es lo que se toca durante la sesión.
-          { href: '/dinamicas', etiqueta: 'Dinámicas', icono: IconoDinamicas },
-          {
-            href: '/comunidad',
-            etiqueta: 'Comunidad',
-            icono: IconoComunidad,
-            novedades: canales.comunidad,
-          },
-          { href: '/blog', etiqueta: 'Blog', icono: IconoBlog, novedades: canales.blog },
-          // M17: para el miembro es su espacio; para los demás, la invitación.
-          { href: '/vaip', etiqueta: 'V-AI-P', icono: IconoVaip },
-          { href: '/puntos', etiqueta: 'Tus puntos', icono: IconoPuntos },
-          // Diploma de generación VADAI · Total Coach (15-oct-2026).
-          { href: '/certificaciones', etiqueta: 'Mis certificaciones', icono: IconoCertificaciones },
-          { href: '/perfil', etiqueta: 'Mi perfil', icono: IconoPerfil },
+          // Para el miembro es su espacio; para los demás, la invitación. El
+          // número: publicaciones nuevas en el muro de V-AI-P.
+          { href: '/vaip', etiqueta: 'V-AI-P', icono: IconoVaip, novedades: canales.vaip },
+          { href: '/cursos', etiqueta: 'Mis cursos', icono: IconoCursos, tambien: ['/curso/', '/dinamicas'] },
+          { href: '/perfil', etiqueta: 'Perfil', icono: IconoPerfil },
         ]}
         // Solo para quien puede entrar al panel: un enlace que rebota es peor que
         // no tenerlo. Era una pastilla más al final del menú, "Panel", que nadie

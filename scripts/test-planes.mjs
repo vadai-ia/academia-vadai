@@ -529,8 +529,9 @@ try {
   const miembroId = await idDe(bd, CORREO)
   afirmar('Cancelar', 'el miembro existe', true, Boolean(miembroId))
   const miembro = await entrar(CORREO)
-  const perfil = await html('/perfil', miembro)
-  afirmar('Cancelar', 'Mi perfil trae «Administrar membresía»', true, perfil.includes('/perfil/membresia?plan=v-ai-p') && perfil.includes('Administrar membresía'))
+  // M22: la membresía es la pestaña «Membresía» de Mi perfil.
+  const perfil = await html('/perfil/membresia', miembro)
+  afirmar('Cancelar', 'Mi perfil → Membresía trae «Administrar membresía»', true, perfil.includes('/perfil/membresia?plan=v-ai-p') && perfil.includes('Administrar membresía'))
   const base = '/perfil/membresia?plan=v-ai-p'
   afirmar('Cancelar', 'la salida es un enlace discreto', true, (await html(base, miembro)).includes('Cancelar mi membresía'))
   afirmar('Cancelar', 'paso 1: lo que dejas', true, (await html(`${base}&paso=1`, miembro)).includes('Antes de irte'))

@@ -401,13 +401,14 @@ async function main() {
       // ============================================================
       const G8 = 'PERFIL'
 
-      const perfil = await texto('/perfil', alumno)
-      afirmar(G8, 'el certificado aparece en el perfil', true, perfil.includes(folio))
+      // M22: los certificados son la pestaña Certificaciones de Mi perfil.
+      const certificaciones = await texto('/perfil/certificaciones', alumno)
+      afirmar(G8, 'el certificado aparece en Mi perfil → Certificaciones', true, certificaciones.includes(folio))
       afirmar(G8, 'con liga de descarga', true,
-        perfil.includes(`/api/certificados/${folio}`))
-      afirmar(G8, 'y el nombre es editable', true, perfil.includes('name="full_name"'))
+        certificaciones.includes(`/api/certificados/${folio}`))
+      afirmar(G8, 'y el nombre es editable en Mi perfil', true, (await texto('/perfil', alumno)).includes('name="full_name"'))
       afirmar(G8, 'otro alumno no lo ve en el suyo', false,
-        (await texto('/perfil', otro)).includes(folio))
+        (await texto('/perfil/certificaciones', otro)).includes(folio))
     }
 
     await limpiar(bd, alumnoId)

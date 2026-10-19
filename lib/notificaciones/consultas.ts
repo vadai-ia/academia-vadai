@@ -5,6 +5,9 @@ import type { Perfil } from '@/lib/auth/sesion'
 import { describirHorario } from '@/lib/calendario/enlaces'
 import { publicacionesParaAlumno } from '@/lib/comunidad/posts'
 import { dinamicasAbiertasParaCampana } from '@/lib/dinamicas/consultas-alumno'
+import { contextoVaip } from '@/lib/membresia/espacio'
+import { noticiasDeVaip } from '@/lib/membresia/noticias'
+import { misRespuestas } from '@/lib/notificaciones/respuestas'
 import { crearClienteServidor } from '@/lib/supabase/server'
 
 /**
@@ -28,12 +31,15 @@ import { crearClienteServidor } from '@/lib/supabase/server'
  *
  * No hay tabla de notificaciones: son las mismas consultas del blog, del
  * calendario y de las dinámicas con una marca de tiempo encima.
+ *
+ * M22 (20-oct-2026): entran «Te respondieron» (lib/notificaciones/respuestas)
+ * y las noticias de V-AI-P. Son lo que trae de vuelta a la comunidad.
  */
 
 export type Notificacion = {
   id: string
   titulo: string
-  tipo: 'announcement' | 'blog' | 'sesion' | 'dinamica' | 'exclusiva'
+  tipo: 'announcement' | 'blog' | 'sesion' | 'dinamica' | 'exclusiva' | 'respuesta' | 'noticia'
   /** Cuándo pasó lo que se avisa. */
   publicadoEn: string
   /** Una línea más, cuando hace falta: el horario de la sesión, el curso de la dinámica. */
@@ -67,11 +73,19 @@ async function misSesionesExclusivas(userId: string) {
 }
 
 export async function notificacionesDelAlumno(perfil: Perfil): Promise<Novedades> {
-  const [publicaciones, sesiones, dinamicas, exclusivas] = await Promise.all([
+  const [publicaciones, sesiones, dinamicas, exclusivas, ctx] = await Promise.all([
     publicacionesParaAlumno(),
     sesionesDelAlumno(),
     dinamicasAbiertasParaCampana(),
     misSesionesExclusivas(perfil.user_id),
+    contextoVaip(),
+  ])
+  const casa = ctx?.casa ?? null
+  const [respuestas, { noticias }] = await Promise.all([
+    misRespuestas(perfil.user_id, casa?.slug ?? null),
+    casa
+      ? noticiasDeVaip(casa.id, perfil.user_id, { generacionId: casa.generacion?.id ?? null, cuantas: 3 })
+      : Promise.resolve({ noticias: [] }),
   ])
   const desde = new Date(perfil.notifications_seen_at ?? perfil.created_at ?? 0).getTime()
   const ahora = Date.now()
@@ -81,7 +95,8 @@ export async function notificacionesDelAlumno(perfil: Perfil): Promise<Novedades
     titulo: p.titulo,
     tipo: p.tipo,
     publicadoEn: p.publicadoEn,
-    href: p.tipo === 'blog' ? '/blog' : '/mis-cursos',
+    // M22: los anuncios de V-AI-P se leen en V-AI-P → Clases; los demás, en Inicio.
+    href: p.tipo === 'blog' ? '/blog' : casa && p.cursoId === casa.id ? `/vaip/clases#anuncio-${p.id}` : '/mis-cursos',
     nueva: new Date(p.publicadoEn).getTime() > desde,
   }))
 
@@ -117,7 +132,27 @@ export async function notificacionesDelAlumno(perfil: Perfil): Promise<Novedades
     nueva: new Date(f.added_at).getTime() > desde,
   }))
 
-  const todas = [...dePosts, ...deSesiones, ...deDinamicas, ...deExclusivas].sort(
+  const deRespuestas: Notificacion[] = respuestas.map((r) => ({
+    id: `respuesta-${r.id}`,
+    titulo: r.titulo,
+    tipo: 'respuesta' as const,
+    publicadoEn: r.ultimaEn,
+    detalle: `${r.cuantas === 1 ? '1 respuesta' : `${r.cuantas} respuestas`} · ${r.donde}`,
+    href: r.href,
+    nueva: new Date(r.ultimaEn).getTime() > desde,
+  }))
+
+  const deNoticias: Notificacion[] = noticias.map((n) => ({
+    id: `noticia-${n.id}`,
+    titulo: n.titulo,
+    tipo: 'noticia' as const,
+    publicadoEn: n.creadoEn,
+    detalle: 'V-AI-P',
+    href: `/vaip?tema=noticias#publicacion-${n.id}`,
+    nueva: new Date(n.creadoEn).getTime() > desde,
+  }))
+
+  const todas = [...dePosts, ...deSesiones, ...deDinamicas, ...deExclusivas, ...deRespuestas, ...deNoticias].sort(
     (a, b) => new Date(b.publicadoEn).getTime() - new Date(a.publicadoEn).getTime()
   )
 

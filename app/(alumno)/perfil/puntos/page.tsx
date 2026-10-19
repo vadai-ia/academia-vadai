@@ -1,10 +1,8 @@
 import type { Metadata } from 'next'
-import Link from 'next/link'
 
-import { Ranking } from '@/components/alumno/ranking'
-import { Seccion, Tarjeta, Titulo } from '@/components/ui-vadai/superficie'
+import { EncabezadoPerfil } from '@/components/alumno/encabezado-perfil'
+import { Seccion, Tarjeta } from '@/components/ui-vadai/superficie'
 import { Logros } from '@/components/vaip/logros'
-import { misCursos } from '@/lib/alumno/consultas'
 import { exigirPerfil } from '@/lib/auth/sesion'
 import { miNivel } from '@/lib/gamificacion/consultas'
 import { logrosDe } from '@/lib/gamificacion/logros'
@@ -25,14 +23,16 @@ import { COMO_GANAR, NIVELES, PUNTOS } from '@/lib/gamificacion/reglas'
  * una cifra que aparece sola y nadie sabe qué hacer para moverla. Con él, cada
  * renglón es una instrucción.
  *
- * El ranking sigue siendo POR CURSO y no de toda la academia: compites con tu
- * generación, que es a quien ves en la comunidad.
+ * M22 (20-oct-2026): es una pestaña de Mi perfil (antes /puntos) y ya no trae
+ * el ranking de cada generación. Alejandro: el puntaje era por generación y ya
+ * se premió al top 3; los puntos se quedan para ti y el ranking que sigue vivo
+ * es el de V-AI-P, en su pestaña.
  *
  * NO lleva `loading.tsx` ni lo necesita: no hay `redirect()` ni `notFound()`.
  */
 export const dynamic = 'force-dynamic'
 
-export const metadata: Metadata = { title: 'Tus puntos' }
+export const metadata: Metadata = { title: 'Puntos y logros' }
 
 /** Las columnas del desglose, en el mismo orden que la lista de "cómo ganar". */
 const DESGLOSE = [
@@ -43,12 +43,14 @@ const DESGLOSE = [
   { llave: 'quizzes', que: 'Quizzes aprobados', vale: PUNTOS.quiz },
   { llave: 'tareasAprobadas', que: 'Tareas aprobadas', vale: PUNTOS.tareaAprobada },
   { llave: 'certificados', que: 'Certificados', vale: PUNTOS.certificado },
+  // Se sumaban al total sin renglón: la tabla no cuadraba (M22).
+  { llave: 'dinamicas', que: 'Dinámicas terminadas con tu empresa', vale: PUNTOS.dinamica },
 ] as const
 
 export default async function PaginaPuntos() {
   const perfil = await exigirPerfil()
 
-  const [nivel, cursos, plan] = await Promise.all([miNivel(perfil.user_id), misCursos(), planVaip()])
+  const [nivel, plan] = await Promise.all([miNivel(perfil.user_id), planVaip()])
 
   // M17: los logros, con lo que haya hecho en toda la academia. Los de
   // antigüedad y ranking solo cuentan si es miembro de V-AI-P.
@@ -75,9 +77,7 @@ export default async function PaginaPuntos() {
 
   return (
     <div className="flex flex-col gap-8">
-      <Titulo apoyo="De dónde salen tus puntos, y cómo vas frente a tu generación.">
-        Tus puntos
-      </Titulo>
+      <EncabezadoPerfil apoyo="De dónde salen tus puntos y lo que has logrado." />
 
       {/* --- El número, el nivel y lo que falta ------------------------- */}
       <Tarjeta className="flex flex-col gap-5 p-5 sm:p-6">
@@ -86,7 +86,7 @@ export default async function PaginaPuntos() {
             <span className="text-xs tracking-wider text-muted-foreground uppercase">
               Puntos acumulados
             </span>
-            <span className="text-[3rem] leading-none font-medium tabular-nums text-primary">
+            <span data-puntos={nivel.puntos} className="text-[3rem] leading-none font-medium tabular-nums text-primary">
               {nivel.puntos}
             </span>
           </div>
@@ -187,31 +187,6 @@ export default async function PaginaPuntos() {
           </table>
         </Tarjeta>
       </Seccion>
-
-      {/* --- Cómo vas frente a tu generación ------------------------------ */}
-      {cursos.length > 0 ? (
-        <Seccion
-          titulo="Cómo vas en tu generación"
-          apoyo="Compites con las personas de tu generación, que son a quienes ves en la comunidad. Tus puntos son tuyos: si cambias de generación, te los llevas."
-        >
-          <div className="flex flex-col gap-5">
-            {cursos.map((c) => (
-              <div key={c.id} className="flex flex-col gap-2">
-                <div className="flex flex-wrap items-baseline justify-between gap-2">
-                  <h3 className="text-sm font-medium">{c.titulo}</h3>
-                  <Link
-                    href={`/curso/${c.slug}/comunidad`}
-                    className="text-xs text-primary underline-offset-4 hover:underline"
-                  >
-                    Ir a su comunidad →
-                  </Link>
-                </div>
-                <Ranking cursoId={c.id} cohortId={c.generacion?.id ?? null} userId={perfil.user_id} porGeneraciones={c.porGeneraciones} />
-              </div>
-            ))}
-          </div>
-        </Seccion>
-      ) : null}
 
       {/* --- Cómo ganar más ------------------------------------------------ */}
       <Seccion titulo="Tus logros" apoyo={`${logros.filter((l) => l.ganado).length} de ${logros.length}`}>

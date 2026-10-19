@@ -546,11 +546,12 @@ async function main() {
       true,
       (await texto('/admin', admin)).includes('href="/admin/dinamicas"')
     )
+    // M22: Dinámicas salió del menú del alumno; vive en la pestaña de su curso.
     afirmar(
       G1,
-      'la navegación del alumno ofrece Dinámicas',
+      'el curso del alumno ofrece su pestaña Dinámicas',
       true,
-      (await texto('/dinamicas', a1)).includes('href="/dinamicas"')
+      (await texto('/curso/qa-curso-prueba', a1)).includes('href="/curso/qa-curso-prueba/dinamicas"')
     )
     afirmar(
       G1,

@@ -2,7 +2,6 @@ import Link from 'next/link'
 
 import { Button } from '@/components/ui/button'
 import type { LeccionEnIndice } from '@/lib/alumno/consultas'
-import { PUNTOS } from '@/lib/gamificacion/reglas'
 
 import { BotonCompletada } from './boton-completada'
 
@@ -77,7 +76,7 @@ export function CierreDeLeccion({
       {completada ? null : (
         <p className="text-sm text-muted-foreground">
           {esVideo ? 'Se marca sola al llegar al 90% del video. ' : ''}
-          Suma {PUNTOS.leccion} puntos y avanza tu barra del curso.
+          Avanza tu barra del curso.
         </p>
       )}
     </section>

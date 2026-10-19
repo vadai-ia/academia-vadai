@@ -65,9 +65,14 @@ const SESIONES = {
       `/curso/${CURSO_QA.slug}/dinamicas`,
       '/dinamicas',
       `/curso/${CURSO_QA.slug}/en-vivo`,
-      '/en-vivo',
+      // M22: Mis cursos y las pestañas de Mi perfil. (No hay un /en-vivo
+      // global: las sesiones viven en cada curso y en V-AI-P → Clases.)
+      '/cursos',
       '/perfil',
-      '/blog',
+      '/perfil/membresia',
+      '/perfil/certificaciones',
+      '/perfil/puntos',
+      '/vaip',
     ],
   },
   admin: {
@@ -104,7 +109,7 @@ const SESIONES = {
   // escenario está armado: `node scripts/test-membresia.mjs --conservar`.
   vaip: {
     email: 'qa-vaip1@academia.vadai.com.mx',
-    rutas: ['/vaip', '/curso/qa-vaip-casa/comunidad', '/curso/qa-vaip-casa/comunidad?tema=qa-prompts', '/perfil'],
+    rutas: ['/mis-cursos', '/vaip', '/vaip/clases', '/vaip/herramientas', '/vaip/ranking', '/cursos', '/perfil/membresia'],
   },
   // El agente (M21): los datos de `node scripts/test-agente.mjs --conservar`.
   agente: {

@@ -4,11 +4,13 @@ import Link from 'next/link'
 import { AgregarAlCalendario } from '@/components/alumno/agregar-al-calendario'
 import { RenderRico } from '@/components/alumno/render-rico'
 import { TarjetaCurso } from '@/components/alumno/tarjeta-curso'
-import { TarjetaNivel } from '@/components/alumno/tarjeta-nivel'
-import { Progreso, Seccion, Tarjeta, TarjetaEnlace } from '@/components/ui-vadai/superficie'
+import { LogoVaip } from '@/components/marca/logo-vaip'
+import { Avatar, Seccion, Tarjeta, TarjetaEnlace } from '@/components/ui-vadai/superficie'
 import { Button } from '@/components/ui/button'
-import { resumenDelAlumno } from '@/lib/alumno/resumen'
+import { resumenDelAlumno, type PublicacionBreve } from '@/lib/alumno/resumen'
 import { exigirPerfil, nombreVisible } from '@/lib/auth/sesion'
+import { describirHorario } from '@/lib/calendario/enlaces'
+import { estadoDe } from '@/lib/calendario/estado'
 
 export const metadata: Metadata = { title: 'Inicio' }
 export const dynamic = 'force-dynamic'
@@ -24,50 +26,118 @@ function saludo(): string {
   return 'Buenas noches'
 }
 
-function fechaSesion(iso: string): string {
-  return new Intl.DateTimeFormat('es-MX', {
-    weekday: 'long',
-    day: 'numeric',
-    month: 'long',
-    hour: 'numeric',
-    minute: '2-digit',
-    timeZone: 'America/Mexico_City',
-  }).format(new Date(iso))
+function fechaCorta(iso: string): string {
+  return new Intl.DateTimeFormat('es-MX', { day: 'numeric', month: 'long', timeZone: 'America/Mexico_City' }).format(
+    new Date(iso)
+  )
 }
 
-function fechaCorta(iso: string): string {
-  return new Intl.DateTimeFormat('es-MX', { day: 'numeric', month: 'long' }).format(new Date(iso))
+/** ¿Se puede entrar ya? La misma regla en toda la plataforma (lib/calendario/estado). */
+function abierta(programadaEn: string): boolean {
+  const estado = estadoDe(programadaEn, Date.now())
+  return estado === 'porEmpezar' || estado === 'enCurso'
 }
 
 /**
- * Tablero del alumno: la pantalla de inicio de la plataforma.
+ * Inicio: lo que está pasando (M22, 20-oct-2026).
  *
- * Antes esto era una lista de tarjetas de cursos y nada más. El problema no era
- * que se viera pobre, era que todo lo demás resultaba invisible: había que
- * entrar a un curso para enterarse de que había sesión en vivo mañana, y el
- * blog solo existía si alguien recordaba que estaba en el menú.
+ * Alejandro: «que la gente siga teniendo interacción a través de la comunidad
+ * V-AI-P y en la comunidad del curso… que realmente vean sus cursos y su
+ * membresía». El orden es una decisión:
  *
- * El orden de la pantalla es una decisión, no una lista:
+ *   1. V-AI-P, para el miembro: lo último del muro y escribir, la clase con
+ *      «Entrar» cuando toca, la noticia. Antes Inicio ni la mencionaba.
+ *   2. Retomar el curso, con su avance (el avance del curso se queda; lo que ya
+ *      no se empuja es el puntaje por generación).
+ *   3. Lo que caduca: la sesión en vivo y el anuncio; una dinámica abierta.
+ *   4. Lo último de los muros de sus cursos.
+ *   5. Sus cursos.
+ *   6. El blog, solo si tiene entradas; y a quien no es miembro, una sola
+ *      invitación a V-AI-P.
  *
- *   1. Retomar el curso. En un curso de ocho semanas, casi toda visita es para
- *      seguir donde se quedó. Va arriba, solo, y con la única acción grande de
- *      la pantalla — una vista con seis botones del mismo peso no tiene ninguno.
- *   2. Lo que caduca: la sesión en vivo y el anuncio. Sirven hoy o no sirven.
- *   3. Los cursos, para navegar.
- *   4. Blog y certificados, que se consultan cuando se buscan.
+ * Salieron: la tarjeta de nivel con un ranking por curso, «Tus certificados»
+ * (Mi perfil → Certificaciones) y el blog vacío.
  */
 export default async function PaginaInicio() {
   const [perfil, resumen] = await Promise.all([exigirPerfil(), resumenDelAlumno()])
-
-  const { retomar, proximaSesion, anuncio, entradas, cursos, certificados } = resumen
-  const avanceGlobal =
-    resumen.leccionesTotales === 0
-      ? 0
-      : Math.round((resumen.leccionesHechas / resumen.leccionesTotales) * 100)
+  const { vaip, retomar, proximaSesion, anuncio, dinamica, muros, cursos, entradas } = resumen
 
   return (
     <div className="flex flex-col gap-10">
-      {/* --- Retomar --------------------------------------------------- */}
+      <h1 className="text-[1.75rem] leading-tight font-medium tracking-tight">
+        {saludo()}, {nombreVisible(perfil)}
+      </h1>
+
+      {/* --- V-AI-P ------------------------------------------------------ */}
+      {vaip ? (
+        <Tarjeta className="flex flex-col gap-5 p-5 sm:p-6">
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <LogoVaip className="h-8" />
+            <Link href="/vaip" className="text-sm font-medium text-primary underline-offset-4 hover:underline">
+              Abrir V-AI-P →
+            </Link>
+          </div>
+
+          {vaip.clase ? (
+            <div
+              className={
+                abierta(vaip.clase.programadaEn)
+                  ? 'flex flex-wrap items-center justify-between gap-3 rounded-[10px] border border-accent bg-accent/10 px-4 py-3'
+                  : 'flex flex-wrap items-center justify-between gap-3 rounded-[10px] bg-muted/50 px-4 py-3'
+              }
+            >
+              <span className="flex min-w-0 flex-col">
+                <span className="text-xs font-medium tracking-[0.15em] text-primary uppercase">
+                  {abierta(vaip.clase.programadaEn) ? 'Clase en vivo ahora' : 'Próxima clase'}
+                </span>
+                <span className="font-medium text-balance">{vaip.clase.titulo}</span>
+                <span className="text-sm text-muted-foreground">{describirHorario(vaip.clase.programadaEn)}</span>
+              </span>
+              {abierta(vaip.clase.programadaEn) && vaip.clase.meetUrl ? (
+                <Button asChild variant="acento">
+                  <a href={vaip.clase.meetUrl} target="_blank" rel="noopener noreferrer">
+                    Entrar a la clase
+                  </a>
+                </Button>
+              ) : (
+                <Link href="/vaip/clases" className="text-sm text-primary underline-offset-4 hover:underline">
+                  Ver las clases
+                </Link>
+              )}
+            </div>
+          ) : null}
+
+          <div className="flex flex-col gap-3">
+            <p className="text-sm font-medium">Lo último en el muro</p>
+            {vaip.muro.length === 0 ? (
+              <p className="text-sm text-muted-foreground">Todavía no hay publicaciones. Estrena el muro.</p>
+            ) : (
+              <ul className="flex flex-col gap-1">
+                {vaip.muro.map((p) => (
+                  <PublicacionEnLinea key={p.id} publicacion={p} />
+                ))}
+              </ul>
+            )}
+            {vaip.noticia ? (
+              <Link
+                href="/vaip?tema=noticias"
+                className="flex items-baseline gap-2 text-sm underline-offset-4 hover:underline"
+              >
+                <span className="shrink-0 text-xs font-medium tracking-[0.15em] text-primary uppercase">Noticia</span>
+                <span className="min-w-0 truncate">{vaip.noticia.titulo}</span>
+              </Link>
+            ) : null}
+          </div>
+
+          <div>
+            <Button asChild variant={vaip.clase && abierta(vaip.clase.programadaEn) ? 'outline' : 'acento'}>
+              <Link href="/vaip">Escribir en el muro</Link>
+            </Button>
+          </div>
+        </Tarjeta>
+      ) : null}
+
+      {/* --- Retomar el curso ------------------------------------------- */}
       {retomar ? (
         <section className="relative overflow-hidden rounded-2xl border border-border bg-gradient-to-br from-vadai-navy via-vadai-azul to-vadai-cyan p-6 text-white sm:p-8">
           {/* Halo de marca. `aria-hidden`: es atmósfera, no contenido. */}
@@ -75,21 +145,14 @@ export default async function PaginaInicio() {
             aria-hidden
             className="pointer-events-none absolute -top-24 -right-16 size-72 rounded-full bg-vadai-lima/20 blur-3xl"
           />
-
           <div className="relative flex flex-col gap-5">
             <div className="flex flex-col gap-1.5">
-              <p className="text-sm text-white/70">
-                {saludo()}, {nombreVisible(perfil)}
-              </p>
               <p className="text-xs font-medium tracking-[0.18em] text-vadai-lima uppercase">
                 {retomar.empezando ? 'Empieza por aquí' : 'Continúa donde te quedaste'}
               </p>
-              <h1 className="text-2xl leading-tight font-medium text-balance sm:text-3xl">
-                {retomar.leccion.titulo}
-              </h1>
+              <h2 className="text-2xl leading-tight font-medium text-balance sm:text-3xl">{retomar.leccion.titulo}</h2>
               <p className="text-sm text-white/70">{retomar.curso.titulo}</p>
             </div>
-
             <div className="flex max-w-md flex-col gap-1.5">
               <div className="flex items-baseline justify-between text-xs text-white/70">
                 <span>
@@ -105,19 +168,11 @@ export default async function PaginaInicio() {
                 aria-valuemax={100}
                 aria-label="Avance del curso"
               >
-                <span
-                  className="block h-full rounded-full bg-vadai-lima"
-                  style={{ width: `${retomar.curso.porcentaje}%` }}
-                />
+                <span className="block h-full rounded-full bg-vadai-lima" style={{ width: `${retomar.curso.porcentaje}%` }} />
               </div>
             </div>
-
             <div className="flex flex-wrap items-center gap-3">
-              <Button
-                asChild
-                size="lg"
-                className="bg-vadai-lima text-vadai-navy hover:brightness-105"
-              >
+              <Button asChild size="lg" className="bg-vadai-lima text-vadai-navy hover:brightness-105">
                 <Link href={`/curso/${retomar.curso.slug}/${retomar.leccion.id}`}>
                   {retomar.empezando ? 'Empezar el curso' : 'Continuar'}
                 </Link>
@@ -131,75 +186,42 @@ export default async function PaginaInicio() {
             </div>
           </div>
         </section>
-      ) : (
-        <section className="flex flex-col gap-1.5">
-          <h1 className="text-[1.75rem] leading-tight font-medium tracking-tight">
-            {saludo()}, {nombreVisible(perfil)}
-          </h1>
-          <p className="text-[0.95rem] text-muted-foreground">
-            {/* Sin lección que retomar hay tres motivos distintos, y felicitar
-                por "completarlo todo" a quien no ha visto nada —porque su curso
-                todavía no tiene lecciones— es el peor de los tres mensajes. */}
-            {cursos.length === 0
-              ? 'Aquí aparecerán tus cursos.'
-              : resumen.leccionesTotales === 0
-                ? 'Tu curso todavía no tiene lecciones publicadas. En cuanto se abran, aparecen aquí.'
-                : 'Ya completaste todo lo disponible. Bien hecho.'}
-          </p>
-        </section>
-      )}
-
-      {/* --- Tu nivel ------------------------------------------------------
-          Justo después de "retomar": lo segundo que se quiere ver es cómo
-          vas, y el número que sube es lo que hace que se quiera volver. Solo
-          cuando hay curso: sin curso no hay puntos que contar. */}
-      {cursos.length > 0 ? (
-        <TarjetaNivel
-          puntos={resumen.nivel.puntos}
-          nivel={resumen.nivel.nivel}
-          actividad={resumen.nivel.actividad}
-          porCurso={resumen.nivel.porCurso.flatMap((c) => {
-            const curso = cursos.find((x) => x.id === c.cursoId)
-            return curso
-              ? [{ ...c, cursoTitulo: curso.titulo, cursoSlug: curso.slug }]
-              : []
-          })}
-        />
       ) : null}
 
-      {/* --- Lo que caduca --------------------------------------------- */}
-      {proximaSesion || anuncio ? (
+      {/* --- Lo que caduca ----------------------------------------------- */}
+      {proximaSesion || anuncio || dinamica ? (
         <div className="grid gap-4 lg:grid-cols-2">
           {proximaSesion ? (
             <Tarjeta className="flex flex-col gap-3 p-5">
               <span className="flex items-center gap-2 text-xs font-medium tracking-[0.15em] text-primary uppercase">
-                <PuntoVivo /> Próxima sesión en vivo
+                <PuntoVivo /> {abierta(proximaSesion.programadaEn) ? 'Sesión en vivo ahora' : 'Próxima sesión en vivo'}
               </span>
               <div className="flex flex-col gap-1">
                 <h2 className="font-medium text-balance">{proximaSesion.titulo}</h2>
                 <p className="text-sm text-muted-foreground">
-                  {fechaSesion(proximaSesion.programadaEn)} <span className="text-xs">(CDMX)</span>
+                  {describirHorario(proximaSesion.programadaEn)} · {proximaSesion.cursoTitulo}
                 </p>
               </div>
-              {proximaSesion.meetUrl ? (
+              {abierta(proximaSesion.programadaEn) && proximaSesion.meetUrl ? (
                 <div>
-                  <Button asChild variant="outline" size="sm">
+                  <Button asChild variant="acento" size="sm">
                     <a href={proximaSesion.meetUrl} target="_blank" rel="noreferrer noopener">
                       Entrar a la sesión
                     </a>
                   </Button>
                 </div>
-              ) : null}
-              <AgregarAlCalendario
-                sesion={{
-                  id: proximaSesion.id,
-                  titulo: proximaSesion.titulo,
-                  descripcion: proximaSesion.descripcion,
-                  inicio: proximaSesion.programadaEn,
-                  ligaUrl: proximaSesion.meetUrl,
-                  curso: proximaSesion.cursoTitulo,
-                }}
-              />
+              ) : (
+                <AgregarAlCalendario
+                  sesion={{
+                    id: proximaSesion.id,
+                    titulo: proximaSesion.titulo,
+                    descripcion: proximaSesion.descripcion,
+                    inicio: proximaSesion.programadaEn,
+                    ligaUrl: proximaSesion.meetUrl,
+                    curso: proximaSesion.cursoTitulo,
+                  }}
+                />
+              )}
               <Link
                 href={`/curso/${proximaSesion.cursoSlug}/en-vivo`}
                 className="text-sm text-primary underline-offset-4 hover:underline"
@@ -211,36 +233,65 @@ export default async function PaginaInicio() {
 
           {anuncio ? (
             <Tarjeta className="flex flex-col gap-2 border-accent/50 bg-accent/10 p-5">
-              <span className="text-xs font-medium tracking-[0.15em] text-foreground/70 uppercase">
-                Anuncio
-              </span>
+              <span className="text-xs font-medium tracking-[0.15em] text-foreground/70 uppercase">Anuncio</span>
               <h2 className="font-medium text-balance">{anuncio.titulo}</h2>
               {anuncio.contenido ? <RenderRico contenido={anuncio.contenido} /> : null}
             </Tarjeta>
           ) : null}
+
+          {dinamica ? (
+            <TarjetaEnlace href={`/dinamicas/${dinamica.id}`} className="flex flex-col gap-1 p-5">
+              <span className="text-xs font-medium tracking-[0.15em] text-primary uppercase">Dinámica abierta</span>
+              <span className="font-medium text-balance">{dinamica.titulo}</span>
+              <span className="text-sm text-muted-foreground">{dinamica.cursoTitulo} · Entrar →</span>
+            </TarjetaEnlace>
+          ) : null}
         </div>
       ) : null}
 
-      {/* --- Cursos ----------------------------------------------------- */}
+      {/* --- Lo último de los muros de tus cursos ------------------------ */}
+      {muros.length > 0 ? (
+        <Seccion titulo={muros.length === 1 ? 'En la comunidad de tu curso' : 'En las comunidades de tus cursos'}>
+          <div className="grid gap-4 lg:grid-cols-2">
+            {muros.map((m) => (
+              <Tarjeta key={m.curso.id} className="flex min-w-0 flex-col gap-3 p-5">
+                <div className="flex flex-wrap items-baseline justify-between gap-2">
+                  <p className="font-medium text-balance">{m.curso.titulo}</p>
+                  <Link href={m.href} className="text-sm text-primary underline-offset-4 hover:underline">
+                    Ir al muro →
+                  </Link>
+                </div>
+                <ul className="flex flex-col gap-1">
+                  {m.publicaciones.map((p) => (
+                    <PublicacionEnLinea key={p.id} publicacion={p} />
+                  ))}
+                </ul>
+              </Tarjeta>
+            ))}
+          </div>
+        </Seccion>
+      ) : null}
+
+      {/* --- Tus cursos -------------------------------------------------- */}
       {cursos.length === 0 ? (
-        <Tarjeta className="border-dashed px-5 py-12 text-center">
-          <p className="text-sm text-muted-foreground">
-            Todavía no tienes ningún curso asignado.
-          </p>
-          <a
-            href="mailto:ayuda@vadai.com.mx?subject=No%20veo%20mi%20curso"
-            className="mt-2 inline-block text-sm text-primary underline-offset-4 hover:underline"
-          >
-            Si compraste uno, escríbenos
-          </a>
-        </Tarjeta>
+        vaip ? null : (
+          <Tarjeta className="border-dashed px-5 py-12 text-center">
+            <p className="text-sm text-muted-foreground">Todavía no tienes ningún curso asignado.</p>
+            <a
+              href="mailto:ayuda@vadai.com.mx?subject=No%20veo%20mi%20curso"
+              className="mt-2 inline-block text-sm text-primary underline-offset-4 hover:underline"
+            >
+              Si compraste uno, escríbenos
+            </a>
+          </Tarjeta>
+        )
       ) : (
         <Seccion
           titulo={cursos.length === 1 ? 'Tu curso' : 'Tus cursos'}
-          apoyo={
-            resumen.leccionesTotales > 0
-              ? `${resumen.leccionesHechas} de ${resumen.leccionesTotales} lecciones · ${avanceGlobal}% en total`
-              : undefined
+          accion={
+            <Link href="/cursos" className="text-sm text-primary underline-offset-4 hover:underline">
+              Mis cursos →
+            </Link>
           }
         >
           <ul className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
@@ -253,8 +304,8 @@ export default async function PaginaInicio() {
         </Seccion>
       )}
 
-      {/* --- Blog y certificados ---------------------------------------- */}
-      <div className="grid gap-8 lg:grid-cols-[1.4fr_1fr]">
+      {/* --- Blog, solo si tiene entradas -------------------------------- */}
+      {entradas.length > 0 ? (
         <Seccion
           titulo="Del blog"
           accion={
@@ -263,51 +314,58 @@ export default async function PaginaInicio() {
             </Link>
           }
         >
-          {entradas.length === 0 ? (
-            <Tarjeta className="border-dashed px-5 py-8 text-center text-sm text-muted-foreground">
-              Todavía no hay entradas publicadas.
-            </Tarjeta>
-          ) : (
-            <ul className="flex flex-col gap-2">
-              {entradas.map((entrada) => (
-                <li key={entrada.id}>
-                  <TarjetaEnlace href="/blog" className="flex items-baseline justify-between gap-4 p-4">
-                    <span className="min-w-0 font-medium text-pretty">{entrada.titulo}</span>
-                    <span className="shrink-0 text-xs text-muted-foreground">
-                      {fechaCorta(entrada.publicadoEn)}
-                    </span>
-                  </TarjetaEnlace>
-                </li>
-              ))}
-            </ul>
-          )}
+          <ul className="flex flex-col gap-2">
+            {entradas.map((entrada) => (
+              <li key={entrada.id}>
+                <TarjetaEnlace href="/blog" className="flex items-baseline justify-between gap-4 p-4">
+                  <span className="min-w-0 font-medium text-pretty">{entrada.titulo}</span>
+                  <span className="shrink-0 text-xs text-muted-foreground">{fechaCorta(entrada.publicadoEn)}</span>
+                </TarjetaEnlace>
+              </li>
+            ))}
+          </ul>
         </Seccion>
+      ) : null}
 
-        <Seccion titulo="Tus certificados">
-          {certificados.length === 0 ? (
-            <Tarjeta className="flex flex-col gap-3 p-5">
-              <p className="text-sm text-muted-foreground">
-                Al completar un curso aparecerá aquí, con folio verificable.
-              </p>
-              {resumen.leccionesTotales > 0 ? (
-                <Progreso porcentaje={avanceGlobal} etiqueta={`${avanceGlobal}% del total`} />
-              ) : null}
-            </Tarjeta>
-          ) : (
-            <ul className="flex flex-col gap-2">
-              {certificados.map((c) => (
-                <li key={c.folio}>
-                  <TarjetaEnlace href="/perfil" className="flex flex-col gap-1 p-4">
-                    <span className="font-medium text-pretty">{c.curso}</span>
-                    <span className="font-mono text-xs text-muted-foreground">{c.folio}</span>
-                  </TarjetaEnlace>
-                </li>
-              ))}
-            </ul>
-          )}
-        </Seccion>
-      </div>
+      {/* --- A quien no es miembro, una sola invitación ------------------- */}
+      {resumen.invitarAVaip ? (
+        <Link
+          href="/vaip"
+          className="flex flex-wrap items-center gap-4 rounded-[10px] border border-border p-5 transition-colors hover:border-primary/50 focus-visible:ring-3 focus-visible:ring-ring/50 focus-visible:outline-none"
+        >
+          <LogoVaip className="h-8" />
+          <span className="min-w-0 flex-1 text-sm text-pretty text-muted-foreground">
+            La comunidad de la academia: clases en vivo personalizadas, lo nuevo de todas las plataformas de IA y el
+            equipo de VADAI acompañándote. <span className="font-medium text-primary">Conoce V-AI-P →</span>
+          </span>
+        </Link>
+      ) : null}
     </div>
+  )
+}
+
+/** Una publicación en un renglón: autor, título y cuántas respuestas. */
+function PublicacionEnLinea({ publicacion: p }: { publicacion: PublicacionBreve }) {
+  return (
+    <li>
+      <Link
+        href={p.href}
+        className="flex items-center gap-3 rounded-lg px-2 py-2 transition-colors hover:bg-muted focus-visible:ring-3 focus-visible:ring-ring/50 focus-visible:outline-none"
+      >
+        <Avatar nombre={p.autor} foto={p.avatar} tamano={28} />
+        <span className="flex min-w-0 flex-1 flex-col">
+          <span className="truncate text-sm font-medium">{p.titulo}</span>
+          <span className="truncate text-xs text-muted-foreground">
+            {p.autor} · {fechaCorta(p.creadoEn)}
+          </span>
+        </span>
+        {p.respuestas > 0 ? (
+          <span className="shrink-0 text-xs text-muted-foreground tabular-nums">
+            {p.respuestas} {p.respuestas === 1 ? 'respuesta' : 'respuestas'}
+          </span>
+        ) : null}
+      </Link>
+    </li>
   )
 }
 

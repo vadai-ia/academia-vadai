@@ -30,6 +30,8 @@ const ETIQUETA_TIPO: Record<Notificacion['tipo'], string> = {
   sesion: 'Sesión en vivo',
   dinamica: 'Dinámica',
   exclusiva: 'Sesión exclusiva',
+  respuesta: 'Te respondieron',
+  noticia: 'Noticia',
 }
 
 function fechaCorta(iso: string): string {
@@ -86,7 +88,7 @@ export function Campana({ lista, nuevas }: { lista: Notificacion[]; nuevas: numb
 
         {lista.length === 0 ? (
           <p className="px-4 py-6 text-center text-sm text-muted-foreground">
-            Aquí verás los anuncios, las entradas nuevas del blog y las dinámicas que se abran en
+            Aquí verás cuando te respondan, los anuncios, las clases y las dinámicas que se abran en
             tu curso.
           </p>
         ) : (

@@ -2,11 +2,14 @@ import 'server-only'
 
 import { misCursos, type CursoDelAlumno, type LeccionEnIndice } from '@/lib/alumno/consultas'
 import { cursoDelAlumno } from '@/lib/alumno/consultas'
-import { sesionesDelAlumno, type SesionDelAlumno } from '@/lib/alumno/sesiones'
+import { sesionesDelAlumno, sesionesDelCurso, type SesionDelAlumno } from '@/lib/alumno/sesiones'
 import { obtenerSesion } from '@/lib/auth/sesion'
-import { misCertificados, type CertificadoDelAlumno } from '@/lib/certificados/consultas'
-import { publicacionesParaAlumno, type AnuncioParaAlumno } from '@/lib/comunidad/posts'
-import { miNivel, type MiNivel } from '@/lib/gamificacion/consultas'
+import { proximaOActual } from '@/lib/calendario/estado'
+import { feedDelCurso, publicacionesParaAlumno, type AnuncioParaAlumno, type PostDeComunidad } from '@/lib/comunidad/posts'
+import { dinamicasAbiertasParaCampana, type DinamicaParaCampana } from '@/lib/dinamicas/consultas-alumno'
+import { planVaip } from '@/lib/membresia/consultas'
+import { contextoVaip, cursosFueraDeVaip } from '@/lib/membresia/espacio'
+import { noticiasDeVaip } from '@/lib/membresia/noticias'
 
 export type Retomar = {
   curso: CursoDelAlumno
@@ -15,66 +18,155 @@ export type Retomar = {
   empezando: boolean
 }
 
+/** Una publicación de un muro, en una línea: para Inicio. */
+export type PublicacionBreve = {
+  id: string
+  titulo: string
+  autor: string
+  avatar: string | null
+  creadoEn: string
+  respuestas: number
+  href: string
+}
+
+/** Lo último del muro de un curso. */
+export type MuroBreve = {
+  curso: { id: string; slug: string; titulo: string }
+  publicaciones: PublicacionBreve[]
+  href: string
+}
+
+/** Para el miembro: su comunidad, arriba de todo. */
+export type BloqueVaip = {
+  clase: SesionDelAlumno | null
+  muro: PublicacionBreve[]
+  noticia: PublicacionBreve | null
+}
+
 export type ResumenAlumno = {
+  /** Los cursos de la persona, sin la casa de V-AI-P ni (si es miembro) sus herramientas: esas viven en V-AI-P. */
   cursos: CursoDelAlumno[]
   retomar: Retomar | null
   anuncio: AnuncioParaAlumno | null
   entradas: AnuncioParaAlumno[]
+  /** La próxima sesión (o la que está pasando) de sus cursos; la de V-AI-P va en su bloque. */
   proximaSesion: SesionDelAlumno | null
-  certificados: CertificadoDelAlumno[]
   leccionesHechas: number
   leccionesTotales: number
-  /** Puntos, nivel y lugar en cada grupo (lib/gamificacion). */
-  nivel: MiNivel
+  /** null si no es miembro de V-AI-P. */
+  vaip: BloqueVaip | null
+  /** No es miembro y la suscripción está abierta: una sola invitación. */
+  invitarAVaip: boolean
+  /** Los muros de sus cursos que tienen conversación, con lo último. */
+  muros: MuroBreve[]
+  /** Una dinámica abierta, si hay. */
+  dinamica: DinamicaParaCampana | null
 }
 
+const breve = (p: PostDeComunidad, href: string): PublicacionBreve => ({
+  id: p.id,
+  titulo: p.titulo,
+  autor: p.autor.nombre,
+  avatar: p.autor.avatar,
+  creadoEn: p.creadoEn,
+  respuestas: p.comentarios.length,
+  href: `${href}#publicacion-${p.id}`,
+})
+
 /**
- * Todo lo que necesita el tablero del alumno, en un solo lugar.
+ * Todo lo que necesita Inicio, en un solo lugar.
  *
- * El tablero reemplaza a la lista de tarjetas de cursos que había antes. La
- * diferencia no es de adorno: con solo la lista, el alumno tenía que entrar a un
- * curso para enterarse de que había una sesión en vivo mañana, o de que había
- * una entrada nueva en el blog. Todo lo que no estaba en esa pantalla,
- * simplemente no existía.
+ * M22 (20-oct-2026): Inicio es «lo que está pasando». Para el miembro, V-AI-P
+ * va primero (lo último del muro, la clase, la noticia); después retomar el
+ * curso, la sesión y el anuncio, lo último de los muros de sus cursos y sus
+ * cursos. Salieron la tarjeta de nivel (el puntaje por generación ya se
+ * premió), «Tus certificados» (vive en Mi perfil) y el blog vacío.
  *
- * La pieza central es `retomar`. En un curso de ocho semanas, casi toda visita
- * es para seguir donde se quedó, y esa acción merecía estar arriba y sola en vez
- * de a dos clics.
- *
- * Se consulta todo en paralelo: son cinco viajes independientes a Supabase y
- * encadenarlos costaría medio segundo de más en la pantalla que más se abre.
+ * Se consulta en paralelo lo que no depende de nada; los muros de los cursos
+ * después, porque necesitan la lista de cursos.
  */
 export async function resumenDelAlumno(): Promise<ResumenAlumno> {
   const sesion = await obtenerSesion()
   const userId = sesion.tipo === 'activo' ? sesion.perfil.user_id : ''
 
-  const [cursos, anuncios, entradas, sesiones, certificados, nivel] = await Promise.all([
+  const [todos, anuncios, entradas, sesiones, ctx, plan, dinamicas] = await Promise.all([
     misCursos(),
     publicacionesParaAlumno('announcement'),
     publicacionesParaAlumno('blog'),
     sesionesDelAlumno(),
-    misCertificados(),
-    miNivel(userId),
+    contextoVaip(),
+    planVaip(),
+    dinamicasAbiertasParaCampana(),
   ])
+
+  const esMiembro = ctx !== null
+  const cursos = await cursosFueraDeVaip(todos)
 
   const leccionesHechas = cursos.reduce((n, c) => n + c.completadas, 0)
   const leccionesTotales = cursos.reduce((n, c) => n + c.totalLecciones, 0)
-
   const ahora = Date.now()
-  const proximaSesion =
-    sesiones.find((s) => new Date(s.programadaEn).getTime() > ahora) ?? null
+  // Lo de V-AI-P (su casa y sus herramientas) va en su bloque, no aquí: la
+  // sesión y el anuncio son de los cursos que se ven en «Tus cursos».
+  const slugsVisibles = new Set(cursos.map((c) => c.slug))
+  const idsVisibles = new Set(cursos.map((c) => c.id))
+  const proximaSesion = proximaOActual(
+    sesiones.filter((s) => slugsVisibles.has(s.cursoSlug)),
+    ahora
+  )
+
+  const [retomar, vaip, muros] = await Promise.all([
+    siguientePaso(cursos),
+    ctx?.casa ? bloqueVaip(ctx.casa, userId) : Promise.resolve(ctx ? { clase: null, muro: [], noticia: null } : null),
+    murosDeLosCursos(cursos, userId),
+  ])
 
   return {
     cursos,
-    retomar: await siguientePaso(cursos),
-    anuncio: anuncios[0] ?? null,
+    retomar,
+    anuncio: anuncios.find((a) => a.cursoId === null || idsVisibles.has(a.cursoId)) ?? null,
     entradas: entradas.slice(0, 3),
     proximaSesion,
-    certificados,
     leccionesHechas,
     leccionesTotales,
-    nivel,
+    vaip,
+    invitarAVaip: !esMiembro && Boolean(plan?.abierto),
+    muros,
+    dinamica: dinamicas[0] ?? null,
   }
+}
+
+async function bloqueVaip(casa: CursoDelAlumno, userId: string): Promise<BloqueVaip> {
+  const cohortId = casa.generacion?.id ?? null
+  const [feed, sesiones, { noticias }] = await Promise.all([
+    feedDelCurso(casa.id, cohortId, userId, { pagina: 1, porPagina: 3 }),
+    sesionesDelCurso(casa.slug),
+    noticiasDeVaip(casa.id, userId, { generacionId: cohortId, cuantas: 1 }),
+  ])
+  const noticia = noticias[0] ?? null
+  return {
+    clase: proximaOActual(sesiones, Date.now()),
+    muro: feed.posts.map((p) => breve(p, '/vaip')),
+    noticia: noticia ? breve(noticia, '/vaip') : null,
+  }
+}
+
+/** Lo último de cada muro vigente que tenga conversación (dos publicaciones por curso). */
+async function murosDeLosCursos(cursos: CursoDelAlumno[], userId: string): Promise<MuroBreve[]> {
+  const vigentes = cursos.filter((c) => c.vigente && !c.sinGeneracion)
+  const feeds = await Promise.all(
+    vigentes.map((c) => feedDelCurso(c.id, c.generacion?.id ?? null, userId, { pagina: 1, porPagina: 2 }))
+  )
+  return vigentes
+    .map((c, i) => {
+      const href = `/curso/${c.slug}/comunidad`
+      return {
+        curso: { id: c.id, slug: c.slug, titulo: c.titulo },
+        publicaciones: (feeds[i]?.posts ?? []).map((p) => breve(p, href)),
+        href,
+      }
+    })
+    .filter((m) => m.publicaciones.length > 0)
+    .sort((a, b) => (b.publicaciones[0]?.creadoEn ?? '').localeCompare(a.publicaciones[0]?.creadoEn ?? ''))
 }
 
 /**

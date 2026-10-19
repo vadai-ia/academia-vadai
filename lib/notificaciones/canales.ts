@@ -1,5 +1,6 @@
 import 'server-only'
 
+import { casaDeVaip } from '@/lib/membresia/consultas'
 import { crearClienteServidor } from '@/lib/supabase/server'
 import type { Perfil } from '@/lib/auth/sesion'
 
@@ -18,9 +19,15 @@ import type { Perfil } from '@/lib/auth/sesion'
  *
  * Lo propio nunca cuenta. Ver un "1" y descubrir que era tu propio comentario
  * es la forma más rápida de enseñarle a alguien a ignorar el contador.
+ *
+ * M22 (20-oct-2026): la pastilla Comunidad salió del menú. Su marca
+ * (`community_seen_at`) ahora es la del muro de V-AI-P: el número va en la
+ * pastilla V-AI-P y se apaga al abrir su muro. RLS hace que a quien no es
+ * miembro le dé cero. Las respuestas en los muros de los cursos avisan en la
+ * campana («Te respondieron»).
  */
 
-export type NovedadesDeCanales = { blog: number; comunidad: number }
+export type NovedadesDeCanales = { blog: number; vaip: number }
 
 /** Quien nunca ha abierto un canal no ve "todo lo que existe" como pendiente. */
 const TOPE = 99
@@ -36,9 +43,11 @@ export async function novedadesDeCanales(perfil: Perfil): Promise<NovedadesDeCan
   const desdeBlog = desdeCuando(perfil.blog_seen_at, perfil.created_at)
   const desdeComunidad = desdeCuando(perfil.community_seen_at, perfil.created_at)
 
-  // Las tres cuentan filas, no las traen: `head: true` con `count: 'exact'`
-  // devuelve el número sin cuerpo. RLS decide qué entra en cada cuenta, así que
-  // nadie ve novedades de un curso al que no pertenece.
+  const casa = await casaDeVaip()
+
+  // Cuentan filas, no las traen: `head: true` con `count: 'exact'` devuelve el
+  // número sin cuerpo. RLS decide qué entra en cada cuenta, así que nadie ve
+  // novedades de un muro al que no pertenece.
   const [blog, posts, comentarios] = await Promise.all([
     supabase
       .from('posts')
@@ -47,20 +56,38 @@ export async function novedadesDeCanales(perfil: Perfil): Promise<NovedadesDeCan
       .not('published_at', 'is', null)
       .gt('published_at', desdeBlog),
 
-    supabase
-      .from('community_posts')
-      .select('id', { count: 'exact', head: true })
-      .eq('status', 'visible')
-      .neq('user_id', perfil.user_id)
-      .gt('created_at', desdeComunidad),
+    casa
+      ? supabase
+          .from('community_posts')
+          .select('id', { count: 'exact', head: true })
+          .eq('course_id', casa.id)
+          .eq('status', 'visible')
+          .neq('user_id', perfil.user_id)
+          .gt('created_at', desdeComunidad)
+      : Promise.resolve({ count: 0, error: null }),
 
-    supabase
-      .from('community_comments')
-      .select('id', { count: 'exact', head: true })
-      .eq('status', 'visible')
-      .neq('user_id', perfil.user_id)
-      .gt('created_at', desdeComunidad),
+    // Los comentarios no traen su curso: se piden los nuevos y se cuentan los
+    // que cuelgan de una publicación de la casa.
+    casa
+      ? supabase
+          .from('community_comments')
+          .select('post_id')
+          .eq('status', 'visible')
+          .neq('user_id', perfil.user_id)
+          .gt('created_at', desdeComunidad)
+          .limit(300)
+      : Promise.resolve({ data: [] as Array<{ post_id: string }>, error: null }),
   ])
+
+  const idsDePosts = [...new Set((comentarios.data ?? []).map((c) => c.post_id))]
+  const { count: comentariosEnLaCasa } =
+    casa && idsDePosts.length
+      ? await supabase
+          .from('community_posts')
+          .select('id', { count: 'exact', head: true })
+          .eq('course_id', casa.id)
+          .in('id', idsDePosts)
+      : { count: 0 }
 
   for (const [nombre, r] of Object.entries({ blog, posts, comentarios })) {
     if (r.error) {
@@ -70,7 +97,9 @@ export async function novedadesDeCanales(perfil: Perfil): Promise<NovedadesDeCan
 
   return {
     blog: Math.min(blog.count ?? 0, TOPE),
-    comunidad: Math.min((posts.count ?? 0) + (comentarios.count ?? 0), TOPE),
+    // Aproximado a propósito: cuenta las publicaciones con comentarios nuevos,
+    // no cada comentario. Para la pastilla basta con «hay algo nuevo».
+    vaip: Math.min((posts.count ?? 0) + (comentariosEnLaCasa ?? 0), TOPE),
   }
 }
 

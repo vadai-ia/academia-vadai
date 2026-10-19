@@ -160,14 +160,28 @@ export async function contextoDelCurso(
 
   const enlaces = new Map<string, Enlace>()
   const base = `/curso/${curso.slug}`
+  // M22: la casa de V-AI-P no es un curso; sus secciones son las de /vaip.
+  const { data: vaip } = await db.from('membership_plans').select('hub_course_id').eq('slug', 'v-ai-p').maybeSingle()
+  const esVaip = vaip?.hub_course_id === curso.id
   const secciones: Array<[string, string, string]> = [
-    ['S:contenido', 'Contenido del curso (todas las lecciones)', base],
-    ['S:envivo', 'En vivo (clases, horarios y grabaciones)', `${base}/en-vivo`],
-    ['S:comunidad', 'Comunidad del curso', `${base}/comunidad`],
-    ['S:miscursos', 'Mis cursos', '/mis-cursos'],
-    ['S:perfil', 'Mi perfil (nombre, foto y membresía)', '/perfil'],
-    ['S:certificaciones', 'Certificaciones', '/certificaciones'],
-    ['S:puntos', 'Puntos y ranking', '/puntos'],
+    ...(esVaip
+      ? ([
+          ['S:muro', 'V-AI-P → Muro (publicaciones y noticias)', '/vaip'],
+          ['S:clases', 'V-AI-P → Clases (la próxima, el calendario y las grabaciones)', '/vaip/clases'],
+          ['S:herramientas', 'V-AI-P → Herramientas (cursos por área)', '/vaip/herramientas'],
+          ['S:ranking', 'V-AI-P → Ranking y logros', '/vaip/ranking'],
+        ] as Array<[string, string, string]>)
+      : ([
+          ['S:contenido', 'Contenido del curso (todas las lecciones)', base],
+          ['S:comunidad', 'Comunidad del curso', `${base}/comunidad`],
+          ['S:envivo', 'En vivo (clases, horarios y grabaciones)', `${base}/en-vivo`],
+        ] as Array<[string, string, string]>)),
+    ['S:inicio', 'Inicio', '/mis-cursos'],
+    ['S:miscursos', 'Mis cursos (y los de la academia que se pueden empezar)', '/cursos'],
+    ['S:perfil', 'Mi perfil → Datos (nombre y foto)', '/perfil'],
+    ['S:membresia', 'Mi perfil → Membresía (tarjeta, cobros, administrar)', '/perfil/membresia'],
+    ['S:certificaciones', 'Mi perfil → Certificaciones', '/perfil/certificaciones'],
+    ['S:puntos', 'Mi perfil → Puntos y logros', '/perfil/puntos'],
   ]
   const lineas: string[] = [`Curso: ${curso.titulo}`, '', 'Secciones:']
   for (const [clave, titulo, ruta] of secciones) {
@@ -216,11 +230,14 @@ export async function contextoDelCurso(
 /** Cómo funciona la plataforma: va siempre, en el bloque que se guarda en caché. */
 export const AYUDA_DE_LA_PLATAFORMA = `Cómo funciona la academia (academia.vadai.com.mx):
 - Cada alumno entra con su correo. Si olvidó su contraseña, la recupera desde la pantalla de entrar, en "¿La olvidaste?" junto a Contraseña. Entrar con Google solo funciona si el correo ya tiene cuenta.
-- En Mis cursos están los cursos a los que tiene acceso, con su avance.
-- Dentro de un curso hay pestañas: Contenido (las lecciones por módulo), En vivo (las clases con su liga, el calendario y las grabaciones), Comunidad (el muro del curso) y, en algunos cursos, Dinámicas.
+- El menú tiene cuatro secciones: Inicio (lo que está pasando), V-AI-P, Mis cursos y Perfil.
+- En Mis cursos están los cursos a los que tiene acceso, con su avance, y abajo los de la academia que puede empezar o comprar.
+- Dentro de un curso hay pestañas: Contenido (las lecciones por módulo), Comunidad (el muro del curso), En vivo (las clases con su liga, el calendario y las grabaciones) y, en algunos cursos, Dinámicas.
+- V-AI-P, para sus miembros, tiene sus propias pestañas: Muro, Clases (la próxima con su botón para entrar, el calendario y las grabaciones), Herramientas y Ranking.
 - Cada lección tiene su video, su material para descargar y al final el botón "Marcar como completada". Debajo hay comentarios para preguntar sobre esa lección.
-- El certificado se libera cuando completas todas las lecciones obligatorias y apruebas sus quizzes y tareas. Se descarga desde Certificaciones.
-- Los puntos salen de la actividad: lecciones completadas, comentarios, publicaciones y dinámicas. El ranking es por curso.
+- El certificado se libera cuando completas todas las lecciones obligatorias y apruebas sus quizzes y tareas. Se descarga desde Mi perfil → Certificaciones.
+- Los puntos salen de la actividad: lecciones completadas, comentarios, publicaciones y dinámicas. Se ven en Mi perfil → Puntos y logros. El ranking que sigue vivo es el de V-AI-P.
+- Cuando alguien responde lo que escribiste, la campana lo avisa.
 - Las sesiones exclusivas solo las ve la lista de personas invitadas; si alguien no la ve, no es un error.
 - Si el acceso de alguien venció, sigue viendo sus cursos y su avance, pero no los videos ni el material: eso lo resuelve el equipo (borrador).
 - Pagos, facturas, cambios de tarjeta, cancelaciones y reembolsos los atiende el equipo (borrador).`

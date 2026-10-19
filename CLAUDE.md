@@ -50,7 +50,9 @@ En su lugar: `pnpm db:migrate` → `scripts/migrate.mjs`, que aplica los `.sql` 
 ```
 /app
   /(auth)        login, reset
-  /(alumno)      mis-cursos, curso/[slug], curso/[slug]/en-vivo, curso/[slug]/dinamicas, comunidad, blog, perfil, dinamicas
+  /(alumno)      mis-cursos (Inicio), cursos (Mis cursos), curso/[slug] (+ comunidad, en-vivo, dinamicas),
+                 perfil (+ membresia, certificaciones, puntos), dinamicas, blog; comunidad solo redirige (M22)
+  /vaip          V-AI-P: venta para quien no es miembro; para el miembro, Muro + clases, herramientas, ranking
                  # curso/[slug]/(marco)/ = el marco del curso (título, avance, pestañas) para Contenido,
                  # En vivo, Comunidad y Dinámicas; curso/[slug]/[leccionId] va FUERA: modo lección (25-sep-2026)
   /(admin)       admin/* (cursos, alumnos, alumnos/[userId] ficha, comunidad, puntos, entregas, posts, encuestas, dinamicas,
@@ -145,8 +147,10 @@ En su lugar: `pnpm db:migrate` → `scripts/migrate.mjs`, que aplica los `.sql` 
 - **Cursos base** (`courses.is_default`, 20-sep-2026): todo alumno los recibe al darse de alta por
   cualquier camino, además de lo que compre. Lo hace `darDeAlta()`; los cursos QA nunca son base.
 - **Los puntos de gamificación no se guardan**: se calculan de la vista `academia.actividad_por_curso`
-  con los pesos de `lib/gamificacion/reglas.ts` (única fuente). El ranking es por curso y la vista
-  solo enseña la actividad de los grupos donde está inscrito quien pregunta. El equipo lo ve en
+  con los pesos de `lib/gamificacion/reglas.ts` (única fuente). La vista solo enseña la actividad
+  de los grupos donde está inscrito quien pregunta. **Desde M22 (20-oct-2026) el alumno ya no ve
+  rankings por generación** (ya se premió al top 3): sus puntos están en Mi perfil → Puntos y el
+  único ranking vivo es el de V-AI-P (`/vaip/ranking`). El equipo lo ve en
   `/admin/puntos` (`lib/admin/puntos.ts`, 26-sep-2026): mismos pesos, sin cuentas `qa-*` ni cursos
   archivados, y el **lugar se calcula antes de filtrar** — filtrar por empresa enseña en qué lugar
   va cada quien en el ranking completo, no un ranking nuevo de esa empresa.
@@ -356,6 +360,12 @@ avisaba: un menú que se esconde es peor que uno que no existe. En escritorio la
 pastillas **envuelven** si no caben; en móvil se desplazan con un degradado en el
 borde (`mask-image`) que dice "hay más". No es un sidebar a propósito.
 
+**El menú del alumno son cuatro pastillas** (M22, 20-oct-2026): Inicio · V-AI-P · Mis cursos ·
+Perfil, sin icono en el teléfono para que quepan. Eran nueve y había hasta siete formas de llegar
+a lo mismo. **Cada cosa vive en un lugar** (docs/M22.md): una pantalla nueva no agrega una
+pastilla, entra como pestaña de su lugar (V-AI-P, el curso o Mi perfil). La casa de V-AI-P no es un
+curso: no sale en Inicio ni en Mis cursos y sus pestañas redirigen a `/vaip`.
+
 **El panel de admin es la excepción: barra lateral agrupada** (M19, 16-oct-2026, pedido
 de Alejandro). Con doce destinos la fila envolvía y no decía qué iba con qué. Grupos:
 Panel · Academia (Cursos, Entregas, Publicaciones) · Comunidad (Bandeja, Agente, Puntos) ·
@@ -365,7 +375,8 @@ teléfono, un `<details>` «Menú» (`components/admin/barra-lateral.tsx`). El e
 panel queda en una fila: marca, campana y cuenta. El portal de alumnos sigue con dos filas.
 
 Estructura copiada de Skool: **pestañas por sección dentro del curso**
-(`components/ui-vadai/pestanas.tsx`) — Contenido · En vivo · Comunidad —, rejilla
+(`components/ui-vadai/pestanas.tsx`) — Contenido · Comunidad · En vivo · Dinámicas (M22: el
+curso abre en Contenido y la comunidad va segunda) —, rejilla
 de cursos con portada 16:9 y barra de avance, y feed con avatar a la izquierda.
 Las sesiones en vivo viven en **su propia pestaña** (21-sep-2026): encima del
 temario estorbaban para llegar a la primera lección. Y en el índice del curso

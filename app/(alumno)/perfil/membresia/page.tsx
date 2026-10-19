@@ -1,15 +1,16 @@
 import type { Metadata } from 'next'
 import Link from 'next/link'
 
+import { EncabezadoPerfil } from '@/components/alumno/encabezado-perfil'
 import { LogoVaip } from '@/components/marca/logo-vaip'
 import { Tarjeta } from '@/components/ui-vadai/superficie'
-import { fechaLarga } from '@/components/vaip/tu-membresia'
+import { TuMembresia, fechaLarga } from '@/components/vaip/tu-membresia'
 import { Button } from '@/components/ui/button'
 import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
 import { exigirPerfil } from '@/lib/auth/sesion'
 import { cancelarMembresia, reactivarMembresia } from '@/lib/membresia/cancelar'
-import { SLUG_VAIP, enlaceDelPortal, miMembresia, planPublico } from '@/lib/membresia/consultas'
+import { SLUG_VAIP, enlaceDeSuscripcion, enlaceDelPortal, miMembresia, misMembresias, planPublico, planVaip } from '@/lib/membresia/consultas'
 import { espacioVaip } from '@/lib/membresia/espacio'
 import { MOTIVOS, esMotivo, etiquetaDeMotivo } from '@/lib/membresia/motivos'
 import { cn } from '@/lib/utils'
@@ -55,7 +56,10 @@ function Pasos({ actual }: { actual: 1 | 2 | 3 }) {
 export default async function PaginaMembresia({ searchParams }: { searchParams: Promise<Parametros> }) {
   const perfil = await exigirPerfil()
   const q = await searchParams
-  const slug = q.plan ?? SLUG_VAIP
+  // M22: sin plan es la pestaña «Membresía» de Mi perfil (todas tus
+  // membresías); con plan, administrar o cancelar esa.
+  if (!q.plan) return <TusMembresias />
+  const slug = q.plan
   const plan = await planPublico(slug, { cualquierEstado: true })
   const membresia = plan ? await miMembresia(plan.id) : null
   const base = `/perfil/membresia?plan=${encodeURIComponent(slug)}`
@@ -64,8 +68,8 @@ export default async function PaginaMembresia({ searchParams }: { searchParams: 
 
   const encabezado = (
     <header className="flex flex-col gap-3">
-      <Link href="/perfil" className="w-fit text-sm text-muted-foreground hover:text-primary">
-        ← Mi perfil
+      <Link href="/perfil/membresia" className="w-fit text-sm text-muted-foreground hover:text-primary">
+        ← Membresía
       </Link>
       <div className="flex flex-wrap items-center gap-3">
         {esVaip ? <LogoVaip className="h-9" /> : null}
@@ -339,6 +343,57 @@ export default async function PaginaMembresia({ searchParams }: { searchParams: 
           </Link>
         </p>
       )}
+    </div>
+  )
+}
+
+/**
+ * Mi perfil → Membresía (M22): una tarjeta por plan, con su estado, la tarjeta
+ * y los cobros y «Administrar membresía». Sin V-AI-P y con el plan abierto, una
+ * sola invitación. Antes vivía al final de /perfil.
+ */
+async function TusMembresias() {
+  const perfil = await exigirPerfil()
+  const [plan, membresias] = await Promise.all([planVaip(), misMembresias()])
+  const tieneVaip = membresias.some((m) => m.plan.slug === plan?.slug)
+
+  return (
+    <div className="flex flex-col gap-10">
+      <EncabezadoPerfil apoyo="Tu membresía, tu tarjeta y tus cobros." />
+      <div className="flex max-w-2xl flex-col gap-8">
+        {membresias.map(({ plan: suyo, membresia }) => (
+          <section key={suyo.id} className="flex flex-col gap-4">
+            {suyo.slug === SLUG_VAIP ? null : <h2 className="text-lg font-semibold">{suyo.nombre}</h2>}
+            <TuMembresia
+              plan={suyo}
+              membresia={membresia}
+              portal={suyo.portal ? enlaceDelPortal(suyo.portal, perfil.email) : null}
+              enlaceDeSuscripcion={
+                suyo.activo && suyo.linkDePago
+                  ? enlaceDeSuscripcion(suyo.linkDePago, { correo: perfil.email, userId: perfil.user_id })
+                  : null
+              }
+            />
+          </section>
+        ))}
+        {plan && !tieneVaip && plan.abierto ? (
+          <Link
+            href="/vaip"
+            className="flex items-center gap-4 rounded-[10px] border border-border p-4 transition-colors hover:border-primary/50 focus-visible:ring-3 focus-visible:ring-ring/50 focus-visible:outline-none"
+          >
+            <LogoVaip className="h-8" />
+            <span className="text-sm text-pretty text-muted-foreground">
+              Clases en vivo personalizadas y el equipo de VADAI acompañándote.{' '}
+              <span className="font-medium text-primary">Conoce V-AI-P</span>
+            </span>
+          </Link>
+        ) : null}
+        {membresias.length === 0 && !(plan && plan.abierto) ? (
+          <p className="rounded-[10px] border border-dashed border-border px-5 py-10 text-center text-sm text-muted-foreground">
+            No tienes una membresía en tu cuenta.
+          </p>
+        ) : null}
+      </div>
     </div>
   )
 }

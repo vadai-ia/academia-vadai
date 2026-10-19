@@ -60,11 +60,17 @@ export default async function LayoutCurso({
         ? 'Hoy'
         : undefined
 
+  // M22 (20-oct-2026): Contenido · Comunidad · En vivo · Dinámicas. El curso
+  // abre en Contenido (Alejandro), y la comunidad sube al segundo lugar: es lo
+  // que se quiere que la gente siga usando.
   const pestanas: Pestana[] = [
     { href: base, etiqueta: 'Contenido', exacto: true },
-    // Habilitada aunque el acceso haya vencido: leer una dinámica es
-    // estructura del curso; puntuar es lo que exige acceso vigente.
-    { href: `${base}/dinamicas`, etiqueta: 'Dinámicas', insignia: abiertas },
+    {
+      href: `${base}/comunidad`,
+      etiqueta: 'Comunidad',
+      deshabilitada: !curso.vigente,
+      motivo: 'Tu acceso venció. Renuévalo para volver a la comunidad.',
+    },
     // Con el acceso vencido las sesiones ya no se leen (la policy las esconde),
     // así que la pestaña se pinta apagada con su motivo en vez de desaparecer.
     ...(sesiones.length > 0 || !curso.vigente
@@ -79,19 +85,18 @@ export default async function LayoutCurso({
           } satisfies Pestana,
         ]
       : []),
-    {
-      href: `${base}/comunidad`,
-      etiqueta: 'Comunidad',
-      deshabilitada: !curso.vigente,
-      motivo: 'Tu acceso venció. Renuévalo para volver a la comunidad.',
-    },
+    // Habilitada aunque el acceso haya vencido: leer una dinámica es
+    // estructura del curso; puntuar es lo que exige acceso vigente.
+    { href: `${base}/dinamicas`, etiqueta: 'Dinámicas', insignia: abiertas },
   ]
 
   return (
     <div className="flex flex-col gap-6">
       <header className="flex flex-col gap-4">
+        {/* M22: «Mis cursos» es la pastilla /cursos; antes este regreso iba a
+            Inicio con otro nombre. */}
         <Link
-          href="/mis-cursos"
+          href="/cursos"
           className="inline-flex w-fit items-center gap-1.5 text-sm text-muted-foreground underline-offset-4 hover:text-foreground hover:underline"
         >
           <span aria-hidden>←</span> Mis cursos

@@ -85,7 +85,8 @@ export async function planPublico(
   }
 }
 
-export const planVaip = (): Promise<PlanPublico | null> => planPublico(SLUG_VAIP)
+/** Memorizado por petición (M22): lo piden el menú, Inicio, Mis cursos y V-AI-P. */
+export const planVaip = cache((): Promise<PlanPublico | null> => planPublico(SLUG_VAIP))
 
 /**
  * Los cursos que trae V-AI-P, con la sesión de quien pregunta (la lista es
@@ -99,6 +100,29 @@ export const cursosDeVaip = cache(async (): Promise<Set<string>> => {
   const { data } = await supabase.from('membership_plan_courses').select('course_id').eq('plan_id', plan.id)
   return new Set((data ?? []).map((f) => f.course_id))
 })
+
+/**
+ * El curso casa de V-AI-P (donde vive su muro), con la sesión de quien
+ * pregunta. Memorizado por petición: lo piden el contador del menú, Inicio y
+ * las redirecciones del curso. null si no hay plan o no tiene casa.
+ */
+export const casaDeVaip = cache(async (): Promise<{ id: string; slug: string } | null> => {
+  const supabase = await crearClienteServidor()
+  const { data: plan } = await supabase.from('membership_plans').select('hub_course_id').eq('slug', SLUG_VAIP).maybeSingle()
+  if (!plan?.hub_course_id) return null
+  const { data: curso } = await supabase.from('courses').select('id, slug').eq('id', plan.hub_course_id).maybeSingle()
+  return curso ?? null
+})
+
+/**
+ * M22: la casa de V-AI-P ya no se ve como curso. Sus pestañas redirigen a las
+ * de V-AI-P (Contenido y En vivo → Clases; Comunidad y Dinámicas → Muro). Las
+ * lecciones (grabaciones) siguen en /curso/<casa>/<lección>.
+ */
+export async function esCasaDeVaip(cursoId: string): Promise<boolean> {
+  const casa = await casaDeVaip()
+  return casa?.id === cursoId
+}
 
 export type MiMembresia = {
   estado: EstadoSuscripcion

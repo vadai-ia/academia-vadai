@@ -15,6 +15,10 @@ const nextConfig: NextConfig = {
     return [
       // M16: las generaciones ya no tienen página propia; viven en su curso.
       { source: '/admin/cohortes/:id', destination: '/admin/generaciones/:id', permanent: false },
+      // M22: Puntos y Certificaciones son pestañas de Mi perfil. Las ligas viejas
+      // (correos del diploma, marcadores) siguen llegando.
+      { source: '/puntos', destination: '/perfil/puntos', permanent: false },
+      { source: '/certificaciones', destination: '/perfil/certificaciones', permanent: false },
     ]
   },
 };

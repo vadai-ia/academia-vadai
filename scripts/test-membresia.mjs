@@ -514,9 +514,9 @@ try {
   afirmar('Pantallas', '/vaip abre sin sesión', 200, anonimo.status)
   afirmar('Pantallas', 'y es la página de venta', true, (await anonimo.text()).includes('MXN al mes'))
   const sesionMiembro = await entrar(CORREO)
-  const perfil = await (await pedir('/perfil', sesionMiembro)).text()
-  // El título ya no repite el nombre: V-AI-P va en el logo (su nombre accesible).
-  afirmar('Pantallas', '/perfil muestra la membresía', true, perfil.includes('>Tu membresía<') && perfil.includes('aria-label="VADAI V-AI-P"'))
+  // M22: la membresía es la pestaña «Membresía» de Mi perfil. V-AI-P va en el logo (su nombre accesible).
+  const perfil = await (await pedir('/perfil/membresia', sesionMiembro)).text()
+  afirmar('Pantallas', 'Mi perfil → Membresía muestra la membresía', true, perfil.includes('aria-label="VADAI V-AI-P"') && perfil.includes('Administrar membresía'))
   const cm = await entrar(CORREO_CM)
   // M19: el portal es del equipo; los cobros siguen siendo solo de admin.
   afirmar('Pantallas', 'el community manager entra al portal de V-AI-P', 200, (await pedir('/admin/vaip', cm)).status)
@@ -604,8 +604,11 @@ try {
   afirmar('Temas', 'filtrar por tema enseña solo ese tema', true, filtrado.includes('QA-TEMA-PROMPTS') && !filtrado.includes('QA-TEMA-VENTAS'))
 
   // 18. El espacio: ranking y logros calculados con la actividad real.
-  const espacio = await (await pedir('/vaip', sesionMiembro)).text()
-  afirmar('Espacio', 'el miembro ve su espacio, no la venta', true, espacio.includes('Ranking de V-AI-P') && !espacio.includes('MXN al mes'))
+  // M22: el espacio tiene pestañas (Muro · Clases · Herramientas · Ranking); el ranking y los logros, en la suya.
+  const muroDelMiembro = await (await pedir('/vaip', sesionMiembro)).text()
+  afirmar('Espacio', 'el miembro ve su espacio, no la venta', true, muroDelMiembro.includes('aria-label="Secciones de V-AI-P"') && !muroDelMiembro.includes('MXN al mes'))
+  const espacio = await (await pedir('/vaip/ranking', sesionMiembro)).text()
+  afirmar('Espacio', 'su pestaña Ranking', true, espacio.includes('Ranking de V-AI-P'))
   afirmar('Espacio', 'va en primer lugar (es el único con actividad)', '1', espacio.match(/Vas <span[^>]*>#(?:<!-- -->)?(\d+)/)?.[1] ?? null)
   afirmar('Espacio', 'logro «Rompió el hielo» por publicar', 'Ganado', estadoDeLogro(espacio, 'Rompió el hielo'))
   afirmar('Espacio', 'logro «Miembro fundador» por entrar el primer mes', 'Ganado', estadoDeLogro(espacio, 'Miembro fundador'))
