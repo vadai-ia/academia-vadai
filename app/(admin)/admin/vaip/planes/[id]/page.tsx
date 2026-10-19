@@ -9,6 +9,7 @@ import { moneda } from '@/components/membresias/precio'
 import { Seccion, Tarjeta, Titulo } from '@/components/ui-vadai/superficie'
 import { fechaLarga } from '@/components/vaip/tu-membresia'
 import { exigirAdmin } from '@/lib/auth/sesion'
+import { stripeAdminConfigurado } from '@/lib/stripe/admin'
 import { SLUG_VAIP } from '@/lib/membresia/consultas'
 import { etiquetaDeMotivo } from '@/lib/membresia/motivos'
 import { ETIQUETA_ESTADO_PLAN, cancelacionesDelPlan, cursosElegibles, planDelPanel } from '@/lib/membresia/planes'
@@ -54,6 +55,19 @@ export default async function PaginaPlan({
           {plan.nombre}
         </Titulo>
       </div>
+
+      {/* Se avisa al abrir, no al apretar «Publicar en Stripe» (20-oct-2026): en
+          Vercel una variable nueva solo llega a los despliegues nuevos, y así se
+          ve de inmediato si el servidor que corre ya la tiene. */}
+      {!stripeAdminConfigurado() ? (
+        <Tarjeta className="border-destructive/40 bg-destructive/5 p-5 text-sm text-pretty">
+          <p className="font-medium text-destructive">Este servidor no tiene la llave del panel de Stripe (STRIPE_ADMIN_KEY).</p>
+          <p className="mt-1 text-muted-foreground">
+            Revisa en Vercel → Settings → Environment Variables que esté marcada para Production, y vuelve a desplegar
+            (Deployments → ⋯ → Redeploy): una variable nueva solo llega a los despliegues que se hacen después.
+          </p>
+        </Tarjeta>
+      ) : null}
 
       {creado ? (
         <p className="rounded-lg border border-accent bg-accent/15 px-4 py-3 text-sm">
