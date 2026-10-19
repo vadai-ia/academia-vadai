@@ -9,7 +9,7 @@ import { AutoEnviar } from '@/components/ui-vadai/auto-enviar'
 import { Pestanas, type Pestana } from '@/components/ui-vadai/pestanas'
 import { Tarjeta, Titulo } from '@/components/ui-vadai/superficie'
 import { Button } from '@/components/ui/button'
-import { bandejaDeComunidad, HORAS_DE_ESPERA, type FiltrosComunidad } from '@/lib/admin/comunidad'
+import { bandejaDeComunidad, HORAS_DE_ESPERA, HORAS_DEL_AGENTE, type FiltrosComunidad } from '@/lib/admin/comunidad'
 import { exigirEquipo } from '@/lib/auth/sesion'
 import { cn } from '@/lib/utils'
 
@@ -67,6 +67,7 @@ export default async function PaginaComunidadAdmin({
   const pestanas: Pestana[] = [
     { href: hrefDe({ estado: 'sin' }), etiqueta: 'Sin respuesta', activa: estado === 'sin', insignia: b.conteos.sin },
     { href: hrefDe({ estado: 'respondidas' }), etiqueta: 'Resueltas', activa: estado === 'respondidas', insignia: b.conteos.respondidas },
+    { href: hrefDe({ estado: 'agente' }), etiqueta: 'Contestó el agente', activa: estado === 'agente', insignia: b.conteos.agente },
     { href: hrefDe({ estado: 'todas' }), etiqueta: 'Todo', activa: estado === 'todas', insignia: b.conteos.todas },
   ]
 
@@ -175,9 +176,11 @@ export default async function PaginaComunidadAdmin({
             ? hayFiltros
               ? 'Nada espera respuesta con estos filtros.'
               : 'Nada espera respuesta. Cuando un alumno publique o pregunte en una lección, aparece aquí.'
-            : hayFiltros
-              ? 'Nada coincide con estos filtros.'
-              : 'Todavía no hay conversaciones.'}
+            : estado === 'agente'
+              ? `El agente no ha contestado nada solo en las últimas ${HORAS_DEL_AGENTE} horas.`
+              : hayFiltros
+                ? 'Nada coincide con estos filtros.'
+                : 'Todavía no hay conversaciones.'}
         </Tarjeta>
       ) : (
         <ul className="flex flex-col gap-4">

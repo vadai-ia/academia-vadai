@@ -13,6 +13,8 @@ import type { Database } from './types'
  *   - webhook de Stripe
  *   - generación de certificados PDF
  *   - verificación pública de certificado por folio
+ *   - la API con llave (M20), solo desde lib/api/contexto.ts
+ *   - el agente de la comunidad (M21), solo desde lib/agente/servidor.ts
  *
  * El `import 'server-only'` de arriba hace que el build falle si alguien lo
  * importa desde un client component. Es a propósito: esta llave jamás debe

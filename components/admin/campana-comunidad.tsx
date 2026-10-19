@@ -1,6 +1,7 @@
 import Link from 'next/link'
 
 import { HORAS_DE_ESPERA, pendientesDeComunidad } from '@/lib/admin/comunidad'
+import { borradoresPendientes } from '@/lib/agente/panel'
 
 /**
  * La campana del panel: lo que en la comunidad lleva más de doce horas sin
@@ -33,7 +34,12 @@ function fechaCorta(iso: string): string {
 }
 
 export async function CampanaDeComunidad() {
-  const { sinRespuesta, vencidas, primeros } = await pendientesDeComunidad()
+  const [{ sinRespuesta, vencidas, primeros }, borradores] = await Promise.all([
+    pendientesDeComunidad(),
+    // M21: lo que el agente dejó para una persona. No suma al número rojo
+    // (esos hilos ya cuentan como sin respuesta); se ve como un renglón aparte.
+    borradoresPendientes().catch(() => 0),
+  ])
   const ahora = Date.now()
   const id = 'campana-de-comunidad'
 
@@ -71,7 +77,7 @@ export async function CampanaDeComunidad() {
           >
             {vencidas > 9 ? '9+' : vencidas}
           </span>
-        ) : sinRespuesta > 0 ? (
+        ) : sinRespuesta > 0 || borradores > 0 ? (
           <span aria-hidden className="absolute top-1 right-1 size-2 rounded-full bg-primary ring-2 ring-background" />
         ) : null}
       </button>
@@ -127,6 +133,14 @@ export async function CampanaDeComunidad() {
           </ul>
         )}
 
+        {borradores > 0 ? (
+          <Link
+            href="/admin/agente"
+            className="block border-t border-border px-4 py-2.5 text-sm transition-colors hover:bg-muted/60"
+          >
+            El agente dejó {borradores === 1 ? 'un borrador' : `${borradores} borradores`} por revisar →
+          </Link>
+        ) : null}
         <Link
           href="/admin/comunidad"
           className="block border-t border-border px-4 py-2.5 text-sm font-medium text-primary transition-colors hover:bg-muted/60"

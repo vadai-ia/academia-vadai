@@ -5,6 +5,7 @@ import { CodigoQr } from '@/components/encuestas/codigo-qr'
 import { moneda } from '@/components/membresias/precio'
 import { Cifra, Seccion, Tarjeta } from '@/components/ui-vadai/superficie'
 import { Button } from '@/components/ui/button'
+import { pendientesDelAgente } from '@/lib/agente/panel'
 import { esAdmin, exigirEquipo } from '@/lib/auth/sesion'
 import { describirHorario } from '@/lib/calendario/enlaces'
 import { planVaip } from '@/lib/membresia/consultas'
@@ -25,7 +26,11 @@ export default async function PaginaResumen() {
   if (!plan) {
     return <p className="text-sm text-muted-foreground">El plan V-AI-P no está a la venta.</p>
   }
-  const r = await resumenDelPortal(plan, { conCobros: admin, veQa: esCuentaQa(perfil.email) })
+  const [r, agente] = await Promise.all([
+    resumenDelPortal(plan, { conCobros: admin, veQa: esCuentaQa(perfil.email) }),
+    // M21: lo que el agente dejó para una persona (antes de la 0045, nada).
+    pendientesDelAgente().catch(() => ({ borradores: 0, ideas: 0 })),
+  ])
   const base = (process.env.NEXT_PUBLIC_APP_URL ?? '').replace(/\/+$/, '')
   const pagina = `${base}/vaip`
 
@@ -88,6 +93,21 @@ export default async function PaginaResumen() {
                 ? `${r.sinRespuesta} ${r.sinRespuesta === 1 ? 'hilo espera' : 'hilos esperan'} respuesta en el muro de V-AI-P.`
                 : 'El muro de V-AI-P está al día.'}
             </p>
+            {agente.borradores > 0 || agente.ideas > 0 ? (
+              <p className="text-pretty text-muted-foreground">
+                El agente dejó{' '}
+                {[
+                  agente.borradores > 0 ? (agente.borradores === 1 ? 'un borrador por revisar' : `${agente.borradores} borradores por revisar`) : null,
+                  agente.ideas > 0 ? (agente.ideas === 1 ? 'una idea nueva de la comunidad' : `${agente.ideas} ideas nuevas de la comunidad`) : null,
+                ]
+                  .filter(Boolean)
+                  .join(' y ')}
+                .{' '}
+                <Link href="/admin/agente" className="font-medium text-primary hover:underline">
+                  Ver el agente
+                </Link>
+              </p>
+            ) : null}
             <div className="flex flex-wrap gap-2">
               <Button asChild variant="outline" size="sm">
                 <Link href="/admin/vaip/muro">Ir al muro</Link>

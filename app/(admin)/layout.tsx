@@ -4,6 +4,7 @@ import { BarraLateral, type GrupoDeNavegacion } from '@/components/admin/barra-l
 import { CampanaDeComunidad } from '@/components/admin/campana-comunidad'
 import { Encabezado } from '@/components/marca/encabezado'
 import {
+  IconoAgente,
   IconoAjustes,
   IconoBlog,
   IconoCertificaciones,
@@ -48,6 +49,8 @@ export default async function LayoutAdmin({ children }: { children: ReactNode })
       destinos: [
         // La bandeja de lo que espera respuesta (3-oct-2026).
         { href: '/admin/comunidad', etiqueta: 'Bandeja', icono: IconoComunidad },
+        // M21: el agente atiende todas las comunidades; su tablero vive aquí.
+        { href: '/admin/agente', etiqueta: 'Agente', icono: IconoAgente },
         { href: '/admin/puntos', etiqueta: 'Puntos', icono: IconoPuntos },
       ],
     },
@@ -73,9 +76,17 @@ export default async function LayoutAdmin({ children }: { children: ReactNode })
       // dentro, siguen siendo solo de admin (sus páginas lo exigen).
       destinos: [{ href: '/admin/vaip', etiqueta: 'V-AI-P', icono: IconoVaip }],
     },
-    // M20: llaves de la API y webhooks. Solo admin (la página lo exige también).
+    // M20 y M21: la API y el agente. Solo admin (cada página lo exige también).
     ...(esAdmin(perfil)
-      ? [{ titulo: 'Ajustes', destinos: [{ href: '/admin/ajustes/api', etiqueta: 'API', icono: IconoAjustes }] }]
+      ? [
+          {
+            titulo: 'Ajustes',
+            destinos: [
+              { href: '/admin/ajustes/agente', etiqueta: 'Agente', icono: IconoAjustes },
+              { href: '/admin/ajustes/api', etiqueta: 'API', icono: IconoAjustes },
+            ],
+          },
+        ]
       : []),
   ]
 

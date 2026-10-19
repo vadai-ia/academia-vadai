@@ -100,6 +100,20 @@ export function esDestinoDePrueba(url: string): boolean {
   return destinoDePrueba(url) !== null
 }
 
+function esWebhookQa(url: string): boolean {
+  try {
+    return new URL(url).hostname === 'qa-webhooks.invalid'
+  } catch {
+    return false
+  }
+}
+
+function esEventoQa(datos: Record<string, Json>): boolean {
+  const plan = datos.plan
+  const url = datos.url
+  return (typeof plan === 'string' && plan.startsWith('qa-')) || (typeof url === 'string' && url.includes('/curso/qa-'))
+}
+
 function destinoDePrueba(url: string): string | null {
   const receptor = process.env.WEBHOOKS_RECEPTOR_DE_PRUEBA
   if (!receptor || !/^http:\/\/(127\.0\.0\.1|localhost):\d+$/.test(receptor)) return null
@@ -119,8 +133,13 @@ function destinoDePrueba(url: string): string | null {
 export async function emitirEvento(tipo: EventoDeWebhook, datos: Record<string, Json>): Promise<void> {
   try {
     const db = crearClienteServiceRole()
-    const { data: webhooks } = await db.from('webhooks_salientes').select('id').eq('activo', true).contains('eventos', [tipo])
-    if (!webhooks || webhooks.length === 0) return
+    const { data: suscritos } = await db.from('webhooks_salientes').select('id, url').eq('activo', true).contains('eventos', [tipo])
+    // Lo de las suites (un plan o un curso `qa-…`) solo va al webhook de pruebas
+    // (`qa-webhooks.invalid`), y lo real nunca va ahí (M21, 19-oct-2026): sin esto,
+    // una noticia de prueba le llegaba al Zapier real de la academia.
+    const qa = esEventoQa(datos)
+    const webhooks = (suscritos ?? []).filter((w) => esWebhookQa(w.url) === qa)
+    if (webhooks.length === 0) return
     const eventoId = `evt_${randomUUID()}`
     const { data: filas, error } = await db
       .from('webhook_entregas')

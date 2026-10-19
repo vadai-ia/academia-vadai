@@ -4,6 +4,7 @@ import { useActionState } from 'react'
 import { useFormStatus } from 'react-dom'
 
 import { Avatar } from '@/components/ui-vadai/superficie'
+import { TextoConLigas } from '@/components/ui-vadai/texto-con-ligas'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Textarea } from '@/components/ui/textarea'
@@ -12,6 +13,7 @@ import {
   moderarComentario,
   publicarComentario,
 } from '@/lib/comunidad/acciones-comentarios'
+import { insigniaDeAutor } from '@/lib/agente/firma'
 import type { Comentario } from '@/lib/comunidad/comentarios'
 
 /**
@@ -126,15 +128,17 @@ function Fila({
         <div className="flex min-w-0 flex-1 flex-col gap-1.5">
           <div className="flex flex-wrap items-baseline gap-x-2 gap-y-1">
             <span className="text-sm font-medium">{comentario.autor.nombre}</span>
-            {comentario.autor.esEquipo ? (
-              <Badge className="bg-vadai-lima text-vadai-navy text-[11px]">Equipo VADAI</Badge>
+            {insigniaDeAutor(comentario.autor, comentario.via) ? (
+              <Badge className="bg-vadai-lima text-vadai-navy text-[11px]">{insigniaDeAutor(comentario.autor, comentario.via)}</Badge>
             ) : null}
             <span className="text-xs text-muted-foreground">
               {fechaCorta(comentario.creadoEn)}
             </span>
           </div>
 
-          <p className="text-sm break-words whitespace-pre-wrap">{comentario.contenido}</p>
+          <p className="text-sm break-words whitespace-pre-wrap">
+            <TextoConLigas texto={comentario.contenido} />
+          </p>
 
         <div className="flex flex-wrap items-center gap-1">
           {comentario.editable ? (

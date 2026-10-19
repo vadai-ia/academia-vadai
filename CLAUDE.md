@@ -168,6 +168,16 @@ En su lugar: `pnpm db:migrate` → `scripts/migrate.mjs`, que aplica los `.sql` 
   `lesson_outline.para_mi`; el panel lo resta con `lib/acceso/exclusivas.ts`. Una pantalla nueva
   que mida avance por persona tiene que restarlo también. Correo opcional al guardar, solo a los
   nuevos (`plantillaSesionExclusiva`), y aviso en la campana.
+- **El agente de la comunidad** (M21, 19-oct-2026; `lib/agente/*`, docs/M21.md): contesta a los
+  alumnos 25–120 min después, de 8 a 21 h CDMX, como la cuenta «Equipo VADAI» (`es_bot`). Lo que
+  publica solo va `via = 'agente'` y dice «con Claude, nuestra IA»; un borrador que una persona
+  revisó va `agente_revisado` (`lib/agente/firma.ts`). **El modelo nunca escribe una liga**: devuelve
+  claves del mapa y el código las arma; ligas, precios, fechas o correos en su texto lo mandan a
+  borrador. El tope mensual se **reserva antes de cada llamada** en la base
+  (`academia_agente_reservar`). Su suite corre con `ANTHROPIC_SIMULADO` (solo localhost), que lo
+  vuelve el agente QA: ajustes, cola, gasto, borradores y resumen con `es_qa = true`, y solo sus
+  cursos (`qa-agente-…`) y cuentas QA. Nunca se le manda al modelo un nombre, correo o teléfono de alumno, ni contenido de
+  evaluaciones, quizzes o módulos exclusivos.
 - **Notificaciones internas sin tabla**: "nuevo" es lo publicado después de
   `profiles.notifications_seen_at`. Abrir la campana lo sella.
 - **Empresas** (`academia.companies`, `profiles.company_id`; 20-sep-2026): de dónde viene cada
@@ -201,7 +211,9 @@ En su lugar: `pnpm db:migrate` → `scripts/migrate.mjs`, que aplica los `.sql` 
 - NO lógica de negocio en componentes (va en `/lib`)
 - NO bypass de RLS en queries de usuario (service role solo para provisioning/webhooks/PDFs, y desde
   M20 para la API con llave: `/api/v1`, cuyo único punto de entrada es `lib/api/contexto.ts`, que
-  verifica la llave, el permiso y la cuota antes de entregar el cliente)
+  verifica la llave, el permiso y la cuota antes de entregar el cliente; y desde M21 para el agente
+  de la comunidad, cuyo único cliente sale de `lib/agente/servidor.ts` y lo usan solo los crons
+  con `CRON_SECRET` y las acciones del panel después de `exigirEquipo()`/`exigirAdmin()`)
 - NO fetch de datos en client components cuando un server component puede hacerlo
 - NO instalar dependencias no listadas en el stack sin justificación explícita
 - NO tocar `public` ni ningún schema ajeno bajo ninguna circunstancia
@@ -285,6 +297,11 @@ API_KEYS_PEPPER=      # HMAC de las llaves de la API; sin él ninguna llave entr
 WEBHOOKS_MASTER=      # deriva el secreto de cada webhook saliente
 CRON_SECRET=          # Vercel Cron lo manda en Authorization; sin él /api/cron no hace nada
 
+# M21: el agente de la comunidad. Llave de un workspace propio con límite de US$50.
+ANTHROPIC_API_KEY=
+# Solo local, para scripts/agente-conocimiento.mjs (las clases de Fireflies).
+FIREFLIES_API_KEY=
+
 # Sal del hash de IP de la cuota de encuestas en vivo. Solo servidor.
 # Si falta, se deriva de la service role key y todo sigue funcionando; se
 # define aparte para poder rotarla sin tocar la llave de Supabase.
@@ -341,9 +358,9 @@ borde (`mask-image`) que dice "hay más". No es un sidebar a propósito.
 
 **El panel de admin es la excepción: barra lateral agrupada** (M19, 16-oct-2026, pedido
 de Alejandro). Con doce destinos la fila envolvía y no decía qué iba con qué. Grupos:
-Panel · Academia (Cursos, Entregas, Publicaciones) · Comunidad (Bandeja, Puntos) ·
+Panel · Academia (Cursos, Entregas, Publicaciones) · Comunidad (Bandeja, Agente, Puntos) ·
 Contactos (Alumnos, Empresas) · Actividades (Encuestas, Dinámicas, Certificaciones) ·
-Membresía (V-AI-P), y al pie «Portal de alumnos». En escritorio es una columna fija; en
+Membresía (V-AI-P), para admin Ajustes (Agente, API), y al pie «Portal de alumnos». En escritorio es una columna fija; en
 teléfono, un `<details>` «Menú» (`components/admin/barra-lateral.tsx`). El encabezado del
 panel queda en una fila: marca, campana y cuenta. El portal de alumnos sigue con dos filas.
 

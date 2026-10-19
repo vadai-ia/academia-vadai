@@ -39,6 +39,9 @@ import type { Json } from '@/lib/supabase/types'
 /** Pasadas estas horas sin respuesta, la campana del panel lo cuenta. */
 export const HORAS_DE_ESPERA = 12
 
+/** Lo que contestó el agente solo queda a la vista estas horas (M21), para corregir a tiempo. */
+export const HORAS_DEL_AGENTE = 48
+
 export const POR_PAGINA_COMUNIDAD = 20
 
 export type FiltrosComunidad = {
@@ -70,6 +73,8 @@ export type MensajeDeHilo = {
   texto: string
   creadoEn: string
   oculto: boolean
+  /** M21: 'agente' si lo contestó el agente solo (lib/agente/firma.ts). */
+  via: string
 }
 
 export type Hilo = {
@@ -90,6 +95,8 @@ export type Hilo = {
   estado: EstadoDeHilo
   /** Desde cuándo espera: el primer mensaje sin contestar después del último del equipo. */
   esperaDesde: string | null
+  /** M21: si lo último lo contestó el agente solo, cuándo. */
+  contestoElAgente: string | null
   oculto: boolean
   fijado: boolean
   /** Si el equipo lo marcó atendido sin responder: cuándo y quién. */
@@ -107,7 +114,7 @@ export type OpcionCurso = {
 
 export type Bandeja = {
   filtros: {
-    estado: 'sin' | 'respondidas' | 'todas'
+    estado: 'sin' | 'respondidas' | 'agente' | 'todas'
     curso: string
     gen: string
     tipo: '' | 'muro' | 'leccion'
@@ -119,7 +126,7 @@ export type Bandeja = {
   paginas: number
   porPagina: number
   /** Conteos por estado con los demás filtros puestos: las pestañas. */
-  conteos: { sin: number; respondidas: number; todas: number }
+  conteos: { sin: number; respondidas: number; agente: number; todas: number }
   /** Sin respuesta hace más de HORAS_DE_ESPERA, con los demás filtros. */
   vencidas: number
   /** Los cursos que tienen algo en la bandeja: el filtro. */
@@ -159,11 +166,11 @@ const hilosDeLaAcademia = cache(async (): Promise<Crudo> => {
       .neq('status', 'deleted'),
     supabase
       .from('community_comments')
-      .select('id, post_id, user_id, content, status, created_at')
+      .select('id, post_id, user_id, content, status, created_at, via')
       .neq('status', 'deleted'),
     supabase
       .from('lesson_comments')
-      .select('id, lesson_id, user_id, parent_id, content, status, created_at, attended_at, attended_by')
+      .select('id, lesson_id, user_id, parent_id, content, status, created_at, attended_at, attended_by, via')
       .neq('status', 'deleted'),
     supabase.from('courses').select('id, title, slug, status').neq('status', 'archived'),
     supabase.from('cohorts').select('id, name, course_id, starts_on').order('starts_on', { ascending: false, nullsFirst: false }),
@@ -225,7 +232,7 @@ const hilosDeLaAcademia = cache(async (): Promise<Crudo> => {
   for (const c of comentarios.data ?? []) {
     if (!cuenta(c.user_id)) continue
     const lista = comentariosPorPost.get(c.post_id) ?? []
-    lista.push({ id: c.id, autor: autor(c.user_id), texto: c.content, creadoEn: c.created_at, oculto: c.status === 'hidden' })
+    lista.push({ id: c.id, autor: autor(c.user_id), texto: c.content, creadoEn: c.created_at, oculto: c.status === 'hidden', via: c.via })
     comentariosPorPost.set(c.post_id, lista)
   }
 
@@ -262,7 +269,7 @@ const hilosDeLaAcademia = cache(async (): Promise<Crudo> => {
   for (const c of preguntas.data ?? []) {
     if (!c.parent_id || !cuenta(c.user_id)) continue
     const lista = respuestasPorRaiz.get(c.parent_id) ?? []
-    lista.push({ id: c.id, autor: autor(c.user_id), texto: c.content, creadoEn: c.created_at, oculto: c.status === 'hidden' })
+    lista.push({ id: c.id, autor: autor(c.user_id), texto: c.content, creadoEn: c.created_at, oculto: c.status === 'hidden', via: c.via })
     respuestasPorRaiz.set(c.parent_id, lista)
   }
 
@@ -308,9 +315,9 @@ const hilosDeLaAcademia = cache(async (): Promise<Crudo> => {
 })
 
 /** Deriva el estado de un hilo de quién habló al último. */
-function armar(base: Omit<Hilo, 'estado' | 'esperaDesde' | 'ultimaActividad'>): Hilo {
+function armar(base: Omit<Hilo, 'estado' | 'esperaDesde' | 'ultimaActividad' | 'contestoElAgente'>): Hilo {
   const respuestas = [...base.respuestas].sort((a, b) => a.creadoEn.localeCompare(b.creadoEn))
-  const visibles = [
+  const visibles: Array<{ autor: AutorEnHilo; creadoEn: string; via?: string }> = [
     { autor: base.autor, creadoEn: base.creadoEn },
     ...respuestas.filter((r) => !r.oculto),
   ]
@@ -333,8 +340,13 @@ function armar(base: Omit<Hilo, 'estado' | 'esperaDesde' | 'ultimaActividad'>): 
     respuestas,
     estado: ultimo?.autor.equipo ? 'respondida' : atendida ? 'atendida' : 'sin',
     esperaDesde: atendida ? null : esperaDesde,
+    contestoElAgente: ultimo?.via === 'agente' ? ultimo.creadoEn : null,
     ultimaActividad: ultimo?.creadoEn ?? base.creadoEn,
   }
+}
+
+function delAgente(h: Hilo, ahora: number): boolean {
+  return h.contestoElAgente !== null && ahora - Date.parse(h.contestoElAgente) < HORAS_DEL_AGENTE * 3_600_000
 }
 
 function vencida(h: Hilo, ahora: number): boolean {
@@ -344,7 +356,8 @@ function vencida(h: Hilo, ahora: number): boolean {
 export async function bandejaDeComunidad(crudos: FiltrosComunidad): Promise<Bandeja> {
   const { hilos: todos, cursos, destinos, fallo } = await hilosDeLaAcademia()
 
-  const estado = crudos.estado === 'respondidas' || crudos.estado === 'todas' ? crudos.estado : 'sin'
+  const estado =
+    crudos.estado === 'respondidas' || crudos.estado === 'agente' || crudos.estado === 'todas' ? crudos.estado : 'sin'
   const curso = cursos.some((c) => c.id === crudos.curso) ? (crudos.curso ?? '') : ''
   const gen = curso && cursos.find((c) => c.id === curso)?.generaciones.some((g) => g.id === crudos.gen) ? (crudos.gen ?? '') : ''
   const tipo = crudos.tipo === 'muro' || crudos.tipo === 'leccion' ? crudos.tipo : ''
@@ -362,11 +375,18 @@ export async function bandejaDeComunidad(crudos: FiltrosComunidad): Promise<Band
   const conteos = {
     sin: enAlcance.filter((h) => h.estado === 'sin').length,
     respondidas: enAlcance.filter((h) => h.estado !== 'sin').length,
+    agente: enAlcance.filter((h) => delAgente(h, ahora)).length,
     todas: enAlcance.length,
   }
 
   const filtrados = enAlcance.filter((h) =>
-    estado === 'sin' ? h.estado === 'sin' : estado === 'respondidas' ? h.estado !== 'sin' : true
+    estado === 'sin'
+      ? h.estado === 'sin'
+      : estado === 'respondidas'
+        ? h.estado !== 'sin'
+        : estado === 'agente'
+          ? delAgente(h, ahora)
+          : true
   )
   // Lo que espera, de lo más viejo a lo más nuevo: primero quien lleva más
   // tiempo sin respuesta. Lo demás, por actividad reciente.
@@ -395,6 +415,14 @@ export async function bandejaDeComunidad(crudos: FiltrosComunidad): Promise<Band
     publicaciones: todos.filter((h) => h.tipo === 'muro').length,
     fallo,
   }
+}
+
+/** Los hilos con esos ids, ya armados (M21: el contexto de los borradores del agente). */
+export async function hilosPorId(ids: string[]): Promise<Map<string, Hilo>> {
+  if (ids.length === 0) return new Map()
+  const buscados = new Set(ids)
+  const { hilos } = await hilosDeLaAcademia()
+  return new Map(hilos.filter((h) => buscados.has(h.id)).map((h) => [h.id, h]))
 }
 
 export type PendientesDeComunidad = {

@@ -106,6 +106,15 @@ const SESIONES = {
     email: 'qa-vaip1@academia.vadai.com.mx',
     rutas: ['/vaip', '/curso/qa-vaip-casa/comunidad', '/curso/qa-vaip-casa/comunidad?tema=qa-prompts', '/perfil'],
   },
+  // El agente (M21): los datos de `node scripts/test-agente.mjs --conservar`.
+  agente: {
+    email: correo.admin,
+    rutas: ['/admin/agente', '/admin/ajustes/agente', '/admin/comunidad?estado=agente', '/curso/qa-agente-casa/comunidad?por=100'],
+  },
+  agenteCm: {
+    email: correo.cm,
+    rutas: ['/admin/agente'],
+  },
   publico: {
     email: null,
     rutas: ['/login', '/recuperar', '/vaip'],

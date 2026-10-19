@@ -9,6 +9,7 @@ import { Reacciones } from '@/components/alumno/reacciones'
 import { AutoEnviar } from '@/components/ui-vadai/auto-enviar'
 import { RenderRico } from '@/components/alumno/render-rico'
 import { Avatar } from '@/components/ui-vadai/superficie'
+import { TextoConLigas } from '@/components/ui-vadai/texto-con-ligas'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -22,6 +23,7 @@ import {
   moderarPost,
   publicarEnComunidad,
 } from '@/lib/comunidad/acciones-posts'
+import { insigniaDeAutor } from '@/lib/agente/firma'
 import type { ComentarioDePost, PostDeComunidad } from '@/lib/comunidad/posts'
 import { cn } from '@/lib/utils'
 
@@ -291,11 +293,7 @@ function Respuesta({
       <div className="flex min-w-0 flex-1 flex-col gap-1">
         <span className="flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-muted-foreground">
           <span className="font-medium text-foreground">{comentario.autor.nombre}</span>
-          {comentario.autor.esEquipo ? (
-            <Badge variant="outline" className="text-[11px]">
-              Equipo VADAI
-            </Badge>
-          ) : null}
+          <Insignia texto={insigniaDeAutor(comentario.autor, comentario.via)} />
           <span>· {fechaCorta(comentario.creadoEn)}</span>
 
           {soyEquipo ? (
@@ -321,7 +319,9 @@ function Respuesta({
           ) : null}
         </span>
 
-        <p className="text-sm break-words whitespace-pre-wrap">{comentario.contenido}</p>
+        <p className="text-sm break-words whitespace-pre-wrap">
+          <TextoConLigas texto={comentario.contenido} />
+        </p>
 
         <Reacciones
           datos={comentario.reacciones}
@@ -413,11 +413,7 @@ function Publicacion({
           <div className="flex min-w-0 flex-col gap-0.5">
             <span className="flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-muted-foreground">
               <span className="font-medium text-foreground">{post.autor.nombre}</span>
-              {post.autor.esEquipo ? (
-                <Badge variant="outline" className="text-[11px]">
-                  Equipo VADAI
-                </Badge>
-              ) : null}
+              <Insignia texto={insigniaDeAutor(post.autor, post.via)} />
               <span>· {fechaCorta(post.creadoEn)}</span>
               {post.fijado ? (
                 <Badge className="bg-vadai-lima text-vadai-navy text-[11px]">Fijado</Badge>
@@ -763,5 +759,15 @@ export function Comunidad({
         </>
       )}
     </div>
+  )
+}
+
+/** «Equipo VADAI», o la firma del agente (lib/agente/firma.ts). */
+function Insignia({ texto }: { texto: string | null }) {
+  if (!texto) return null
+  return (
+    <Badge variant="outline" className="text-[11px]">
+      {texto}
+    </Badge>
   )
 }

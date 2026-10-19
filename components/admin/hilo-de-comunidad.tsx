@@ -15,6 +15,8 @@ import {
   responderHilo,
 } from '@/lib/admin/acciones-comunidad'
 import { HORAS_DE_ESPERA, type AutorEnHilo, type Hilo, type MensajeDeHilo } from '@/lib/admin/comunidad'
+import { TextoConLigas } from '@/components/ui-vadai/texto-con-ligas'
+import { insigniaDeAutor } from '@/lib/agente/firma'
 import { cn } from '@/lib/utils'
 
 /**
@@ -101,12 +103,13 @@ function Estado({ hilo, ahora }: { hilo: Hilo; ahora: number }) {
   )
 }
 
-function Firma({ autor, creadoEn }: { autor: AutorEnHilo; creadoEn: string }) {
+function Firma({ autor, creadoEn, via }: { autor: AutorEnHilo; creadoEn: string; via?: string }) {
+  const insignia = insigniaDeAutor({ nombre: autor.nombre, esEquipo: autor.equipo }, via)
   return (
     <span className="flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-muted-foreground">
       <span className="font-medium text-foreground">{autor.nombre}</span>
       {autor.equipo ? (
-        <Badge className="bg-accent text-[11px] text-accent-foreground">Equipo VADAI</Badge>
+        insignia ? <Badge className="bg-accent text-[11px] text-accent-foreground">{insignia}</Badge> : null
       ) : autor.empresa ? (
         <span>{autor.empresa}</span>
       ) : null}
@@ -144,14 +147,16 @@ function Respuesta({ mensaje, hilo, vuelta }: { mensaje: MensajeDeHilo; hilo: Hi
       <Avatar nombre={mensaje.autor.nombre} tamano={28} />
       <div className="flex min-w-0 flex-1 flex-col gap-1">
         <span className="flex flex-wrap items-center gap-2">
-          <Firma autor={mensaje.autor} creadoEn={mensaje.creadoEn} />
+          <Firma autor={mensaje.autor} creadoEn={mensaje.creadoEn} via={mensaje.via} />
           {mensaje.oculto ? (
             <Badge variant="outline" className="text-[11px]">
               Oculta
             </Badge>
           ) : null}
         </span>
-        <p className="text-sm break-words whitespace-pre-wrap">{mensaje.texto}</p>
+        <p className="text-sm break-words whitespace-pre-wrap">
+          <TextoConLigas texto={mensaje.texto} />
+        </p>
         <div className="-ml-2 flex flex-wrap items-center">
           <Ocultar tipo={tipo} id={mensaje.id} oculto={mensaje.oculto} vuelta={vuelta} />
           <ConfirmarConModal

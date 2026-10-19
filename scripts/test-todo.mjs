@@ -46,6 +46,8 @@ const SUITES = [
   { llave: 'portal', archivo: 'test-vaip-portal.mjs', titulo: 'Barra lateral y portal V-AI-P', milestone: 'M19' },
   // Necesita la app con API_KEYS_PEPPER, WEBHOOKS_MASTER, CRON_SECRET y el receptor de pruebas (docs/M20.md).
   { llave: 'api', archivo: 'test-api.mjs', titulo: 'API y webhooks', milestone: 'M20' },
+  // Necesita la app con ANTHROPIC_SIMULADO y CRON_SECRET (docs/M21.md): con el Claude real no corre.
+  { llave: 'agente', archivo: 'test-agente.mjs', titulo: 'Agente de la comunidad', milestone: 'M21' },
 ]
 
 /** Corre una suite heredando stdio y devuelve su código de salida. */

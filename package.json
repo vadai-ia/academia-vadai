@@ -49,6 +49,7 @@
     "iconos": "python scripts/generar-iconos.py"
   },
   "dependencies": {
+    "@anthropic-ai/sdk": "^0.135.0",
     "@react-pdf/renderer": "^4.6.1",
     "@supabase/ssr": "^0.12.4",
     "@supabase/supabase-js": "^2.112.3",

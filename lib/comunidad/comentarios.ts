@@ -14,6 +14,8 @@ export type Comentario = {
   contenido: string
   creadoEn: string
   autor: Autor
+  /** M21: cómo llegó (la firma del agente sale de aquí). */
+  via: string
   esMio: boolean
   editable: boolean
   respuestas: Comentario[]
@@ -79,7 +81,7 @@ export async function comentariosDeLeccion(
 
   const { data, error } = await supabase
     .from('lesson_comments')
-    .select('id, user_id, parent_id, content, created_at, status')
+    .select('id, user_id, parent_id, content, created_at, status, via')
     .eq('lesson_id', leccionId)
     .eq('status', 'visible')
     .order('created_at', { ascending: true })
@@ -101,6 +103,7 @@ export async function comentariosDeLeccion(
     contenido: fila.content,
     creadoEn: fila.created_at,
     autor: autores.get(fila.user_id) ?? anonimo,
+    via: fila.via,
     esMio: fila.user_id === usuarioActual,
     editable: fila.user_id === usuarioActual && dentroDeVentana(fila.created_at),
     respuestas: [],

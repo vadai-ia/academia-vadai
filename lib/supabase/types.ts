@@ -58,6 +58,291 @@ export type Database = {
         }
         Relationships: []
       }
+      agent_digests: {
+        Row: {
+          fecha: string
+          es_qa: boolean
+          contenido: Json
+          created_at: string
+        }
+        Insert: {
+          fecha: string
+          es_qa?: boolean
+          contenido: Json
+          created_at?: string
+        }
+        Update: {
+          fecha?: string
+          es_qa?: boolean
+          contenido?: Json
+          created_at?: string
+        }
+        Relationships: []
+      }
+      agent_drafts: {
+        Row: {
+          id: string
+          tipo: 'respuesta' | 'noticia'
+          es_qa: boolean
+          job_id: string | null
+          course_id: string | null
+          tipo_origen: 'post' | 'comentario' | 'leccion' | null
+          hilo_id: string | null
+          titulo: string | null
+          texto: string
+          fuente: string | null
+          certeza: number | null
+          motivo: string | null
+          estado: 'pendiente' | 'publicado' | 'descartado'
+          revisado_por: string | null
+          revisado_en: string | null
+          publicado_id: string | null
+          created_at: string
+        }
+        Insert: {
+          id?: string
+          tipo: 'respuesta' | 'noticia'
+          es_qa?: boolean
+          job_id?: string | null
+          course_id?: string | null
+          tipo_origen?: 'post' | 'comentario' | 'leccion' | null
+          hilo_id?: string | null
+          titulo?: string | null
+          texto: string
+          fuente?: string | null
+          certeza?: number | null
+          motivo?: string | null
+          estado?: 'pendiente' | 'publicado' | 'descartado'
+          revisado_por?: string | null
+          revisado_en?: string | null
+          publicado_id?: string | null
+          created_at?: string
+        }
+        Update: {
+          id?: string
+          tipo?: 'respuesta' | 'noticia'
+          es_qa?: boolean
+          job_id?: string | null
+          course_id?: string | null
+          tipo_origen?: 'post' | 'comentario' | 'leccion' | null
+          hilo_id?: string | null
+          titulo?: string | null
+          texto?: string
+          fuente?: string | null
+          certeza?: number | null
+          motivo?: string | null
+          estado?: 'pendiente' | 'publicado' | 'descartado'
+          revisado_por?: string | null
+          revisado_en?: string | null
+          publicado_id?: string | null
+          created_at?: string
+        }
+        Relationships: []
+      }
+      agent_jobs: {
+        Row: {
+          id: string
+          tipo_origen: 'post' | 'comentario' | 'leccion'
+          origen_id: string
+          es_qa: boolean
+          course_id: string
+          hilo_id: string
+          estado: 'pendiente' | 'procesando' | 'hecho' | 'borrador' | 'omitido' | 'fallido'
+          toca_en: string
+          intentos: number
+          bloqueado_hasta: string | null
+          resultado: string | null
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          tipo_origen: 'post' | 'comentario' | 'leccion'
+          origen_id: string
+          es_qa?: boolean
+          course_id: string
+          hilo_id: string
+          estado?: 'pendiente' | 'procesando' | 'hecho' | 'borrador' | 'omitido' | 'fallido'
+          toca_en: string
+          intentos?: number
+          bloqueado_hasta?: string | null
+          resultado?: string | null
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          tipo_origen?: 'post' | 'comentario' | 'leccion'
+          origen_id?: string
+          es_qa?: boolean
+          course_id?: string
+          hilo_id?: string
+          estado?: 'pendiente' | 'procesando' | 'hecho' | 'borrador' | 'omitido' | 'fallido'
+          toca_en?: string
+          intentos?: number
+          bloqueado_hasta?: string | null
+          resultado?: string | null
+          created_at?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      agent_knowledge: {
+        Row: {
+          id: string
+          fuente: 'repo' | 'plataforma' | 'fireflies' | 'bunny' | 'equipo'
+          clave: string
+          titulo: string
+          course_id: string | null
+          contenido: string
+          caracteres: number | null
+          activo: boolean
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          fuente: 'repo' | 'plataforma' | 'fireflies' | 'bunny' | 'equipo'
+          clave: string
+          titulo: string
+          course_id?: string | null
+          contenido: string
+          caracteres?: number | null
+          activo?: boolean
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          fuente?: 'repo' | 'plataforma' | 'fireflies' | 'bunny' | 'equipo'
+          clave?: string
+          titulo?: string
+          course_id?: string | null
+          contenido?: string
+          caracteres?: number | null
+          activo?: boolean
+          created_at?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      agent_runs: {
+        Row: {
+          id: string
+          job_id: string | null
+          es_qa: boolean
+          tarea: 'responder' | 'escalar' | 'resumen' | 'noticias' | 'probador'
+          modelo: string
+          estado: 'reservada' | 'cerrada'
+          reservado_usd: number
+          costo_usd: number
+          tokens_entrada: number
+          tokens_salida: number
+          tokens_cache_lectura: number
+          tokens_cache_escritura: number
+          busquedas: number
+          decision: string | null
+          certeza: number | null
+          motivo: string | null
+          created_at: string
+        }
+        Insert: {
+          id?: string
+          job_id?: string | null
+          es_qa?: boolean
+          tarea: 'responder' | 'escalar' | 'resumen' | 'noticias' | 'probador'
+          modelo: string
+          estado?: 'reservada' | 'cerrada'
+          reservado_usd?: number
+          costo_usd?: number
+          tokens_entrada?: number
+          tokens_salida?: number
+          tokens_cache_lectura?: number
+          tokens_cache_escritura?: number
+          busquedas?: number
+          decision?: string | null
+          certeza?: number | null
+          motivo?: string | null
+          created_at?: string
+        }
+        Update: {
+          id?: string
+          job_id?: string | null
+          es_qa?: boolean
+          tarea?: 'responder' | 'escalar' | 'resumen' | 'noticias' | 'probador'
+          modelo?: string
+          estado?: 'reservada' | 'cerrada'
+          reservado_usd?: number
+          costo_usd?: number
+          tokens_entrada?: number
+          tokens_salida?: number
+          tokens_cache_lectura?: number
+          tokens_cache_escritura?: number
+          busquedas?: number
+          decision?: string | null
+          certeza?: number | null
+          motivo?: string | null
+          created_at?: string
+        }
+        Relationships: []
+      }
+      agent_settings: {
+        Row: {
+          es_qa: boolean
+          modo: 'apagado' | 'borradores' | 'automatico'
+          prompt: string
+          umbral: number
+          espera_min: number
+          espera_max: number
+          hora_inicio: number
+          hora_fin: number
+          busqueda_web: boolean
+          noticias: boolean
+          tope_usd: number
+          modelo_rapido: string
+          modelo_fuerte: string
+          pausado_por_tope: boolean
+          updated_at: string
+          updated_by: string | null
+        }
+        Insert: {
+          es_qa?: boolean
+          modo?: 'apagado' | 'borradores' | 'automatico'
+          prompt?: string
+          umbral?: number
+          espera_min?: number
+          espera_max?: number
+          hora_inicio?: number
+          hora_fin?: number
+          busqueda_web?: boolean
+          noticias?: boolean
+          tope_usd?: number
+          modelo_rapido?: string
+          modelo_fuerte?: string
+          pausado_por_tope?: boolean
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Update: {
+          es_qa?: boolean
+          modo?: 'apagado' | 'borradores' | 'automatico'
+          prompt?: string
+          umbral?: number
+          espera_min?: number
+          espera_max?: number
+          hora_inicio?: number
+          hora_fin?: number
+          busqueda_web?: boolean
+          noticias?: boolean
+          tope_usd?: number
+          modelo_rapido?: string
+          modelo_fuerte?: string
+          pausado_por_tope?: boolean
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Relationships: []
+      }
       api_bitacora: {
         Row: {
           id: number
@@ -366,6 +651,7 @@ export type Database = {
           updated_at: string
           via: 'humano' | 'api' | 'agente' | 'agente_revisado'
           api_key_id: string | null
+          agent_job_id: string | null
         }
         Insert: {
           id?: string
@@ -377,6 +663,7 @@ export type Database = {
           updated_at?: string
           via?: 'humano' | 'api' | 'agente' | 'agente_revisado'
           api_key_id?: string | null
+          agent_job_id?: string | null
         }
         Update: {
           id?: string
@@ -388,6 +675,40 @@ export type Database = {
           updated_at?: string
           via?: 'humano' | 'api' | 'agente' | 'agente_revisado'
           api_key_id?: string | null
+          agent_job_id?: string | null
+        }
+        Relationships: []
+      }
+      community_insights: {
+        Row: {
+          id: string
+          tipo: 'idea' | 'peticion' | 'queja' | 'duda_frecuente' | 'elogio'
+          es_qa: boolean
+          resumen: string
+          course_id: string | null
+          hilo_id: string | null
+          atendida: boolean
+          created_at: string
+        }
+        Insert: {
+          id?: string
+          tipo: 'idea' | 'peticion' | 'queja' | 'duda_frecuente' | 'elogio'
+          es_qa?: boolean
+          resumen: string
+          course_id?: string | null
+          hilo_id?: string | null
+          atendida?: boolean
+          created_at?: string
+        }
+        Update: {
+          id?: string
+          tipo?: 'idea' | 'peticion' | 'queja' | 'duda_frecuente' | 'elogio'
+          es_qa?: boolean
+          resumen?: string
+          course_id?: string | null
+          hilo_id?: string | null
+          atendida?: boolean
+          created_at?: string
         }
         Relationships: []
       }
@@ -895,6 +1216,8 @@ export type Database = {
           updated_at: string
           attended_at: string | null
           attended_by: string | null
+          via: 'humano' | 'api' | 'agente' | 'agente_revisado'
+          agent_job_id: string | null
         }
         Insert: {
           id?: string
@@ -907,6 +1230,8 @@ export type Database = {
           updated_at?: string
           attended_at?: string | null
           attended_by?: string | null
+          via?: 'humano' | 'api' | 'agente' | 'agente_revisado'
+          agent_job_id?: string | null
         }
         Update: {
           id?: string
@@ -919,6 +1244,8 @@ export type Database = {
           updated_at?: string
           attended_at?: string | null
           attended_by?: string | null
+          via?: 'humano' | 'api' | 'agente' | 'agente_revisado'
+          agent_job_id?: string | null
         }
         Relationships: []
       }

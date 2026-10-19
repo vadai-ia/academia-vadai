@@ -1,7 +1,6 @@
-import { timingSafeEqual } from 'node:crypto'
-
 import { NextResponse, type NextRequest } from 'next/server'
 
+import { cronAutorizado } from '@/lib/api/cron'
 import { entregarPendientes } from '@/lib/api/webhooks'
 import { crearClienteServiceRole } from '@/lib/supabase/service-role'
 
@@ -15,16 +14,8 @@ import { crearClienteServiceRole } from '@/lib/supabase/service-role'
  */
 export const dynamic = 'force-dynamic'
 
-function autorizada(req: NextRequest): boolean {
-  const secreto = process.env.CRON_SECRET ?? ''
-  if (secreto.length < 16) return false
-  const recibido = Buffer.from(req.headers.get('authorization') ?? '')
-  const esperado = Buffer.from(`Bearer ${secreto}`)
-  return recibido.length === esperado.length && timingSafeEqual(recibido, esperado)
-}
-
 export async function GET(req: NextRequest) {
-  if (!autorizada(req)) return NextResponse.json({ error: 'No autorizado.' }, { status: 401 })
+  if (!cronAutorizado(req)) return NextResponse.json({ error: 'No autorizado.' }, { status: 401 })
 
   const resultado = await entregarPendientes()
   const db = crearClienteServiceRole()

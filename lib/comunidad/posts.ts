@@ -17,6 +17,8 @@ export type ComentarioDePost = {
   contenido: string
   creadoEn: string
   autor: Autor
+  /** M21: cómo llegó (la firma del agente sale de aquí). */
+  via: string
   esMio: boolean
   reacciones: ReaccionesDe
 }
@@ -31,6 +33,7 @@ export type PostDeComunidad = {
   /** M17: el tema del muro, o null. */
   temaId: string | null
   autor: Autor
+  via: string
   esMio: boolean
   reacciones: ReaccionesDe
   comentarios: ComentarioDePost[]
@@ -119,7 +122,7 @@ export async function feedDelCurso(
     let consulta = supabase
       .from('community_posts')
       .select(
-        'id, user_id, title, content_rich, images, pinned, created_at, topic_id, community_comments(id, user_id, content, created_at, status)',
+        'id, user_id, title, content_rich, images, pinned, created_at, topic_id, via, community_comments(id, user_id, content, created_at, status, via)',
         { count: 'exact' }
       )
       .eq('course_id', cursoId)
@@ -161,12 +164,14 @@ export async function feedDelCurso(
     pinned: boolean
     created_at: string
     topic_id: string | null
+    via: string
     community_comments: Array<{
       id: string
       user_id: string
       content: string
       created_at: string
       status: string
+      via: string
     }>
   }
 
@@ -200,6 +205,7 @@ export async function feedDelCurso(
     creadoEn: p.created_at,
     temaId: p.topic_id,
     autor: autores.get(p.user_id) ?? ANONIMO,
+    via: p.via,
     esMio: p.user_id === usuarioActual,
     reacciones: reacciones.posts.get(p.id) ?? SIN_REACCIONES,
     comentarios: (p.community_comments ?? [])
@@ -210,6 +216,7 @@ export async function feedDelCurso(
         contenido: c.content,
         creadoEn: c.created_at,
         autor: autores.get(c.user_id) ?? ANONIMO,
+        via: c.via,
         esMio: c.user_id === usuarioActual,
         reacciones: reacciones.comentarios.get(c.id) ?? SIN_REACCIONES,
       })),
