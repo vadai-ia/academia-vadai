@@ -35,15 +35,17 @@ const VACIAS = new Set(
 )
 
 function sinAcentos(t: string): string {
-  return t.normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase()
+  return t.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase()
+}
+
+function palabras(texto: string): string[] {
+  return sinAcentos(texto)
+    .split(/[^a-z0-9ñ]+/)
+    .filter((p) => p.length > 2 && !VACIAS.has(p))
 }
 
 export function palabrasClave(texto: string): Set<string> {
-  return new Set(
-    sinAcentos(texto)
-      .split(/[^a-z0-9ñ]+/)
-      .filter((p) => p.length > 2 && !VACIAS.has(p))
-  )
+  return new Set(palabras(texto))
 }
 
 function trozos(texto: string): string[] {
@@ -66,14 +68,26 @@ function trozos(texto: string): string[] {
   return salida
 }
 
-function puntaje(palabras: string[], clave: Set<string>): number {
-  if (clave.size === 0) return 0
-  let n = 0
-  for (const p of palabras) if (clave.has(p)) n++
-  return n / Math.sqrt(palabras.length + 20)
-}
+type Trozo = { texto: string; titulo: string; delCurso: boolean; cuentas: Map<string, number>; largo: number }
+type Indice = { trozos: Trozo[]; df: Map<string, number>; promedio: number }
 
-type Trozo = { texto: string; titulo: string; delCurso: boolean; palabras: string[] }
+/**
+ * BM25: una palabra pesa más mientras más rara es en el material. Sin esto,
+ * «claude» o «excel» —que salen en casi todo— hacían que el glosario ganara a
+ * la página del manual que sí contesta.
+ */
+function puntaje(t: Trozo, clave: Set<string>, indice: Indice): number {
+  const n = indice.trozos.length
+  let s = 0
+  for (const palabra of clave) {
+    const tf = t.cuentas.get(palabra)
+    if (!tf) continue
+    const df = indice.df.get(palabra) ?? 0
+    const idf = Math.log(1 + (n - df + 0.5) / (df + 0.5))
+    s += (idf * tf * 2.2) / (tf + 1.2 * (0.25 + (0.75 * t.largo) / indice.promedio))
+  }
+  return s
+}
 
 /**
  * Los trozos de un curso, cortados y con sus palabras ya normalizadas. Se
@@ -81,11 +95,11 @@ type Trozo = { texto: string; titulo: string; delCurso: boolean; palabras: strin
  * preguntas del mismo curso y el material pesa más de un megabyte.
  */
 const VIGENCIA = 5 * 60_000
-const trozosEnMemoria = new Map<string, { en: number; trozos: Trozo[] }>()
+const trozosEnMemoria = new Map<string, { en: number; indice: Indice }>()
 
-async function trozosDelCurso(db: ClienteAgente, cursoId: string): Promise<Trozo[]> {
+async function trozosDelCurso(db: ClienteAgente, cursoId: string): Promise<Indice> {
   const guardado = trozosEnMemoria.get(cursoId)
-  if (guardado && Date.now() - guardado.en < VIGENCIA) return guardado.trozos
+  if (guardado && Date.now() - guardado.en < VIGENCIA) return guardado.indice
   const { data, error } = await db
     .from('agent_knowledge')
     .select('titulo, contenido, course_id')
@@ -93,16 +107,24 @@ async function trozosDelCurso(db: ClienteAgente, cursoId: string): Promise<Trozo
     .or(`course_id.is.null,course_id.eq.${cursoId}`)
   if (error) {
     console.error(JSON.stringify({ operacion: 'agente:conocimiento', cursoId, error: error.message }))
-    return []
+    return { trozos: [], df: new Map(), promedio: 1 }
   }
   const lista: Trozo[] = []
+  const df = new Map<string, number>()
   for (const doc of data ?? []) {
     for (const t of trozos(doc.contenido)) {
-      lista.push({ texto: t, titulo: doc.titulo, delCurso: doc.course_id === cursoId, palabras: sinAcentos(t).split(/[^a-z0-9ñ]+/) })
+      // El título cuenta: «Manual de Claude · Conectores» dice de qué habla el trozo.
+      const ws = palabras(`${doc.titulo} ${t}`)
+      const cuentas = new Map<string, number>()
+      for (const w of ws) cuentas.set(w, (cuentas.get(w) ?? 0) + 1)
+      for (const w of cuentas.keys()) df.set(w, (df.get(w) ?? 0) + 1)
+      lista.push({ texto: t, titulo: doc.titulo, delCurso: doc.course_id === cursoId, cuentas, largo: ws.length })
     }
   }
-  trozosEnMemoria.set(cursoId, { en: Date.now(), trozos: lista })
-  return lista
+  const promedio = lista.length ? lista.reduce((a, t) => a + t.largo, 0) / lista.length : 1
+  const indice = { trozos: lista, df, promedio }
+  trozosEnMemoria.set(cursoId, { en: Date.now(), indice })
+  return indice
 }
 
 /**
@@ -116,7 +138,7 @@ export async function contextoDelCurso(
   cohortId: string | null,
   conversacion: string
 ): Promise<Contexto> {
-  const [modulos, material] = await Promise.all([
+  const [modulos, indice] = await Promise.all([
     db.from('modules').select('id, title, position, cohort_id, is_restricted').eq('course_id', curso.id).order('position'),
     trozosDelCurso(db, curso.id),
   ])
@@ -169,16 +191,19 @@ export async function contextoDelCurso(
   // El conocimiento: trozos con más palabras en común con la conversación,
   // primero los del curso.
   const clave = palabrasClave(conversacion)
-  const candidatos = material.map((t) => ({ ...t, puntos: puntaje(t.palabras, clave) }))
   // Los del curso pesan más, pero solo si dicen algo de la conversación.
-  candidatos.sort((a, b) => b.puntos * (a.delCurso ? 1.5 : 1) - a.puntos * (b.delCurso ? 1.5 : 1))
+  const candidatos = indice.trozos
+    .map((t) => ({ ...t, puntos: puntaje(t, clave, indice) * (t.delCurso ? 1.3 : 1) }))
+    .sort((a, b) => b.puntos - a.puntos)
+  // Solo lo que de verdad se parece: lo que no llega a un cuarto del mejor es relleno.
+  const minimo = (candidatos[0]?.puntos ?? 0) * 0.25
 
   let usadas = 0
   const elegidos: string[] = []
   const fuentes = new Set<string>()
   for (const c of candidatos) {
     // Sin nada en común con la conversación no se manda: sin conocimiento, el modelo deja borrador.
-    if (c.puntos <= 0) break
+    if (c.puntos <= 0 || c.puntos < minimo) break
     if (usadas + c.texto.length > PRESUPUESTO) continue
     elegidos.push(`<fuente titulo="${c.titulo.replace(/"/g, "'")}">\n${c.texto}\n</fuente>`)
     fuentes.add(c.titulo)

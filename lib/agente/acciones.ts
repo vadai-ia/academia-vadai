@@ -131,16 +131,25 @@ export async function probarAgente(_previo: EstadoProbador, datos: FormData): Pr
   const a = await ajustesDelAgente(qa)
   if (!a) return { error: 'Faltan los ajustes del agente (migración 0045).' }
 
+  // La generación vigente: en un curso por generaciones, los módulos (y el mapa) son de ella.
+  const { data: generaciones } = await db
+    .from('cohorts')
+    .select('id')
+    .eq('course_id', curso.id)
+    .order('open_for_enrollment', { ascending: false })
+    .order('starts_on', { ascending: false })
+    .limit(1)
+  const cohortId = generaciones?.[0]?.id ?? null
   const hilo: HiloCargado = {
     tipo: 'muro',
     hiloId: 'probador',
     curso: { id: curso.id, slug: curso.slug, titulo: curso.title },
-    cohortId: null,
+    cohortId,
     lugar: `Publicación en el muro del curso «${curso.title}»`,
     visible: true,
     mensajes: [{ id: 'p', autorId: 'alumno', quien: 'alumno', texto: pregunta, creadoEn: new Date().toISOString() }],
   }
-  const d = await decidir(db, a, { curso: hilo.curso, cohortId: null, conversacion: conversacionParaModelo(hilo), jobId: null, tarea: 'probador' })
+  const d = await decidir(db, a, { curso: hilo.curso, cohortId, conversacion: conversacionParaModelo(hilo), jobId: null, tarea: 'probador' })
   revalidatePath(RUTA_AJUSTES)
   if (d.tipo === 'sin_presupuesto') return { error: 'Se llegó al tope de gasto del mes. Súbelo arriba para seguir probando.' }
   if (d.tipo === 'error') return { error: `No contestó: ${d.detalle}` }
