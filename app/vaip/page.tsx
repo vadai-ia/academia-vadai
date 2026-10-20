@@ -13,7 +13,7 @@ import { feedDelCurso } from '@/lib/comunidad/posts'
 import { temasDelCurso } from '@/lib/comunidad/temas'
 import { enlaceDeSuscripcion, miMembresia, planDeLaVenta, planVaip } from '@/lib/membresia/consultas'
 import { contextoVaip, type ContextoVaip } from '@/lib/membresia/espacio'
-import { costoDiario, situacionDeVenta } from '@/lib/membresia/venta'
+import { menosQueUnCafe, situacionDeVenta } from '@/lib/membresia/venta'
 import { sellarCanal } from '@/lib/notificaciones/canales'
 
 export const metadata: Metadata = {
@@ -69,7 +69,7 @@ export default async function PaginaVaip({ searchParams }: { searchParams: Promi
       conSesion={Boolean(perfil)}
       situacion={situacion}
       terminoEl={terminoEl}
-      costoDia={costoDiario(venta.precioMxn)}
+      cafe={menosQueUnCafe(venta.precioMxn)}
     />
   )
 }

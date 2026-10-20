@@ -21,12 +21,21 @@ export function situacionDeVenta(membresia: MiMembresia | null): SituacionDeVent
 }
 
 /**
- * El tope entero de lo que cuesta al día, para decir «menos de $X al día» sin
- * prometer de menos: $349 al mes son $11.47 al día en promedio → «menos de
- * $12». Si el promedio diera exacto ($12.00), el tope sube a $13: «menos de»
- * tiene que ser verdad. Reemplaza «más barato que 3 cafés», que exigía cafés
- * de $116.
+ * El café más barato que se compra en México (el de la tienda de la esquina)
+ * cuesta más de $20. Es el piso de la comparación.
  */
-export function costoDiario(precioMensualMxn: number): number {
-  return Math.floor((precioMensualMxn * 12) / 365) + 1
+const CAFE_MAS_BARATO_MXN = 20
+
+/**
+ * ¿Se puede decir «menos que un café al día»? (M23, 20-oct-2026)
+ *
+ * Alejandro pidió comparar con un gasto hormiga que casi todos pagan, no con
+ * una cifra: «aquí realmente es una inversión en su nueva educación». $349 al
+ * mes son $11.47 al día, menos que cualquier café, así que la frase es verdad.
+ * Va calculada y no escrita a mano: si el precio sube a más de $608 al mes,
+ * deja de pintarse sola en vez de mentir. Reemplaza «más barato que 3 cafés»
+ * (exigía cafés de $116) y «menos de $12 al día» (no le gustó).
+ */
+export function menosQueUnCafe(precioMensualMxn: number): boolean {
+  return (precioMensualMxn * 12) / 365 < CAFE_MAS_BARATO_MXN
 }

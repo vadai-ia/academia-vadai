@@ -148,7 +148,6 @@ try {
     verde = true
   } else {
     const ids = await sembrar(bd)
-    const alDia = Math.floor((PRECIO * 12) / 365) + 1
 
     // =========================================================================
     // 0. El servidor pinta el plan de la suite
@@ -175,9 +174,15 @@ try {
     afirmar(A, 'hay una barra pegada abajo', 1, (anonimo.match(/<div\b[^>]*\bdata-barra-inferior/g) ?? []).length)
     afirmar(A, 'con su botón al mismo link', LINK, botones.find((b) => b.lugar === 'barra')?.href)
     afirmar(A, '«¿Ya eres miembro? Entra» lleva a entrar', true, anonimo.includes('href="/login?destino=%2Fvaip"'))
-    afirmar(A, `«Menos de $${alDia} al día» sale del precio`, true, textoPlano(anonimo).includes(`Menos de $${alDia} al día`))
+    // $349 al mes son $11.47 al día: menos que cualquier café (lib/membresia/venta.ts).
+    afirmar(A, '«Menos que un café al día», porque el precio lo permite', true, textoPlano(anonimo).includes('Menos que un café al día'))
+    afirmar(A, 'el gasto hormiga como inversión', true, textoPlano(anonimo).includes('gastos hormiga, aquí es inversión en tu educación'))
     afirmar(A, 'el precio tachado y el que se cobra', true, textoPlano(anonimo).includes('$499') && textoPlano(anonimo).includes('MXN al mes'))
     afirmar(A, 'ningún botón vacío', 0, botones.filter((b) => !b.href || !b.texto).length)
+    // Si el precio subiera a más de $608 al mes, la comparación dejaría de ser verdad: no se pinta.
+    await bd.query(`update academia.membership_plans set price_mxn = 700, price_compare_mxn = 900 where id = $1`, [ids.plan])
+    afirmar(A, 'a $700 al mes ya no dice «menos que un café»', false, textoPlano(await html('/vaip')).includes('Menos que un café'))
+    await bd.query(`update academia.membership_plans set price_mxn = $2, price_compare_mxn = 499 where id = $1`, [ids.plan, PRECIO])
 
     // =========================================================================
     // 2. Con sesión, sin membresía
@@ -241,6 +246,7 @@ try {
     if (CONSERVAR) console.log('  --conservar: el plan QA queda armado para las capturas. Quítalo con --limpiar.\n')
   }
 } catch (e) {
+  afirmar('Suite', 'terminó sin detenerse', true, false)
   imprimir()
   console.error(`  La suite se detuvo: ${e.message}`)
 } finally {
