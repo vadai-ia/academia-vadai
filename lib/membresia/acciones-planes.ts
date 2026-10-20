@@ -172,7 +172,7 @@ export async function publicarPlan(_previo: EstadoAccion, datos: FormData): Prom
   const { data: plan } = await supabase
     .from('membership_plans')
     .select(
-      'id, slug, name, description, image_url, price_mxn, stripe_product_id, stripe_price_id, stripe_payment_link_id, stripe_portal_config_id'
+      'id, slug, name, description, image_url, price_mxn, hub_course_id, stripe_product_id, stripe_price_id, stripe_payment_link_id, stripe_portal_config_id'
     )
     .eq('id', id)
     .maybeSingle()
@@ -230,6 +230,18 @@ export async function publicarPlan(_previo: EstadoAccion, datos: FormData): Prom
     registrarFallo('publicarPlan:guardar', { id, ...r }, error.message)
     return { error: 'Quedó publicado en Stripe pero no se guardó aquí. Vuelve a publicar: no se duplica nada.' }
   }
+  // La casa es la comunidad del plan, no un curso con borrador (Alejandro,
+  // 20-oct-2026: «no tendría que estar en borrador… la única comunidad donde la
+  // gente paga»). Se abre con el plan: la puerta es la membresía vigente. No se
+  // saca del archivo: un curso archivado sigue siendo decisión de alguien.
+  if (plan.hub_course_id) {
+    const { error: errorCasa } = await supabase
+      .from('courses')
+      .update({ status: 'published' })
+      .eq('id', plan.hub_course_id)
+      .eq('status', 'draft')
+    if (errorCasa) registrarFallo('publicarPlan:abrirCasa', { id, casa: plan.hub_course_id }, errorCasa.message)
+  }
   if (r.precioNuevo) {
     const { error: errorPrecio } = await supabase
       .from('membership_plan_prices')
@@ -242,7 +254,7 @@ export async function publicarPlan(_previo: EstadoAccion, datos: FormData): Prom
     aviso:
       r.precioNuevo && plan.stripe_price_id
         ? 'Publicado con el precio nuevo. Quien ya pagaba sigue con su precio. El link de pago cambió; el QR de la página no.'
-        : 'Publicado en Stripe. El link de pago ya cobra.',
+        : 'Publicado en Stripe y la comunidad abierta: el link de pago ya cobra y solo entran miembros con membresía activa.',
   }
 }
 

@@ -441,12 +441,18 @@ try {
   afirmar('Panel', 'ni lo ve un alumno (RLS)', 0, (await comoUsuario(bd, ajenoId, `select id from academia.membership_plans where slug = 'qa-plan-prueba'`)).length)
 
   // --- 2. Publicar en Stripe ----------------------------------------------
+  // La casa del plan en borrador: publicar el plan la abre (20-oct-2026). Es
+  // la comunidad, no un curso con borrador; la puerta es la membresía.
+  const casaDelPlan = await cursoQa(bd, 'qa-plan-casa')
+  await bd.query(`update academia.courses set status = 'draft' where id = $1`, [casaDelPlan])
+  await bd.query(`update academia.membership_plans set hub_course_id = $1 where id = $2`, [casaDelPlan, plan.id])
   pagina = await html(rutaPlan, admin)
   let respuesta = await (await enviar(rutaPlan, conAccion(pagina, 'publicar'), admin)).text()
   if (stripe.llamadas.length === 0) {
     throw new Error(`La app no llamó al Stripe simulado. Levántala con STRIPE_ADMIN_SIMULADO=http://127.0.0.1:${PUERTO_STRIPE}.`)
   }
   afirmar('Publicar', 'el panel confirma la publicación', true, respuesta.includes('Publicado en Stripe'))
+  afirmar('Publicar', 'y abre la comunidad del plan (su casa)', 'published', (await una(bd, `select status from academia.courses where id = $1`, [casaDelPlan]))?.status)
   const producto = stripe.llamadasA('POST', '/v1/products')[0]
   afirmar('Publicar', 'producto con la marca del plan', 'qa-plan-prueba', producto?.p.get('metadata[academia_plan]'))
   afirmar('Publicar', 'y con el id del plan', plan.id, producto?.p.get('metadata[academia_plan_id]'))

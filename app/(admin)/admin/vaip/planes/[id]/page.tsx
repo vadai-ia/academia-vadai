@@ -114,7 +114,7 @@ export default async function PaginaPlan({
               ) : (
                 <p className="text-sm text-pretty text-muted-foreground">
                   Todavía no existe en Stripe. Publicar crea el producto, el precio, el link de pago y el portal de
-                  tarjeta y cobros.
+                  tarjeta y cobros, y abre la comunidad del plan: solo entran miembros con membresía activa.
                 </p>
               )}
               <PublicarPlan
