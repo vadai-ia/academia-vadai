@@ -4,7 +4,6 @@ import { notFound } from 'next/navigation'
 import { Comunidad } from '@/components/alumno/comunidad'
 import { SelectorDeGeneracion } from '@/components/alumno/selector-de-generacion'
 import { EncabezadoVaip } from '@/components/vaip/espacio'
-import { TuMembresia } from '@/components/vaip/tu-membresia'
 import { VentaVaip } from '@/components/vaip/venta'
 import { generacionesParaEquipo } from '@/lib/alumno/generaciones-equipo'
 import { sesionesDelCurso } from '@/lib/alumno/sesiones'
@@ -12,8 +11,9 @@ import { obtenerSesion } from '@/lib/auth/sesion'
 import { proximaOActual } from '@/lib/calendario/estado'
 import { feedDelCurso } from '@/lib/comunidad/posts'
 import { temasDelCurso } from '@/lib/comunidad/temas'
-import { enlaceDelPortal, enlaceDeSuscripcion, miMembresia, planVaip } from '@/lib/membresia/consultas'
+import { enlaceDeSuscripcion, miMembresia, planDeLaVenta, planVaip } from '@/lib/membresia/consultas'
 import { contextoVaip, type ContextoVaip } from '@/lib/membresia/espacio'
+import { costoDiario, situacionDeVenta } from '@/lib/membresia/venta'
 import { sellarCanal } from '@/lib/notificaciones/canales'
 
 export const metadata: Metadata = {
@@ -43,31 +43,34 @@ export default async function PaginaVaip({ searchParams }: { searchParams: Promi
   const ctx = await contextoVaip()
   if (ctx) return <MuroVaip ctx={ctx} q={await searchParams} />
 
+  const venta = (await planDeLaVenta()) ?? plan
   const sesion = await obtenerSesion()
   const perfil = sesion.tipo === 'activo' ? sesion.perfil : null
-  const membresia = perfil ? await miMembresia(plan.id) : null
+  const membresia = perfil ? await miMembresia(venta.id) : null
   const enlace =
-    plan.abierto && plan.linkDePago
-      ? enlaceDeSuscripcion(plan.linkDePago, perfil ? { correo: perfil.email, userId: perfil.user_id } : null)
+    venta.abierto && venta.linkDePago
+      ? enlaceDeSuscripcion(venta.linkDePago, perfil ? { correo: perfil.email, userId: perfil.user_id } : null)
       : null
-  const portal = plan.portal ? enlaceDelPortal(plan.portal, perfil?.email ?? null) : null
+  const situacion = situacionDeVenta(membresia)
+  // M23: a quien ya fue miembro, una línea con la fecha arriba del título en vez
+  // de la tarjeta completa, que empujaba el botón bajo el pliegue. La tarjeta
+  // sigue en Mi perfil → Membresía.
+  const terminoEl =
+    situacion === 'vencida' && membresia?.accesoHasta
+      ? new Intl.DateTimeFormat('es-MX', { day: 'numeric', month: 'long', timeZone: 'America/Mexico_City' }).format(
+          new Date(membresia.accesoHasta)
+        )
+      : null
 
   return (
-    <div className="flex flex-col gap-10">
-      {/* A quien ya fue miembro, su estado arriba; el botón para volver es el
-          del flyer (M22: eran dos botones de suscribirse en la misma página). */}
-      {membresia ? (
-        <div className="max-w-3xl">
-          <TuMembresia
-            plan={{ slug: plan.slug, nombre: plan.nombre }}
-            membresia={membresia}
-            portal={portal}
-            enlaceDeSuscripcion={null}
-          />
-        </div>
-      ) : null}
-      <VentaVaip plan={plan} enlace={enlace} conSesion={Boolean(perfil)} />
-    </div>
+    <VentaVaip
+      plan={venta}
+      enlace={enlace}
+      conSesion={Boolean(perfil)}
+      situacion={situacion}
+      terminoEl={terminoEl}
+      costoDia={costoDiario(venta.precioMxn)}
+    />
   )
 }
 

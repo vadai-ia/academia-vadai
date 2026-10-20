@@ -627,7 +627,10 @@ try {
     await bd.query(
       `insert into academia.enrollments (user_id, course_id, source, status, expires_at)
        values ($1, $3, 'manual', 'active', null), ($2, $3, 'manual', 'active', null)
-       on conflict (user_id, course_id) do nothing`,
+       on conflict (user_id, course_id) do update set status = 'active', expires_at = null`,
+      // `do update` y no `do nothing`: el vitalicio ya tiene una inscripción a
+      // la casa, VENCIDA por la cancelación de sub_qavaip_3 (paso 12). Dentro de
+      // esta transacción —que se revierte— los dos tienen que estar vigentes.
       [miembroId, vitalicioId, hub]
     )
     await bd.query(`set local role authenticated`)

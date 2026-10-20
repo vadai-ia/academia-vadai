@@ -89,6 +89,21 @@ export async function planPublico(
 export const planVaip = cache((): Promise<PlanPublico | null> => planPublico(SLUG_VAIP))
 
 /**
+ * El plan que muestra la PÁGINA DE VENTA de /vaip (M23). Es V-AI-P, salvo en
+ * el servidor local de pruebas con `VAIP_VENTA_DE_PRUEBA=qa-…`, donde la suite
+ * `test-venta-vaip` pone su plan QA: así prueba la página abierta, cerrada y
+ * para un miembro vencido sin tocar nunca el plan real (la base es la de
+ * producción). Fuera de Vercel y solo con un slug `qa-`; en producción la
+ * variable no existe y aunque existiera no pasa ninguna de las dos reglas.
+ * La membresía, el muro y todo lo demás siguen leyendo `planVaip`.
+ */
+export async function planDeLaVenta(): Promise<PlanPublico | null> {
+  const prueba = process.env.VAIP_VENTA_DE_PRUEBA
+  if (prueba && !process.env.VERCEL && prueba.startsWith('qa-')) return planPublico(prueba)
+  return planVaip()
+}
+
+/**
  * Los cursos que trae V-AI-P, con la sesión de quien pregunta (la lista es
  * información de venta: la lee cualquiera con sesión). Memorizado por
  * petición: lo piden Mis cursos, el índice del curso y el espacio.

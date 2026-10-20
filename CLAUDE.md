@@ -370,6 +370,15 @@ a lo mismo. **Cada cosa vive en un lugar** (docs/M22.md): una pantalla nueva no 
 pastilla, entra como pestaña de su lugar (V-AI-P, el curso o Mi perfil). La casa de V-AI-P no es un
 curso: no sale en Inicio ni en Mis cursos y sus pestañas redirigen a `/vaip`.
 
+**Teléfono, tableta y computadora** (M23, 20-oct-2026). Una pantalla no está lista hasta pasar
+`pnpm capturas -- --auditar` a 390, 768 y 1280 (y 1024 si tiene columna lateral) en los dos temas,
+y MIRAR las hojas. Lo que se toca mide 44 px con `pointer-coarse` (no con el ancho: una tableta
+también es táctil). Lo que se pega arriba usa `--alto-encabezado`; lo que se pega abajo, `.pb-seguro`.
+Un contenedor con scroll horizontal lleva `relative`, o un `sr-only` absoluto se escapa y desborda
+la página. **Página de venta**: cada botón de compra es `BotonSuscribir` (mismo link, nada si la
+suscripción no abre), 3–4 en la página con texto distinto, el del encabezado visible sin scroll en
+390×844, y la barra `BarraSuscribir` en teléfono y tableta.
+
 **El panel de admin es la excepción: barra lateral agrupada** (M19, 16-oct-2026, pedido
 de Alejandro). Con doce destinos la fila envolvía y no decía qué iba con qué. Grupos:
 Panel · Academia (Cursos, Entregas, Publicaciones) · Comunidad (Bandeja, Agente, Puntos) ·

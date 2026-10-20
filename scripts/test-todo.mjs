@@ -49,6 +49,8 @@ const SUITES = [
   // Necesita la app con ANTHROPIC_SIMULADO y CRON_SECRET (docs/M21.md): con el Claude real no corre.
   { llave: 'agente', archivo: 'test-agente.mjs', titulo: 'Agente de la comunidad', milestone: 'M21' },
   { llave: 'portal-alumno', archivo: 'test-portal-alumno.mjs', titulo: 'Portal de alumnos', milestone: 'M22' },
+  // Necesita la app con VAIP_VENTA_DE_PRUEBA=qa-venta-m23 (docs/M23.md): pinta su plan QA en /vaip.
+  { llave: 'venta', archivo: 'test-venta-vaip.mjs', titulo: 'Página de venta de V-AI-P', milestone: 'M23' },
 ]
 
 /** Corre una suite heredando stdio y devuelve su código de salida. */
