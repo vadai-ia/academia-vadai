@@ -455,3 +455,71 @@
     transform: translateX(400%);
   }
 }
+
+/* --- M23 (20-oct-2026): teléfono, tableta y computadora ------------------
+
+   El alto del encabezado pegajoso del alumno, a partir de `lg` (dos filas: la
+   marca y las pastillas). Lo que se pega arriba —el panel de la lección— se
+   pega DEBAJO de él con esta variable; con `top-6` se metía bajo el
+   encabezado. En pantallas táctiles las pastillas miden 44 px y no 36. */
+:root {
+  --alto-encabezado: 7rem;
+}
+@media (pointer: fine) {
+  :root {
+    --alto-encabezado: 6.5rem;
+  }
+}
+
+/* La zona segura del iPhone (requiere `viewportFit: 'cover'`, app/layout.tsx):
+   lo que se pega abajo deja libre la barrita de inicio, y en horizontal la
+   muesca no tapa el contenido. */
+.pb-seguro {
+  padding-bottom: max(0.75rem, env(safe-area-inset-bottom));
+}
+body {
+  padding-left: env(safe-area-inset-left);
+  padding-right: env(safe-area-inset-right);
+}
+
+/* iOS acerca la página al enfocar un campo con letra de menos de 16 px, y no
+   la regresa. Sin capa a propósito: tiene que ganarle al `md:text-sm` de los
+   campos en la tableta. */
+@media (pointer: coarse) {
+  input:not([type='checkbox']):not([type='radio']):not([type='range']):not([type='hidden']),
+  select,
+  textarea {
+    font-size: max(1rem, 16px);
+  }
+}
+
+/* La barra de suscribirse de la página de venta (components/membresias/
+   boton-suscribir.tsx). Donde el navegador sabe animar con el scroll, aparece
+   cuando el botón del encabezado ya salió de la vista; donde no, se queda
+   visible, que también sirve. */
+@keyframes barra-suscribir {
+  from {
+    transform: translateY(110%);
+  }
+  to {
+    transform: translateY(0);
+  }
+}
+@supports (animation-timeline: view()) {
+  .venta-con-barra {
+    timeline-scope: --cta-hero;
+  }
+  .venta-con-barra [data-cta='hero'] {
+    view-timeline: --cta-hero block;
+  }
+  .venta-con-barra .barra-suscribir {
+    animation: barra-suscribir linear both;
+    animation-timeline: --cta-hero;
+    animation-range: exit 0% exit 100%;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .venta-con-barra .barra-suscribir {
+    animation: none;
+  }
+}

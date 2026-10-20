@@ -34,7 +34,7 @@ export function TablaAlumnos({
 }) {
   return (
     <Tarjeta className="overflow-hidden">
-      <div className="overflow-x-auto">
+      <div className="relative overflow-x-auto">
         <table className="w-full text-sm max-sm:block">
           <thead className="max-sm:sr-only">
             <tr className="border-b border-border text-left text-xs text-muted-foreground">

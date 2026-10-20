@@ -43,6 +43,9 @@ export const viewport: Viewport = {
   // variante por `prefers-color-scheme` puesta, quien tuviera el equipo en
   // oscuro vería una barra navy sobre una página blanca.
   themeColor: '#f5f8fb',
+  // M23: deja que `env(safe-area-inset-*)` valga algo en el iPhone. Sin esto es
+  // siempre 0 y una barra pegada abajo queda bajo la barrita de inicio.
+  viewportFit: 'cover',
 }
 
 export default function RootLayout({ children }: { children: ReactNode }) {

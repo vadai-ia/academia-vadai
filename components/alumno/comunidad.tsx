@@ -569,7 +569,7 @@ function Paginacion({
 
   const claseFlecha = (habilitada: boolean) =>
     cn(
-      'inline-flex min-h-10 items-center gap-1.5 rounded-full border px-4 text-sm font-medium',
+      'inline-flex min-h-10 items-center gap-1.5 rounded-full border px-4 text-sm font-medium pointer-coarse:min-h-11',
       'transition-colors focus-visible:ring-3 focus-visible:ring-ring/50 focus-visible:outline-none',
       habilitada
         ? 'border-border hover:bg-muted'

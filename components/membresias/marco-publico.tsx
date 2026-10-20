@@ -28,7 +28,7 @@ export async function MarcoPublico({ inicio, children }: { inicio: string; child
         <div className="mx-auto flex h-14 w-full max-w-6xl items-center justify-between gap-4 px-5">
           <Link
             href={inicio}
-            className="flex items-center rounded-md focus-visible:ring-3 focus-visible:ring-ring/50 focus-visible:outline-none"
+            className="flex items-center rounded-md pointer-coarse:min-h-11 focus-visible:ring-3 focus-visible:ring-ring/50 focus-visible:outline-none"
           >
             <Wordmark alto={22} prioridad />
           </Link>
@@ -36,7 +36,7 @@ export async function MarcoPublico({ inicio, children }: { inicio: string; child
             <CambiarTema />
             <Link
               href={`/login?destino=${encodeURIComponent(inicio)}`}
-              className="inline-flex h-8 items-center rounded-full border border-border px-3.5 text-sm font-medium transition-colors hover:border-primary/50 hover:text-primary focus-visible:ring-3 focus-visible:ring-ring/50 focus-visible:outline-none"
+              className="inline-flex h-8 items-center rounded-full border pointer-coarse:h-11 pointer-coarse:px-4 border-border px-3.5 text-sm font-medium transition-colors hover:border-primary/50 hover:text-primary focus-visible:ring-3 focus-visible:ring-ring/50 focus-visible:outline-none"
             >
               Entrar
             </Link>

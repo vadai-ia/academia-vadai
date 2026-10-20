@@ -45,7 +45,7 @@ export function CambiarTema({ className }: { className?: string }) {
   }
 
   const clases = cn(
-    'inline-flex size-9 shrink-0 cursor-pointer items-center justify-center rounded-full',
+    'inline-flex size-9 shrink-0 cursor-pointer items-center justify-center rounded-full pointer-coarse:size-11',
     'text-muted-foreground transition-colors hover:bg-muted hover:text-foreground',
     'focus-visible:ring-3 focus-visible:ring-ring/50 focus-visible:outline-none',
     className

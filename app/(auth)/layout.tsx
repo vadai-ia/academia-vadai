@@ -12,10 +12,12 @@ import { EtiquetaAcademia, Wordmark } from '@/components/marca/wordmark'
  * Antes había una portada aparte que además publicaba el avance interno del
  * proyecto; eso se fue.
  *
- * En móvil la marca va arriba y el formulario abajo, en una sola columna: quien
- * ya tiene cuenta hace scroll de nada y entra. En escritorio se parte en dos,
- * con el relato a la izquierda y el acceso a la derecha, que es donde el ojo
- * busca la acción.
+ * En escritorio se parte en dos, con el relato a la izquierda y el acceso a la
+ * derecha, que es donde el ojo busca la acción. En teléfono y tableta (M23,
+ * 20-oct-2026) el formulario va PRIMERO, con la marca en una línea encima, y el
+ * relato después: antes iba el relato y el botón de entrar quedaba bajo el
+ * pliegue a 390, 768 y 834 px. Quien entra a esta pantalla casi siempre ya
+ * tiene cuenta.
  */
 
 /**
@@ -51,9 +53,9 @@ const INCLUYE = [
 
 export default function LayoutAuth({ children }: { children: ReactNode }) {
   return (
-    <div className="relative min-h-dvh lg:grid lg:grid-cols-[1.05fr_1fr]">
-      {/* En móvil el relato va antes que el formulario, así que quien navega
-          con teclado agradece saltárselo para ir directo a entrar. */}
+    <div className="relative flex min-h-dvh flex-col lg:grid lg:grid-cols-[1.05fr_1fr]">
+      {/* En escritorio el relato va antes que el formulario, así que quien
+          navega con teclado agradece saltárselo para ir directo a entrar. */}
       <SaltarAlContenido destino="#acceso" />
       {/* Fijo y por encima de todo: se alcanza sin importar en qué mitad estés. */}
       <div className="absolute top-4 right-4 z-20 sm:top-5 sm:right-5">
@@ -61,7 +63,7 @@ export default function LayoutAuth({ children }: { children: ReactNode }) {
       </div>
 
       {/* --- Relato ------------------------------------------------------- */}
-      <section className="relative flex flex-col justify-center overflow-hidden bg-muted/40 px-6 py-12 sm:px-10 lg:px-14 lg:py-16">
+      <section className="relative order-2 flex flex-col justify-center overflow-hidden bg-muted/40 px-6 py-12 sm:px-10 lg:order-none lg:px-14 lg:py-16">
         {/* Halo de marca. `aria-hidden` y sin interacción: es atmósfera, no contenido. */}
         <div
           aria-hidden
@@ -121,7 +123,12 @@ export default function LayoutAuth({ children }: { children: ReactNode }) {
       </section>
 
       {/* --- Acceso ------------------------------------------------------- */}
-      <section className="flex flex-col justify-center px-6 py-12 sm:px-10 lg:px-14">
+      <section className="order-1 flex flex-col justify-center px-6 pt-16 pb-12 sm:px-10 lg:order-none lg:px-14 lg:py-12">
+        {/* La marca en una línea, solo cuando el relato quedó abajo. */}
+        <div className="mx-auto mb-8 flex w-full max-w-sm flex-wrap items-center gap-x-3 gap-y-1 lg:hidden">
+          <Wordmark alto={22} />
+          <EtiquetaAcademia />
+        </div>
         <main id="acceso" className="mx-auto flex w-full max-w-sm flex-col gap-6">
           {children}
         </main>

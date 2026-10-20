@@ -66,7 +66,7 @@ export function NavegacionPrincipal({ destinos }: { destinos: Destino[] }) {
         // pastilla se lea completa al llegar al final del desplazamiento.
         '-mx-5 flex items-center gap-1 overflow-x-auto px-5 pr-10',
         '[scrollbar-width:none] [&::-webkit-scrollbar]:hidden',
-        '[mask-image:linear-gradient(to_right,black_calc(100%-2.5rem),transparent)]',
+        '[mask-image:linear-gradient(to_right,transparent,black_1.25rem,black_calc(100%-2.5rem),transparent)]',
         // Escritorio: sin desplazamiento y sin máscara. Si no caben, envuelven.
         'md:mx-0 md:flex-wrap md:overflow-visible md:px-0 md:pr-0 md:[mask-image:none]'
       )}
@@ -80,6 +80,8 @@ export function NavegacionPrincipal({ destinos }: { destinos: Destino[] }) {
           <Link
             key={d.href}
             href={d.href}
+            // M23: `destino` le da los 44 px en pantallas táctiles (globals.css).
+            data-slot="destino"
             aria-current={activa ? 'page' : undefined}
             className={cn(
               'inline-flex shrink-0 items-center gap-2 rounded-full px-3.5 py-2',

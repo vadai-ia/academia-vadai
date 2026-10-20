@@ -100,7 +100,10 @@ export function AdjuntosAlumno({ adjuntos, className }: { adjuntos: Adjunto[]; c
       <h2 id="material" className="text-sm font-medium">
         Material de esta lección
       </h2>
-      <ul className="grid grid-cols-2 gap-3">
+      {/* Dos columnas en el teléfono y en la columna derecha de `lg`. En la
+          tableta el material va a todo el ancho: con dos, cada loseta medía
+          360×430 px para un solo PDF (M23). */}
+      <ul className="grid grid-cols-2 gap-3 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-2">
         {adjuntos.map((adjunto) => (
           <Loseta key={adjunto.id} adjunto={adjunto} />
         ))}

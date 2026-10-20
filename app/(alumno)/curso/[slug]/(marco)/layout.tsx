@@ -97,7 +97,7 @@ export default async function LayoutCurso({
             Inicio con otro nombre. */}
         <Link
           href="/cursos"
-          className="inline-flex w-fit items-center gap-1.5 text-sm text-muted-foreground underline-offset-4 hover:text-foreground hover:underline"
+          className="inline-flex w-fit items-center gap-1.5 text-sm text-muted-foreground underline-offset-4 pointer-coarse:min-h-11 hover:text-foreground hover:underline"
         >
           <span aria-hidden>←</span> Mis cursos
         </Link>

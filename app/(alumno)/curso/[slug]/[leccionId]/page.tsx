@@ -118,7 +118,7 @@ export default async function PaginaLeccion({
       <header className="flex flex-col gap-3">
         <Link
           href={`/curso/${slug}`}
-          className="inline-flex w-fit items-center gap-1.5 text-sm text-muted-foreground underline-offset-4 hover:text-foreground hover:underline"
+          className="inline-flex w-fit items-center gap-1.5 text-sm text-muted-foreground underline-offset-4 pointer-coarse:min-h-11 hover:text-foreground hover:underline"
         >
           <span aria-hidden>←</span> {curso.titulo}
         </Link>
@@ -184,7 +184,7 @@ export default async function PaginaLeccion({
             del cierre—. En `lg` es una columna pegada que se desplaza sola. */}
         <aside
           aria-label="Material y sesión"
-          className="max-lg:contents lg:sticky lg:top-6 lg:col-start-2 lg:row-start-1 lg:row-span-3 lg:flex lg:max-h-[calc(100dvh-3rem)] lg:flex-col lg:gap-6 lg:self-start lg:overflow-y-auto"
+          className="max-lg:contents lg:sticky lg:top-[calc(var(--alto-encabezado)+1rem)] lg:col-start-2 lg:row-start-1 lg:row-span-3 lg:flex lg:max-h-[calc(100dvh-var(--alto-encabezado)-2rem)] lg:flex-col lg:gap-6 lg:self-start lg:overflow-y-auto"
         >
           <AdjuntosAlumno adjuntos={leccion.adjuntos} className="order-2 lg:order-none" />
           {modulo ? (

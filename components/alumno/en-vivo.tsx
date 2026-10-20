@@ -192,7 +192,7 @@ export function SelectorVista({ base, vista }: { base: string; vista: 'calendari
             data-slot="button"
             className={cn(
               buttonVariants({ variant: activa ? 'default' : 'ghost', size: 'lg' }),
-              'w-full min-h-11 sm:min-h-9 sm:min-w-32 hover:translate-y-0 hover:shadow-none',
+              'w-full min-h-11 sm:pointer-fine:min-h-9 sm:min-w-32 hover:translate-y-0 hover:shadow-none',
               !activa && 'text-muted-foreground hover:bg-card'
             )}
           >
@@ -340,7 +340,8 @@ function Mes({
                         data-sesion={s.id}
                         aria-label={`${s.titulo}, ${rangoHorario(s.programadaEn)}`}
                         className={cn(
-                          'mt-1 flex min-h-11 w-full flex-col items-start justify-center rounded-md px-1 py-0.5 text-left text-[11px] leading-tight sm:min-h-8 sm:text-xs',
+                          // M23: 44 px en toda pantalla táctil (antes solo bajo `sm`: en la tableta medía 34).
+                          'mt-1 flex min-h-11 w-full flex-col items-start justify-center rounded-md px-1 py-0.5 text-left text-[11px] leading-tight sm:text-xs sm:pointer-fine:min-h-8',
                           estado === 'pasada'
                             ? 'bg-muted text-muted-foreground'
                             : estado === 'proxima'

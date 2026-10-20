@@ -143,7 +143,7 @@ export default async function PaginaCertificaciones({ searchParams }: { searchPa
           Nadie coincide con esa búsqueda.
         </p>
       ) : (
-        <div className="overflow-x-auto rounded-[10px] border border-border">
+        <div className="relative overflow-x-auto rounded-[10px] border border-border">
           <table className="w-full text-sm">
             <thead className="bg-muted/50 text-left text-xs text-muted-foreground">
               <tr>

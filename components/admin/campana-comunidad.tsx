@@ -55,6 +55,7 @@ export async function CampanaDeComunidad() {
         popoverTarget={id}
         aria-label={etiqueta}
         data-vencidas={vencidas}
+        data-slot="icono-boton"
         className="relative flex size-9 cursor-pointer items-center justify-center rounded-full text-muted-foreground transition-colors hover:bg-muted hover:text-foreground focus-visible:ring-3 focus-visible:ring-ring/50 focus-visible:outline-none"
       >
         <svg

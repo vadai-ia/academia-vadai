@@ -76,7 +76,7 @@ function Par({ uno, dos, etiquetaDos }: { uno: number; dos: number; etiquetaDos:
 export function TablaPuntos({ filas }: { filas: AlumnoEnPuntos[] }) {
   return (
     <Tarjeta className="overflow-hidden">
-      <div className="overflow-x-auto">
+      <div className="relative overflow-x-auto">
         <table className="w-full min-w-[62rem] text-sm max-sm:block max-sm:min-w-0">
           <thead className="max-sm:sr-only">
             <tr className="border-b border-border text-left text-xs text-muted-foreground">

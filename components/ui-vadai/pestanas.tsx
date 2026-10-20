@@ -2,6 +2,7 @@
 
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
+import { useEffect, useRef } from 'react'
 
 import { cn } from '@/lib/utils'
 
@@ -28,6 +29,10 @@ import { cn } from '@/lib/utils'
  *     desaparecer: si desaparece, el alumno cree que la plataforma perdió algo.
  *   - Desplazamiento horizontal en móvil, sin barra visible. Cuatro pestañas no
  *     caben a 375 px, y apilarlas rompería la metáfora.
+ *   - M23 (20-oct-2026): mientras hay más a la derecha, el borde se desvanece
+ *     (la misma pista que el menú principal), y al cargar la fila se desplaza
+ *     para que la pestaña activa se vea. A 390 px «Dinámicas» y «Puntos» —las
+ *     últimas— quedaban fuera, y la página parecía no tener pestaña activa.
  */
 
 export type Pestana = {
@@ -57,11 +62,30 @@ export function Pestanas({
   etiqueta?: string
 }) {
   const ruta = usePathname()
+  const fila = useRef<HTMLElement>(null)
+
+  // Sin JS la fila se queda al principio; con JS, la activa a la vista. Solo se
+  // mueve la fila, nunca la página.
+  useEffect(() => {
+    const nav = fila.current
+    const activa = nav?.querySelector<HTMLElement>('[aria-current="page"]')
+    if (!nav || !activa) return
+    const sobra = activa.offsetLeft + activa.offsetWidth - (nav.scrollLeft + nav.clientWidth)
+    if (sobra > 0 || activa.offsetLeft < nav.scrollLeft) {
+      nav.scrollLeft = Math.max(0, activa.offsetLeft - (nav.clientWidth - activa.offsetWidth) / 2)
+    }
+  }, [ruta])
 
   return (
     <nav
+      ref={fila}
       aria-label={etiqueta}
-      className="-mx-5 overflow-x-auto px-5 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
+      className={cn(
+        'relative -mx-5 overflow-x-auto px-5 pr-10 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden',
+        '[mask-image:linear-gradient(to_right,transparent,black_1.25rem,black_calc(100%-2.5rem),transparent)]',
+        // En escritorio caben todas: sin máscara ni relleno extra.
+        'md:pr-5 md:[mask-image:none]'
+      )}
     >
       <ul className="flex min-w-max items-center gap-1 border-b border-border">
         {pestanas.map((p) => {
@@ -95,7 +119,7 @@ export function Pestanas({
 
           return (
             <li key={p.href}>
-              <Link href={p.href} className={clases} aria-current={activa ? 'page' : undefined}>
+              <Link href={p.href} className={clases} data-slot="pestana" aria-current={activa ? 'page' : undefined}>
                 {p.etiqueta}
                 {p.insignia !== undefined && p.insignia !== 0 ? (
                   <span

@@ -318,7 +318,7 @@ export function Tablero({
         ) : null}
 
         <div className="rounded-[10px] border border-border bg-card">
-          <div className="overflow-x-auto [scrollbar-width:none] [scroll-padding-left:8rem] [mask-image:linear-gradient(to_right,black_calc(100%-2.5rem),transparent)] sm:[scroll-padding-left:11rem] [&::-webkit-scrollbar]:hidden">
+          <div className="relative overflow-x-auto [scrollbar-width:none] [scroll-padding-left:8rem] [mask-image:linear-gradient(to_right,black_calc(100%-2.5rem),transparent)] sm:[scroll-padding-left:11rem] [&::-webkit-scrollbar]:hidden">
             <table className="min-w-full border-separate border-spacing-0 text-sm">
               <caption className="sr-only">
                 {tablero.empresa

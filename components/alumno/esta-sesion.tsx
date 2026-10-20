@@ -77,7 +77,7 @@ export function EstaSesion({
               <Link
                 href={destinoDe(anterior)}
                 title={anterior.titulo}
-                className="flex min-w-0 items-center gap-1.5 text-muted-foreground underline-offset-4 hover:text-foreground hover:underline"
+                className="flex min-w-0 items-center gap-1.5 text-muted-foreground underline-offset-4 pointer-coarse:min-h-11 hover:text-foreground hover:underline"
               >
                 <span aria-hidden className="shrink-0">
                   ←
@@ -91,7 +91,7 @@ export function EstaSesion({
               <Link
                 href={destinoDe(siguiente)}
                 title={siguiente.titulo}
-                className="flex min-w-0 items-center justify-end gap-1.5 text-muted-foreground underline-offset-4 hover:text-foreground hover:underline"
+                className="flex min-w-0 items-center justify-end gap-1.5 text-muted-foreground underline-offset-4 pointer-coarse:min-h-11 hover:text-foreground hover:underline"
               >
                 <span className="truncate">{siguiente.titulo}</span>
                 <span aria-hidden className="shrink-0">
@@ -105,7 +105,7 @@ export function EstaSesion({
 
       <Link
         href={`/curso/${curso.slug}`}
-        className="w-fit text-sm text-primary underline-offset-4 hover:underline"
+        className="inline-flex w-fit items-center text-sm text-primary underline-offset-4 pointer-coarse:min-h-11 hover:underline"
       >
         Ver todo el contenido <span aria-hidden>→</span>
       </Link>

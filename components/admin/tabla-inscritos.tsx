@@ -109,7 +109,7 @@ export function TablaInscritos({
               Por empresa
               <span aria-hidden className="transition-transform group-open/empresas:rotate-90">›</span>
             </summary>
-            <div className="mt-3 overflow-x-auto">
+            <div className="relative mt-3 overflow-x-auto">
               <table className="w-full text-sm">
                 <thead className="text-xs text-muted-foreground">
                   <tr className="text-left">

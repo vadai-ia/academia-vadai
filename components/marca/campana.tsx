@@ -51,6 +51,7 @@ export function Campana({ lista, nuevas }: { lista: Notificacion[]; nuevas: numb
         popoverTarget={id}
         aria-label={nuevas > 0 ? `Novedades: ${nuevas} sin ver` : 'Novedades'}
         data-nuevas={nuevas}
+        data-slot="icono-boton"
         className="relative flex size-9 cursor-pointer items-center justify-center rounded-full text-muted-foreground transition-colors hover:bg-muted hover:text-foreground focus-visible:ring-3 focus-visible:ring-ring/50 focus-visible:outline-none"
       >
         <IconoCampana className={nuevas > 0 ? 'vadai-campana' : undefined} />

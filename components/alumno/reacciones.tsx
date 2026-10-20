@@ -49,7 +49,9 @@ export function Reacciones({
             // anuncia con su nombre Unicode, que no ayuda a nadie.
             title={mia ? `Quitar «${etiqueta}»` : etiqueta}
             className={cn(
-              'inline-flex items-center gap-1 rounded-full border transition-colors',
+              'inline-flex items-center justify-center gap-1 rounded-full border transition-colors',
+              // M23: 44 px para el dedo; con ratón se quedan compactas.
+              'pointer-coarse:min-h-11 pointer-coarse:min-w-11',
               'focus-visible:ring-3 focus-visible:ring-ring/50 focus-visible:outline-none',
               tamano === 'chico' ? 'px-2 py-0.5 text-xs' : 'px-2.5 py-1 text-sm',
               mia

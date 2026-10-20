@@ -60,7 +60,7 @@ export async function MarcoAlumno({ perfil, children }: { perfil: Perfil; childr
           equipo ? (
             <Link
               href="/admin"
-              className="inline-flex h-8 shrink-0 items-center gap-1.5 rounded-full border border-primary/40 px-3 text-sm font-medium whitespace-nowrap text-primary transition-colors hover:bg-primary/10 focus-visible:ring-3 focus-visible:ring-ring/50 focus-visible:outline-none"
+              className="inline-flex h-8 shrink-0 items-center gap-1.5 rounded-full border border-primary/40 px-3 pointer-coarse:h-11 text-sm font-medium whitespace-nowrap text-primary transition-colors hover:bg-primary/10 focus-visible:ring-3 focus-visible:ring-ring/50 focus-visible:outline-none"
             >
               <span aria-hidden>←</span>
               <span className="sm:hidden">Panel</span>

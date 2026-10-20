@@ -64,7 +64,7 @@ export function Encabezado({
         <div className="flex h-14 items-center justify-between gap-4">
           <Link
             href="/"
-            className="flex shrink-0 items-center gap-2.5 rounded-lg focus-visible:ring-3 focus-visible:ring-ring/50 focus-visible:outline-none"
+            className="flex shrink-0 items-center gap-2.5 rounded-lg pointer-coarse:min-h-11 focus-visible:ring-3 focus-visible:ring-ring/50 focus-visible:outline-none"
           >
             <Wordmark alto={20} prioridad />
             <EtiquetaAcademia className="hidden text-[0.6rem] tracking-[0.28em] sm:inline" />
@@ -122,7 +122,7 @@ function MenuDeCuenta({ perfil, anchoCompleto }: { perfil: Perfil; anchoCompleto
       <button
         type="button"
         popoverTarget={idMenu}
-        className="flex cursor-pointer items-center gap-2 rounded-full py-0.5 pr-2.5 pl-0.5 transition-colors select-none hover:bg-muted focus-visible:ring-3 focus-visible:ring-ring/50 focus-visible:outline-none"
+        className="flex cursor-pointer items-center gap-2 rounded-full py-0.5 pr-2.5 pl-0.5 transition-colors pointer-coarse:min-h-11 select-none hover:bg-muted focus-visible:ring-3 focus-visible:ring-ring/50 focus-visible:outline-none"
         aria-label={`Cuenta de ${nombre}`}
       >
         <Avatar nombre={nombre} tamano={32} />
