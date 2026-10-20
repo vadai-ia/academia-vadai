@@ -19,8 +19,8 @@ import type { SituacionDeVenta } from '@/lib/membresia/venta'
  * título, seis renglones y el precio.
  *
  *   1. Encabezado: la foto es el fondo (también en el teléfono), el precio y
- *      el botón caben sin hacer scroll. Debajo, «Menos que un café al día»:
- *      el gasto hormiga que aquí se vuelve inversión en tu educación.
+ *      el botón caben sin hacer scroll. Sin comparación de precio: el precio
+ *      va solo, con el tachado (Alejandro, 20-oct-2026).
  *   2. Credenciales.
  *   3. Qué incluye → «Quiero todo esto por $349 al mes».
  *   4. Por qué en comunidad.
@@ -146,7 +146,6 @@ export function VentaVaip({
   conSesion,
   situacion,
   terminoEl,
-  cafe,
 }: {
   plan: PlanPublico
   /** El link de pago ya personalizado, o null si la suscripción no abre todavía. */
@@ -155,8 +154,6 @@ export function VentaVaip({
   situacion: SituacionDeVenta
   /** A quien ya fue miembro: la fecha en que terminó su acceso, ya con formato. */
   terminoEl: string | null
-  /** Si el precio permite decir «menos que un café al día» (lib/membresia/venta.ts). */
-  cafe: boolean
 }) {
   const precio = moneda(plan.precioMxn)
 
@@ -221,9 +218,7 @@ export function VentaVaip({
                 <BotonSuscribir enlace={enlace} lugar="hero" sobreFoto>
                   {CTA_DEL_ENCABEZADO[situacion]}
                 </BotonSuscribir>
-                <p className="text-sm text-white/75">
-                  {cafe ? 'Menos que un café al día · ' : null}Cancelas desde tu perfil cuando quieras
-                </p>
+                <p className="text-sm text-white/75">Cancelas desde tu perfil cuando quieras</p>
               </div>
             ) : (
               <SuscripcionCerrada sobreFoto />
@@ -274,11 +269,6 @@ export function VentaVaip({
               <BotonSuscribir enlace={enlace} lugar="incluye">
                 Quiero todo esto por {precio} al mes
               </BotonSuscribir>
-              {cafe ? (
-                <p className="max-w-[44ch] text-sm text-pretty text-muted-foreground">
-                  Menos que un café al día: lo que hoy se te va en gastos hormiga, aquí es inversión en tu educación.
-                </p>
-              ) : null}
             </div>
           ) : null}
         </section>
@@ -373,9 +363,7 @@ export function VentaVaip({
             <BotonSuscribir enlace={enlace} lugar="cierre">
               Unirme a la comunidad
             </BotonSuscribir>
-            <p className="text-sm text-muted-foreground">
-              {cafe ? 'Menos que un café al día · ' : null}Cancelas cuando quieras
-            </p>
+            <p className="text-sm text-muted-foreground">Cancelas cuando quieras</p>
           </div>
         ) : (
           <SuscripcionCerrada />

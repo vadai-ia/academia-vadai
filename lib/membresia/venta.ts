@@ -20,22 +20,6 @@ export function situacionDeVenta(membresia: MiMembresia | null): SituacionDeVent
   return 'nueva'
 }
 
-/**
- * El café más barato que se compra en México (el de la tienda de la esquina)
- * cuesta más de $20. Es el piso de la comparación.
- */
-const CAFE_MAS_BARATO_MXN = 20
-
-/**
- * ¿Se puede decir «menos que un café al día»? (M23, 20-oct-2026)
- *
- * Alejandro pidió comparar con un gasto hormiga que casi todos pagan, no con
- * una cifra: «aquí realmente es una inversión en su nueva educación». $349 al
- * mes son $11.47 al día, menos que cualquier café, así que la frase es verdad.
- * Va calculada y no escrita a mano: si el precio sube a más de $608 al mes,
- * deja de pintarse sola en vez de mentir. Reemplaza «más barato que 3 cafés»
- * (exigía cafés de $116) y «menos de $12 al día» (no le gustó).
- */
-export function menosQueUnCafe(precioMensualMxn: number): boolean {
-  return (precioMensualMxn * 12) / 365 < CAFE_MAS_BARATO_MXN
-}
+// Sin comparación de precio (decidido por Alejandro el 20-oct-2026): ni «3
+// cafés», ni «menos de $12 al día», ni «menos que un café al día». El precio
+// va solo, con el tachado.
