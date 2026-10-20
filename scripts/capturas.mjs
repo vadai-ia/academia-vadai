@@ -1,7 +1,8 @@
 #!/usr/bin/env node
 /**
- * capturas.mjs — Cada pantalla, vista de verdad: 390 px táctil y 1280 px, en
- * tema claro y oscuro.
+ * capturas.mjs — Cada pantalla, vista de verdad: 390 px (iPhone), 768 px
+ * (iPad) y 1280 px, en tema claro y oscuro; 1024 px (iPad horizontal, el corte
+ * `lg`) a pedido.
  *
  * Las suites comprueban HTML y Postgres; ninguna ve cómo queda una pantalla en
  * un teléfono. Este script abre el Edge o Chrome del sistema —sin instalar
@@ -12,14 +13,23 @@
  * horizontales, contenido escondido bajo la barra inferior y blancos táctiles
  * menores a 44 px.
  *
+ * M23 (20-oct-2026) sumó la tableta y cinco revisiones más: contenido tapado
+ * por una barra fija (mirando qué queda debajo de su borde), el CTA del
+ * encabezado de una página de venta fuera de la vista, algo fijo que se mete
+ * debajo del encabezado, la pestaña activa escondida en una fila que se
+ * desplaza, y —cuando la página se desborda— los tres elementos que la
+ * empujan. `--sin-js` apaga el JavaScript de la página para comprobar que lo
+ * que debe funcionar sin él funciona.
+ *
  * Regla de la casa, heredada del skill presentacion-vadai: SE MIRA SIEMPRE.
  * Un cambio de UI no está listo hasta leer capturas/hoja-*.png.
  *
  *   PORT=3117 pnpm start
- *   pnpm capturas                       # alumno + admin + público · 390 y 1280 · claro y oscuro
+ *   pnpm capturas                       # alumno + admin + público · 390, 768 y 1280 · claro y oscuro
  *   pnpm capturas -- --prod             # contra el dominio en vivo (solo lee)
  *   pnpm capturas -- --solo=alumno,admin --ancho=390 --tema=oscuro --auditar
  *   pnpm capturas -- --rutas=/mis-cursos,/perfil
+ *   pnpm capturas -- --solo=publico --ancho=390 --sin-js
  *
  * Desde Git Bash en Windows, `--rutas=/login` llega convertido a una ruta de
  * Windows (es MSYS, no este script): antepón `MSYS_NO_PATHCONV=1`.
@@ -43,6 +53,7 @@ const SERVICE = exigir(vars, 'SUPABASE_SERVICE_ROLE_KEY')
 const bandera = (nombre) => process.argv.find((a) => a.startsWith(`--${nombre}=`))?.split('=').slice(1).join('=')
 const PROD = process.argv.includes('--prod')
 const AUDITAR = process.argv.includes('--auditar')
+const SIN_JS = process.argv.includes('--sin-js')
 const BASE = (
   bandera('url') ?? (PROD ? (vars.NEXT_PUBLIC_APP_URL ?? 'https://academia.vadai.com.mx') : 'http://localhost:3117')
 ).replace(/\/+$/, '')
@@ -60,7 +71,9 @@ const SESIONES = {
       '/mis-cursos',
       `/curso/${CURSO_QA.slug}`,
       `/curso/${CURSO_QA.slug}/${IDS.leccionVideo}`,
+      `/curso/${CURSO_QA.slug}/${IDS.leccionTexto}`,
       `/curso/${CURSO_QA.slug}/${IDS.leccionQuiz}`,
+      `/curso/${CURSO_QA.slug}/${IDS.leccionTarea}`,
       `/curso/${CURSO_QA.slug}/comunidad`,
       `/curso/${CURSO_QA.slug}/dinamicas`,
       '/dinamicas',
@@ -73,7 +86,16 @@ const SESIONES = {
       '/perfil/certificaciones',
       '/perfil/puntos',
       '/vaip',
+      '/blog',
+      // La dinámica QA solo existe con `node scripts/test-dinamicas.mjs --conservar`:
+      // fotografíala con --rutas=/dinamicas/<id>.
+      '/no-existe-esta-pagina',
     ],
+  },
+  // Acceso vencido (M23): la estructura sí, el contenido no.
+  vencido: {
+    email: correo.alumnoVencido,
+    rutas: ['/mis-cursos', `/curso/${CURSO_QA.slug}`, `/curso/${CURSO_QA.slug}/${IDS.leccionVideo}`, '/vaip'],
   },
   admin: {
     email: correo.admin,
@@ -122,7 +144,20 @@ const SESIONES = {
   },
   publico: {
     email: null,
-    rutas: ['/login', '/recuperar', '/vaip'],
+    rutas: [
+      '/login',
+      '/recuperar',
+      '/vaip',
+      '/nueva-contrasena',
+      '/acceso/token-invalido',
+      '/certificado/QA-NO-EXISTE',
+      '/e/QA0000',
+    ],
+  },
+  // La página de venta de un plan QA (M23): `node scripts/test-venta-vaip.mjs --conservar`.
+  venta: {
+    email: null,
+    rutas: ['/vaip', '/membresias/qa-venta-m23'],
   },
 }
 
@@ -133,6 +168,20 @@ const PERFILES = {
     userAgent:
       'Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.0 Mobile/15E148 Safari/604.1',
   },
+  // iPad vertical: táctil y con la UA de iPadOS (que se anuncia como Mac).
+  768: {
+    metrics: { width: 768, height: 1024, deviceScaleFactor: 2, mobile: true, screenOrientation: { type: 'portraitPrimary', angle: 0 } },
+    tactil: true,
+    userAgent:
+      'Mozilla/5.0 (iPad; CPU OS 17_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.0 Mobile/15E148 Safari/604.1',
+  },
+  // iPad horizontal: justo el corte `lg`, donde aparecen las columnas laterales.
+  1024: {
+    metrics: { width: 1024, height: 768, deviceScaleFactor: 2, mobile: true, screenOrientation: { type: 'landscapePrimary', angle: 90 } },
+    tactil: true,
+    userAgent:
+      'Mozilla/5.0 (iPad; CPU OS 17_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.0 Mobile/15E148 Safari/604.1',
+  },
   1280: {
     metrics: { width: 1280, height: 800, deviceScaleFactor: 1, mobile: false, screenOrientation: { type: 'landscapePrimary', angle: 0 } },
     tactil: false,
@@ -141,7 +190,7 @@ const PERFILES = {
 }
 
 const sesionesPedidas = (bandera('solo') ?? 'alumno,admin,publico').split(',').filter((s) => SESIONES[s])
-const anchosPedidos = (bandera('ancho') ?? '390,1280').split(',').map(Number).filter((a) => PERFILES[a])
+const anchosPedidos = (bandera('ancho') ?? '390,768,1280').split(',').map(Number).filter((a) => PERFILES[a])
 const temasPedidos = (bandera('tema') ?? 'claro,oscuro').split(',').filter((t) => t === 'claro' || t === 'oscuro')
 const rutasPedidas = bandera('rutas')?.split(',').filter(Boolean) ?? null
 
@@ -297,6 +346,8 @@ async function emular(cdp, ancho) {
   await cdp.enviar('Emulation.setDeviceMetricsOverride', perfil.metrics)
   await cdp.enviar('Emulation.setTouchEmulationEnabled', { enabled: perfil.tactil, maxTouchPoints: perfil.tactil ? 5 : 1 })
   await cdp.enviar('Emulation.setUserAgentOverride', { userAgent: perfil.userAgent })
+  // Sin JS: lo que debe funcionar sin él (los CTA, los <details>, los formularios).
+  await cdp.enviar('Emulation.setScriptExecutionDisabled', { value: SIN_JS })
 }
 
 /**
@@ -319,28 +370,114 @@ async function fijarTema(cdp, tema, anterior) {
 const AUDITORIA = `(() => {
   const de = document.documentElement
   const desborde = de.scrollWidth > de.clientWidth + 1
-  const barra = document.querySelector('[data-barra-inferior]')
-  const barraVisible = Boolean(barra) && getComputedStyle(barra).display !== 'none'
-  let tapado = false
+  const describir = (el) =>
+    el.tagName.toLowerCase() +
+    (el.id ? '#' + el.id : '') +
+    (typeof el.className === 'string' && el.className.trim() ? '.' + el.className.trim().split(/\\s+/).slice(0, 2).join('.') : '') +
+    ' "' + (el.textContent || '').trim().replace(/\\s+/g, ' ').slice(0, 30) + '"'
+
+  // El CTA del encabezado (páginas de venta): dónde termina sin hacer scroll.
+  window.scrollTo(0, 0)
+  const ctaHero = document.querySelector('[data-cta="hero"]')
+  const ctaHeroFondo = ctaHero ? Math.round(ctaHero.getBoundingClientRect().bottom) : null
+
+  // Qué empuja la página más allá del ancho: los tres que más se salen, sin
+  // contar lo que vive dentro de algo que recorta o se desplaza.
+  const culpables = []
+  if (desborde) {
+    // Recortado = su contenedor que recorta (o desplaza) termina dentro de la
+    // pantalla. Un absoluto se escapa de un contenedor sin posición.
+    const recorta = (el) => {
+      const absoluto = ['absolute', 'fixed'].includes(getComputedStyle(el).position)
+      for (let p = el.parentElement; p && p !== document.body; p = p.parentElement) {
+        const cs = getComputedStyle(p)
+        if (cs.overflowX === 'visible') continue
+        if (absoluto && cs.position === 'static') continue
+        return p.getBoundingClientRect().right <= de.clientWidth + 1
+      }
+      return false
+    }
+    for (const el of document.body.querySelectorAll('*')) {
+      const r = el.getBoundingClientRect()
+      if (r.width === 0 || r.right <= de.clientWidth + 1) continue
+      if (recorta(el)) continue
+      culpables.push({ el, sobra: Math.round(r.right - de.clientWidth) })
+    }
+    culpables.sort((a, b) => b.sobra - a.sobra)
+  }
+
+  // Lo fijo arriba: el encabezado y lo que se pega debajo de él.
+  const encabezado = [...document.querySelectorAll('header')].find((h) => {
+    const p = getComputedStyle(h).position
+    return p === 'sticky' || p === 'fixed'
+  })
+  const altoEncabezado = encabezado ? encabezado.getBoundingClientRect().height : 0
+  const seDesplazaDentro = (el) => {
+    for (let p = el.parentElement; p && p !== document.body; p = p.parentElement) {
+      const oy = getComputedStyle(p).overflowY
+      if (oy === 'auto' || oy === 'scroll' || oy === 'hidden') return true
+    }
+    return false
+  }
+  const bajoElEncabezado = []
+  if (altoEncabezado > 0) {
+    for (const el of document.body.querySelectorAll('*')) {
+      if (encabezado.contains(el) || el === encabezado) continue
+      const cs = getComputedStyle(el)
+      if (cs.position !== 'sticky' || cs.top === 'auto' || cs.display === 'none') continue
+      if (seDesplazaDentro(el)) continue
+      if (parseFloat(cs.top) + 1 < altoEncabezado) bajoElEncabezado.push(describir(el) + ' top ' + cs.top)
+    }
+  }
+
+  // La pestaña activa, escondida en una fila que se desplaza.
+  const activasEscondidas = []
+  for (const a of document.querySelectorAll('[aria-current="page"]')) {
+    const ra = a.getBoundingClientRect()
+    if (ra.width === 0) continue
+    for (let p = a.parentElement; p && p !== document.body; p = p.parentElement) {
+      if (p.scrollWidth > p.clientWidth + 1 && getComputedStyle(p).overflowX !== 'visible') {
+        const rp = p.getBoundingClientRect()
+        if (ra.left < rp.left - 1 || ra.right > rp.right + 1) activasEscondidas.push(describir(a))
+        break
+      }
+    }
+  }
+
+  // Lo fijo abajo: al final del scroll, ¿hay contenido debajo del borde de la
+  // barra? Lo de abajo que no es ancestro de la barra está tapado. Una barra
+  // pegajosa ya asentada en su lugar no tapa nada.
+  const barras = [...document.querySelectorAll('[data-barra-inferior]')].filter((b) => getComputedStyle(b).display !== 'none')
+  const barraVisible = barras.length > 0
+  const tapados = []
   if (barraVisible) {
     window.scrollTo(0, de.scrollHeight)
-    const main = document.getElementById('contenido')
-    if (main) {
-      const r = main.getBoundingClientRect()
+    for (const barra of barras) {
       const b = barra.getBoundingClientRect()
-      tapado = r.bottom > b.top + 1
+      if (b.height === 0) continue
+      for (const fx of [0.1, 0.5, 0.9]) {
+        const x = Math.round(b.left + b.width * fx)
+        const y = Math.round(b.top + 2)
+        for (const el of document.elementsFromPoint(x, y)) {
+          if (barra.contains(el) || el.contains(barra)) continue
+          if (el === de || el === document.body) continue
+          tapados.push(describir(el))
+          break
+        }
+      }
     }
     window.scrollTo(0, 0)
   }
-  const criticos = new Set(['button', 'pastilla', 'pestana', 'destino', 'icono-boton'])
+
+  const criticos = new Set(['button', 'pastilla', 'pestana', 'destino', 'icono-boton', 'cta'])
   const blancos = []
-  const selector = 'header button, nav a, nav button, main button, main input:not([type=hidden]):not([type=checkbox]):not([type=radio]), main select, main textarea, main summary, [popover] button'
+  const selector = 'header a, header button, nav a, nav button, main button, a[data-slot], a[data-cta], main input:not([type=hidden]):not([type=checkbox]):not([type=radio]), main select, main textarea, main summary, [popover] button'
   for (const el of document.querySelectorAll(selector)) {
     const cs = getComputedStyle(el)
     if (cs.display === 'none' || cs.visibility === 'hidden') continue
     const r = el.getBoundingClientRect()
     if (r.width === 0 || r.height === 0) continue
-    const slot = el.dataset.slot || ''
+    const slot = el.dataset.slot || (el.dataset.cta ? 'cta' : '')
     const anchoCorto = slot === 'icono-boton' || slot === 'destino' ? r.width < 44 : false
     if (r.height < 44 || anchoCorto) {
       blancos.push({
@@ -359,20 +496,43 @@ const AUDITORIA = `(() => {
   const meta = document.querySelector('meta[name="theme-color"]')
   const esperado = de.classList.contains('dark') ? '#0a1a2f' : '#f5f8fb'
   const tema = manifiestos > 0 ? { meta: meta ? meta.content : null, esperado, ok: Boolean(meta) && meta.content.toLowerCase() === esperado } : null
-  return JSON.stringify({ desborde, barraVisible, tapado, blancos, recorte, manifiestos, tema })
+  return JSON.stringify({
+    desborde,
+    culpables: culpables.slice(0, 3).map((c) => describir(c.el) + ' +' + c.sobra + 'px'),
+    barraVisible,
+    tapados: [...new Set(tapados)],
+    ctaHeroFondo,
+    bajoElEncabezado,
+    activasEscondidas,
+    blancos,
+    recorte,
+    manifiestos,
+    tema,
+  })
 })()`
+
+/** Hasta dónde puede terminar el CTA del encabezado sin hacer scroll (M23). */
+const PLIEGUE_DEL_CTA = { 390: 640, 768: 900, 1024: 700, 1280: 720 }
 
 function hallazgosDe(auditoria, ancho) {
   const lista = []
-  if (auditoria.desborde) lista.push({ critico: true, texto: 'desborde horizontal: la página es más ancha que la pantalla' })
-  if (auditoria.tapado) lista.push({ critico: true, texto: 'la barra inferior tapa el final del contenido' })
+  if (auditoria.desborde) {
+    const quien = auditoria.culpables.length ? `; lo empujan: ${auditoria.culpables.join(' · ')}` : ''
+    lista.push({ critico: true, texto: `desborde horizontal: la página es más ancha que la pantalla${quien}` })
+  }
+  for (const t of auditoria.tapados) lista.push({ critico: true, texto: `la barra inferior tapa ${t}` })
+  if (auditoria.ctaHeroFondo !== null && auditoria.ctaHeroFondo > PLIEGUE_DEL_CTA[ancho]) {
+    lista.push({ critico: true, texto: `el CTA del encabezado termina en ${auditoria.ctaHeroFondo}px (máximo ${PLIEGUE_DEL_CTA[ancho]})` })
+  }
+  for (const s of auditoria.bajoElEncabezado) lista.push({ critico: true, texto: `algo fijo queda debajo del encabezado: ${s}` })
+  for (const a of auditoria.activasEscondidas) lista.push({ critico: true, texto: `la pestaña activa no se ve en su fila: ${a}` })
   if (auditoria.manifiestos > 1) lista.push({ critico: true, texto: `${auditoria.manifiestos} <link rel="manifest">` })
   if (auditoria.tema && !auditoria.tema.ok) {
     lista.push({ critico: true, texto: `theme-color ${auditoria.tema.meta ?? 'ausente'}, se esperaba ${auditoria.tema.esperado}` })
   }
   for (const h of auditoria.recorte) lista.push({ critico: false, texto: `título recortado: "${h}"` })
-  // Los blancos solo cuentan en el viewport táctil: en escritorio hay ratón.
-  if (ancho === 390) {
+  // Los blancos solo cuentan en los viewports táctiles: en escritorio hay ratón.
+  if (PERFILES[ancho].tactil) {
     for (const b of auditoria.blancos) {
       lista.push({ critico: b.critico, texto: `${b.etiqueta} "${b.texto}" mide ${b.ancho}×${b.alto}` })
     }
@@ -387,7 +547,7 @@ const nombreDeRuta = (ruta) => ruta.replace(/^\//, '').replace(/[^a-zA-Z0-9]+/g,
 async function capturar(cdp, { sesion, ruta, ancho, tema }) {
   const carpeta = path.join(SALIDA, sesion)
   mkdirSync(carpeta, { recursive: true })
-  const base = path.join(carpeta, `${nombreDeRuta(ruta)}-${ancho}-${tema}`)
+  const base = path.join(carpeta, `${nombreDeRuta(ruta)}-${ancho}-${tema}${SIN_JS ? '-sinjs' : ''}`)
 
   const cargado = cdp.esperarEvento('Page.loadEventFired')
   await cdp.enviar('Page.navigate', { url: `${BASE}${ruta}` })
@@ -435,7 +595,9 @@ async function capturar(cdp, { sesion, ruta, ancho, tema }) {
 // --- hoja de contacto -----------------------------------------------------------
 
 async function hojaDeContacto(cdp, sesion, capturas) {
-  const figuras = capturas
+  // Agrupadas por ancho: así se comparan las pantallas de un mismo dispositivo.
+  const figuras = [...capturas]
+    .sort((a, b) => a.ancho - b.ancho || a.tema.localeCompare(b.tema))
     .map(
       (c) => `<figure><img src="${path.relative(SALIDA, path.resolve(RAIZ, c.archivo)).replace(/\\/g, '/')}" alt="">
       <figcaption>${c.ruta} · ${c.ancho} · ${c.tema}${c.hallazgos.some((h) => h.critico) ? ' · ✗' : ''}</figcaption></figure>`
@@ -452,7 +614,7 @@ async function hojaDeContacto(cdp, sesion, capturas) {
 </style>
 <h1>${sesion} · ${BASE} · ${new Date().toLocaleString('es-MX', { timeZone: 'America/Mexico_City' })}</h1>
 <div class="g">${figuras}</div>`
-  const archivo = path.join(SALIDA, `hoja-${sesion}.html`)
+  const archivo = path.join(SALIDA, `hoja-${sesion}${SIN_JS ? '-sinjs' : ''}.html`)
   writeFileSync(archivo, html, 'utf8')
 
   await cdp.enviar('Emulation.setDeviceMetricsOverride', { width: 1400, height: 900, deviceScaleFactor: 1, mobile: false })
@@ -468,7 +630,7 @@ async function hojaDeContacto(cdp, sesion, capturas) {
     captureBeyondViewport: true,
     clip: { x: 0, y: 0, width: 1400, height: alto, scale: 1 },
   })
-  const png = path.join(SALIDA, `hoja-${sesion}.png`)
+  const png = path.join(SALIDA, `hoja-${sesion}${SIN_JS ? '-sinjs' : ''}.png`)
   writeFileSync(png, Buffer.from(foto.data, 'base64'))
   return path.relative(RAIZ, png).replace(/\\/g, '/')
 }
@@ -513,7 +675,7 @@ function escribirInforme(capturas, hojas) {
 async function main() {
   titulo('CAPTURAS — cada pantalla, vista de verdad')
   console.log(`  App:      ${BASE}`)
-  console.log(`  Sesiones: ${sesionesPedidas.join(', ')} · anchos: ${anchosPedidos.join(', ')} · temas: ${temasPedidos.join(', ')}${AUDITAR ? ' · con auditoría' : ''}`)
+  console.log(`  Sesiones: ${sesionesPedidas.join(', ')} · anchos: ${anchosPedidos.join(', ')} · temas: ${temasPedidos.join(', ')}${AUDITAR ? ' · con auditoría' : ''}${SIN_JS ? ' · SIN JavaScript' : ''}`)
 
   const navegador = abrirNavegador()
   if (!navegador) {
