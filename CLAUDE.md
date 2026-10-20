@@ -279,7 +279,6 @@ SUPABASE_DB_URL=
 
 STRIPE_SECRET_KEY=
 STRIPE_WEBHOOK_SECRET=
-NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY=
 
 BUNNY_STREAM_LIBRARY_ID=
 BUNNY_STREAM_API_KEY=
@@ -310,6 +309,11 @@ FIREFLIES_API_KEY=
 # Si falta, se deriva de la service role key y todo sigue funcionando; se
 # define aparte para poder rotarla sin tocar la llave de Supabase.
 ENCUESTAS_IP_SALT=
+
+# Sal de los folios de diplomas. Fijada el 20-oct-2026 con el valor que antes se
+# derivaba de la service role key: así esa llave se puede rotar sin romper los
+# folios ya entregados. No se rota.
+DIPLOMAS_SALT=
 ```
 
 ## VOZ
