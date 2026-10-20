@@ -88,6 +88,8 @@ export type PlanPublicado = {
   priceId: string
   /** El precio cambió: hay que guardarlo en el historial. */
   precioNuevo: boolean
+  /** Lo guardado era de otra cuenta de Stripe y se publicó de cero en esta. */
+  deCero: boolean
   linkId: string
   linkUrl: string
   portalId: string
@@ -119,7 +121,8 @@ export async function publicarPlanEnStripe(
   const guardadoAqui = plan.stripe_product_id
     ? await existe(() => stripe.products.retrieve(plan.stripe_product_id as string))
     : false
-  if (plan.stripe_product_id && !guardadoAqui) {
+  const deCero = Boolean(plan.stripe_product_id) && !guardadoAqui
+  if (deCero) {
     plan = { ...plan, stripe_product_id: null, stripe_price_id: null, stripe_payment_link_id: null, stripe_portal_config_id: null }
   }
 
@@ -205,6 +208,7 @@ export async function publicarPlanEnStripe(
     productId: producto.id,
     priceId: precio.id,
     precioNuevo: !mismoPrecio,
+    deCero,
     linkId: link.id,
     linkUrl: link.url,
     portalId: portal.id,

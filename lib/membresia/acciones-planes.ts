@@ -252,7 +252,7 @@ export async function publicarPlan(_previo: EstadoAccion, datos: FormData): Prom
   revalidarPlan(plan.slug)
   return {
     aviso:
-      r.precioNuevo && plan.stripe_price_id
+      r.precioNuevo && plan.stripe_price_id && !r.deCero
         ? 'Publicado con el precio nuevo. Quien ya pagaba sigue con su precio. El link de pago cambió; el QR de la página no.'
         : 'Publicado en Stripe y la comunidad abierta: el link de pago ya cobra y solo entran miembros con membresía activa.',
   }
