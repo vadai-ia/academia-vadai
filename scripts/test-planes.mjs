@@ -135,6 +135,13 @@ const servidorStripe = createServer((req, res) => {
     if (req.method === 'POST' && ruta.startsWith('products/')) {
       return actualizar(partes[2], { name: campo(p, 'name'), metadata: metadataDe(p) })
     }
+    // Publicar comprueba que el producto guardado exista en la cuenta de la llave (20-oct-2026).
+    if (req.method === 'GET' && ruta.startsWith('products/')) {
+      const obj = stripe.objetos.get(partes[2])
+      return obj
+        ? responder(res, 200, obj)
+        : responder(res, 404, { error: { type: 'invalid_request_error', code: 'resource_missing', message: 'No such product' } })
+    }
     if (req.method === 'GET' && ruta.startsWith('prices/')) {
       const obj = stripe.objetos.get(partes[2])
       return obj ? responder(res, 200, obj) : responder(res, 404, { error: { type: 'invalid_request_error', message: 'No such price' } })

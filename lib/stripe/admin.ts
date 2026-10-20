@@ -2,6 +2,8 @@ import 'server-only'
 
 import Stripe from 'stripe'
 
+import { crearClienteStripe } from '@/lib/stripe/cliente'
+
 import { MARCA_PLAN, MARCA_PLAN_ID } from '@/lib/membresia/stripe'
 import { feedbackDe, type MOTIVOS } from '@/lib/membresia/motivos'
 
@@ -111,6 +113,16 @@ export async function publicarPlanEnStripe(
   const marca = { [MARCA_PLAN]: plan.slug, [MARCA_PLAN_ID]: plan.id }
   const centavos = Math.round(plan.precioMxn * 100)
 
+  // Si lo guardado no existe en la cuenta de esta llave —se cambió la llave del
+  // panel a otra cuenta de Stripe (20-oct-2026)—, el plan se publica de cero
+  // aquí en vez de fallar con «No such product».
+  const guardadoAqui = plan.stripe_product_id
+    ? await existe(() => stripe.products.retrieve(plan.stripe_product_id as string))
+    : false
+  if (plan.stripe_product_id && !guardadoAqui) {
+    plan = { ...plan, stripe_product_id: null, stripe_price_id: null, stripe_payment_link_id: null, stripe_portal_config_id: null }
+  }
+
   // 1. El producto.
   const datosProducto = {
     name: plan.nombre,
@@ -121,6 +133,7 @@ export async function publicarPlanEnStripe(
   const producto = plan.stripe_product_id
     ? await stripe.products.update(plan.stripe_product_id, { ...datosProducto, active: true })
     : await stripe.products.create(datosProducto, { idempotencyKey: `academia-plan-${plan.id}-producto` })
+  await exigirMismaCuentaQueElWebhook(stripe, producto.id)
 
   // 2. El precio: se conserva si cobra lo mismo.
   const previo = plan.stripe_price_id ? await stripe.prices.retrieve(plan.stripe_price_id) : null
@@ -196,6 +209,40 @@ export async function publicarPlanEnStripe(
     linkUrl: link.url,
     portalId: portal.id,
     portalUrl: portal.login_page?.url ?? null,
+  }
+}
+
+/** ¿Existe en esta cuenta? null/false si Stripe dice 404 (resource_missing). */
+async function existe(pedir: () => Promise<unknown>): Promise<boolean> {
+  try {
+    await pedir()
+    return true
+  } catch (e) {
+    if (e instanceof Stripe.errors.StripeError && (e.statusCode === 404 || e.code === 'resource_missing')) return false
+    throw e
+  }
+}
+
+/**
+ * La llave del panel tiene que ser de la MISMA cuenta de Stripe que la del
+ * webhook (20-oct-2026): se publicó el plan con una llave de otra cuenta y, de
+ * haberse abierto la venta, el dinero habría caído en esa otra cuenta y la
+ * academia nunca se habría enterado del pago. Se comprueba leyendo el producto
+ * recién creado con la llave del webhook; si no lo ve, se archiva y se detiene.
+ * Si esa llave no puede leer productos (403), no se puede comprobar y se sigue.
+ */
+async function exigirMismaCuentaQueElWebhook(stripe: Stripe, productoId: string): Promise<void> {
+  if (process.env.STRIPE_ADMIN_SIMULADO) return
+  try {
+    await crearClienteStripe().products.retrieve(productoId)
+  } catch (e) {
+    if (e instanceof Stripe.errors.StripeError && (e.statusCode === 404 || e.code === 'resource_missing')) {
+      await stripe.products.update(productoId, { active: false })
+      throw new Error(
+        'la llave del panel (STRIPE_ADMIN_KEY) es de otra cuenta de Stripe que la del webhook (STRIPE_SECRET_KEY). Los pagos no llegarían a la academia: crea la llave del panel en la cuenta VADAI (docs/M18.md).'
+      )
+    }
+    console.error(JSON.stringify({ operacion: 'stripe:mismaCuenta', productoId, error: e instanceof Error ? e.message : String(e) }))
   }
 }
 
