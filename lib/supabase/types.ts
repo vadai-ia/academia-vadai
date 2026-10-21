@@ -954,7 +954,6 @@ export type Database = {
           is_default: boolean
           in_catalog: boolean
           is_free: boolean
-          category: 'creativas' | 'administrativas' | 'comerciales' | null
         }
         Insert: {
           id?: string
@@ -975,7 +974,6 @@ export type Database = {
           is_default?: boolean
           in_catalog?: boolean
           is_free?: boolean
-          category?: 'creativas' | 'administrativas' | 'comerciales' | null
         }
         Update: {
           id?: string
@@ -996,7 +994,6 @@ export type Database = {
           is_default?: boolean
           in_catalog?: boolean
           is_free?: boolean
-          category?: 'creativas' | 'administrativas' | 'comerciales' | null
         }
         Relationships: []
       }
