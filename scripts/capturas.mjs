@@ -172,6 +172,20 @@ const SESIONES = {
     email: null,
     rutas: ['/vaip', '/membresias/qa-venta-m23'],
   },
+  // M26: grabaciones y herramientas, con los datos de
+  // `node scripts/test-vaip-contenido.mjs --conservar` (imprime las rutas de
+  // cada grabación y herramienta para pasarlas con --rutas). La app corre con
+  // VAIP_ESPACIO_DE_PRUEBA=qa-contenido y el encabezado elige la casa QA.
+  contenido: {
+    email: correo.cm,
+    encabezados: { 'x-vaip-espacio': 'qa-contenido' },
+    rutas: ['/admin/vaip/clases', '/admin/vaip/herramientas'],
+  },
+  contenidoMiembro: {
+    email: 'qa-alumno1@academia.vadai.com.mx',
+    encabezados: { 'x-vaip-espacio': 'qa-contenido' },
+    rutas: ['/vaip', '/vaip/clases', '/vaip/herramientas', '/vaip/herramientas?etiqueta=qa-rh'],
+  },
 }
 
 const PERFILES = {
@@ -714,12 +728,14 @@ async function main() {
     let guionDeTema = null
 
     for (const sesion of sesionesPedidas) {
-      const { email, rutas } = SESIONES[sesion]
+      const { email, rutas, encabezados } = SESIONES[sesion]
       // --rutas manda: sirve para fotografiar una pantalla con un id que el seed no conoce.
       const rutasDeEsta = rutasPedidas ?? rutas
       if (rutasDeEsta.length === 0) continue
 
       await cdp.enviar('Network.clearBrowserCookies')
+      // M26: algunas sesiones piden un espacio de pruebas por encabezado.
+      await cdp.enviar('Network.setExtraHTTPHeaders', { headers: encabezados ?? {} })
       if (email) {
         for (const cookie of await cookiesDe(email)) await cdp.enviar('Network.setCookie', { ...cookie, url: BASE })
       }

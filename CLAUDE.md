@@ -53,9 +53,10 @@ En su lugar: `pnpm db:migrate` → `scripts/migrate.mjs`, que aplica los `.sql` 
   /(alumno)      mis-cursos (Inicio), cursos (Mis cursos), curso/[slug] (+ comunidad = pestaña «Grupo», en-vivo, dinamicas),
                  perfil (+ membresia, certificaciones, puntos), dinamicas, blog; comunidad solo redirige (M22)
   /vaip          V-AI-P: venta para quien no es miembro; para el miembro, Muro + clases, herramientas, ranking
+                 # M26: clases/[leccionId] (una grabación) y herramientas/[leccionId] (un reel); nunca /curso/<casa>/<id>
                  # curso/[slug]/(marco)/ = el marco del curso (título, avance, pestañas) para Contenido,
                  # En vivo, Grupo y Dinámicas; curso/[slug]/[leccionId] va FUERA: modo lección (25-sep-2026)
-  /(admin)       admin/* en dos mundos (M25): vaip (resumen), vaip/{muro,noticias,clases,miembros,herramientas,planes};
+  /(admin)       admin/* en dos mundos (M25): vaip (resumen), vaip/{muro,noticias,clases(+[leccionId]),miembros,herramientas(+[leccionId]),planes};
                  cursos, entregas, grupos, publicaciones (Anuncios y blog), puntos, dinamicas, encuestas, certificaciones;
                  alumnos (+ [userId] ficha), empresas; agente (+ ajustes), ajustes/api;
                  modulos/[id]/acceso = quién entra a una sesión exclusiva. comunidad solo redirige a grupos o vaip/muro
@@ -93,7 +94,11 @@ En su lugar: `pnpm db:migrate` → `scripts/migrate.mjs`, que aplica los `.sql` 
   opera encuestas, dinámicas, empresas, blog y entregas, y con los alumnos hace todo menos alta y
   eliminar. En contenido **solo sesiones y grabaciones** (sube el video de una lección, la publica,
   sus adjuntos); no crea cursos, módulos, lecciones, quizzes, tareas ni generaciones, y **no ve
-  pagos**. Contesta como «Equipo VADAI». Solo un superadmin da o quita el rol.
+  pagos**. Contesta como «Equipo VADAI». Solo un superadmin da o quita el rol. **Excepción
+  deliberada (M26):** el contenido de V-AI-P —grabaciones y herramientas, con sus etiquetas— sí lo
+  crea, edita y publica, por tres RPC con nombre (`academia_vaip_nueva_grabacion`,
+  `academia_vaip_fechar_grabacion`, `academia_vaip_nueva_herramienta`); el insert directo en
+  `lessons` y borrar siguen siendo de admin.
   En la base: `is_admin()` sigue siendo admin|superadmin y `is_equipo()` suma al CM; **una
   política nueva usa `is_admin()` salvo que se decida abrírsela al CM** (negar por default).
   Lo que una política no alcanza lo cierran triggers: `lessons_solo_grabacion` y
@@ -155,7 +160,21 @@ En su lugar: `pnpm db:migrate` → `scripts/migrate.mjs`, que aplica los `.sql` 
   único ranking vivo es el de V-AI-P (`/vaip/ranking`). El equipo lo ve en
   `/admin/puntos` (`lib/admin/puntos.ts`, 26-sep-2026): mismos pesos, sin cuentas `qa-*` ni cursos
   archivados, y el **lugar se calcula antes de filtrar** — filtrar por empresa enseña en qué lugar
-  va cada quien en el ranking completo, no un ranking nuevo de esa empresa.
+  va cada quien en el ranking completo, no un ranking nuevo de esa empresa. **M26:** una grabación
+  vista de V-AI-P vale 5 y una herramienta 3 (una lección de curso sigue en 10); la vista las cuenta
+  aparte (`grabaciones`, `herramientas`) y `lecciones` ya no las incluye. La fila de la vista se
+  traduce en un solo lugar: `actividadDeFila()`.
+- **El contenido de V-AI-P** (M26, 21-oct-2026; `lib/vaip/*`, docs/M26.md). V-AI-P **no es un
+  curso**: es a donde se paga para entrar a diario después de terminar uno. Sus grabaciones y
+  herramientas son lecciones de la casa, en módulos con tipo (`modules.kind`): un módulo **`mes`**
+  por mes («Octubre 2026», lo crea la RPC a partir del día de la grabación, `lessons.recorded_on`)
+  y uno **`herramientas`** con videos cortos, verticales u horizontales (`lessons.orientation`), con
+  etiquetas libres (`tool_tags`, `lesson_tool_tags`) y portada **dibujada con código**
+  (`lib/vaip/portada.tsx`, 720×960, en `academia-media/vaip/herramientas/<casa>/`). Se ven en
+  `/vaip/clases/<id>` y `/vaip/herramientas/<id>`, nunca como lección de curso:
+  `/curso/<casa>/<id>` redirige, y las ligas de la bandeja, la campana y el agente ya apuntan ahí.
+  No se publica sin video (trigger). El plan del espacio sale de `planDelEspacio()`: en el servidor
+  local, con `VAIP_ESPACIO_DE_PRUEBA=qa-…` y el encabezado `x-vaip-espacio`, la suite usa su casa QA.
 - **Las conversaciones se atienden desde el panel** (`lib/admin/comunidad.ts`, 3-oct-2026; partida en
   dos desde M25): los grupos de los cursos en **Cursos → Grupos** (`/admin/grupos`) y el muro de
   V-AI-P en **V-AI-P → Muro** (`/admin/vaip/muro`), con el mismo componente (`components/admin/bandeja.tsx`)
@@ -415,8 +434,13 @@ lleva la ceja de su grupo (`<Titulo ceja="V-AI-P">`). Panel · **V-AI-P** (Resum
 Clases, Miembros, Herramientas, Planes y cobros —solo admin—) · **Cursos** (Cursos, Entregas, Grupos,
 Anuncios y blog, Puntos, Dinámicas, Encuestas, Certificaciones) · **Personas** (Alumnos, Empresas) ·
 **Ajustes** (Agente IA; API solo admin), y al pie «Portal de alumnos». Cada destino aparece una vez.
-Nada de Cursos enseña V-AI-P ni al revés (`lib/membresia/mundo.ts`: las casas de los planes y las
-herramientas): la casa se edita en V-AI-P → Clases y sus herramientas en V-AI-P → Herramientas. En
+Nada de Cursos enseña V-AI-P ni al revés (`lib/membresia/mundo.ts`: las casas de los planes; desde
+M26 las herramientas ya no son cursos): las grabaciones se suben en V-AI-P → Clases y las
+herramientas en V-AI-P → Herramientas. **Cada entrada lleva su número** (M26): lo que espera que
+alguien actúe —Muro y Grupos sin respuesta, Noticias por publicar, Clases que ya pasaron sin
+grabación, Entregas por revisar, borradores del Agente IA, correos de acceso que no salieron en
+Alumnos y pagos con problema en Planes y cobros (solo admin)—; en 0 no se pinta
+(`lib/admin/contadores.ts`, cada uno en su `<Suspense>`). En
 escritorio es una columna fija; en teléfono, un `<details>` «Menú · V-AI-P · Muro»
 (`components/admin/barra-lateral.tsx`). El encabezado del panel queda en una fila: marca, campana
 (muro de V-AI-P y grupos por separado) y cuenta. El portal de alumnos sigue con dos filas.

@@ -55,6 +55,9 @@ const SUITES = [
   { llave: 'noticias', archivo: 'test-noticias.mjs', titulo: 'Publicar y noticias con IA', milestone: 'M24' },
   { llave: 'accesos', archivo: 'test-accesos.mjs', titulo: 'Correos de acceso y su bitácora', milestone: 'M25' },
   { llave: 'mundos', archivo: 'test-dos-mundos.mjs', titulo: 'El panel en dos mundos', milestone: 'M25' },
+  // Necesita la app con VAIP_ESPACIO_DE_PRUEBA=qa-contenido (docs/M26.md). Solo sus
+  // peticiones (con `x-vaip-espacio`) ven la casa QA; las demás suites, la real.
+  { llave: 'contenido', archivo: 'test-vaip-contenido.mjs', titulo: 'V-AI-P por dentro: grabaciones y herramientas', milestone: 'M26' },
 ]
 
 /** Corre una suite heredando stdio y devuelve su código de salida. */

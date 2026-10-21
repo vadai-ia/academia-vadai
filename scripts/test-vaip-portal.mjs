@@ -14,8 +14,8 @@
  *     ve); la columna de suscripción solo la ve el admin, y en Postgres el
  *     community manager sigue sin leer membresías;
  *   - Miembros: avance y puntos salen de la actividad real;
- *   - Herramientas: un curso con área sale en el espacio del miembro, en su
- *     grupo;
+ *   - Herramientas (M26): las herramientas ya no son cursos con área; los
+ *     demás cursos del plan salen una vez, como «Cursos incluidos»;
  *   - un tema «solo equipo» no se le ofrece a un alumno y la base lo rechaza;
  *   - un evento con su lugar se agenda desde el panel y el alumno lo ve.
  *
@@ -180,22 +180,20 @@ try {
   await borrarCuenta(bd)
   const plan = await una(bd, `select id from academia.membership_plans where slug = $1`, [VAIP])
   if (!plan) throw new Error('No existe el plan v-ai-p.')
-  const columna = await una(bd, `select 1 as hay from information_schema.columns where table_schema = 'academia' and table_name = 'courses' and column_name = 'category'`)
-  if (!columna) throw new Error('Falta aplicar la migración academia_0043_contenido_vaip.')
 
-  const curso = async (slug, tipo, categoria = null) => {
+  const curso = async (slug, tipo) => {
     const id = (
       await bd.query(
-        `insert into academia.courses (slug, title, course_type, status, certificate_enabled, category)
-         values ($1, $2, $3, 'published', false, $4) returning id`,
-        [slug, `QA · ${slug} (test-vaip-portal)`, tipo, categoria]
+        `insert into academia.courses (slug, title, course_type, status, certificate_enabled)
+         values ($1, $2, $3, 'published', false) returning id`,
+        [slug, `QA · ${slug} (test-vaip-portal)`, tipo]
       )
     ).rows[0].id
     await bd.query(`insert into academia.membership_plan_courses (plan_id, course_id) values ($1, $2)`, [plan.id, id])
     return id
   }
   const casa = await curso('qa-portal-casa', 'cohort')
-  await curso('qa-portal-herramienta', 'evergreen', 'creativas')
+  await curso('qa-portal-herramienta', 'evergreen')
   const { rows: [gen] } = await bd.query(
     `insert into academia.cohorts (course_id, name, starts_on, ends_on, open_for_enrollment) values ($1, 'Miembros', current_date, null, true) returning id`,
     [casa]
@@ -278,16 +276,17 @@ try {
   afirmar('Miembros', 'la búsqueda filtra', false, buscado.includes(fila))
 
   // --- 4. Herramientas en el espacio ----------------------------------------
-  // M22: V-AI-P tiene pestañas; las herramientas viven en la suya.
+  // M26: las herramientas son videos de la casa (test-vaip-contenido). Aquí:
+  // los otros cursos del plan salen una sola vez, como «Cursos incluidos».
   const espacio = await html('/vaip/herramientas', miembro)
   afirmar('Herramientas', 'el espacio trae la sección', true, espacio.includes('>Herramientas<'))
-  afirmar('Herramientas', 'con la herramienta en su área', true, /Creativas[\s\S]*qa-portal-herramienta/.test(espacio))
   // Las tarjetas pintadas (<h3>), no el texto: el título también viaja en el
   // paquete de datos de React que Next mete en la página.
   const apariciones = espacio.match(/<h3[^>]*>QA · qa-portal-herramienta \(test-vaip-portal\)<\/h3>/g) ?? []
-  afirmar('Herramientas', 'y no repetida en la Biblioteca', 1, apariciones.length)
+  afirmar('Herramientas', 'un curso del plan sale una vez, en «Cursos incluidos»', 1, apariciones.length)
+  afirmar('Herramientas', 'bajo ese título', true, /Cursos incluidos[\s\S]*qa-portal-herramienta/.test(espacio))
   const contenido = await html('/admin/vaip/herramientas', cm)
-  afirmar('Herramientas', 'el portal la agrupa por área', true, /Herramientas creativas[\s\S]*qa-portal-herramienta/.test(contenido))
+  afirmar('Herramientas', 'en el panel se suben videos, no cursos', true, contenido.includes('Nueva herramienta') && !contenido.includes('Herramientas creativas'))
 
   // --- 5. Un tema solo del equipo ----------------------------------------------
   const muro = await html('/curso/qa-portal-casa/comunidad', miembro)
