@@ -1,6 +1,14 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
+  // M24: las imágenes de las noticias se dibujan con Inter (lib/noticias/imagen.tsx),
+  // que se lee del disco. Sin esto Vercel no copia los .ttf a las funciones que
+  // dibujan: el panel de V-AI-P, la vista previa y los crons.
+  outputFileTracingIncludes: {
+    '/admin/vaip/**': ['./lib/noticias/fuentes/*.ttf'],
+    '/api/noticias/**': ['./lib/noticias/fuentes/*.ttf'],
+    '/api/cron/**': ['./lib/noticias/fuentes/*.ttf'],
+  },
   experimental: {
     serverActions: {
       // 4 MB, no el 1 MB por defecto (24-sep-2026). Es el respaldo del

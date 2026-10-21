@@ -142,6 +142,11 @@ const SESIONES = {
     email: correo.cm,
     rutas: ['/admin/agente'],
   },
+  // M24: publicar y noticias. Los datos de `node scripts/test-noticias.mjs --conservar`.
+  noticias: {
+    email: correo.cm,
+    rutas: ['/admin/vaip/noticias', '/admin/vaip/publicar', '/curso/qa-noticias-casa/comunidad'],
+  },
   publico: {
     email: null,
     rutas: [

@@ -26,12 +26,20 @@ import { cn } from '@/lib/utils'
 
 export type GrupoDeNavegacion = { titulo?: string; destinos: Destino[] }
 
-function activo(ruta: string, d: Destino): boolean {
+function coincide(ruta: string, d: Destino): boolean {
   return d.exacto ? ruta === d.href : ruta === d.href || ruta.startsWith(`${d.href}/`)
 }
 
-function Enlace({ d, ruta, tactil = false }: { d: Destino; ruta: string; tactil?: boolean }) {
-  const es = activo(ruta, d)
+/**
+ * El destino activo es el MÁS específico que coincide (M24): en
+ * /admin/vaip/noticias se enciende «Noticias», no también «V-AI-P».
+ */
+function destinoActual(ruta: string, destinos: Destino[]): Destino | undefined {
+  return destinos.filter((d) => coincide(ruta, d)).sort((a, b) => b.href.length - a.href.length)[0]
+}
+
+function Enlace({ d, actual, tactil = false }: { d: Destino; actual: Destino | undefined; tactil?: boolean }) {
+  const es = actual?.href === d.href
   return (
     <Link
       href={d.href}
@@ -50,6 +58,7 @@ function Enlace({ d, ruta, tactil = false }: { d: Destino; ruta: string; tactil?
 }
 
 function Grupos({ grupos, pie, ruta, tactil = false }: { grupos: GrupoDeNavegacion[]; pie?: Destino; ruta: string; tactil?: boolean }) {
+  const actual = destinoActual(ruta, [...grupos.flatMap((g) => g.destinos), ...(pie ? [pie] : [])])
   return (
     <>
       {grupos.map((g, i) => (
@@ -60,13 +69,13 @@ function Grupos({ grupos, pie, ruta, tactil = false }: { grupos: GrupoDeNavegaci
             </p>
           ) : null}
           {g.destinos.map((d) => (
-            <Enlace key={d.href} d={d} ruta={ruta} tactil={tactil} />
+            <Enlace key={d.href} d={d} actual={actual} tactil={tactil} />
           ))}
         </div>
       ))}
       {pie ? (
         <div className="border-t border-border pt-3">
-          <Enlace d={pie} ruta={ruta} tactil={tactil} />
+          <Enlace d={pie} actual={actual} tactil={tactil} />
         </div>
       ) : null}
     </>
@@ -75,7 +84,7 @@ function Grupos({ grupos, pie, ruta, tactil = false }: { grupos: GrupoDeNavegaci
 
 export function BarraLateral({ grupos, pie }: { grupos: GrupoDeNavegacion[]; pie?: Destino }) {
   const ruta = usePathname()
-  const actual = grupos.flatMap((g) => g.destinos).find((d) => activo(ruta, d))
+  const actual = destinoActual(ruta, grupos.flatMap((g) => g.destinos))
 
   return (
     <>

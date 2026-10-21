@@ -182,6 +182,14 @@ En su lugar: `pnpm db:migrate` → `scripts/migrate.mjs`, que aplica los `.sql` 
   vuelve el agente QA: ajustes, cola, gasto, borradores y resumen con `es_qa = true`, y solo sus
   cursos (`qa-agente-…`) y cuentas QA. Nunca se le manda al modelo un nombre, correo o teléfono de alumno, ni contenido de
   evaluaciones, quizzes o módulos exclusivos.
+- **Noticias de V-AI-P** (M24, 20-oct-2026; `lib/noticias/*`, docs/M24.md): se cazan (botón y cron de
+  las 7:00) o se crean desde una liga, y quedan como PROPUESTAS en `news_items`; **nada se publica
+  sin el clic de una persona**. Solo cuentan ligas que salieron en la búsqueda y de
+  `DOMINIOS_DE_NOTICIAS`; el código normaliza, deduplica por hash, abre cada página con
+  `lib/red/seguro.ts` (nunca IPs internas) y quita URLs del texto del modelo. La imagen de cada
+  noticia y aviso se **dibuja con código** (`lib/noticias/imagen.tsx`, `next/og`), no es la foto
+  del medio. Todo lo del equipo en el muro pasa por `publicarComoEquipo()`. Avisos = tema
+  «Avisos» fijado con fecha (`pinned_until`, se apaga al leer con `academia_desfijar_vencidos`).
 - **Notificaciones internas sin tabla**: "nuevo" es lo publicado después de
   `profiles.notifications_seen_at`. Abrir la campana lo sella.
 - **Empresas** (`academia.companies`, `profiles.company_id`; 20-sep-2026): de dónde viene cada
@@ -217,7 +225,8 @@ En su lugar: `pnpm db:migrate` → `scripts/migrate.mjs`, que aplica los `.sql` 
   M20 para la API con llave: `/api/v1`, cuyo único punto de entrada es `lib/api/contexto.ts`, que
   verifica la llave, el permiso y la cuota antes de entregar el cliente; y desde M21 para el agente
   de la comunidad, cuyo único cliente sale de `lib/agente/servidor.ts` y lo usan solo los crons
-  con `CRON_SECRET` y las acciones del panel después de `exigirEquipo()`/`exigirAdmin()`)
+  con `CRON_SECRET` y las acciones del panel después de `exigirEquipo()`/`exigirAdmin()`; desde
+  M24 también las noticias (`lib/noticias`) y el compositor de V-AI-P, con esa misma regla)
 - NO fetch de datos en client components cuando un server component puede hacerlo
 - NO instalar dependencias no listadas en el stack sin justificación explícita
 - NO tocar `public` ni ningún schema ajeno bajo ninguna circunstancia
@@ -381,9 +390,10 @@ suscripción no abre), 3–4 en la página con texto distinto, el del encabezado
 
 **El panel de admin es la excepción: barra lateral agrupada** (M19, 16-oct-2026, pedido
 de Alejandro). Con doce destinos la fila envolvía y no decía qué iba con qué. Grupos:
-Panel · Academia (Cursos, Entregas, Publicaciones) · Comunidad (Bandeja, Agente, Puntos) ·
-Contactos (Alumnos, Empresas) · Actividades (Encuestas, Dinámicas, Certificaciones) ·
-Membresía (V-AI-P), para admin Ajustes (Agente, API), y al pie «Portal de alumnos». En escritorio es una columna fija; en
+Panel · Membresía (V-AI-P; segunda desde el 20-oct-2026: ahí se entra a diario) · Academia
+(Cursos, Entregas, Publicaciones) · Comunidad (Bandeja, Agente, Puntos) · Contactos (Alumnos,
+Empresas) · Actividades (Encuestas, Dinámicas, Certificaciones), para admin Ajustes (Agente,
+API), y al pie «Portal de alumnos». En escritorio es una columna fija; en
 teléfono, un `<details>` «Menú» (`components/admin/barra-lateral.tsx`). El encabezado del
 panel queda en una fila: marca, campana y cuenta. El portal de alumnos sigue con dos filas.
 

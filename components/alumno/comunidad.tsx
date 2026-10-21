@@ -407,7 +407,9 @@ function Publicacion({
           que un hilo de veinte mensajes se escanee — sin él todos los posts
           arrancan igual y hay que leer para saber quién habla. */}
       <div className="flex flex-wrap items-start justify-between gap-3">
-        <div className="flex min-w-0 flex-1 items-start gap-3">
+        {/* `basis-64`: si no caben juntos, los botones del equipo bajan a su
+            renglón en vez de aplastar el título a una palabra por línea (M24). */}
+        <div className="flex min-w-0 flex-1 basis-64 items-start gap-3">
           <Avatar nombre={post.autor.nombre} foto={post.autor.avatar} tamano={38} />
 
           <div className="flex min-w-0 flex-col gap-0.5">
@@ -428,7 +430,7 @@ function Publicacion({
             {/* El título de una publicación pesa más que cualquier respuesta:
                 es lo que distingue "alguien abrió un tema" de "alguien
                 contestó". */}
-            <h3 className="text-[1.05rem] leading-snug font-medium text-pretty">{post.titulo}</h3>
+            <h3 className="text-[1.05rem] leading-snug font-medium text-pretty [overflow-wrap:anywhere]">{post.titulo}</h3>
           </div>
         </div>
 
@@ -484,11 +486,42 @@ function Publicacion({
         </div>
       </div>
 
+      {/* M24: una noticia es una tarjeta: su imagen a todo lo ancho, el
+          resumen en un recuadro, el texto y «Leer más» en la fuente. */}
+      {post.noticia && post.imagenes[0] ? (
+        <Image
+          src={post.imagenes[0].url}
+          alt=""
+          width={1200}
+          height={675}
+          unoptimized
+          className="aspect-video h-auto w-full rounded-lg border border-border object-cover"
+        />
+      ) : null}
+
+      {post.noticia?.resumen ? (
+        <p className="rounded-lg border-l-4 border-primary bg-primary/5 px-4 py-3 text-[0.95rem] text-pretty">
+          {post.noticia.resumen}
+        </p>
+      ) : null}
+
       {post.contenido ? <RenderRico contenido={post.contenido} /> : null}
 
-      {post.imagenes.length > 0 ? (
+      {post.noticia?.url ? (
+        <a
+          href={post.noticia.url}
+          target="_blank"
+          rel="noopener noreferrer nofollow"
+          className="inline-flex w-fit items-center gap-1.5 rounded-full border border-border px-4 py-2 text-sm font-medium transition-colors pointer-coarse:min-h-11 hover:border-primary/50 hover:text-primary"
+        >
+          {post.noticia.medio ? `Leer más en ${post.noticia.medio}` : 'Abrir la liga'}
+          <span aria-hidden>↗</span>
+        </a>
+      ) : null}
+
+      {post.imagenes.length > (post.noticia ? 1 : 0) ? (
         <div className="grid gap-2 sm:grid-cols-2">
-          {post.imagenes.map((img) => (
+          {post.imagenes.slice(post.noticia ? 1 : 0).map((img) => (
             <Image
               key={img.url}
               src={img.url}

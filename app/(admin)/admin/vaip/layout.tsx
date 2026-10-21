@@ -16,6 +16,9 @@ export default async function LayoutVaip({ children }: { children: ReactNode }) 
 
   const pestanas: Pestana[] = [
     { href: '/admin/vaip', etiqueta: 'Resumen', exacto: true },
+    // M24: lo de todos los días, junto al resumen.
+    { href: '/admin/vaip/noticias', etiqueta: 'Noticias' },
+    { href: '/admin/vaip/publicar', etiqueta: 'Publicar' },
     { href: '/admin/vaip/miembros', etiqueta: 'Miembros' },
     { href: '/admin/vaip/clases', etiqueta: 'Clases y eventos' },
     { href: '/admin/vaip/contenido', etiqueta: 'Contenido' },

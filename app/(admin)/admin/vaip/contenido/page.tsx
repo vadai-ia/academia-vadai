@@ -59,7 +59,7 @@ export default async function PaginaContenido() {
         accion={
           plan.casa ? (
             <Button asChild size="sm">
-              <Link href={`/curso/${plan.casa.slug}/comunidad?tema=noticias`}>Publicar una noticia</Link>
+              <Link href="/admin/vaip/noticias">Publicar una noticia</Link>
             </Button>
           ) : null
         }

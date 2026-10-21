@@ -163,21 +163,24 @@ export default async function PaginaAgente() {
         )}
       </Seccion>
 
-      {noticias.length > 0 || t.ajustes?.noticias ? (
-        <Seccion titulo="Noticias del día" apoyo="Las prepara cada mañana con su fuente. Se publican en el tema Noticias de V-AI-P.">
-          {noticias.length === 0 ? (
-            <p className="rounded-[10px] border border-dashed border-border px-5 py-8 text-center text-sm text-muted-foreground">
-              {t.ajustes?.busquedaWeb ? 'Hoy no hay noticias en borrador.' : 'Para prepararlas necesita la búsqueda web encendida en Ajustes del agente.'}
-            </p>
-          ) : (
-            <ul className="flex flex-col gap-4">
-              {noticias.map((b) => (
-                <Borrador key={b.id} b={b} />
-              ))}
-            </ul>
-          )}
-        </Seccion>
-      ) : null}
+      {/* M24: las noticias se cazan, revisan y publican en V-AI-P → Noticias,
+          con imagen y «Leer más». Aquí solo quedan los borradores viejos, si hay. */}
+      <Seccion titulo="Noticias de IA" apoyo="Se cazan cada mañana a las 7:00 y cuando quieras, y se revisan en V-AI-P → Noticias.">
+        {noticias.length === 0 ? (
+          <Link
+            href="/admin/vaip/noticias"
+            className="inline-flex w-fit items-center rounded-full border border-border px-4 py-2 text-sm font-medium pointer-coarse:min-h-11 hover:border-primary/50 hover:text-primary"
+          >
+            Ir a Noticias →
+          </Link>
+        ) : (
+          <ul className="flex flex-col gap-4">
+            {noticias.map((b) => (
+              <Borrador key={b.id} b={b} />
+            ))}
+          </ul>
+        )}
+      </Seccion>
 
       <Seccion titulo="Resumen del día" apoyo={t.resumen ? `De ${fechaDelResumen(t.resumen.fecha)}.` : 'Se arma cada mañana a las 7:00.'}>
         {!t.resumen ? (

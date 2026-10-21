@@ -24,7 +24,7 @@ import { dbDelAgente } from '@/lib/agente/servidor'
  * cola y su gasto son los de la fila `es_qa = true`.
  */
 
-export type Tarea = 'responder' | 'escalar' | 'resumen' | 'noticias' | 'probador'
+export type Tarea = 'responder' | 'escalar' | 'resumen' | 'noticias' | 'probador' | 'noticias_redactar' | 'noticia_liga'
 
 export function esModoQa(): boolean {
   return Boolean(process.env.ANTHROPIC_SIMULADO)
@@ -59,12 +59,34 @@ export type Llamada<T> = {
   effort: 'low' | 'medium'
   /** Con esquema la salida es JSON validado; sin él, texto. */
   esquema?: z.ZodType<T>
-  busqueda?: { maxUsos: number; dominios: string[] }
+  /** Búsqueda web. Sin `dominios`, busca en toda la web. */
+  busqueda?: { maxUsos: number; dominios?: string[] }
   jobId?: string | null
+  /** La búsqueda de noticias a la que pertenece la corrida (M24). */
+  huntId?: string | null
 }
 
+/** Una página que devolvió la búsqueda web: la única fuente de ligas válida (M24). */
+export type FuenteDeBusqueda = { url: string; titulo: string; edad: string | null }
+
+/**
+ * Lo que pesa, por lo alto, lo que regresa cada búsqueda web: sus resultados
+ * entran como tokens de entrada y se cobran. M21 no los reservaba (M24).
+ */
+const TOKENS_POR_BUSQUEDA = 15_000
+
 export type Resultado<T> =
-  | { ok: true; datos: T | null; texto: string; runId: string; costo: number; rechazo: boolean; corte: boolean; busquedas: number }
+  | {
+      ok: true
+      datos: T | null
+      texto: string
+      runId: string
+      costo: number
+      rechazo: boolean
+      corte: boolean
+      busquedas: number
+      fuentes: FuenteDeBusqueda[]
+    }
   | { ok: false; motivo: 'sin_presupuesto' | 'sin_llave' | 'muy_largo' | 'error'; detalle?: string }
 
 function registrar(operacion: string, detalle: Record<string, unknown>) {
@@ -91,7 +113,8 @@ export async function llamar<T>(l: Llamada<T>): Promise<Resultado<T>> {
 
   const db = dbDelAgente()
   const rpc = (db.rpc as unknown as LlamadaRpc).bind(db)
-  const reserva = peorCaso(l.modelo, tokens, l.maxTokens, l.busqueda?.maxUsos ?? 0)
+  const usos = l.busqueda?.maxUsos ?? 0
+  const reserva = peorCaso(l.modelo, tokens + usos * TOKENS_POR_BUSQUEDA, l.maxTokens, usos)
   const { data: runId, error: errorReserva } = await rpc('academia_agente_reservar', {
     p_monto: Number(reserva.toFixed(6)),
     p_tarea: l.tarea,
@@ -116,6 +139,7 @@ export async function llamar<T>(l: Llamada<T>): Promise<Resultado<T>> {
         tokens_cache_lectura: uso?.cache_read_input_tokens ?? 0,
         tokens_cache_escritura: uso?.cache_creation_input_tokens ?? 0,
         busquedas: uso?.server_tool_use?.web_search_requests ?? 0,
+        ...(l.huntId ? { news_hunt_id: l.huntId } : {}),
         ...extra,
       })
       .eq('id', runId)
@@ -146,7 +170,7 @@ export async function llamar<T>(l: Llamada<T>): Promise<Resultado<T>> {
                 type: 'web_search_20260209' as const,
                 name: 'web_search' as const,
                 max_uses: l.busqueda.maxUsos,
-                allowed_domains: l.busqueda.dominios,
+                ...(l.busqueda.dominios?.length ? { allowed_domains: l.busqueda.dominios } : {}),
               },
             ],
           }
@@ -160,7 +184,14 @@ export async function llamar<T>(l: Llamada<T>): Promise<Resultado<T>> {
       .map((b) => b.text)
       .join('')
     const rechazo = respuesta.stop_reason === 'refusal'
-    const corte = respuesta.stop_reason === 'max_tokens'
+    // `pause_turn`: el servidor cortó el ciclo de herramientas a la mitad. No es
+    // una respuesta terminada; se trata como cortada (M24).
+    const corte = respuesta.stop_reason === 'max_tokens' || respuesta.stop_reason === 'pause_turn'
+    const fuentes: FuenteDeBusqueda[] = []
+    for (const bloque of respuesta.content) {
+      if (bloque.type !== 'web_search_tool_result' || !Array.isArray(bloque.content)) continue
+      for (const r of bloque.content) fuentes.push({ url: r.url, titulo: r.title, edad: r.page_age ?? null })
+    }
 
     let datos: T | null = null
     if (l.esquema && !rechazo && !corte) {
@@ -180,6 +211,7 @@ export async function llamar<T>(l: Llamada<T>): Promise<Resultado<T>> {
       rechazo,
       corte,
       busquedas: uso.server_tool_use?.web_search_requests ?? 0,
+      fuentes,
     }
   } catch (e) {
     // Rechazada por la API (4xx/5xx): no se cobró. Conexión cortada o tiempo

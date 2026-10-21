@@ -46,7 +46,7 @@ export default async function PaginaMuro() {
           <Link href={`/curso/${casa.slug}/comunidad`}>Entrar a la comunidad</Link>
         </Button>
         <Button asChild variant="outline">
-          <Link href={`/curso/${casa.slug}/comunidad?tema=noticias`}>Publicar una noticia</Link>
+          <Link href="/admin/vaip/publicar">Publicar en el muro</Link>
         </Button>
       </div>
 

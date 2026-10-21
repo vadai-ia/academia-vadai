@@ -51,6 +51,8 @@ const SUITES = [
   { llave: 'portal-alumno', archivo: 'test-portal-alumno.mjs', titulo: 'Portal de alumnos', milestone: 'M22' },
   // Necesita la app con VAIP_VENTA_DE_PRUEBA=qa-venta-m23 (docs/M23.md): pinta su plan QA en /vaip.
   { llave: 'venta', archivo: 'test-venta-vaip.mjs', titulo: 'Página de venta de V-AI-P', milestone: 'M23' },
+  // Necesita la app con ANTHROPIC_SIMULADO y NOTICIAS_SITIO_DE_PRUEBA=http://127.0.0.1:4806 (docs/M24.md).
+  { llave: 'noticias', archivo: 'test-noticias.mjs', titulo: 'Publicar y noticias con IA', milestone: 'M24' },
 ]
 
 /** Corre una suite heredando stdio y devuelve su código de salida. */

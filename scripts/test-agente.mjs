@@ -325,8 +325,8 @@ try {
     [casa.id]
   )
   await bd.query(`insert into academia.membership_plans (slug, name, price_mxn, status, hub_course_id) values ($1, 'QA Agente', 100, 'active', $2)`, [PLAN, casa.id])
-  const { rows: [tema] } = await bd.query(
-    `insert into academia.community_topics (course_id, name, slug, position, solo_equipo) values ($1, 'Noticias', 'noticias', 0, true) returning id`,
+  await bd.query(
+    `insert into academia.community_topics (course_id, name, slug, position, solo_equipo) values ($1, 'Noticias', 'noticias', 0, true)`,
     [casa.id]
   )
   const { rows: [modulo] } = await bd.query(
@@ -564,9 +564,9 @@ try {
   afirmar(P, '…y no lo revisado por el equipo', false, bandeja.includes(`hilo-${pBorrador}`))
 
   // =========================================================================
-  // 5. Resumen y noticias
+  // 5. Resumen del día
   // =========================================================================
-  const D = 'Resumen y noticias'
+  const D = 'Resumen del día'
   const realesAntes = (await una(bd, `select count(*)::int n from academia.agent_digests where not es_qa`)).n
   const diario = await cron('/api/cron/agente-diario?solo=resumen')
   const resumen = await una(bd, `select contenido from academia.agent_digests where es_qa order by fecha desc limit 1`)
@@ -577,21 +577,8 @@ try {
   const deResumen = peticiones.find((p) => p.sistema.includes('cada mañana le resumes'))
   afirmar(D, 'al resumen no le llegan correos', false, Boolean(deResumen?.mensaje.includes('qa-filtrado@ejemplo.com')))
 
-  await cron('/api/cron/agente-diario?solo=noticias')
-  const noticias = await varias(bd, `select id, titulo, fuente, course_id from academia.agent_drafts where es_qa and tipo = 'noticia' order by titulo`)
-  afirmar(D, 'prepara la noticia de una fuente permitida', true, noticias.some((n) => n.titulo === 'QA-agente noticia permitida' && n.course_id === casa.id))
-  afirmar(D, 'descarta la de un sitio no permitido', false, noticias.some((n) => n.fuente.includes('blog-raro')))
-  const deNoticias = peticiones.find((p) => (p.cuerpo.tools ?? []).some((t) => t.name === 'web_search'))
-  afirmar(D, 'busca solo en los dominios permitidos', true, (deNoticias?.cuerpo.tools?.[0]?.allowed_domains ?? []).includes('anthropic.com'))
-  afirmar(D, '…con tope de búsquedas', 5, deNoticias?.cuerpo.tools?.[0]?.max_uses)
-  afirmar(D, 'las búsquedas cuentan en el gasto', true, (await una(bd, `select coalesce(sum(busquedas), 0)::int b from academia.agent_runs where es_qa and tarea = 'noticias'`)).b === 2)
-
-  const tableroNoticias = await (await pedir('/admin/agente', sAdmin)).text()
-  const noticia = noticias.find((n) => n.titulo === 'QA-agente noticia permitida')
-  const formNoticia = formulario(tableroNoticias, (f) => f.includes(`value="${noticia?.id}"`) && f.includes('name="titulo"'))
-  await enviar('/admin/agente', { ...formNoticia, texto: 'Claude ya lee tus hojas de Excel completas.' }, sAdmin)
-  const enMuro = await una(bd, `select via, topic_id, user_id from academia.community_posts where course_id = $1 and title = 'QA-agente noticia permitida'`, [casa.id])
-  afirmar(D, 'publicar la noticia la pone en el tema Noticias', `${tema.id} agente_revisado ${bot.user_id}`, `${enMuro?.topic_id} ${enMuro?.via} ${enMuro?.user_id}`)
+  // M24: las noticias (cacería, liga, propuestas, imagen y publicación) se
+  // prueban en scripts/test-noticias.mjs.
 
   // =========================================================================
   // 6. Lo que ve el alumno, y quién lee qué

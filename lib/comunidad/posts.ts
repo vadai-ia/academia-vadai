@@ -32,6 +32,8 @@ export type PostDeComunidad = {
   creadoEn: string
   /** M17: el tema del muro, o null. */
   temaId: string | null
+  /** M24: la noticia (resumen y liga «Leer más»), o null si es una publicación normal. */
+  noticia: { resumen: string | null; url: string | null; medio: string | null } | null
   autor: Autor
   via: string
   esMio: boolean
@@ -113,6 +115,11 @@ export async function feedDelCurso(
 ): Promise<FeedDeComunidad> {
   const supabase = await crearClienteServidor()
 
+  // M24: los fijados con fecha que ya vencieron se apagan antes de leer (no
+  // hay pg_cron). Es una actualización sobre un índice parcial: casi nunca hay
+  // nada que tocar.
+  await (supabase.rpc as unknown as (f: string) => PromiseLike<unknown>)('academia_desfijar_vencidos')
+
   // `0` significa "todas". Se traduce a un tope alto y no a "sin límite": una
   // consulta sin techo es una bomba de relojería el día que el feed crezca.
   const porPagina = opciones.porPagina && opciones.porPagina > 0 ? opciones.porPagina : 1000
@@ -122,7 +129,7 @@ export async function feedDelCurso(
     let consulta = supabase
       .from('community_posts')
       .select(
-        'id, user_id, title, content_rich, images, pinned, created_at, topic_id, via, community_comments(id, user_id, content, created_at, status, via)',
+        'id, user_id, title, content_rich, images, pinned, created_at, topic_id, via, resumen, enlace_url, enlace_medio, community_comments(id, user_id, content, created_at, status, via)',
         { count: 'exact' }
       )
       .eq('course_id', cursoId)
@@ -165,6 +172,9 @@ export async function feedDelCurso(
     created_at: string
     topic_id: string | null
     via: string
+    resumen: string | null
+    enlace_url: string | null
+    enlace_medio: string | null
     community_comments: Array<{
       id: string
       user_id: string
@@ -204,6 +214,7 @@ export async function feedDelCurso(
     fijado: p.pinned,
     creadoEn: p.created_at,
     temaId: p.topic_id,
+    noticia: p.resumen || p.enlace_url ? { resumen: p.resumen, url: p.enlace_url, medio: p.enlace_medio } : null,
     autor: autores.get(p.user_id) ?? ANONIMO,
     via: p.via,
     esMio: p.user_id === usuarioActual,

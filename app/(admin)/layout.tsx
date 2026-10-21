@@ -18,6 +18,8 @@ import {
   IconoPerfil,
   IconoPortal,
   IconoPuntos,
+  IconoNoticias,
+  IconoPublicar,
   IconoVaip,
 } from '@/components/marca/iconos-navegacion'
 import { BarraDeNavegacion } from '@/components/marca/barra-de-navegacion'
@@ -36,6 +38,19 @@ export default async function LayoutAdmin({ children }: { children: ReactNode })
 
   const grupos: GrupoDeNavegacion[] = [
     { destinos: [{ href: '/admin', etiqueta: 'Panel', icono: IconoPanel, exacto: true }] },
+    // M23 (20-oct-2026, Alejandro): la membresía va primero después del panel:
+    // ahí se entra a diario a autorizar noticias, publicar y resolver dudas.
+    {
+      titulo: 'Membresía',
+      // M19: el portal de la comunidad es del equipo. Los cobros y los planes,
+      // dentro, siguen siendo solo de admin (sus páginas lo exigen).
+      destinos: [
+        { href: '/admin/vaip', etiqueta: 'V-AI-P', icono: IconoVaip },
+        // M24: lo de todos los días, a un clic.
+        { href: '/admin/vaip/noticias', etiqueta: 'Noticias', icono: IconoNoticias },
+        { href: '/admin/vaip/publicar', etiqueta: 'Publicar', icono: IconoPublicar },
+      ],
+    },
     {
       titulo: 'Academia',
       destinos: [
@@ -69,12 +84,6 @@ export default async function LayoutAdmin({ children }: { children: ReactNode })
         // Diplomas de generación: quién lo abrió, quién lo descargó (15-oct-2026).
         { href: '/admin/certificaciones', etiqueta: 'Certificaciones', icono: IconoCertificaciones },
       ],
-    },
-    {
-      titulo: 'Membresía',
-      // M19: el portal de la comunidad es del equipo. Los cobros y los planes,
-      // dentro, siguen siendo solo de admin (sus páginas lo exigen).
-      destinos: [{ href: '/admin/vaip', etiqueta: 'V-AI-P', icono: IconoVaip }],
     },
     // M20 y M21: la API y el agente. Solo admin (cada página lo exige también).
     ...(esAdmin(perfil)

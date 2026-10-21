@@ -231,7 +231,7 @@ export type Database = {
           id: string
           job_id: string | null
           es_qa: boolean
-          tarea: 'responder' | 'escalar' | 'resumen' | 'noticias' | 'probador'
+          tarea: 'responder' | 'escalar' | 'resumen' | 'noticias' | 'probador' | 'noticias_redactar' | 'noticia_liga'
           modelo: string
           estado: 'reservada' | 'cerrada'
           reservado_usd: number
@@ -245,12 +245,14 @@ export type Database = {
           certeza: number | null
           motivo: string | null
           created_at: string
+          lecturas: number
+          news_hunt_id: string | null
         }
         Insert: {
           id?: string
           job_id?: string | null
           es_qa?: boolean
-          tarea: 'responder' | 'escalar' | 'resumen' | 'noticias' | 'probador'
+          tarea: 'responder' | 'escalar' | 'resumen' | 'noticias' | 'probador' | 'noticias_redactar' | 'noticia_liga'
           modelo: string
           estado?: 'reservada' | 'cerrada'
           reservado_usd?: number
@@ -264,12 +266,14 @@ export type Database = {
           certeza?: number | null
           motivo?: string | null
           created_at?: string
+          lecturas?: number
+          news_hunt_id?: string | null
         }
         Update: {
           id?: string
           job_id?: string | null
           es_qa?: boolean
-          tarea?: 'responder' | 'escalar' | 'resumen' | 'noticias' | 'probador'
+          tarea?: 'responder' | 'escalar' | 'resumen' | 'noticias' | 'probador' | 'noticias_redactar' | 'noticia_liga'
           modelo?: string
           estado?: 'reservada' | 'cerrada'
           reservado_usd?: number
@@ -283,6 +287,8 @@ export type Database = {
           certeza?: number | null
           motivo?: string | null
           created_at?: string
+          lecturas?: number
+          news_hunt_id?: string | null
         }
         Relationships: []
       }
@@ -731,6 +737,11 @@ export type Database = {
           topic_id: string | null
           via: 'humano' | 'api' | 'agente' | 'agente_revisado'
           api_key_id: string | null
+          enlace_url: string | null
+          enlace_medio: string | null
+          resumen: string | null
+          pinned_until: string | null
+          publicado_por: string | null
         }
         Insert: {
           id?: string
@@ -750,6 +761,11 @@ export type Database = {
           topic_id?: string | null
           via?: 'humano' | 'api' | 'agente' | 'agente_revisado'
           api_key_id?: string | null
+          enlace_url?: string | null
+          enlace_medio?: string | null
+          resumen?: string | null
+          pinned_until?: string | null
+          publicado_por?: string | null
         }
         Update: {
           id?: string
@@ -769,6 +785,11 @@ export type Database = {
           topic_id?: string | null
           via?: 'humano' | 'api' | 'agente' | 'agente_revisado'
           api_key_id?: string | null
+          enlace_url?: string | null
+          enlace_medio?: string | null
+          resumen?: string | null
+          pinned_until?: string | null
+          publicado_por?: string | null
         }
         Relationships: []
       }
@@ -1618,6 +1639,129 @@ export type Database = {
           updated_at?: string
           cohort_id?: string | null
           is_restricted?: boolean
+        }
+        Relationships: []
+      }
+      news_hunts: {
+        Row: {
+          id: string
+          es_qa: boolean
+          tipo: 'caceria' | 'liga'
+          origen: 'boton' | 'cron'
+          estado: 'buscando' | 'lista' | 'sin_resultados' | 'fallida'
+          paso: string | null
+          pedido_por: string | null
+          url_pedida: string | null
+          enfoque: string | null
+          descartes: Json
+          detalle: string | null
+          started_at: string
+          finished_at: string | null
+        }
+        Insert: {
+          id?: string
+          es_qa?: boolean
+          tipo: 'caceria' | 'liga'
+          origen: 'boton' | 'cron'
+          estado?: 'buscando' | 'lista' | 'sin_resultados' | 'fallida'
+          paso?: string | null
+          pedido_por?: string | null
+          url_pedida?: string | null
+          enfoque?: string | null
+          descartes?: Json
+          detalle?: string | null
+          started_at?: string
+          finished_at?: string | null
+        }
+        Update: {
+          id?: string
+          es_qa?: boolean
+          tipo?: 'caceria' | 'liga'
+          origen?: 'boton' | 'cron'
+          estado?: 'buscando' | 'lista' | 'sin_resultados' | 'fallida'
+          paso?: string | null
+          pedido_por?: string | null
+          url_pedida?: string | null
+          enfoque?: string | null
+          descartes?: Json
+          detalle?: string | null
+          started_at?: string
+          finished_at?: string | null
+        }
+        Relationships: []
+      }
+      news_items: {
+        Row: {
+          id: string
+          es_qa: boolean
+          hunt_id: string | null
+          course_id: string
+          url: string
+          url_original: string | null
+          url_hash: string
+          tipo_fuente: 'articulo' | 'video'
+          medio: string | null
+          titulo: string
+          resumen: string
+          texto: string
+          imagen_url: string | null
+          imagen_path: string | null
+          publicado_en_fuente: string | null
+          orden: number | null
+          notas: string | null
+          estado: 'propuesta' | 'publicada' | 'descartada'
+          post_id: string | null
+          revisado_por: string | null
+          revisado_en: string | null
+          created_at: string
+        }
+        Insert: {
+          id?: string
+          es_qa?: boolean
+          hunt_id?: string | null
+          course_id: string
+          url: string
+          url_original?: string | null
+          url_hash: string
+          tipo_fuente?: 'articulo' | 'video'
+          medio?: string | null
+          titulo: string
+          resumen: string
+          texto: string
+          imagen_url?: string | null
+          imagen_path?: string | null
+          publicado_en_fuente?: string | null
+          orden?: number | null
+          notas?: string | null
+          estado?: 'propuesta' | 'publicada' | 'descartada'
+          post_id?: string | null
+          revisado_por?: string | null
+          revisado_en?: string | null
+          created_at?: string
+        }
+        Update: {
+          id?: string
+          es_qa?: boolean
+          hunt_id?: string | null
+          course_id?: string
+          url?: string
+          url_original?: string | null
+          url_hash?: string
+          tipo_fuente?: 'articulo' | 'video'
+          medio?: string | null
+          titulo?: string
+          resumen?: string
+          texto?: string
+          imagen_url?: string | null
+          imagen_path?: string | null
+          publicado_en_fuente?: string | null
+          orden?: number | null
+          notas?: string | null
+          estado?: 'propuesta' | 'publicada' | 'descartada'
+          post_id?: string | null
+          revisado_por?: string | null
+          revisado_en?: string | null
+          created_at?: string
         }
         Relationships: []
       }
