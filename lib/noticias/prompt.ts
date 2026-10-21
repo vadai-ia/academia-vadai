@@ -40,6 +40,20 @@ export const DOMINIOS_DE_NOTICIAS = [
   'elfinanciero.com.mx',
 ]
 
+/**
+ * Medios que bloquean al buscador de Anthropic. Si `allowed_domains` trae uno,
+ * la API rechaza la búsqueda ENTERA (400 «domains are not accessible to our
+ * user agent») y la cacería no llega a empezar: así fallaron el cron y el botón
+ * del 21-oct-2026. Siguen en DOMINIOS_DE_NOTICIAS —una liga suya que pegue el
+ * equipo la lee nuestro servidor, no el de Anthropic—; solo salen de la
+ * búsqueda. Si mañana se bloquea otro, `cazarNoticias` lo quita solo y
+ * reintenta (lib/noticias/url.ts, `dominiosSinBuscador`).
+ */
+export const DOMINIOS_SIN_BUSCADOR = ['apnews.com', 'arstechnica.com', 'reuters.com', 'theverge.com', 'wired.com']
+
+/** Donde busca la IA: los medios de la lista que su buscador sí puede abrir. */
+export const DOMINIOS_DE_BUSQUEDA = DOMINIOS_DE_NOTICIAS.filter((d) => !DOMINIOS_SIN_BUSCADOR.includes(d))
+
 const LECTOR = `La comunidad V-AI-P de VADAI: dueños y equipos de empresas mexicanas que usan inteligencia artificial en su trabajo diario (Excel, Word, correo, ventas, atención a clientes, contenido). No son programadores.`
 
 export const REGLAS_CACERIA = `Eres parte del Equipo VADAI y buscas las noticias de IA del día para ${LECTOR}

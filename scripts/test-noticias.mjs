@@ -24,6 +24,15 @@ import http from 'node:http'
 
 import { cargarEnv, conectarPostgres, exigir } from './lib/entorno.mjs'
 
+// El lector del error de la API, de su única fuente (TypeScript puro). Node avisa
+// que el archivo no declara su tipo de módulo; ese aviso, y solo ese, se calla.
+const avisos = process.listeners('warning')
+process.removeAllListeners('warning')
+process.on('warning', (aviso) => {
+  if (aviso.code !== 'MODULE_TYPELESS_PACKAGE_JSON') for (const escucha of avisos) escucha(aviso)
+})
+const { dominiosSinBuscador } = await import('../lib/noticias/url.ts')
+
 const vars = cargarEnv()
 const SUPABASE = exigir(vars, 'NEXT_PUBLIC_SUPABASE_URL').replace(/\/+$/, '')
 const SERVICE = exigir(vars, 'SUPABASE_SERVICE_ROLE_KEY')
@@ -139,6 +148,13 @@ const respuesta = (modelo, content, busquedas = 0) => ({
   usage: { input_tokens: 1500, output_tokens: 500, cache_creation_input_tokens: 0, cache_read_input_tokens: 0, server_tool_use: { web_search_requests: busquedas } },
 })
 
+// Los medios que bloquean al buscador de Anthropic, como los rechaza la API real
+// (21-oct-2026): si `allowed_domains` trae uno, la búsqueda ENTERA sale con 400.
+// Los cinco de verdad nunca deben llegar; bloomberg.com hace del medio que «mañana»
+// empieza a bloquear, para probar que la cacería lo quita sola y reintenta.
+const SIN_BUSCADOR = ['apnews.com', 'arstechnica.com', 'reuters.com', 'theverge.com', 'wired.com']
+const BLOQUEA_MANANA = 'bloomberg.com'
+
 const claude = http.createServer(async (req, res) => {
   let crudo = ''
   for await (const pedazo of req) crudo += pedazo
@@ -147,6 +163,20 @@ const claude = http.createServer(async (req, res) => {
   const mensaje = (cuerpo.messages ?? []).map((m) => (typeof m.content === 'string' ? m.content : '')).join('\n')
   peticiones.push({ sistema, mensaje, cuerpo })
   const enviar = (r) => res.writeHead(200, { 'content-type': 'application/json' }).end(JSON.stringify(r))
+
+  const bloqueados = (cuerpo.tools?.[0]?.allowed_domains ?? []).filter((d) => [...SIN_BUSCADOR, BLOQUEA_MANANA].includes(d))
+  if (bloqueados.length > 0) {
+    const lista = bloqueados.map((d) => `'${d}'`).join(', ')
+    return res.writeHead(400, { 'content-type': 'application/json' }).end(
+      JSON.stringify({
+        type: 'error',
+        error: {
+          type: 'invalid_request_error',
+          message: `The following domains are not accessible to our user agent: [${lista}]. Read more: https://support.anthropic.com/en/articles/8896518-does-anthropic-crawl-data-from-the-web-and-how-can-site-owners-block-the-crawler`,
+        },
+      })
+    )
+  }
 
   if (sistema.includes('buscas las noticias de IA del día')) {
     const candidatas = [URL_A, URL_B, URL_C, URL_D, URL_E, URL_G, URL_H, URL_I, URL_J, URL_K].map((url, i) => ({ url, titulo: `Candidata ${i + 1}`, por_que: 'Le sirve a una empresa.' }))
@@ -394,8 +424,19 @@ try {
   const deBusqueda = peticiones.find((p) => p.sistema.includes('buscas las noticias de IA del día'))
   afirmar(C, 'busca solo en los dominios permitidos', true, (deBusqueda?.cuerpo.tools?.[0]?.allowed_domains ?? []).includes('anthropic.com'))
   afirmar(C, '…con tope de 5 búsquedas', 5, deBusqueda?.cuerpo.tools?.[0]?.max_uses)
+  // 21-oct-2026: la API rechaza la búsqueda entera si trae un medio que bloquea a su buscador.
+  const busquedas = peticiones.filter((p) => p.sistema.includes('buscas las noticias de IA del día'))
+  const dominiosDe = (p) => p?.cuerpo.tools?.[0]?.allowed_domains ?? []
+  afirmar(C, 'nunca pide los medios que bloquean al buscador de Anthropic', false, busquedas.some((p) => dominiosDe(p).some((d) => SIN_BUSCADOR.includes(d))))
+  afirmar(C, 'si la API rechaza otro medio, reintenta una vez sin él', 'true false', busquedas.map((p) => dominiosDe(p).includes(BLOQUEA_MANANA)).join(' '))
   const corridas = await varias(bd, `select tarea, estado, busquedas from academia.agent_runs where news_hunt_id = $1 order by created_at`, [idCaceria])
-  afirmar(C, 'las dos llamadas quedan en el gasto, cerradas', 'noticias:cerrada noticias_redactar:cerrada', corridas.map((r) => `${r.tarea}:${r.estado}`).join(' '))
+  afirmar(C, 'las tres llamadas quedan en el gasto, cerradas (la rechazada sin costo)', 'noticias:cerrada noticias:cerrada noticias_redactar:cerrada', corridas.map((r) => `${r.tarea}:${r.estado}`).join(' '))
+  afirmar(
+    C,
+    'el lector del error saca los cinco dominios del mensaje real',
+    SIN_BUSCADOR.join(' '),
+    dominiosSinBuscador(`400 {"type":"error","error":{"type":"invalid_request_error","message":"The following domains are not accessible to our user agent: ['apnews.com', 'arstechnica.com', 'reuters.com', 'theverge.com', 'wired.com']. Read more"}}`).join(' ')
+  )
   afirmar(C, 'las búsquedas web cuentan', 2, corridas.reduce((s, r) => s + r.busquedas, 0))
   afirmar(C, 'la cacería sola no publica nada', postsAntes, (await una(bd, `select count(*)::int n from academia.community_posts where course_id = $1`, [casa.id])).n)
   const conPropuestas = await html('/admin/vaip/noticias', sCm)

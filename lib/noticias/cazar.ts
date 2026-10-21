@@ -8,14 +8,15 @@ import { dbDelAgente, type ClienteAgente } from '@/lib/agente/servidor'
 import type { Json } from '@/lib/supabase/types'
 import { casaDeNoticias } from '@/lib/noticias/casa'
 import { leerPagina, leerVideo, type Pagina } from '@/lib/noticias/pagina'
-import { DOMINIOS_DE_NOTICIAS, REGLAS_CACERIA, REGLAS_LIGA, REGLAS_REDACCION } from '@/lib/noticias/prompt'
-import { hashDeUrl, hostEn, idDeYoutube, medioDeHost, normalizarUrl } from '@/lib/noticias/url'
+import { DOMINIOS_DE_BUSQUEDA, DOMINIOS_DE_NOTICIAS, REGLAS_CACERIA, REGLAS_LIGA, REGLAS_REDACCION } from '@/lib/noticias/prompt'
+import { dominiosSinBuscador, hashDeUrl, hostEn, idDeYoutube, medioDeHost, normalizarUrl } from '@/lib/noticias/url'
 
 /**
  * Las noticias de V-AI-P (M24).
  *
  * CACERÍA («Cazar noticias de hoy», y el cron de las 7:00):
- *   1. Sonnet busca en la web (solo DOMINIOS_DE_NOTICIAS) y propone hasta 10.
+ *   1. Sonnet busca en la web (solo DOMINIOS_DE_BUSQUEDA: los medios de la
+ *      lista que el buscador de Anthropic puede abrir) y propone hasta 10.
  *   2. El CÓDIGO limpia: solo cuentan URLs que de verdad salieron en la
  *      búsqueda (el modelo no puede inventar una liga), del dominio permitido,
  *      normalizadas y sin repetir (contra la tanda y contra todo lo que ya se
@@ -128,9 +129,13 @@ async function terminar(
   if (error) registrar('noticias:terminar', { huntId, error: error.message })
 }
 
-function motivoDeFallo(motivo: string): string {
+function motivoDeFallo(motivo: string, detalle?: string): string {
   if (motivo === 'sin_presupuesto') return 'Se acabó el presupuesto del mes para la IA (Ajustes → Agente).'
   if (motivo === 'sin_llave') return 'Falta ANTHROPIC_API_KEY en el servidor.'
+  // Un 4xx es Anthropic rechazando la petición: reintentar no lo arregla, y
+  // decir «no respondió» manda a buscar el problema donde no está (21-oct-2026).
+  const rechazo = detalle?.match(/^(4\d\d)\b/)?.[1]
+  if (rechazo) return `Anthropic rechazó la petición (error ${rechazo}); reintentar no lo arregla. El detalle quedó en el registro del agente.`
   return 'La IA no respondió. Intenta de nuevo en un momento.'
 }
 
@@ -166,17 +171,26 @@ export async function cazarNoticias(huntId: string): Promise<void> {
     const yaSalieron = (recientes ?? []).map((r) => r.titulo)
 
     await paso(db, huntId, 'Buscando en la web')
-    const busqueda = await llamar({
-      tarea: 'noticias',
-      modelo: a.modelo_fuerte,
-      sistema: [{ texto: REGLAS_CACERIA }],
-      mensaje: `Hoy es ${hoyEnCdmx()}.${yaSalieron.length ? `\n\nEstas ya se publicaron o propusieron; no las repitas:\n${yaSalieron.map((t) => `- ${t}`).join('\n')}` : ''}`,
-      maxTokens: 3000,
-      effort: 'medium',
-      busqueda: { maxUsos: 5, dominios: DOMINIOS_DE_NOTICIAS },
-      huntId,
-    })
-    if (!busqueda.ok) return terminar(db, huntId, 'fallida', { detalle: motivoDeFallo(busqueda.motivo) })
+    const buscar = (dominios: string[]) =>
+      llamar({
+        tarea: 'noticias',
+        modelo: a.modelo_fuerte,
+        sistema: [{ texto: REGLAS_CACERIA }],
+        mensaje: `Hoy es ${hoyEnCdmx()}.${yaSalieron.length ? `\n\nEstas ya se publicaron o propusieron; no las repitas:\n${yaSalieron.map((t) => `- ${t}`).join('\n')}` : ''}`,
+        maxTokens: 3000,
+        effort: 'medium',
+        busqueda: { maxUsos: 5, dominios },
+        huntId,
+      })
+    let busqueda = await buscar(DOMINIOS_DE_BUSQUEDA)
+    // Si un medio de la lista empezó a bloquear al buscador de Anthropic, la API
+    // rechaza la búsqueda entera: se quita ese medio y se intenta una vez más.
+    const sinBuscador = busqueda.ok ? [] : dominiosSinBuscador(busqueda.detalle)
+    if (sinBuscador.length > 0) {
+      registrar('noticias:dominios-sin-buscador', { huntId, dominios: sinBuscador })
+      busqueda = await buscar(DOMINIOS_DE_BUSQUEDA.filter((d) => !sinBuscador.includes(d)))
+    }
+    if (!busqueda.ok) return terminar(db, huntId, 'fallida', { detalle: motivoDeFallo(busqueda.motivo, busqueda.detalle) })
     const lectura = EsquemaCaceria.safeParse(primerJson(busqueda.texto))
     if (!lectura.success) return terminar(db, huntId, 'fallida', { detalle: 'La IA no devolvió candidatas que se pudieran leer.' })
 
@@ -284,7 +298,7 @@ export async function cazarNoticias(huntId: string): Promise<void> {
       esquema: EsquemaRedaccion,
       huntId,
     })
-    if (!redaccion.ok) return terminar(db, huntId, 'fallida', { descartes, detalle: motivoDeFallo(redaccion.motivo) })
+    if (!redaccion.ok) return terminar(db, huntId, 'fallida', { descartes, detalle: motivoDeFallo(redaccion.motivo, redaccion.detalle) })
     const escritas = redaccion.datos ?? EsquemaRedaccion.safeParse(primerJson(redaccion.texto)).data
     if (!escritas) return terminar(db, huntId, 'fallida', { descartes, detalle: 'La IA no devolvió las noticias en el formato esperado.' })
 
@@ -367,7 +381,7 @@ export async function noticiaDesdeLiga(huntId: string): Promise<void> {
       busqueda: { maxUsos: 3 },
       huntId,
     })
-    if (!r.ok) return terminar(db, huntId, 'fallida', { detalle: motivoDeFallo(r.motivo) })
+    if (!r.ok) return terminar(db, huntId, 'fallida', { detalle: motivoDeFallo(r.motivo, r.detalle) })
     const escrita = EsquemaLiga.safeParse(primerJson(r.texto))
     if (!escrita.success) return terminar(db, huntId, 'fallida', { detalle: 'La IA no devolvió la noticia en el formato esperado.' })
 
