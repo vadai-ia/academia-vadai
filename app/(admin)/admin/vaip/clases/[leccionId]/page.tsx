@@ -45,14 +45,17 @@ export default async function EditorDeGrabacion({ params }: { params: Promise<{ 
   return (
     <div className="flex max-w-3xl flex-col gap-10">
       <header className="flex flex-col gap-2">
-        <Link href={PANEL_CLASES} className="w-fit text-sm text-primary underline-offset-4 hover:underline">
+        <Link
+          href={PANEL_CLASES}
+          className="inline-flex w-fit items-center text-sm text-primary underline-offset-4 pointer-coarse:min-h-11 hover:underline"
+        >
           ← Clases
         </Link>
         <p className="text-xs font-medium tracking-[0.14em] text-primary uppercase">{fechaDeClase(g.fecha)}</p>
         <h1 className="text-[1.75rem] leading-tight font-medium tracking-tight text-balance">{g.titulo}</h1>
         <p className="text-sm text-muted-foreground" data-clase-ligada={g.clase?.id ?? ''}>
           {g.clase
-            ? `Es la grabación de la clase «${g.clase.titulo}» del ${enCdmx.format(new Date(g.clase.programadaEn))}.`
+            ? `Es la grabación de la clase «${g.clase.titulo}»: ${enCdmx.format(new Date(g.clase.programadaEn))}`
             : 'No está ligada a una clase del calendario.'}
         </p>
       </header>

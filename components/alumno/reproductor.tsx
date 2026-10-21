@@ -149,7 +149,7 @@ export function Reproductor({
       className={cn(
         'relative overflow-hidden bg-black sm:rounded-[10px] sm:border sm:border-border',
         orientacion === 'vertical'
-          ? 'mx-auto aspect-[9/16] h-[min(calc(100dvh-var(--alto-encabezado)-9rem),44rem)] max-w-full'
+          ? 'mx-auto aspect-[9/16] h-[min(calc(100dvh-var(--alto-encabezado)-11rem),44rem)] max-w-full lg:h-[min(calc(100dvh-var(--alto-encabezado)-7rem),46rem)]'
           : 'aspect-video',
         className
       )}

@@ -15,8 +15,8 @@ export const dynamic = 'force-dynamic'
 
 const ESTADO: Record<EstadoDeContenido, { texto: string; clase: string }> = {
   publicada: { texto: 'Publicada', clase: 'border-exito/40 bg-exito/10 text-exito' },
-  borrador: { texto: 'Borrador', clase: 'border-border bg-background text-muted-foreground' },
-  sinVideo: { texto: 'Sin video', clase: 'border-destructive/40 bg-background text-destructive' },
+  borrador: { texto: 'Borrador', clase: 'border-border text-muted-foreground' },
+  sinVideo: { texto: 'Sin video', clase: 'border-destructive/40 bg-destructive/10 text-destructive' },
 }
 
 function Tarjeta({ h, etiquetas }: { h: HerramientaDelPanel; etiquetas: EtiquetaDelPanel[] }) {
@@ -27,28 +27,28 @@ function Tarjeta({ h, etiquetas }: { h: HerramientaDelPanel; etiquetas: Etiqueta
       data-herramienta={h.id}
       className="group flex flex-col gap-2 rounded-[10px] focus-visible:ring-3 focus-visible:ring-ring/50 focus-visible:outline-none"
     >
-      <span className="relative block">
-        <PortadaDeHerramienta
-          h={{
-            id: h.id,
-            titulo: h.titulo,
-            orientacion: h.orientacion,
-            portada: h.portada,
-            duracionSeg: h.duracionSeg,
-            etiquetas: suyas.map((e) => ({ id: e.id, slug: e.slug, nombre: e.nombre })),
-            vista: false,
-            publicadaEn: null,
-          }}
-          className="transition-[border-color] group-hover:border-primary/60"
-        />
-        <Badge variant="outline" className={cn('absolute right-2 bottom-2', ESTADO[h.estado].clase)}>
-          {ESTADO[h.estado].texto}
-        </Badge>
-      </span>
-      <span className="flex flex-col gap-0.5 px-0.5">
+      <PortadaDeHerramienta
+        h={{
+          id: h.id,
+          titulo: h.titulo,
+          orientacion: h.orientacion,
+          portada: h.portada,
+          duracionSeg: h.duracionSeg,
+          etiquetas: suyas.map((e) => ({ id: e.id, slug: e.slug, nombre: e.nombre })),
+          vista: false,
+          publicadaEn: null,
+        }}
+        className="transition-[border-color] group-hover:border-primary/60"
+      />
+      <span className="flex flex-col gap-1 px-0.5">
         <span className="line-clamp-2 text-sm leading-snug font-medium">{h.titulo}</span>
-        <span className="truncate text-xs text-muted-foreground">
-          {suyas.length > 0 ? suyas.map((e) => e.nombre).join(' · ') : 'Sin etiquetas'}
+        <span className="flex min-w-0 items-center gap-1.5">
+          <Badge variant="outline" className={cn('shrink-0', ESTADO[h.estado].clase)}>
+            {ESTADO[h.estado].texto}
+          </Badge>
+          <span className="truncate text-xs text-muted-foreground">
+            {suyas.length > 0 ? suyas.map((e) => e.nombre).join(' · ') : 'Sin etiquetas'}
+          </span>
         </span>
       </span>
     </Link>

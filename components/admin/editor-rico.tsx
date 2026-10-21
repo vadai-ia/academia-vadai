@@ -90,7 +90,7 @@ export function EditorRico({
               aria-pressed={editor?.isActive(boton.clave) ?? false}
               onClick={() => editor && aplicar(editor, boton.clave)}
               className={cn(
-                'size-7 rounded text-sm hover:bg-muted',
+                'size-7 rounded text-sm hover:bg-muted pointer-coarse:size-11',
                 'clase' in boton ? boton.clase : undefined,
                 editor?.isActive(boton.clave) && 'bg-muted text-primary'
               )}

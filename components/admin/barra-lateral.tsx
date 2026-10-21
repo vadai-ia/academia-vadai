@@ -57,7 +57,8 @@ function Enlace({ d, actual, tactil = false }: { d: Destino; actual: Destino | u
       className={cn(
         'flex items-center gap-2.5 rounded-lg px-3 text-sm font-medium transition-colors',
         'focus-visible:ring-3 focus-visible:ring-ring/50 focus-visible:outline-none',
-        tactil ? 'min-h-11' : 'min-h-9',
+        // En tableta horizontal se ve la barra de escritorio y también se toca.
+        tactil ? 'min-h-11' : 'min-h-9 pointer-coarse:min-h-11',
         es ? 'bg-primary/12 text-primary' : 'text-muted-foreground hover:bg-muted hover:text-foreground'
       )}
     >

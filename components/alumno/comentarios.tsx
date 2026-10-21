@@ -218,11 +218,14 @@ export function Comentarios({
   leccionId,
   cursoSlug,
   soyEquipo,
+  marcador = '¿Tienes una duda sobre esta lección?',
 }: {
   comentarios: Comentario[]
   leccionId: string
   cursoSlug: string
   soyEquipo: boolean
+  /** M26: en V-AI-P se pregunta por «esta clase» o «esta herramienta», no por una lección. */
+  marcador?: string
 }) {
   const total = comentarios.reduce((n, c) => n + 1 + c.respuestas.length, 0)
 
@@ -239,7 +242,7 @@ export function Comentarios({
         leccionId={leccionId}
         cursoSlug={cursoSlug}
         etiqueta="Publicar"
-        marcador="¿Tienes una duda sobre esta lección?"
+        marcador={marcador}
       />
 
       {comentarios.length === 0 ? (

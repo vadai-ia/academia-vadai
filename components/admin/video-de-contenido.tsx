@@ -31,7 +31,7 @@ export function VideoDeContenido({ c, bunnyListo }: { c: ContenidoDelPanel; bunn
         </p>
       </div>
       {bunnyListo ? (
-        <SubidaVideo leccionId={c.id} cursoId={c.cursoId} titulo={c.titulo} guidActual={c.videoId} />
+        <SubidaVideo leccionId={c.id} cursoId={c.cursoId} titulo={c.titulo} guidActual={c.videoId} avisoDeReemplazo={false} />
       ) : (
         <p className="text-sm text-muted-foreground">La subida de video no está configurada (variables BUNNY_STREAM_*).</p>
       )}

@@ -139,7 +139,9 @@ export function GrabacionesPorMes({ meses, abierto }: { meses: MesDeGrabaciones[
                 <span className="font-medium">{m.titulo}</span>
                 <span className="text-sm text-muted-foreground">
                   {m.grabaciones.length} {m.grabaciones.length === 1 ? 'clase grabada' : 'clases grabadas'}
-                  {vistas > 0 ? ` · ${vistas === m.grabaciones.length ? 'todas vistas' : `${vistas} vistas`}` : ''}
+                  {vistas > 0
+                    ? ` · ${vistas === m.grabaciones.length ? (vistas === 1 ? 'vista' : 'todas vistas') : `${vistas} ${vistas === 1 ? 'vista' : 'vistas'}`}`
+                    : ''}
                 </span>
               </span>
               <svg
@@ -218,26 +220,26 @@ export function FiltroDeEtiquetas({
   )
 }
 
-/** Un marco del formato del video: alto y angosto (vertical) o ancho. */
-function IconoFormato({ orientacion }: { orientacion: 'horizontal' | 'vertical' }) {
-  return orientacion === 'vertical' ? (
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="size-3.5" aria-hidden>
-      <rect x="7" y="3" width="10" height="18" rx="2" />
-    </svg>
-  ) : (
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="size-3.5" aria-hidden>
-      <rect x="3" y="6" width="18" height="12" rx="2" />
-    </svg>
-  )
-}
-
 /**
  * La portada de una herramienta, 3:4. Si todavía no hay dibujo (o falló), un
  * fondo navy con el título: la tarjeta nunca sale vacía. Es una imagen, no una
  * superficie del tema: navy en los dos temas, por eso los colores de marca van
  * por nombre (como el héroe de la venta) y el contraste no depende del tema.
+ *
+ * Encima solo va «Vista», en la esquina que el dibujo deja libre: la duración
+ * y las etiquetas van en el texto de la tarjeta (sobre la imagen tapaban el
+ * encabezado y el título dibujados).
  */
-export function PortadaDeHerramienta({ h, className }: { h: HerramientaEnLista; className?: string }) {
+export function PortadaDeHerramienta({
+  h,
+  className,
+  sinMarcas = false,
+}: {
+  h: HerramientaEnLista
+  className?: string
+  /** En las miniaturas de «Lo nuevo» no cabe nada encima. */
+  sinMarcas?: boolean
+}) {
   return (
     <span className={cn('relative block aspect-[3/4] overflow-hidden rounded-[10px] border border-border bg-vadai-navy', className)}>
       {h.portada ? (
@@ -249,12 +251,7 @@ export function PortadaDeHerramienta({ h, className }: { h: HerramientaEnLista; 
           <span className="line-clamp-4 text-lg leading-tight font-semibold">{h.titulo}</span>
         </span>
       )}
-      {/* Arriba a la derecha: a la izquierda va el pase de V-AI-P de la portada. */}
-      <span className="absolute top-2 right-2 inline-flex items-center gap-1 rounded-full bg-black/55 px-2 py-0.5 text-[0.7rem] font-medium text-white">
-        <IconoFormato orientacion={h.orientacion} />
-        {duracionCorta(h.duracionSeg) ?? (h.orientacion === 'vertical' ? 'Vertical' : 'Horizontal')}
-      </span>
-      {h.vista ? <DiscoVista className="absolute right-2 bottom-3 ring-2 ring-black/30" /> : null}
+      {h.vista && !sinMarcas ? <DiscoVista className="absolute top-2 right-2 ring-2 ring-black/30" /> : null}
     </span>
   )
 }
@@ -269,9 +266,15 @@ export function TarjetaDeHerramienta({ h, etiqueta }: { h: HerramientaEnLista; e
       <PortadaDeHerramienta h={h} className="transition-[border-color] group-hover:border-primary/60" />
       <span className="flex flex-col gap-1 px-0.5">
         <span className="line-clamp-2 text-[0.95rem] leading-snug font-medium text-pretty">{h.titulo}</span>
-        {h.etiquetas.length > 0 ? (
-          <span className="truncate text-xs text-primary">{h.etiquetas.map((e) => e.nombre).join(' · ')}</span>
-        ) : null}
+        <span className="truncate text-xs text-muted-foreground">
+          {duracionCorta(h.duracionSeg) ?? (h.orientacion === 'vertical' ? 'Vertical' : 'Horizontal')}
+          {h.etiquetas.length > 0 ? (
+            <>
+              {' · '}
+              <span className="text-primary">{h.etiquetas.map((e) => e.nombre).join(' · ')}</span>
+            </>
+          ) : null}
+        </span>
       </span>
     </Link>
   )
@@ -306,7 +309,7 @@ export function LoNuevoVaip({ clase, nuevo }: { clase: SesionDelAlumno | null; n
       <h2 id="lo-nuevo" className="text-lg font-medium tracking-tight">
         Lo nuevo
       </h2>
-      <div className="relative -mx-5 snap-x snap-mandatory overflow-x-auto px-5 pb-1 [scrollbar-width:none] sm:mx-0 sm:overflow-visible sm:px-0 [&::-webkit-scrollbar]:hidden">
+      <div className="relative -mx-5 snap-x snap-mandatory scroll-px-5 overflow-x-auto px-5 pb-1 [scrollbar-width:none] sm:mx-0 sm:scroll-px-0 sm:overflow-visible sm:px-0 [&::-webkit-scrollbar]:hidden">
         <ul className="flex gap-3">
           {clase ? (
             <li className={tarjeta}>
@@ -355,7 +358,7 @@ export function LoNuevoVaip({ clase, nuevo }: { clase: SesionDelAlumno | null; n
                         title={h.titulo}
                         className="block rounded-[10px] focus-visible:ring-3 focus-visible:ring-ring/50 focus-visible:outline-none"
                       >
-                        <PortadaDeHerramienta h={h} />
+                        <PortadaDeHerramienta h={h} sinMarcas />
                         <span className="sr-only">{h.titulo}</span>
                       </Link>
                     </li>

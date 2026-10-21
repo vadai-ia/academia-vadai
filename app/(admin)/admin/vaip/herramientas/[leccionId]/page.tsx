@@ -37,7 +37,10 @@ export default async function EditorDeHerramienta({ params }: { params: Promise<
   return (
     <div className="flex max-w-4xl flex-col gap-10">
       <header className="flex flex-col gap-2">
-        <Link href={PANEL_HERRAMIENTAS} className="w-fit text-sm text-primary underline-offset-4 hover:underline">
+        <Link
+          href={PANEL_HERRAMIENTAS}
+          className="inline-flex w-fit items-center text-sm text-primary underline-offset-4 pointer-coarse:min-h-11 hover:underline"
+        >
           ← Herramientas
         </Link>
         <p className="text-xs font-medium tracking-[0.14em] text-primary uppercase">

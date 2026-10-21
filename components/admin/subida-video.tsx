@@ -37,11 +37,14 @@ export function SubidaVideo({
   cursoId,
   titulo,
   guidActual,
+  avisoDeReemplazo = true,
 }: {
   leccionId: string
   cursoId: string
   titulo: string
   guidActual: string | null
+  /** M26: el editor de V-AI-P ya lo dice arriba, y sin hablar de «lección». */
+  avisoDeReemplazo?: boolean
 }) {
   const router = useRouter()
   const [estado, setEstado] = useState<Estado>({ fase: 'inactivo' })
@@ -178,7 +181,7 @@ export function SubidaVideo({
         </p>
       ) : null}
 
-      {guidActual && estado.fase === 'inactivo' ? (
+      {guidActual && avisoDeReemplazo && estado.fase === 'inactivo' ? (
         <p className="text-xs text-muted-foreground">
           Esta lección ya tiene un video. Subir otro lo reemplaza.
         </p>

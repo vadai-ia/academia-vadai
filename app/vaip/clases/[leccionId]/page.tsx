@@ -133,7 +133,13 @@ export default async function GrabacionDeVaip({ params }: { params: Promise<{ le
         </div>
 
         <div className="order-5 lg:col-start-1">
-          <Comentarios comentarios={comentarios} leccionId={leccion.id} cursoSlug={casa.slug} soyEquipo={esEquipo(ctx.perfil)} />
+          <Comentarios
+            comentarios={comentarios}
+            leccionId={leccion.id}
+            cursoSlug={casa.slug}
+            soyEquipo={esEquipo(ctx.perfil)}
+            marcador="¿Tienes una duda sobre esta clase?"
+          />
         </div>
       </div>
     </article>
