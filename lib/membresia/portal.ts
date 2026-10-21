@@ -56,7 +56,7 @@ export const cursosDelPlanParaEquipo = cache(async (planId: string) => {
   if (ids.length === 0) return []
   const { data } = await supabase
     .from('courses')
-    .select('id, slug, title, status, category, cover_url, created_at')
+    .select('id, slug, title, status, cover_url, created_at')
     .in('id', ids)
     .order('created_at')
   return data ?? []

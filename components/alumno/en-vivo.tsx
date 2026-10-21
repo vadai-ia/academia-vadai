@@ -210,11 +210,13 @@ function DetalleSesion({
   estado,
   hoy,
   cursoSlug,
+  rutaGrabaciones,
 }: {
   sesion: SesionDelAlumno
   estado: EstadoSesion
   hoy: string
   cursoSlug: string
+  rutaGrabaciones?: string
 }) {
   const p = partesCdmx(sesion.programadaEn)
   const id = `sesion-${sesion.id}`
@@ -270,7 +272,7 @@ function DetalleSesion({
           />
           {sesion.grabacionLeccionId ? (
             <Button asChild variant="outline" size="sm">
-              <Link href={`/curso/${cursoSlug}/${sesion.grabacionLeccionId}`}>Ver grabación</Link>
+              <Link href={`${rutaGrabaciones ?? `/curso/${cursoSlug}`}/${sesion.grabacionLeccionId}`}>Ver grabación</Link>
             </Button>
           ) : sesion.grabacionExclusiva ? (
             <span className="text-xs text-muted-foreground">Grabación exclusiva para un grupo de tu generación</span>
@@ -417,6 +419,7 @@ export function CalendarioSesiones({
   cursoSlug,
   mes,
   base,
+  rutaGrabaciones,
 }: {
   sesiones: SesionDelAlumno[]
   hoy: string
@@ -426,6 +429,8 @@ export function CalendarioSesiones({
   mes: string
   /** La ruta de la pestaña, para armar los enlaces de las flechas. */
   base: string
+  /** M26: dónde se abre una grabación. En V-AI-P, `/vaip/clases`; en un curso, su lección. */
+  rutaGrabaciones?: string
 }) {
   const porDia = new Map<string, SesionDelAlumno[]>()
   for (const s of sesiones) {
@@ -500,6 +505,7 @@ export function CalendarioSesiones({
           estado={estadoDe(s.programadaEn, ahora)}
           hoy={hoy}
           cursoSlug={cursoSlug}
+          rutaGrabaciones={rutaGrabaciones}
         />
       ))}
     </div>
@@ -510,10 +516,12 @@ function Renglon({
   sesion,
   estado,
   cursoSlug,
+  rutaGrabaciones,
 }: {
   sesion: SesionDelAlumno
   estado: EstadoSesion
   cursoSlug: string
+  rutaGrabaciones?: string
 }) {
   const p = partesCdmx(sesion.programadaEn)
   const pasada = estado === 'pasada'
@@ -550,7 +558,7 @@ function Renglon({
           />
           {sesion.grabacionLeccionId ? (
             <Button asChild variant="outline" size="sm">
-              <Link href={`/curso/${cursoSlug}/${sesion.grabacionLeccionId}`}>Ver grabación</Link>
+              <Link href={`${rutaGrabaciones ?? `/curso/${cursoSlug}`}/${sesion.grabacionLeccionId}`}>Ver grabación</Link>
             </Button>
           ) : sesion.grabacionExclusiva ? (
             <span className="text-xs text-muted-foreground">Grabación exclusiva para un grupo de tu generación</span>
@@ -566,10 +574,13 @@ export function ListaSesiones({
   sesiones,
   ahora,
   cursoSlug,
+  rutaGrabaciones,
 }: {
   sesiones: SesionDelAlumno[]
   ahora: number
   cursoSlug: string
+  /** M26: dónde se abre una grabación (ver `CalendarioSesiones`). */
+  rutaGrabaciones?: string
 }) {
   const proximas = sesiones.filter((s) => estadoDe(s.programadaEn, ahora) !== 'pasada')
   const pasadas = sesiones.filter((s) => estadoDe(s.programadaEn, ahora) === 'pasada')
@@ -584,7 +595,7 @@ export function ListaSesiones({
         <ul className="flex flex-col gap-3">
           {proximas.map((s) => (
             <li key={s.id}>
-              <Renglon sesion={s} estado={estadoDe(s.programadaEn, ahora)} cursoSlug={cursoSlug} />
+              <Renglon sesion={s} estado={estadoDe(s.programadaEn, ahora)} cursoSlug={cursoSlug} rutaGrabaciones={rutaGrabaciones} />
             </li>
           ))}
         </ul>
@@ -598,7 +609,7 @@ export function ListaSesiones({
           <ul className="flex flex-col gap-3 border-t border-border p-4">
             {pasadas.map((s) => (
               <li key={s.id}>
-                <Renglon sesion={s} estado="pasada" cursoSlug={cursoSlug} />
+                <Renglon sesion={s} estado="pasada" cursoSlug={cursoSlug} rutaGrabaciones={rutaGrabaciones} />
               </li>
             ))}
           </ul>

@@ -3,18 +3,20 @@ import { notFound } from 'next/navigation'
 
 import { Comunidad } from '@/components/alumno/comunidad'
 import { SelectorDeGeneracion } from '@/components/alumno/selector-de-generacion'
+import { LoNuevoVaip } from '@/components/vaip/contenido'
 import { EncabezadoVaip } from '@/components/vaip/espacio'
 import { VentaVaip } from '@/components/vaip/venta'
 import { generacionesParaEquipo } from '@/lib/alumno/generaciones-equipo'
 import { sesionesDelCurso } from '@/lib/alumno/sesiones'
 import { obtenerSesion } from '@/lib/auth/sesion'
-import { proximaOActual } from '@/lib/calendario/estado'
+import { estadoDe, proximaOActual } from '@/lib/calendario/estado'
 import { feedDelCurso } from '@/lib/comunidad/posts'
 import { temasDelCurso } from '@/lib/comunidad/temas'
 import { enlaceDeSuscripcion, miMembresia, planDeLaVenta, planVaip } from '@/lib/membresia/consultas'
 import { contextoVaip, type ContextoVaip } from '@/lib/membresia/espacio'
 import { situacionDeVenta } from '@/lib/membresia/venta'
 import { sellarCanal } from '@/lib/notificaciones/canales'
+import { loNuevoDeVaip } from '@/lib/vaip/contenido'
 
 export const metadata: Metadata = {
   title: 'VADAI V-AI-P',
@@ -76,6 +78,10 @@ export default async function PaginaVaip({ searchParams }: { searchParams: Promi
 /**
  * Muro: el de la casa de V-AI-P, con sus temas (Noticias, Prompts…). Abrirlo
  * apaga el número de la pastilla V-AI-P.
+ *
+ * M26: arriba, «Lo nuevo» —la próxima clase, la última grabación y las
+ * herramientas de la semana—. Es lo que alguien que entra todos los días
+ * quiere ver primero; si no hay nada, no se pinta.
  */
 async function MuroVaip({ ctx, q }: { ctx: ContextoVaip; q: Parametros }) {
   const { perfil, casa, equipo } = ctx
@@ -97,20 +103,29 @@ async function MuroVaip({ ctx, q }: { ctx: ContextoVaip; q: Parametros }) {
   const cohortId = generacion?.id ?? null
   const temas = await temasDelCurso(casa.id)
   const temaElegido = temas.find((t) => t.slug === q.tema) ?? null
-  const [feed, sesiones] = await Promise.all([
+  const [feed, sesiones, nuevo] = await Promise.all([
     feedDelCurso(casa.id, cohortId, perfil.user_id, {
       pagina: Number(q.p) || 1,
       porPagina: q.por === undefined ? 10 : Number(q.por),
       temaId: temaElegido?.id ?? null,
     }),
     sesionesDelCurso(casa.slug),
+    loNuevoDeVaip(ctx),
     sellarCanal(perfil, 'comunidad'),
   ])
   const extra: Record<string, string> = q.gen && generacion?.id === q.gen ? { gen: q.gen } : {}
+  const ahora = Date.now()
+  const clase = proximaOActual(sesiones, ahora)
+  // Por empezar o en curso, la clase ya va arriba con «Entrar»: no se repite.
+  const claseEnLoNuevo = clase && estadoDe(clase.programadaEn, ahora) === 'proxima' ? clase : null
+  // Solo en la primera página del muro y sin filtro de tema.
+  const conLoNuevo = (Number(q.p) || 1) === 1 && !temaElegido
 
   return (
     <div className="flex flex-col gap-8">
-      <EncabezadoVaip nombre={nombre} clase={proximaOActual(sesiones, Date.now())} />
+      <EncabezadoVaip nombre={nombre} clase={clase} />
+
+      {conLoNuevo ? <LoNuevoVaip clase={claseEnLoNuevo} nuevo={nuevo} /> : null}
 
       {generaciones.length > 0 ? (
         <SelectorDeGeneracion base="/vaip" generaciones={generaciones} activa={cohortId} />

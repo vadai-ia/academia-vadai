@@ -1,5 +1,6 @@
 import 'server-only'
 
+import { headers } from 'next/headers'
 import { cache } from 'react'
 
 import { obtenerSesion } from '@/lib/auth/sesion'
@@ -102,6 +103,26 @@ export async function planDeLaVenta(): Promise<PlanPublico | null> {
   if (prueba && !process.env.VERCEL && prueba.startsWith('qa-')) return planPublico(prueba)
   return planVaip()
 }
+
+/**
+ * El plan del ESPACIO de V-AI-P (M26): el de quien entra a /vaip como miembro
+ * —su muro, sus clases grabadas y sus herramientas— y el de las páginas del
+ * panel que suben ese contenido. Es V-AI-P, salvo en el servidor local de
+ * pruebas con `VAIP_ESPACIO_DE_PRUEBA=qa-…`, donde `test-vaip-contenido` usa
+ * su plan QA: sube grabaciones y herramientas a una casa de pruebas y nunca a
+ * la real. Las mismas dos reglas que `planDeLaVenta` —fuera de Vercel y solo
+ * con un slug `qa-`— y una más: solo cambia la petición que trae
+ * `x-vaip-espacio` con ese mismo slug. Así el servidor de pruebas puede tener
+ * la variable puesta siempre y las demás suites siguen viendo el V-AI-P real.
+ */
+export const planDelEspacio = cache(async (): Promise<PlanPublico | null> => {
+  const prueba = process.env.VAIP_ESPACIO_DE_PRUEBA
+  if (prueba && !process.env.VERCEL && prueba.startsWith('qa-')) {
+    const pedido = (await headers()).get('x-vaip-espacio')
+    if (pedido === prueba) return planPublico(prueba)
+  }
+  return planVaip()
+})
 
 /**
  * Los cursos que trae V-AI-P, con la sesión de quien pregunta (la lista es

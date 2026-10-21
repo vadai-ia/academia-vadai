@@ -4,7 +4,7 @@ import { ErrorApi, json, type ContextoApi } from '@/lib/api/contexto'
 import { emitirEvento } from '@/lib/api/webhooks'
 import { comoDocumento, textoPlano } from '@/lib/comunidad/documento'
 import { accesoMayor, vigente } from '@/lib/membresia/acceso'
-import { ACTIVIDAD_VACIA, nivelDe, puntosDe, sumarActividad, type Actividad } from '@/lib/gamificacion/reglas'
+import { ACTIVIDAD_VACIA, nivelDe, puntosDe, sumarActividad, type Actividad, actividadDeFila } from '@/lib/gamificacion/reglas'
 import { esCuentaQa, esCursoQa } from '@/lib/qa'
 import type { Json } from '@/lib/supabase/types'
 
@@ -387,16 +387,7 @@ async function miembros(ctx: ContextoApi): Promise<MiembroApi[]> {
         .filter((a) => a.user_id === p.user_id)
         .reduce<Actividad>(
           (acc, a) =>
-            sumarActividad(acc, {
-              lecciones: a.lecciones ?? 0,
-              quizzes: a.quizzes ?? 0,
-              tareas: a.tareas ?? 0,
-              tareasAprobadas: a.tareas_aprobadas ?? 0,
-              publicaciones: a.publicaciones ?? 0,
-              comentarios: a.comentarios ?? 0,
-              certificados: a.certificados ?? 0,
-              dinamicas: a.dinamicas ?? 0,
-            }),
+            sumarActividad(acc, actividadDeFila(a)),
           ACTIVIDAD_VACIA
         )
       const m = porPersona.get(p.user_id)!

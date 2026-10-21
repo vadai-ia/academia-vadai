@@ -52,6 +52,7 @@ export function CalendarioDeGeneracion({
   prefijo = '?',
   deVaip = false,
   esCasa = false,
+  rutaGrabaciones,
 }: {
   generacion: GeneracionConSesiones
   ligables: Array<{ id: string; titulo: string; modulo: string }>
@@ -66,6 +67,12 @@ export function CalendarioDeGeneracion({
   deVaip?: boolean
   /** M25: es la casa de V-AI-P: agendar no publica anuncio (sus avisos van en el Muro). */
   esCasa?: boolean
+  /**
+   * M26: las grabaciones de V-AI-P tienen su editor (`/admin/vaip/clases/<id>`).
+   * Con esto, una clase que ya pasó sin grabación ofrece «Subir grabación» y
+   * una con grabación, «Ver grabación».
+   */
+  rutaGrabaciones?: string
 }) {
   const ahora = Date.now()
   const proxima = cohorte.sesiones.find((s) => new Date(s.scheduled_at).getTime() >= ahora)
@@ -157,6 +164,25 @@ export function CalendarioDeGeneracion({
                     </span>
                     <span className="flex flex-wrap items-center gap-3">
                       <span className="text-sm text-muted-foreground">{enCdmx(sesion.scheduled_at)} CDMX</span>
+                      {rutaGrabaciones && sesion.kind !== 'evento' ? (
+                        sesion.recording_lesson_id ? (
+                          <Link
+                            href={`${rutaGrabaciones}/${sesion.recording_lesson_id}`}
+                            className={cn(buttonVariants({ variant: 'outline', size: 'sm' }))}
+                          >
+                            Ver grabación
+                          </Link>
+                        ) : new Date(sesion.scheduled_at).getTime() < ahora - 3 * 60 * 60 * 1000 ? (
+                          <Link
+                            href={`?subir=${sesion.id}#subir-grabacion`}
+                            scroll={false}
+                            data-subir-grabacion={sesion.id}
+                            className={cn(buttonVariants({ variant: 'default', size: 'sm' }))}
+                          >
+                            Subir grabación
+                          </Link>
+                        ) : null
+                      ) : null}
                       {/* Cerrada, "Editar" es un enlace: el formulario de esa
                           sesión se pinta solo cuando se pide (24-sep-2026).
                           Antes las ocho traían el suyo, con el selector de

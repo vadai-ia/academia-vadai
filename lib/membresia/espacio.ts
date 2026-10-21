@@ -7,8 +7,8 @@ import { faltaFuncion, type LlamadaRpc } from '@/lib/alumno/catalogo'
 import { cursoDelAlumno, misCursos, type CursoDelAlumno } from '@/lib/alumno/consultas'
 import { sesionesDelAlumno, type SesionDelAlumno } from '@/lib/alumno/sesiones'
 import { logrosDe, type Logro } from '@/lib/gamificacion/logros'
-import { ACTIVIDAD_VACIA, nivelDe, puntosDe, sumarActividad, type Actividad, type Nivel } from '@/lib/gamificacion/reglas'
-import { miMembresia, planVaip, type PlanVaip } from '@/lib/membresia/consultas'
+import { ACTIVIDAD_VACIA, nivelDe, puntosDe, sumarActividad, type Actividad, type Nivel, actividadDeFila } from '@/lib/gamificacion/reglas'
+import { miMembresia, planDelEspacio, planVaip, type PlanVaip } from '@/lib/membresia/consultas'
 import { noticiasDeVaip } from '@/lib/membresia/noticias'
 import type { PostDeComunidad } from '@/lib/comunidad/posts'
 import { crearClienteServidor } from '@/lib/supabase/server'
@@ -55,16 +55,7 @@ export async function rankingVaip(planId: string, userId: string): Promise<Ranki
   const porPersona = new Map<string, Actividad>()
   for (const f of filas ?? []) {
     if (!f.user_id) continue
-    const a: Actividad = {
-      lecciones: f.lecciones ?? 0,
-      quizzes: f.quizzes ?? 0,
-      tareas: f.tareas ?? 0,
-      tareasAprobadas: f.tareas_aprobadas ?? 0,
-      publicaciones: f.publicaciones ?? 0,
-      comentarios: f.comentarios ?? 0,
-      certificados: f.certificados ?? 0,
-      dinamicas: f.dinamicas ?? 0,
-    }
+    const a: Actividad = actividadDeFila(f)
     porPersona.set(f.user_id, sumarActividad(porPersona.get(f.user_id) ?? ACTIVIDAD_VACIA, a))
   }
 
@@ -100,9 +91,7 @@ export type EspacioVaip = {
   proximaClase: SesionDelAlumno | null
   /** M19: las últimas del tema «Noticias» del muro. */
   noticias: PostDeComunidad[]
-  /** M19: las herramientas (cursos con área), por área. */
-  herramientas: Record<'creativas' | 'administrativas' | 'comerciales', CursoDelAlumno[]>
-  /** Los demás cursos del plan. */
+  /** Los demás cursos del plan (M26: las herramientas ya no son cursos, son videos de la casa). */
   biblioteca: CursoDelAlumno[]
   ranking: RankingVaip
   logros: Logro[]
@@ -137,12 +126,7 @@ export async function espacioVaip(perfil: Perfil, plan: PlanVaip): Promise<Espac
   return {
     proximaClase,
     noticias,
-    herramientas: {
-      creativas: delPlan.filter((c) => c.categoria === 'creativas'),
-      administrativas: delPlan.filter((c) => c.categoria === 'administrativas'),
-      comerciales: delPlan.filter((c) => c.categoria === 'comerciales'),
-    },
-    biblioteca: delPlan.filter((c) => c.categoria === null),
+    biblioteca: delPlan,
     ranking,
     logros: logrosDe({
       actividad: ranking.yo?.actividad ?? ACTIVIDAD_VACIA,
@@ -225,7 +209,7 @@ export type ContextoVaip = {
  * venta. Memorizado por petición: lo piden la página y su encabezado.
  */
 export const contextoVaip = cache(async (): Promise<ContextoVaip | null> => {
-  const plan = await planVaip()
+  const plan = await planDelEspacio()
   if (!plan) return null
   const sesion = await obtenerSesion()
   if (sesion.tipo !== 'activo') return null
@@ -236,18 +220,6 @@ export const contextoVaip = cache(async (): Promise<ContextoVaip | null> => {
   const casa = plan.casa && (plan.casa.publicada || equipo) ? await cursoDelAlumno(plan.casa.slug) : null
   return { perfil, plan, equipo, casa }
 })
-
-const AREAS_DE_HERRAMIENTAS = ['creativas', 'administrativas', 'comerciales'] as const
-
-/** Los cursos del plan menos la casa: por área (Herramientas) y sin área (Biblioteca). */
-export async function herramientasDeVaip(plan: PlanVaip): Promise<Pick<EspacioVaip, 'herramientas' | 'biblioteca'>> {
-  const cursos = await misCursos()
-  const delPlan = cursos.filter((c) => c.enVaip && c.id !== plan.casa?.id)
-  const herramientas = Object.fromEntries(
-    AREAS_DE_HERRAMIENTAS.map((a) => [a, delPlan.filter((c) => c.categoria === a)])
-  ) as EspacioVaip['herramientas']
-  return { herramientas, biblioteca: delPlan.filter((c) => c.categoria === null) }
-}
 
 /** El ranking de V-AI-P y los logros de quien mira. */
 export async function rankingYLogrosDeVaip(
@@ -271,11 +243,13 @@ export async function rankingYLogrosDeVaip(
 
 /**
  * Los cursos que se muestran como cursos (Inicio, Mis cursos): sin la casa de
- * V-AI-P —es V-AI-P, no un curso— y, para el miembro, sin las herramientas del
- * plan, que viven en V-AI-P → Herramientas. Así nada sale dos veces.
+ * V-AI-P —es V-AI-P, no un curso: sus grabaciones y herramientas viven en
+ * /vaip— y, para el miembro, sin los demás cursos del plan, que también son de
+ * V-AI-P. Así nada sale dos veces. Con el espacio de pruebas (M26) se esconden
+ * las dos casas, la real y la QA.
  */
 export async function cursosFueraDeVaip(cursos: CursoDelAlumno[]): Promise<CursoDelAlumno[]> {
-  const [ctx, plan] = await Promise.all([contextoVaip(), planVaip()])
-  const casaId = plan?.casa?.id ?? null
-  return cursos.filter((c) => c.id !== casaId && !(ctx !== null && c.enVaip))
+  const [ctx, plan, espacio] = await Promise.all([contextoVaip(), planVaip(), planDelEspacio()])
+  const casas = new Set([plan?.casa?.id, espacio?.casa?.id].filter(Boolean))
+  return cursos.filter((c) => !casas.has(c.id) && !(ctx !== null && c.enVaip))
 }

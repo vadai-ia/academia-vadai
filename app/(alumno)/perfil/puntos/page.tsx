@@ -37,6 +37,9 @@ export const metadata: Metadata = { title: 'Puntos y logros' }
 /** Las columnas del desglose, en el mismo orden que la lista de "cómo ganar". */
 const DESGLOSE = [
   { llave: 'lecciones', que: 'Lecciones completadas', vale: PUNTOS.leccion },
+  // M26: lo que se ve en V-AI-P vale un poco menos que una lección de curso.
+  { llave: 'grabaciones', que: 'Clases grabadas vistas en V-AI-P', vale: PUNTOS.grabacion },
+  { llave: 'herramientas', que: 'Herramientas vistas en V-AI-P', vale: PUNTOS.herramienta },
   { llave: 'comentarios', que: 'Comentarios', vale: PUNTOS.comentario },
   { llave: 'publicaciones', que: 'Publicaciones en V-AI-P y en tus grupos', vale: PUNTOS.publicacion },
   { llave: 'tareas', que: 'Tareas entregadas', vale: PUNTOS.tarea },

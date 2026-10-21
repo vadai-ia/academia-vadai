@@ -33,10 +33,16 @@ export function BotonCompletada({
   leccionId,
   cursoSlug,
   completadaInicial,
+  puntos = PUNTOS.leccion,
+  textos = { marcar: 'Marcar como completada', hecha: 'Completada' },
 }: {
   leccionId: string
   cursoSlug: string
   completadaInicial: boolean
+  /** M26: una grabación de V-AI-P vale menos que una lección (PUNTOS.grabacion). */
+  puntos?: number
+  /** M26: en V-AI-P se dice «Marcar como vista» / «Vista». */
+  textos?: { marcar: string; hecha: string }
 }) {
   const router = useRouter()
   const [completada, setCompletada] = useState(completadaInicial)
@@ -68,7 +74,7 @@ export function BotonCompletada({
           role="status"
         >
           <Palomita />
-          Completada
+          {textos.hecha}
         </span>
 
         <Button
@@ -87,7 +93,7 @@ export function BotonCompletada({
             role="status"
             className="inline-flex animate-in items-center gap-1 rounded-full bg-accent px-2.5 py-1 text-sm font-medium text-accent-foreground duration-500 zoom-in slide-in-from-bottom-2"
           >
-            +{PUNTOS.leccion} puntos
+            +{puntos} puntos
           </span>
         ) : null}
       </span>
@@ -104,7 +110,7 @@ export function BotonCompletada({
       className="h-10 w-full px-5 text-[0.95rem] sm:w-auto"
     >
       <Circulo />
-      {pendiente ? 'Guardando…' : 'Marcar como completada'}
+      {pendiente ? 'Guardando…' : textos.marcar}
     </Button>
   )
 }

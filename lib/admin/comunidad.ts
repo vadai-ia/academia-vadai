@@ -8,6 +8,7 @@ import { mundoVaip } from '@/lib/membresia/mundo'
 import { esCuentaQa, esCursoQa } from '@/lib/qa'
 import { crearClienteServidor } from '@/lib/supabase/server'
 import type { Json } from '@/lib/supabase/types'
+import { rutaDeContenido } from '@/lib/vaip/rutas'
 
 /**
  * La bandeja de Comunidad del panel (3-oct-2026).
@@ -186,7 +187,7 @@ const hilosDeLaAcademia = cache(async (): Promise<Crudo> => {
     supabase.from('courses').select('id, title, slug, status').neq('status', 'archived'),
     supabase.from('cohorts').select('id, name, course_id, starts_on').order('starts_on', { ascending: false, nullsFirst: false }),
     supabase.from('lessons').select('id, title, module_id'),
-    supabase.from('modules').select('id, course_id, cohort_id'),
+    supabase.from('modules').select('id, course_id, cohort_id, kind'),
     supabase.from('profiles').select('user_id, full_name, email, role, company_id'),
     supabase.from('companies').select('id, name'),
     mundoVaip(),
@@ -217,7 +218,10 @@ const hilosDeLaAcademia = cache(async (): Promise<Crudo> => {
   const leccionPorId = new Map(
     (lecciones.data ?? []).map((l) => {
       const modulo = moduloPorId.get(l.module_id)
-      return [l.id, { id: l.id, titulo: l.title, cursoId: modulo?.course_id ?? null, cohortId: modulo?.cohort_id ?? null }]
+      return [
+        l.id,
+        { id: l.id, titulo: l.title, cursoId: modulo?.course_id ?? null, cohortId: modulo?.cohort_id ?? null, kind: modulo?.kind ?? 'curso' },
+      ]
     })
   )
 
@@ -312,7 +316,8 @@ const hilosDeLaAcademia = cache(async (): Promise<Crudo> => {
         fijado: false,
         atendida: c.attended_at ? { en: c.attended_at, por: c.attended_by ? autor(c.attended_by).nombre : null } : null,
         respuestas: respuestasPorRaiz.get(c.id) ?? [],
-        hrefPortal: `/curso/${curso.slug}/${leccion.id}#comentario-${c.id}`,
+        // M26: una grabación o herramienta de V-AI-P se abre en /vaip, no como lección.
+        hrefPortal: `${leccion.kind === 'curso' ? `/curso/${curso.slug}/${leccion.id}` : rutaDeContenido(leccion.kind, leccion.id)}#comentario-${c.id}`,
       })
     )
   }

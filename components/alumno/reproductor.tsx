@@ -69,6 +69,7 @@ export function Reproductor({
   yaCompletada,
   titulo,
   className,
+  orientacion = 'horizontal',
 }: {
   urlIframe: string
   leccionId: string
@@ -77,6 +78,12 @@ export function Reproductor({
   yaCompletada: boolean
   titulo: string
   className?: string
+  /**
+   * M26: las herramientas de V-AI-P pueden ser verticales (9:16, tipo reel).
+   * Vertical, el video toma el alto de la pantalla y queda centrado; nunca
+   * más alto de lo que cabe sin desplazar.
+   */
+  orientacion?: 'horizontal' | 'vertical'
 }) {
   const router = useRouter()
   const iframe = useRef<HTMLIFrameElement>(null)
@@ -138,8 +145,12 @@ export function Reproductor({
     // ancho es imagen. A partir de `sm` recupera el radio y el borde de las
     // demás superficies.
     <div
+      data-orientacion={orientacion}
       className={cn(
-        'relative aspect-video overflow-hidden bg-black sm:rounded-[10px] sm:border sm:border-border',
+        'relative overflow-hidden bg-black sm:rounded-[10px] sm:border sm:border-border',
+        orientacion === 'vertical'
+          ? 'mx-auto aspect-[9/16] h-[min(calc(100dvh-var(--alto-encabezado)-9rem),44rem)] max-w-full'
+          : 'aspect-video',
         className
       )}
     >

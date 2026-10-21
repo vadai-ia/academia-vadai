@@ -11,6 +11,7 @@ import {
   sumarActividad,
   type Actividad,
   type Nivel,
+  actividadDeFila,
 } from './reglas'
 
 /**
@@ -33,19 +34,12 @@ type FilaActividad = {
   comentarios: number | null
   certificados: number | null
   dinamicas: number | null
+  grabaciones: number | null
+  herramientas: number | null
 }
 
 function actividadDe(f: FilaActividad): Actividad {
-  return {
-    lecciones: f.lecciones ?? 0,
-    quizzes: f.quizzes ?? 0,
-    tareas: f.tareas ?? 0,
-    tareasAprobadas: f.tareas_aprobadas ?? 0,
-    publicaciones: f.publicaciones ?? 0,
-    comentarios: f.comentarios ?? 0,
-    certificados: f.certificados ?? 0,
-    dinamicas: f.dinamicas ?? 0,
-  }
+  return actividadDeFila(f)
 }
 
 // `cache()`: /puntos la pedía tres veces en la misma petición —una para el

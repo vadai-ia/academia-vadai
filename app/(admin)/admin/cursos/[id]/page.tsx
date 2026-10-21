@@ -21,7 +21,6 @@ import { ETIQUETA_ESTADO_CURSO } from '@/lib/admin/tipos'
 import { esAdmin, exigirEquipo } from '@/lib/auth/sesion'
 import { esPorGeneraciones, generacionPorOmision } from '@/lib/generaciones'
 import { cursosDeVaip, planVaip } from '@/lib/membresia/consultas'
-import { mundoVaip } from '@/lib/membresia/mundo'
 
 export const dynamic = 'force-dynamic'
 
@@ -92,12 +91,11 @@ export default async function PaginaCurso({
   // Todo en una sola ronda (24-sep-2026): el id de la URL es el id del curso,
   // así que nada tiene que esperar al curso para arrancar. Si el curso no
   // existe, las demás vuelven vacías y se descartan con el notFound().
-  const [curso, generaciones, empresas, deVaip, mundo, vaip] = await Promise.all([
+  const [curso, generaciones, empresas, deVaip, vaip] = await Promise.all([
     obtenerCurso(id),
     generacionesDelCurso(id),
     listarEmpresas(),
     cursosDeVaip(),
-    mundoVaip(),
     planVaip(),
   ])
   if (!curso) notFound()
@@ -111,7 +109,6 @@ export default async function PaginaCurso({
     const cadena = destino.toString()
     redirect(`/admin/vaip/clases${cadena ? `?${cadena}` : ''}`)
   }
-  const esHerramienta = mundo.herramientas.has(curso.id)
   const enVaip = deVaip.has(curso.id)
   // La fila del curso sin su árbol, para lo que viaja al navegador.
   const { modulos: _modulos, ...datosDelCurso } = curso
@@ -170,10 +167,10 @@ export default async function PaginaCurso({
     <div className="flex flex-col gap-8">
       <header className="flex flex-col gap-1">
         <Link
-          href={esHerramienta ? '/admin/vaip/herramientas' : '/admin/cursos'}
+          href="/admin/cursos"
           className="text-sm text-primary underline-offset-4 hover:underline"
         >
-          {esHerramienta ? '← V-AI-P · Herramientas' : '← Cursos'}
+          ← Cursos
         </Link>
         <h1 className="flex flex-wrap items-center gap-3 text-2xl font-semibold tracking-tight">
           {curso.title}

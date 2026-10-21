@@ -10,6 +10,7 @@ import {
   sumarActividad,
   type Actividad,
   type Nivel,
+  actividadDeFila,
 } from '@/lib/gamificacion/reglas'
 import { armarExclusivas, leccionesQueNoVe, SIN_EXCLUSIVAS, type Exclusivas } from '@/lib/acceso/exclusivas'
 import { esCuentaQa, esCursoQa } from '@/lib/qa'
@@ -149,16 +150,7 @@ const datosDePuntos = cache(async function datosDePuntos(): Promise<Base> {
   for (const f of actividad.data ?? []) {
     if (!f.user_id || !f.course_id || !vivos.has(f.course_id)) continue
     const mapa = porAlumno.get(f.user_id) ?? new Map<string, { actividad: Actividad; cohortId: string | null }>()
-    mapa.set(f.course_id, { cohortId: f.cohort_id ?? null, actividad: {
-      lecciones: f.lecciones ?? 0,
-      quizzes: f.quizzes ?? 0,
-      tareas: f.tareas ?? 0,
-      tareasAprobadas: f.tareas_aprobadas ?? 0,
-      publicaciones: f.publicaciones ?? 0,
-      comentarios: f.comentarios ?? 0,
-      certificados: f.certificados ?? 0,
-      dinamicas: f.dinamicas ?? 0,
-    } })
+    mapa.set(f.course_id, { cohortId: f.cohort_id ?? null, actividad: actividadDeFila(f) })
     porAlumno.set(f.user_id, mapa)
   }
 

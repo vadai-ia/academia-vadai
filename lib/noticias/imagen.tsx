@@ -34,15 +34,16 @@ export type DatosDeImagen = {
 const ANCHO = 1200
 const ALTO = 675
 
-const NAVY = '#0A1A2F'
-const CYAN = '#00A0DB'
-const AZUL = '#006E96'
-const LIMA = '#C6F24E'
-const TEXTO = '#F5F8FB'
+// Exportadas para las portadas de las herramientas (lib/vaip/portada.tsx, M26).
+export const NAVY = '#0A1A2F'
+export const CYAN = '#00A0DB'
+export const AZUL = '#006E96'
+export const LIMA = '#C6F24E'
+export const TEXTO = '#F5F8FB'
 
 let fuentes: Promise<{ name: string; data: Buffer; weight: 500 | 700 | 800; style: 'normal' }[]> | null = null
 
-function cargarFuentes() {
+export function cargarFuentes() {
   fuentes ??= Promise.all(
     (
       [
@@ -61,7 +62,7 @@ function cargarFuentes() {
 }
 
 /** Números estables de 0 a 1 a partir del título: la «semilla» de la composición. */
-function semillas(texto: string): number[] {
+export function semillas(texto: string): number[] {
   const h = createHash('sha256').update(texto).digest()
   return Array.from({ length: 8 }, (_, i) => (h[i] ?? 0) / 255)
 }
@@ -81,14 +82,14 @@ function tamanoDelTitulo(t: string): number {
 
 const BOLETO =
   'M11 1H109A10 10 0 0 1 119 11V18A6 6 0 0 0 119 30V37A10 10 0 0 1 109 47H11A10 10 0 0 1 1 37V30A6 6 0 0 0 1 18V11A10 10 0 0 1 11 1Z'
-const DESTELLO = 'M0 -6C0.6 -2 2 -0.6 6 0C2 0.6 0.6 2 0 6C-0.6 2 -2 0.6 -6 0C-2 -0.6 -0.6 -2 0 -6Z'
+export const DESTELLO = 'M0 -6C0.6 -2 2 -0.6 6 0C2 0.6 0.6 2 0 6C-0.6 2 -2 0.6 -6 0C-2 -0.6 -0.6 -2 0 -6Z'
 
 /**
  * El pase de V-AI-P (components/marca/logo-vaip.tsx) a escala 1.25. `next/og`
  * no dibuja `<text>` dentro de un SVG: el contorno, la placa y el destello van
  * en SVG y las letras encima, como texto con Inter.
  */
-function Logo() {
+export function Logo() {
   const letra = { position: 'absolute', top: 0, height: 60, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 26, fontWeight: 800 } as const
   return (
     <div style={{ position: 'relative', display: 'flex', width: 150, height: 60 }}>

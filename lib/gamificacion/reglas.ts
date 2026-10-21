@@ -29,6 +29,12 @@ export const PUNTOS = {
   // una regla, no solo se entrega. Una vez por dinámica, no por proyecto, y se
   // reparte a toda la empresa: el tablero es del equipo.
   dinamica: 30,
+  // M26 (21-oct-2026), Alejandro: «ambas suman pero un poco menos». Ver una
+  // clase grabada o una herramienta de V-AI-P vale menos que una lección de
+  // curso: son videos sin quiz ni tarea, y una herramienta dura un par de
+  // minutos (si valiera 10, ver cincuenta en una tarde ganaría el ranking).
+  grabacion: 5,
+  herramienta: 3,
 } as const
 
 export type Actividad = {
@@ -40,6 +46,10 @@ export type Actividad = {
   comentarios: number
   certificados: number
   dinamicas: number
+  /** M26: grabaciones de V-AI-P vistas (módulos «mes» de la casa). */
+  grabaciones: number
+  /** M26: herramientas de V-AI-P vistas. */
+  herramientas: number
 }
 
 export const ACTIVIDAD_VACIA: Actividad = {
@@ -51,6 +61,42 @@ export const ACTIVIDAD_VACIA: Actividad = {
   comentarios: 0,
   certificados: 0,
   dinamicas: 0,
+  grabaciones: 0,
+  herramientas: 0,
+}
+
+/** Una fila de la vista `actividad_por_curso`, como la devuelve Supabase. */
+export type FilaDeActividad = {
+  lecciones: number | null
+  quizzes: number | null
+  tareas: number | null
+  tareas_aprobadas: number | null
+  publicaciones: number | null
+  comentarios: number | null
+  certificados: number | null
+  dinamicas: number | null
+  grabaciones: number | null
+  herramientas: number | null
+}
+
+/**
+ * La fila de la vista, en conteos. Es el ÚNICO lugar que la traduce: antes
+ * cuatro archivos la armaban a mano y una columna nueva había que agregarla
+ * cuatro veces (M26).
+ */
+export function actividadDeFila(f: FilaDeActividad): Actividad {
+  return {
+    lecciones: f.lecciones ?? 0,
+    quizzes: f.quizzes ?? 0,
+    tareas: f.tareas ?? 0,
+    tareasAprobadas: f.tareas_aprobadas ?? 0,
+    publicaciones: f.publicaciones ?? 0,
+    comentarios: f.comentarios ?? 0,
+    certificados: f.certificados ?? 0,
+    dinamicas: f.dinamicas ?? 0,
+    grabaciones: f.grabaciones ?? 0,
+    herramientas: f.herramientas ?? 0,
+  }
 }
 
 export function sumarActividad(a: Actividad, b: Actividad): Actividad {
@@ -63,6 +109,8 @@ export function sumarActividad(a: Actividad, b: Actividad): Actividad {
     comentarios: a.comentarios + b.comentarios,
     certificados: a.certificados + b.certificados,
     dinamicas: a.dinamicas + b.dinamicas,
+    grabaciones: a.grabaciones + b.grabaciones,
+    herramientas: a.herramientas + b.herramientas,
   }
 }
 
@@ -75,7 +123,9 @@ export function puntosDe(a: Actividad): number {
     a.publicaciones * PUNTOS.publicacion +
     a.comentarios * PUNTOS.comentario +
     a.certificados * PUNTOS.certificado +
-    a.dinamicas * PUNTOS.dinamica
+    a.dinamicas * PUNTOS.dinamica +
+    a.grabaciones * PUNTOS.grabacion +
+    a.herramientas * PUNTOS.herramienta
   )
 }
 

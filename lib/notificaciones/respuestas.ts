@@ -1,6 +1,7 @@
 import 'server-only'
 
 import { crearClienteServidor } from '@/lib/supabase/server'
+import { rutaDeContenido } from '@/lib/vaip/rutas'
 
 /**
  * «Te respondieron» (M22, 20-oct-2026): lo que trae de vuelta a una
@@ -121,8 +122,8 @@ export async function misRespuestas(userId: string, casaSlug: string | null): Pr
     ? await supabase.from('lessons').select('id, title, module_id').in('id', [...new Set(preguntas.map((q) => q.lesson_id))])
     : { data: [] as Array<{ id: string; title: string; module_id: string }> }
   const { data: modulos } = (lecciones ?? []).length
-    ? await supabase.from('modules').select('id, course_id').in('id', [...new Set((lecciones ?? []).map((l) => l.module_id))])
-    : { data: [] as Array<{ id: string; course_id: string }> }
+    ? await supabase.from('modules').select('id, course_id, kind').in('id', [...new Set((lecciones ?? []).map((l) => l.module_id))])
+    : { data: [] as Array<{ id: string; course_id: string; kind: 'curso' | 'mes' | 'herramientas' }> }
 
   const idsCursos = [...new Set([...(posts ?? []).map((p) => p.course_id), ...(modulos ?? []).map((m) => m.course_id)])]
   const { data: cursos } = idsCursos.length
@@ -130,6 +131,7 @@ export async function misRespuestas(userId: string, casaSlug: string | null): Pr
     : { data: [] as Array<{ id: string; slug: string; title: string }> }
   const curso = new Map((cursos ?? []).map((c) => [c.id, c]))
   const cursoDeModulo = new Map((modulos ?? []).map((m) => [m.id, m.course_id]))
+  const tipoDeModulo = new Map((modulos ?? []).map((m) => [m.id, m.kind]))
   const leccion = new Map((lecciones ?? []).map((l) => [l.id, l]))
 
   const salida: Respuestas[] = []
@@ -153,13 +155,15 @@ export async function misRespuestas(userId: string, casaSlug: string | null): Pr
     const l = leccion.get(q.lesson_id)
     const c = l ? curso.get(cursoDeModulo.get(l.module_id) ?? '') : undefined
     if (!g || !l || !c) continue
+    // M26: las grabaciones y herramientas de V-AI-P viven en /vaip, no en un curso.
+    const tipo = tipoDeModulo.get(l.module_id) ?? 'curso'
     salida.push({
       id: q.id,
       titulo: q.content.length > 90 ? `${q.content.slice(0, 87)}…` : q.content,
       cuantas: g.cuantas,
       ultimaEn: g.ultimaEn,
-      href: `/curso/${c.slug}/${l.id}#comentario-${q.id}`,
-      donde: `Lección · ${l.title}`,
+      href: `${tipo === 'curso' ? `/curso/${c.slug}/${l.id}` : rutaDeContenido(tipo, l.id)}#comentario-${q.id}`,
+      donde: `${tipo === 'mes' ? 'Clase grabada' : tipo === 'herramientas' ? 'Herramienta' : 'Lección'} · ${l.title}`,
     })
   }
   return salida.sort((a, b) => b.ultimaEn.localeCompare(a.ultimaEn))

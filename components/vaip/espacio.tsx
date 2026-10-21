@@ -1,9 +1,8 @@
 import Link from 'next/link'
 
-import { TarjetaCurso } from '@/components/alumno/tarjeta-curso'
 import { MarcaVaip } from '@/components/marca/logo-vaip'
 import { Pestanas } from '@/components/ui-vadai/pestanas'
-import { Avatar, Seccion, Tarjeta } from '@/components/ui-vadai/superficie'
+import { Avatar, Tarjeta } from '@/components/ui-vadai/superficie'
 import { Logros } from '@/components/vaip/logros'
 import { Button } from '@/components/ui/button'
 import type { SesionDelAlumno } from '@/lib/alumno/sesiones'
@@ -25,12 +24,6 @@ import { cn } from '@/lib/utils'
  * y el muro es lo que abre. Sin plano de marca nuevo: la marca va en el logo y
  * la única lima de acción es «Entrar a la clase» cuando la clase está abierta.
  */
-
-const AREAS = [
-  { clave: 'creativas', titulo: 'Creativas', apoyo: 'Imágenes, video, presentaciones y contenido.' },
-  { clave: 'administrativas', titulo: 'Administrativas', apoyo: 'Excel, reportes, correo y procesos.' },
-  { clave: 'comerciales', titulo: 'Comerciales', apoyo: 'Prospección, propuestas y ventas.' },
-] as const
 
 /**
  * Logo, saludo y pestañas. Si la clase está por empezar o en curso (la misma
@@ -81,46 +74,6 @@ export function EncabezadoVaip({ nombre, clase }: { nombre: string; clase: Sesio
   )
 }
 
-/** Herramientas: los cursos del plan por área, y la Biblioteca con los que no tienen. */
-export function HerramientasVaip({ herramientas, biblioteca }: Pick<EspacioVaip, 'herramientas' | 'biblioteca'>) {
-  const areas = AREAS.filter((a) => herramientas[a.clave].length > 0)
-
-  if (areas.length === 0 && biblioteca.length === 0) {
-    return (
-      <p className="rounded-[10px] border border-dashed border-border px-5 py-10 text-center text-sm text-muted-foreground">
-        Aquí aparecen las herramientas de V-AI-P, cada una con su video paso a paso, en cuanto se publican.
-      </p>
-    )
-  }
-
-  return (
-    <div className="flex flex-col gap-10">
-      {areas.map((a) => (
-        <Seccion key={a.clave} titulo={a.titulo} apoyo={a.apoyo}>
-          <ul className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
-            {herramientas[a.clave].map((c) => (
-              <li key={c.id}>
-                <TarjetaCurso curso={c} />
-              </li>
-            ))}
-          </ul>
-        </Seccion>
-      ))}
-      {biblioteca.length > 0 ? (
-        <Seccion titulo="Biblioteca" apoyo="Los cursos y clases que se publican para miembros.">
-          <ul className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
-            {biblioteca.map((c) => (
-              <li key={c.id}>
-                <TarjetaCurso curso={c} />
-              </li>
-            ))}
-          </ul>
-        </Seccion>
-      ) : null}
-    </div>
-  )
-}
-
 /** Ranking: todos los miembros, tu lugar y tus logros. */
 export function RankingVaip({ ranking, logros, userId }: Pick<EspacioVaip, 'ranking' | 'logros'> & { userId: string }) {
   const ganados = logros.filter((l) => l.ganado).length
@@ -137,7 +90,7 @@ export function RankingVaip({ ranking, logros, userId }: Pick<EspacioVaip, 'rank
           ) : null}
         </div>
         <p className="text-sm text-muted-foreground">
-          Suma publicar y comentar en el muro, y lo que haces en las herramientas de V-AI-P.
+          Suma publicar y comentar en el muro, ver las clases grabadas y las herramientas.
         </p>
         {ranking.puestos.length > 0 ? (
           <ol className="flex flex-col gap-1">

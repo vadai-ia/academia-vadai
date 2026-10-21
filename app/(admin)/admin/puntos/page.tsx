@@ -212,8 +212,10 @@ export default async function PaginaPuntos({ searchParams }: { searchParams: Pro
         </summary>
         <ul className="mt-3 grid gap-1.5 text-muted-foreground sm:grid-cols-2">
           <li>Lección completada: <span className="font-medium text-foreground">+{PUNTOS.leccion}</span></li>
+          <li>Clase grabada vista en V-AI-P: <span className="font-medium text-foreground">+{PUNTOS.grabacion}</span></li>
+          <li>Herramienta vista en V-AI-P: <span className="font-medium text-foreground">+{PUNTOS.herramienta}</span></li>
           <li>Comentario: <span className="font-medium text-foreground">+{PUNTOS.comentario}</span></li>
-          <li>Publicación en la comunidad: <span className="font-medium text-foreground">+{PUNTOS.publicacion}</span></li>
+          <li>Publicación en V-AI-P o en un grupo: <span className="font-medium text-foreground">+{PUNTOS.publicacion}</span></li>
           <li>Tarea entregada: <span className="font-medium text-foreground">+{PUNTOS.tarea}</span></li>
           <li>Quiz aprobado: <span className="font-medium text-foreground">+{PUNTOS.quiz}</span></li>
           <li>Tarea aprobada: <span className="font-medium text-foreground">+{PUNTOS.tareaAprobada}</span></li>

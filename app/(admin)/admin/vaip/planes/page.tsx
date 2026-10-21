@@ -16,6 +16,7 @@ import { planVaip, SLUG_VAIP } from '@/lib/membresia/consultas'
 import { etiquetaDeMotivo } from '@/lib/membresia/motivos'
 import { cancelacionesDelPlan, ETIQUETA_ESTADO_PLAN, listarPlanes } from '@/lib/membresia/planes'
 import { stripeAdminConfigurado } from '@/lib/stripe/admin'
+import { abrirCasa } from '@/lib/vaip/acciones'
 import { crearClienteServidor } from '@/lib/supabase/server'
 import { cn } from '@/lib/utils'
 
@@ -80,11 +81,14 @@ export default async function PaginaPlanesYCobros() {
             ) : null}
             {plan.casa && !plan.casa.publicada ? (
               <li>
-                Publica el curso{' '}
-                <Link href="/admin/vaip/clases#datos-de-la-casa" className="font-medium text-primary hover:underline">
-                  VADAI V-AI-P
-                </Link>
-                . Mientras esté en borrador, la página de venta dice que abre pronto.
+                <span className="flex flex-wrap items-center gap-x-3 gap-y-2">
+                  Abre la comunidad: mientras esté cerrada, la página de venta dice que abre pronto.
+                  <form action={abrirCasa}>
+                    <Button type="submit" size="sm">
+                      Abrir la comunidad
+                    </Button>
+                  </form>
+                </span>
               </li>
             ) : null}
           </ul>

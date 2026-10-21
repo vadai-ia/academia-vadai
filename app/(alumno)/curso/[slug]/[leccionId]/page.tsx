@@ -17,6 +17,7 @@ import { tareaParaAlumno } from '@/lib/alumno/tarea'
 import { esEquipo, exigirPerfil } from '@/lib/auth/sesion'
 import { firmarReproduccion, reproduccionConfigurada } from '@/lib/bunny/reproduccion'
 import { comentariosDeLeccion } from '@/lib/comunidad/comentarios'
+import { rutaDeContenido } from '@/lib/vaip/rutas'
 
 /**
  * La lección, en "modo lección" (25-sep-2026).
@@ -85,6 +86,9 @@ export default async function PaginaLeccion({
 
   if (!curso) notFound()
   if (!leccion) redirect(`/curso/${slug}`)
+  // M26: una clase grabada o una herramienta de V-AI-P no es la lección de un
+  // curso: tiene su página en /vaip (ligas viejas, correos, la campana).
+  if (leccion.tipoDeModulo !== 'curso') redirect(rutaDeContenido(leccion.tipoDeModulo, leccion.id))
 
   const { anterior, siguiente } = vecinas(curso, leccionId)
 

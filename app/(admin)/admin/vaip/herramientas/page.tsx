@@ -1,86 +1,169 @@
 import type { Metadata } from 'next'
 import Link from 'next/link'
 
+import { EtiquetasDeHerramientas, NuevaHerramienta } from '@/components/admin/contenido-vaip'
 import { Seccion, Titulo } from '@/components/ui-vadai/superficie'
-import { ETIQUETA_ESTADO_CURSO } from '@/lib/admin/tipos'
-import { esAdmin, exigirEquipo } from '@/lib/auth/sesion'
-import { planVaip } from '@/lib/membresia/consultas'
-import { cursosDelPlanParaEquipo } from '@/lib/membresia/portal'
-import { esCuentaQa, esCursoQa } from '@/lib/qa'
+import { PortadaDeHerramienta } from '@/components/vaip/contenido'
+import { Badge } from '@/components/ui/badge'
+import { exigirEquipo } from '@/lib/auth/sesion'
+import { casaDelPanel, etiquetasDelPanel, herramientasDelPanel, type EstadoDeContenido, type EtiquetaDelPanel, type HerramientaDelPanel } from '@/lib/vaip/admin'
+import { etiquetaValida, PANEL_HERRAMIENTAS } from '@/lib/vaip/rutas'
+import { cn } from '@/lib/utils'
 
 export const metadata: Metadata = { title: 'Herramientas · V-AI-P' }
 export const dynamic = 'force-dynamic'
 
-const AREAS = [
-  { clave: 'creativas', titulo: 'Herramientas creativas' },
-  { clave: 'administrativas', titulo: 'Herramientas administrativas' },
-  { clave: 'comerciales', titulo: 'Herramientas comerciales' },
-] as const
+const ESTADO: Record<EstadoDeContenido, { texto: string; clase: string }> = {
+  publicada: { texto: 'Publicada', clase: 'border-exito/40 bg-exito/10 text-exito' },
+  borrador: { texto: 'Borrador', clase: 'border-border bg-background text-muted-foreground' },
+  sinVideo: { texto: 'Sin video', clase: 'border-destructive/40 bg-background text-destructive' },
+}
+
+function Tarjeta({ h, etiquetas }: { h: HerramientaDelPanel; etiquetas: EtiquetaDelPanel[] }) {
+  const suyas = etiquetas.filter((e) => h.etiquetas.includes(e.id))
+  return (
+    <Link
+      href={`${PANEL_HERRAMIENTAS}/${h.id}`}
+      data-herramienta={h.id}
+      className="group flex flex-col gap-2 rounded-[10px] focus-visible:ring-3 focus-visible:ring-ring/50 focus-visible:outline-none"
+    >
+      <span className="relative block">
+        <PortadaDeHerramienta
+          h={{
+            id: h.id,
+            titulo: h.titulo,
+            orientacion: h.orientacion,
+            portada: h.portada,
+            duracionSeg: h.duracionSeg,
+            etiquetas: suyas.map((e) => ({ id: e.id, slug: e.slug, nombre: e.nombre })),
+            vista: false,
+            publicadaEn: null,
+          }}
+          className="transition-[border-color] group-hover:border-primary/60"
+        />
+        <Badge variant="outline" className={cn('absolute right-2 bottom-2', ESTADO[h.estado].clase)}>
+          {ESTADO[h.estado].texto}
+        </Badge>
+      </span>
+      <span className="flex flex-col gap-0.5 px-0.5">
+        <span className="line-clamp-2 text-sm leading-snug font-medium">{h.titulo}</span>
+        <span className="truncate text-xs text-muted-foreground">
+          {suyas.length > 0 ? suyas.map((e) => e.nombre).join(' · ') : 'Sin etiquetas'}
+        </span>
+      </span>
+    </Link>
+  )
+}
+
+function Rejilla({ lista, etiquetas }: { lista: HerramientaDelPanel[]; etiquetas: EtiquetaDelPanel[] }) {
+  return (
+    <ul className="grid grid-cols-2 gap-x-3 gap-y-5 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5">
+      {lista.map((h) => (
+        <li key={h.id}>
+          <Tarjeta h={h} etiquetas={etiquetas} />
+        </li>
+      ))}
+    </ul>
+  )
+}
 
 /**
- * Herramientas de V-AI-P (M19; página propia desde M25): los videos de cada
- * herramienta, por área. Una herramienta es un curso marcado con su área y
- * agregado al plan; no sale en Cursos (los dos mundos no se mezclan). Las
- * noticias viven en Noticias y las grabaciones de las clases en Clases.
+ * Herramientas de V-AI-P (M26, 21-oct-2026). Ya no son cursos con un área:
+ * son videos cortos, como reels, que el equipo sube aquí con las etiquetas
+ * que quiera (Alejandro: «todas las etiquetas que pueda poner al crear un
+ * nuevo video de herramientas»). La portada se dibuja sola.
+ *
+ * Arriba «Nueva herramienta»; luego los borradores, que esperan su video o su
+ * clic; luego las publicadas, filtrables por etiqueta; y al final las
+ * etiquetas, para agregar, renombrar o archivar.
  */
-export default async function PaginaHerramientas() {
-  const perfil = await exigirEquipo()
-  const admin = esAdmin(perfil)
-  const plan = await planVaip()
-  if (!plan) {
+export default async function PaginaHerramientas({ searchParams }: { searchParams: Promise<{ etiqueta?: string }> }) {
+  await exigirEquipo()
+  const { etiqueta: pedida } = await searchParams
+  const lugar = await casaDelPanel()
+
+  if (!lugar?.generacionId) {
     return (
       <div className="flex flex-col gap-6">
         <Titulo ceja="V-AI-P">Herramientas</Titulo>
-        <p className="text-sm text-muted-foreground">El plan V-AI-P no está a la venta.</p>
+        <p className="text-sm text-muted-foreground">V-AI-P todavía no tiene casa: crea el plan en Planes y cobros.</p>
       </div>
     )
   }
 
-  const veQa = esCuentaQa(perfil.email)
-  const cursos = await cursosDelPlanParaEquipo(plan.id)
-  const visibles = cursos.filter((c) => (veQa || !esCursoQa(c.slug)) && c.id !== plan.casa?.id && c.category)
+  const [{ herramientas }, etiquetas] = await Promise.all([
+    herramientasDelPanel(lugar.casa.id, lugar.generacionId),
+    etiquetasDelPanel(lugar.casa.id),
+  ])
+  const elegida = etiquetas.find((e) => e.slug === etiquetaValida(pedida)) ?? null
+  const lista = elegida ? herramientas.filter((h) => h.etiquetas.includes(elegida.id)) : herramientas
+  const borradores = lista.filter((h) => h.estado !== 'publicada')
+  const publicadas = lista.filter((h) => h.estado === 'publicada')
+  const conVideos = etiquetas.filter((e) => !e.archivada && e.cuantas > 0)
 
   return (
     <div className="flex flex-col gap-10">
       <Titulo
         ceja="V-AI-P"
-        apoyo={
-          admin
-            ? 'Una herramienta es un curso con sus videos. Créalo en Cursos, márcalo con su área en «Datos del curso» y agrégalo al plan en Planes y cobros: desde ese momento vive aquí.'
-            : 'Una herramienta es un curso con sus videos. Un admin la crea, la marca con su área y la agrega al plan.'
-        }
+        apoyo="Videos cortos, como reels: una herramienta cada uno. Los miembros los recorren y filtran por etiqueta."
       >
         Herramientas
       </Titulo>
 
-      <div className="grid gap-6 lg:grid-cols-3">
-        {AREAS.map((a) => {
-          const deArea = visibles.filter((c) => c.category === a.clave)
-          return (
-            <Seccion key={a.clave} titulo={a.titulo}>
-              {deArea.length > 0 ? (
-                <ul className="flex flex-col gap-2">
-                  {deArea.map((c) => (
-                    <li key={c.id}>
-                      <Link
-                        href={`/admin/cursos/${c.id}`}
-                        className="flex items-center justify-between gap-3 rounded-[10px] border border-border px-4 py-3 text-sm transition-colors hover:border-primary/50"
-                      >
-                        <span className="font-medium">{c.title}</span>
-                        <span className="shrink-0 text-xs text-muted-foreground">{ETIQUETA_ESTADO_CURSO[c.status]}</span>
-                      </Link>
-                    </li>
-                  ))}
-                </ul>
-              ) : (
-                <p className="rounded-[10px] border border-dashed border-border px-4 py-5 text-center text-xs text-muted-foreground">
-                  Ninguna todavía.
-                </p>
-              )}
-            </Seccion>
-          )
-        })}
-      </div>
+      <NuevaHerramienta etiquetas={etiquetas} />
+
+      {conVideos.length > 0 ? (
+        <nav aria-label="Filtrar por etiqueta" className="flex flex-wrap gap-2">
+          {[{ slug: null as string | null, nombre: 'Todas', cuantas: herramientas.length }, ...conVideos].map((e) => {
+            const activa = (e.slug ?? null) === (elegida?.slug ?? null)
+            return (
+              <Link
+                key={e.slug ?? 'todas'}
+                href={e.slug ? `${PANEL_HERRAMIENTAS}?etiqueta=${e.slug}` : PANEL_HERRAMIENTAS}
+                aria-current={activa ? 'true' : undefined}
+                className={cn(
+                  'inline-flex items-center gap-1.5 rounded-full border px-3 py-1 text-sm transition-colors pointer-coarse:min-h-11',
+                  activa ? 'border-primary bg-primary/10 font-medium text-primary' : 'border-border hover:border-primary/50'
+                )}
+              >
+                {e.nombre}
+                <span className="text-xs text-muted-foreground tabular-nums">{e.cuantas}</span>
+              </Link>
+            )
+          })}
+        </nav>
+      ) : null}
+
+      {borradores.length > 0 ? (
+        <Seccion titulo="Borradores" apoyo="Los miembros todavía no las ven: súbeles el video y publícalas.">
+          <Rejilla lista={borradores} etiquetas={etiquetas} />
+        </Seccion>
+      ) : null}
+
+      <Seccion titulo="Publicadas">
+        {publicadas.length > 0 ? (
+          <Rejilla lista={publicadas} etiquetas={etiquetas} />
+        ) : (
+          <p className="rounded-[10px] border border-dashed border-border px-4 py-8 text-center text-sm text-muted-foreground">
+            {elegida ? `Ninguna publicada con «${elegida.nombre}».` : 'Todavía no hay herramientas publicadas.'}
+          </p>
+        )}
+      </Seccion>
+
+      <details id="etiquetas" className="group rounded-[10px] border border-border">
+        <summary className="flex min-h-11 cursor-pointer list-none items-center justify-between gap-3 px-5 py-3 font-medium [&::-webkit-details-marker]:hidden">
+          Etiquetas
+          <span className="text-sm font-normal text-muted-foreground">
+            {etiquetas.filter((e) => !e.archivada).length} activas
+          </span>
+        </summary>
+        <div className="flex flex-col gap-3 border-t border-border px-5 py-5">
+          <p className="text-sm text-pretty text-muted-foreground">
+            Archivar esconde la etiqueta de los filtros sin quitársela a ningún video. Renombrar no cambia sus ligas.
+          </p>
+          <EtiquetasDeHerramientas etiquetas={etiquetas} />
+        </div>
+      </details>
     </div>
   )
 }

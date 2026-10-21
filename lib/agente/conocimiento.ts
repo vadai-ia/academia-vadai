@@ -1,6 +1,7 @@
 import 'server-only'
 
 import type { ClienteAgente } from '@/lib/agente/servidor'
+import { rutaDeContenido } from '@/lib/vaip/rutas'
 
 /**
  * Lo que el agente sabe para contestar una pregunta (M21).
@@ -139,7 +140,7 @@ export async function contextoDelCurso(
   conversacion: string
 ): Promise<Contexto> {
   const [modulos, indice] = await Promise.all([
-    db.from('modules').select('id, title, position, cohort_id, is_restricted').eq('course_id', curso.id).order('position'),
+    db.from('modules').select('id, title, position, cohort_id, is_restricted, kind').eq('course_id', curso.id).order('position'),
     trozosDelCurso(db, curso.id),
   ])
 
@@ -167,8 +168,8 @@ export async function contextoDelCurso(
     ...(esVaip
       ? ([
           ['S:muro', 'V-AI-P → Muro (publicaciones y noticias)', '/vaip'],
-          ['S:clases', 'V-AI-P → Clases (la próxima, el calendario y las grabaciones)', '/vaip/clases'],
-          ['S:herramientas', 'V-AI-P → Herramientas (cursos por área)', '/vaip/herramientas'],
+          ['S:clases', 'V-AI-P → Clases (la próxima, las clases grabadas por mes y el calendario)', '/vaip/clases'],
+          ['S:herramientas', 'V-AI-P → Herramientas (videos cortos de cada herramienta, por etiqueta)', '/vaip/herramientas'],
           ['S:ranking', 'V-AI-P → Ranking y logros', '/vaip/ranking'],
         ] as Array<[string, string, string]>)
       : ([
@@ -197,7 +198,8 @@ export async function contextoDelCurso(
     for (const l of propias) {
       n++
       const clave = `L${n}`
-      enlaces.set(clave, { titulo: l.title, ruta: `${base}/${l.id}` })
+      // M26: una grabación o herramienta de V-AI-P se abre en /vaip.
+      enlaces.set(clave, { titulo: l.title, ruta: m.kind === 'curso' ? `${base}/${l.id}` : rutaDeContenido(m.kind, l.id) })
       lineas.push(`  ${clave} · ${l.title}`)
     }
   }

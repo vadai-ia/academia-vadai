@@ -1,30 +1,27 @@
 import type { Metadata } from 'next'
 import { redirect } from 'next/navigation'
 
-import {
-  CalendarioSesiones,
-  HeroSesion,
-  ListaSesiones,
-  SelectorVista,
-  SesionesTerminadas,
-  SinSesiones,
-} from '@/components/alumno/en-vivo'
-import { IndiceCurso } from '@/components/alumno/indice-curso'
-import { Seccion } from '@/components/ui-vadai/superficie'
+import { CalendarioSesiones, HeroSesion, ListaSesiones, SelectorVista } from '@/components/alumno/en-vivo'
+import { Seccion, Tarjeta } from '@/components/ui-vadai/superficie'
+import { GrabacionesPorMes } from '@/components/vaip/contenido'
 import { EncabezadoVaip } from '@/components/vaip/espacio'
 import { sesionesDelCurso } from '@/lib/alumno/sesiones'
 import { estadoDe, proximaOActual } from '@/lib/calendario/estado'
 import { hoyCdmx, mesDe, mesValido, partesCdmx } from '@/lib/calendario/mes'
 import { contextoVaip } from '@/lib/membresia/espacio'
+import { grabacionesDeVaip } from '@/lib/vaip/contenido'
+import { RUTA_CLASES } from '@/lib/vaip/rutas'
 
 export const metadata: Metadata = { title: 'Clases · V-AI-P' }
 export const dynamic = 'force-dynamic'
 
 /**
- * V-AI-P → Clases (M22): la próxima clase con «Entrar», el calendario y las
- * grabaciones con su material. Es lo que antes vivía en la pestaña En vivo y
- * el Contenido del «curso casa». Desde M25 aquí solo hay clases: los avisos de
- * V-AI-P van fijados en el Muro (decisión de Alejandro, 20-oct-2026).
+ * V-AI-P → Clases (M22; por dentro desde M26, 21-oct-2026).
+ *
+ * Arriba la próxima clase con «Entrar»; luego las CLASES GRABADAS, un bloque
+ * por mes —«Octubre 2026»— con el día de cada clase, que es como Alejandro
+ * pidió que se navegaran; y al final el calendario. Ya no hay «Grabaciones y
+ * material» con el índice de un curso: V-AI-P no es un curso.
  *
  * Solo para miembros (y el equipo): a cualquier otra persona la regresa a
  * /vaip, que le muestra la invitación. Sin `loading.tsx`, por ese redirect.
@@ -36,7 +33,7 @@ export default async function ClasesVaip({ searchParams }: { searchParams: Promi
   const nombre = perfil.full_name || perfil.email
   const { vista: pedida, mes: mesPedido } = await searchParams
 
-  const sesiones = casa ? await sesionesDelCurso(casa.slug) : []
+  const [sesiones, meses] = await Promise.all([casa ? sesionesDelCurso(casa.slug) : Promise.resolve([]), grabacionesDeVaip(ctx)])
   const ahora = Date.now()
   const hoy = hoyCdmx(ahora)
   const actual = proximaOActual(sesiones, ahora)
@@ -56,18 +53,28 @@ export default async function ClasesVaip({ searchParams }: { searchParams: Promi
         </p>
       ) : (
         <>
-          {sesiones.length === 0 ? (
-            <SinSesiones />
-          ) : actual ? (
+          {actual ? (
             <HeroSesion sesion={actual} estado={estadoDe(actual.programadaEn, ahora)} hoy={hoy} icsDeTodas={icsDeTodas} />
           ) : (
-            <SesionesTerminadas cursoSlug={casa.slug} conGrabacion={sesiones.filter((s) => s.grabacionLeccionId).length} />
+            <Tarjeta className="border-dashed px-5 py-6 text-sm text-pretty text-muted-foreground">
+              No hay clase agendada por ahora. En cuanto se agende la siguiente te llega por correo y aparece aquí.
+            </Tarjeta>
           )}
 
+          <Seccion titulo="Clases grabadas" apoyo="Cada clase se queda grabada con su material. Un bloque por mes.">
+            {meses.length > 0 ? (
+              <GrabacionesPorMes meses={meses} abierto={meses[0]?.id ?? null} />
+            ) : (
+              <p className="rounded-[10px] border border-dashed border-border px-5 py-10 text-center text-sm text-muted-foreground">
+                Aquí se queda cada clase grabada, con la fecha en que se dio, en cuanto el equipo la sube.
+              </p>
+            )}
+          </Seccion>
+
           {sesiones.length > 0 ? (
-            <Seccion titulo="Todas las clases" accion={<SelectorVista base="/vaip/clases" vista={vista} />}>
+            <Seccion titulo="Calendario" accion={<SelectorVista base={RUTA_CLASES} vista={vista} />}>
               {vista === 'lista' ? (
-                <ListaSesiones sesiones={sesiones} ahora={ahora} cursoSlug={casa.slug} />
+                <ListaSesiones sesiones={sesiones} ahora={ahora} cursoSlug={casa.slug} rutaGrabaciones={RUTA_CLASES} />
               ) : (
                 <CalendarioSesiones
                   sesiones={sesiones}
@@ -75,15 +82,10 @@ export default async function ClasesVaip({ searchParams }: { searchParams: Promi
                   ahora={ahora}
                   cursoSlug={casa.slug}
                   mes={mes}
-                  base="/vaip/clases"
+                  base={RUTA_CLASES}
+                  rutaGrabaciones={RUTA_CLASES}
                 />
               )}
-            </Seccion>
-          ) : null}
-
-          {casa.modulos.length > 0 ? (
-            <Seccion titulo="Grabaciones y material">
-              <IndiceCurso curso={casa} />
             </Seccion>
           ) : null}
         </>

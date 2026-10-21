@@ -208,7 +208,9 @@ export async function cursoDeGeneracion(id: string): Promise<string | null> {
  */
 export async function leccionesLigables(
   cursoId: string,
-  cohortId: string | null = null
+  cohortId: string | null = null,
+  /** M26: en la casa de V-AI-P solo se ligan grabaciones (módulos «mes»), nunca herramientas. */
+  opciones: { soloGrabaciones?: boolean } = {}
 ): Promise<Array<{ id: string; titulo: string; modulo: string }>> {
   const supabase = await crearClienteServidor()
 
@@ -217,6 +219,7 @@ export async function leccionesLigables(
     .select('title, position, cohort_id, lessons(id, title, position, lesson_type)')
     .eq('course_id', cursoId)
   consulta = cohortId ? consulta.eq('cohort_id', cohortId) : consulta.is('cohort_id', null)
+  if (opciones.soloGrabaciones) consulta = consulta.eq('kind', 'mes')
   const { data } = await consulta
 
   type Anidado = {

@@ -1360,6 +1360,24 @@ export type Database = {
         }
         Relationships: []
       }
+      lesson_tool_tags: {
+        Row: {
+          lesson_id: string
+          tag_id: string
+          created_at: string
+        }
+        Insert: {
+          lesson_id: string
+          tag_id: string
+          created_at?: string
+        }
+        Update: {
+          lesson_id?: string
+          tag_id?: string
+          created_at?: string
+        }
+        Relationships: []
+      }
       lessons: {
         Row: {
           id: string
@@ -1374,6 +1392,10 @@ export type Database = {
           status: 'draft' | 'published'
           created_at: string
           updated_at: string
+          recorded_on: string | null
+          orientation: 'horizontal' | 'vertical'
+          cover_path: string | null
+          published_at: string | null
         }
         Insert: {
           id?: string
@@ -1388,6 +1410,10 @@ export type Database = {
           status?: 'draft' | 'published'
           created_at?: string
           updated_at?: string
+          recorded_on?: string | null
+          orientation?: 'horizontal' | 'vertical'
+          cover_path?: string | null
+          published_at?: string | null
         }
         Update: {
           id?: string
@@ -1402,6 +1428,10 @@ export type Database = {
           status?: 'draft' | 'published'
           created_at?: string
           updated_at?: string
+          recorded_on?: string | null
+          orientation?: 'horizontal' | 'vertical'
+          cover_path?: string | null
+          published_at?: string | null
         }
         Relationships: []
       }
@@ -1679,6 +1709,8 @@ export type Database = {
           updated_at: string
           cohort_id: string | null
           is_restricted: boolean
+          kind: 'curso' | 'mes' | 'herramientas'
+          month: string | null
         }
         Insert: {
           id?: string
@@ -1689,6 +1721,8 @@ export type Database = {
           updated_at?: string
           cohort_id?: string | null
           is_restricted?: boolean
+          kind?: 'curso' | 'mes' | 'herramientas'
+          month?: string | null
         }
         Update: {
           id?: string
@@ -1699,6 +1733,8 @@ export type Database = {
           updated_at?: string
           cohort_id?: string | null
           is_restricted?: boolean
+          kind?: 'curso' | 'mes' | 'herramientas'
+          month?: string | null
         }
         Relationships: []
       }
@@ -2329,6 +2365,39 @@ export type Database = {
         }
         Relationships: []
       }
+      tool_tags: {
+        Row: {
+          id: string
+          course_id: string
+          name: string
+          slug: string
+          position: number
+          archived: boolean
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          course_id: string
+          name: string
+          slug: string
+          position?: number
+          archived?: boolean
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          course_id?: string
+          name?: string
+          slug?: string
+          position?: number
+          archived?: boolean
+          created_at?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       webhook_entregas: {
         Row: {
           id: string
@@ -2425,6 +2494,8 @@ export type Database = {
           certificados: number | null
           dinamicas: number | null
           cohort_id: string | null
+          grabaciones: number | null
+          herramientas: number | null
         }
         Relationships: []
       }

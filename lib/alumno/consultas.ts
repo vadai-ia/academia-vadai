@@ -67,8 +67,6 @@ export type CursoDelAlumno = {
   linkRecompraUsd: string | null
   /** M17: el curso es de V-AI-P; renovar es reactivar la membresía, no recomprar el curso. */
   enVaip: boolean
-  /** M19: una herramienta de V-AI-P y su área, o null si es un curso normal. */
-  categoria: 'creativas' | 'administrativas' | 'comerciales' | null
 }
 
 /**
@@ -295,7 +293,6 @@ export async function misCursos(): Promise<CursoDelAlumno[]> {
         linkRecompraMxn: curso.stripe_payment_link_mxn,
         linkRecompraUsd: curso.stripe_payment_link_usd,
         enVaip: deVaip.has(curso.id),
-        categoria: curso.category ?? null,
       }
     })
     .sort((a, b) => Number(b.vigente) - Number(a.vigente) || a.titulo.localeCompare(b.titulo))
@@ -415,7 +412,6 @@ export const cursoDelAlumno = cache(async function cursoDelAlumno(
     linkRecompraMxn: curso.stripe_payment_link_mxn,
     linkRecompraUsd: curso.stripe_payment_link_usd,
     enVaip: (await cursosDeVaip()).has(curso.id),
-    categoria: curso.category ?? null,
   }
 })
 
@@ -429,6 +425,14 @@ export type ContenidoDeLeccion = {
   adjuntos: Array<{ id: string; nombre: string; ruta: string; bytes: number | null }>
   segundosVistos: number
   completada: boolean
+  /**
+   * M26: de qué clase de módulo es. `mes` (una clase grabada de V-AI-P) y
+   * `herramientas` no se abren como lección de curso: tienen su página en /vaip.
+   */
+  tipoDeModulo: 'curso' | 'mes' | 'herramientas'
+  /** El día de la clase, en las grabaciones de V-AI-P (YYYY-MM-DD). */
+  grabadaEl: string | null
+  orientacion: 'horizontal' | 'vertical'
 }
 
 /**
@@ -443,7 +447,7 @@ export async function contenidoDeLeccion(leccionId: string): Promise<ContenidoDe
 
   const { data: leccion } = await supabase
     .from('lessons')
-    .select('*, lesson_attachments(id, file_name, storage_path, size_bytes)')
+    .select('*, lesson_attachments(id, file_name, storage_path, size_bytes), modules(kind)')
     .eq('id', leccionId)
     .maybeSingle()
 
@@ -466,8 +470,10 @@ export async function contenidoDeLeccion(leccionId: string): Promise<ContenidoDe
       storage_path: string
       size_bytes: number | null
     }>
+    modules: { kind: string } | null
   }
   const fila = leccion as unknown as Anidado
+  const kind = fila.modules?.kind
 
   return {
     id: fila.id,
@@ -484,6 +490,9 @@ export async function contenidoDeLeccion(leccionId: string): Promise<ContenidoDe
     })),
     segundosVistos: progreso?.seconds_watched ?? 0,
     completada: progreso?.completed ?? false,
+    tipoDeModulo: kind === 'mes' || kind === 'herramientas' ? kind : 'curso',
+    grabadaEl: fila.recorded_on,
+    orientacion: fila.orientation === 'vertical' ? 'vertical' : 'horizontal',
   }
 }
 
