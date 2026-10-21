@@ -171,12 +171,13 @@ async function crearCuentaQa(email, nombre) {
 }
 
 async function purgar(bd) {
-  const inicio = await una(bd, `select id from academia.profiles where email = $1`, [CORREO_ADMIN])
+  const admin = await una(bd, `select user_id from academia.profiles where email = $1`, [CORREO_ADMIN])
+  const hayBitacora = (await una(bd, `select to_regclass('academia.access_emails') is not null as hay`)).hay
   // Lo que el recordatorio de la suite le anotó a OTRAS cuentas QA.
-  if (inicio) {
+  if (admin && hayBitacora) {
     await bd.query(
       `delete from academia.access_emails where es_qa and creado_por = $1 and origen in ('recordatorio', 'reenvio_fallidos') and created_at > now() - interval '2 hours'`,
-      [inicio.id]
+      [admin.user_id]
     )
   }
   for (const k of CUENTAS) {
