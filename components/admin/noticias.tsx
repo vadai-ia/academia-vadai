@@ -5,12 +5,13 @@ import { useFormStatus } from 'react-dom'
 
 import { AvisoAccion } from '@/components/admin/aviso-accion'
 import { ConfirmarConModal } from '@/components/admin/confirmar-con-modal'
+import { Desplegable } from '@/components/admin/desplegable'
 import { claseSelect } from '@/components/admin/estilos'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
-import { SIN_ESTADO } from '@/lib/admin/tipos'
+import { SIN_ESTADO, type EstadoAccion } from '@/lib/admin/tipos'
 import { borrarPublicacion, crearDesdeLiga, iniciarCaceria, publicarEnVaip, publicarNoticia } from '@/lib/noticias/acciones'
 
 /**
@@ -122,8 +123,29 @@ export function FormularioPropuesta({ p }: { p: PropuestaParaFormulario }) {
 
 export type TemaParaFormulario = { slug: string; nombre: string; soloEquipo: boolean }
 
-export function Compositor({ temas }: { temas: TemaParaFormulario[] }) {
+export function Compositor({ temas, enDesplegable = false }: { temas: TemaParaFormulario[]; enDesplegable?: boolean }) {
   const [estado, accion] = useActionState(publicarEnVaip, SIN_ESTADO)
+  // M25: en el Muro va detrás de su botón, cerrado; se abre solo si la acción
+  // contestó algo (el aviso de publicado o el error), para que se vea.
+  if (enDesplegable) {
+    return (
+      <Desplegable etiqueta="Publicar en el muro" variante="primario" abierto={Boolean(estado.error || estado.aviso)} id="publicar">
+        <FormularioCompositor temas={temas} estado={estado} accion={accion} />
+      </Desplegable>
+    )
+  }
+  return <FormularioCompositor temas={temas} estado={estado} accion={accion} />
+}
+
+function FormularioCompositor({
+  temas,
+  estado,
+  accion,
+}: {
+  temas: TemaParaFormulario[]
+  estado: EstadoAccion
+  accion: (datos: FormData) => void
+}) {
   // Al publicar bien, el formulario se vacía: la llave cambia con el aviso.
   return (
     <form

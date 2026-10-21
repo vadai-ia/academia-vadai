@@ -104,6 +104,7 @@ export function ArbolCurso({
   moduloAbierto,
   cohortId = null,
   soloLectura = false,
+  raiz: raizPedida,
 }: {
   /** Con los módulos ya acotados a la generación de la pestaña (M16). */
   curso: CursoCompleto
@@ -116,9 +117,14 @@ export function ArbolCurso({
    * subir su video o sus adjuntos, pero no crea, mueve, renombra ni borra.
    */
   soloLectura?: boolean
+  /**
+   * La página donde vive el árbol (M25). La casa de V-AI-P se edita en
+   * V-AI-P → Clases, no en Cursos: ahí abrir y cerrar módulos se queda.
+   */
+  raiz?: string
 }) {
   const estaAbierto = (id: string) => moduloAbierto === 'todos' || moduloAbierto === id
-  const raiz = `/admin/cursos/${curso.id}`
+  const raiz = raizPedida ?? `/admin/cursos/${curso.id}`
   const base = cohortId ? `${raiz}?gen=${cohortId}` : raiz
   const con = (q: string) => `${base}${cohortId ? '&' : '?'}${q}`
   return (

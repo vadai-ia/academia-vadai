@@ -51,6 +51,7 @@ export function NuevaSesion({
   reinicio,
   nombre,
   avisar = false,
+  sinAnuncio = false,
 }: {
   cohorteId?: string
   generaciones?: GeneracionParaAgendar[]
@@ -59,6 +60,8 @@ export function NuevaSesion({
   nombre?: string
   /** M17: anuncio y correo marcados de inicio (V-AI-P). */
   avisar?: boolean
+  /** M25: es la casa de V-AI-P: sin anuncio, solo el correo. */
+  sinAnuncio?: boolean
 }) {
   const [estado, accion] = useActionState(crearSesion, SIN_ESTADO)
   const sufijo = cohorteId ?? 'panel'
@@ -162,7 +165,7 @@ export function NuevaSesion({
           />
         </div>
 
-        <AvisosDeSesion marcadas={avisar} />
+        <AvisosDeSesion marcadas={avisar} sinAnuncio={sinAnuncio} />
 
         <AvisoAccion estado={estado} />
 

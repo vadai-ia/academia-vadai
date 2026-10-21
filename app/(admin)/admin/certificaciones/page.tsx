@@ -38,7 +38,7 @@ const ESTADOS: { valor: EstadoDiploma; etiqueta: string }[] = [
 export default async function PaginaCertificaciones({ searchParams }: { searchParams: Promise<FiltrosDiplomas> }) {
   await exigirEquipo()
   const t = await tablaDeDiplomas(await searchParams)
-  if (!t) return <Titulo>Certificaciones</Titulo>
+  if (!t) return <Titulo ceja="Cursos">Certificaciones</Titulo>
   const { programa, filas, cifras, filtros } = t
 
   const hrefDe = (cambios: { gen?: string; estado?: EstadoDiploma }) => {
@@ -54,7 +54,7 @@ export default async function PaginaCertificaciones({ searchParams }: { searchPa
 
   return (
     <div className="flex flex-col gap-8">
-      <Titulo apoyo="Los diplomas de generación de VADAI y Total Coach: quién ya lo abrió, quién ya lo descargó y el folio de cada uno.">
+      <Titulo ceja="Cursos" apoyo="Los diplomas de generación de VADAI y Total Coach: quién ya lo abrió, quién ya lo descargó y el folio de cada uno.">
         Certificaciones
       </Titulo>
 

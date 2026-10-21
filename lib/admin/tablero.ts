@@ -8,6 +8,7 @@ import {
 } from '@/lib/admin/generaciones'
 import { armarExclusivas, leCuenta, leccionesQueNoVe } from '@/lib/acceso/exclusivas'
 import { estaAbierta } from '@/lib/dinamicas/comun'
+import { mundoVaip, sinVaip } from '@/lib/membresia/mundo'
 import { crearClienteServidor } from '@/lib/supabase/server'
 
 /**
@@ -79,6 +80,7 @@ export async function tableroAdmin(): Promise<Tablero> {
     sesiones,
     generaciones,
     miembros,
+    mundo,
   ] = await Promise.all([
     supabase.from('profiles').select('user_id, role, status, last_sign_in_at'),
     supabase.from('enrollments').select('user_id, course_id, cohort_id, status, expires_at'),
@@ -95,6 +97,7 @@ export async function tableroAdmin(): Promise<Tablero> {
     generacionesParaAgendar(),
     // Las listas de las sesiones exclusivas (0038).
     supabase.from('module_members').select('module_id, user_id'),
+    mundoVaip(),
   ])
 
   for (const [nombre, r] of Object.entries({ perfiles, inscripciones, cursos, outline, progreso })) {
@@ -148,7 +151,8 @@ export async function tableroAdmin(): Promise<Tablero> {
     hechas.set(llave, (hechas.get(llave) ?? 0) + 1)
   }
 
-  const cursosVivos = (cursos.data ?? []).filter((c) => c.status !== 'archived')
+  // Sin lo de V-AI-P (M25): su avance y su ranking viven en su propio mundo.
+  const cursosVivos = sinVaip(mundo, (cursos.data ?? []).filter((c) => c.status !== 'archived'))
   const cursosEnTablero: CursoEnTablero[] = cursosVivos
     .filter((c) => c.status === 'published')
     .map((c) => {

@@ -249,16 +249,16 @@ export default async function PaginaInicio() {
         </div>
       ) : null}
 
-      {/* --- Lo último de los muros de tus cursos ------------------------ */}
+      {/* --- Lo último del grupo de tus cursos (M25: «Grupo», no «Comunidad») */}
       {muros.length > 0 ? (
-        <Seccion titulo={muros.length === 1 ? 'En la comunidad de tu curso' : 'En las comunidades de tus cursos'}>
+        <Seccion titulo={muros.length === 1 ? 'En el grupo de tu curso' : 'En los grupos de tus cursos'}>
           <div className="grid gap-4 lg:grid-cols-2">
             {muros.map((m) => (
               <Tarjeta key={m.curso.id} className="flex min-w-0 flex-col gap-3 p-5">
                 <div className="flex flex-wrap items-baseline justify-between gap-2">
                   <p className="font-medium text-balance">{m.curso.titulo}</p>
                   <Link href={m.href} className="text-sm text-primary underline-offset-4 hover:underline">
-                    Ir al muro →
+                    Ir al grupo →
                   </Link>
                 </div>
                 <ul className="flex flex-col gap-1">

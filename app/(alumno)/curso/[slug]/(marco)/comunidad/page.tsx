@@ -19,7 +19,7 @@ export async function generateMetadata({
 }): Promise<Metadata> {
   const { slug } = await params
   const curso = await cursoDelAlumno(slug)
-  return { title: curso ? `Comunidad · ${curso.titulo}` : 'Comunidad' }
+  return { title: curso ? `Grupo · ${curso.titulo}` : 'Grupo' }
 }
 
 export default async function PaginaComunidad({
@@ -39,7 +39,7 @@ export default async function PaginaComunidad({
   // noticias que salen por webhook traen ?tema=noticias).
   if (await esCasaDeVaip(curso.id)) redirect(tema && /^[a-z0-9-]+$/.test(tema) ? `/vaip?tema=${tema}` : '/vaip')
 
-  // La comunidad es contenido, no estructura: con el acceso vencido no se entra.
+  // El grupo es contenido, no estructura: con el acceso vencido no se entra.
   // El índice del curso sí se ve, y de ahí sale el CTA de recompra (§6.3).
   if (!curso.vigente) redirect(`/curso/${slug}`)
 
@@ -85,8 +85,7 @@ export default async function PaginaComunidad({
 
       {curso.sinGeneracion ? (
         <p className="rounded-lg border border-dashed border-border px-5 py-8 text-center text-sm text-muted-foreground">
-          La comunidad es por generación, y todavía no estás en una. Escríbenos y te asignamos la
-          tuya.
+          El grupo es por generación, y todavía no estás en una. Escríbenos y te asignamos la tuya.
         </p>
       ) : (
         <Comunidad

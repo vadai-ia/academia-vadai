@@ -2,7 +2,7 @@ import type { Metadata } from 'next'
 import Link from 'next/link'
 
 import { claseSelect } from '@/components/admin/estilos'
-import { Avatar, Seccion } from '@/components/ui-vadai/superficie'
+import { Avatar, Titulo } from '@/components/ui-vadai/superficie'
 import { fechaLarga } from '@/components/vaip/tu-membresia'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -12,7 +12,7 @@ import { filtrarMiembros, miembrosDelPortal } from '@/lib/membresia/portal'
 import { esCuentaQa } from '@/lib/qa'
 import { cn } from '@/lib/utils'
 
-export const metadata: Metadata = { title: 'Miembros de V-AI-P' }
+export const metadata: Metadata = { title: 'Miembros · V-AI-P' }
 export const dynamic = 'force-dynamic'
 
 const ESTADO_STRIPE: Record<string, string> = {
@@ -39,17 +39,27 @@ export default async function PaginaMiembros({
   const admin = esAdmin(perfil)
   const filtros = await searchParams
   const plan = await planVaip()
-  if (!plan) return <p className="text-sm text-muted-foreground">El plan V-AI-P no está a la venta.</p>
+  if (!plan) {
+    return (
+      <div className="flex flex-col gap-6">
+        <Titulo ceja="V-AI-P">Miembros</Titulo>
+        <p className="text-sm text-muted-foreground">El plan V-AI-P no está a la venta.</p>
+      </div>
+    )
+  }
 
   const todos = await miembrosDelPortal(plan.id, admin, esCuentaQa(perfil.email))
   const estado = filtros.estado === 'vencidos' || filtros.estado === 'todos' ? filtros.estado : 'vigentes'
   const visibles = filtrarMiembros(todos, { q: filtros.q, estado })
 
   return (
-    <Seccion
-      titulo="Miembros"
-      apoyo={`${todos.filter((m) => m.vigente).length} con acceso · ${todos.length} en total, contando a quien ya salió.`}
-    >
+    <div className="flex flex-col gap-6">
+      <Titulo
+        ceja="V-AI-P"
+        apoyo={`${todos.filter((m) => m.vigente).length} con acceso · ${todos.length} en total, contando a quien ya salió.`}
+      >
+        Miembros
+      </Titulo>
       <form method="get" className="flex flex-wrap items-end gap-2">
         <Input name="q" defaultValue={filtros.q ?? ''} placeholder="Nombre, correo o empresa" className="h-9 max-w-xs" />
         <select name="estado" defaultValue={estado} className={cn(claseSelect, 'w-auto')} aria-label="Estado">
@@ -151,6 +161,6 @@ export default async function PaginaMiembros({
           </table>
         </div>
       )}
-    </Seccion>
+    </div>
   )
 }

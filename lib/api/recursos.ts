@@ -2,7 +2,6 @@ import 'server-only'
 
 import { ErrorApi, json, type ContextoApi } from '@/lib/api/contexto'
 import { emitirEvento } from '@/lib/api/webhooks'
-import { describirHorario } from '@/lib/calendario/enlaces'
 import { comoDocumento, textoPlano } from '@/lib/comunidad/documento'
 import { accesoMayor, vigente } from '@/lib/membresia/acceso'
 import { ACTIVIDAD_VACIA, nivelDe, puntosDe, sumarActividad, type Actividad } from '@/lib/gamificacion/reglas'
@@ -201,7 +200,7 @@ export async function crearEvento(
   ctx: ContextoApi,
   datos: { titulo: string; inicio: string; tipo: 'clase' | 'evento'; lugar?: string | null; liga?: string | null; descripcion?: string | null; anunciar?: boolean }
 ): Promise<Response> {
-  const { casaId, casaSlug } = exigirCasa(ctx)
+  const { casaId } = exigirCasa(ctx)
   if (Date.parse(datos.inicio) < Date.now()) throw new ErrorApi(400, 'inicio: tiene que ser en el futuro.')
   if (datos.tipo === 'evento' && !datos.lugar && !datos.liga) throw new ErrorApi(400, 'Un evento necesita su lugar o su liga.')
   const generacion = await generacionDeLaCasa(ctx, casaId)
@@ -222,33 +221,9 @@ export async function crearEvento(
     .single()
   if (error || !data) throw new Error(`No se pudo agendar: ${error?.message}`)
 
-  if (datos.anunciar) {
-    const autor = await cuentaDelEquipo(ctx)
-    const texto = (t: string, href?: string | null) =>
-      href ? { type: 'text', text: t, marks: [{ type: 'link', attrs: { href } }] } : { type: 'text', text: t }
-    const { error: errorAnuncio } = await ctx.db.from('posts').insert({
-      title: `${datos.tipo === 'evento' ? 'Evento' : 'Clase en vivo'}: ${data.title}`,
-      post_type: 'announcement',
-      content_rich: {
-        type: 'doc',
-        content: [
-          {
-            type: 'paragraph',
-            content: [
-              texto(`${describirHorario(data.scheduled_at)}${datos.lugar ? ` · ${datos.lugar}` : ''}. `),
-              ...(data.meet_url ? [texto('Entrar', data.meet_url)] : []),
-            ],
-          },
-          { type: 'paragraph', content: [texto('Todo está en '), texto('En vivo', `${ctx.base}/curso/${casaSlug}/en-vivo`), texto('.')] },
-        ],
-      },
-      audience_course_id: casaId,
-      audience_cohort_id: generacion,
-      author_id: autor,
-      published_at: new Date().toISOString(),
-    })
-    if (errorAnuncio) console.error(JSON.stringify({ operacion: 'api:anunciarEvento', sesion: data.id, error: errorAnuncio.message }))
-  }
+  // `anunciar` se acepta y se ignora (M25, 20-oct-2026): las clases de V-AI-P
+  // no publican anuncio —los anuncios son de los cursos y los avisos de V-AI-P
+  // van fijados en su Muro—. Un 400 rompería a quien ya lo manda.
 
   await emitirEvento('sesion.creada', {
     sesionId: data.id,

@@ -24,7 +24,8 @@ const RUTA_LECCION = `/curso/${CURSO_QA.slug}/${IDS.leccionVideo}`
 const RUTA_COMUNIDAD = `/curso/${CURSO_QA.slug}/comunidad`
 // La bandeja del panel, filtrada al curso QA: con la comunidad real
 // esperando respuesta, lo de la prueba no cabe en la primera página.
-const BANDEJA = `/admin/comunidad?curso=${IDS.curso}`
+// M25: la bandeja de los cursos se llama Grupos (/admin/comunidad solo redirige).
+const BANDEJA = `/admin/grupos?curso=${IDS.curso}`
 
 // --- sesión ----------------------------------------------------------------
 

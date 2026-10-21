@@ -50,7 +50,7 @@ export default async function PaginaApi() {
 
   return (
     <div className="flex flex-col gap-10">
-      <Titulo apoyo="Para que otras plataformas —o una rutina de Claude— publiquen noticias, agenden clases, contesten el muro y lean cómo va la comunidad.">
+      <Titulo ceja="Ajustes" apoyo="Para que otras plataformas —o una rutina de Claude— publiquen noticias, agenden clases, contesten el muro y lean cómo va la comunidad.">
         API
       </Titulo>
 

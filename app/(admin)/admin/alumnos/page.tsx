@@ -126,7 +126,7 @@ export default async function PaginaAlumnos({ searchParams }: { searchParams: Pr
 
   return (
     <div className="flex flex-col gap-8">
-      <Titulo apoyo={apoyo}>Alumnos</Titulo>
+      <Titulo ceja="Personas" apoyo={apoyo}>Alumnos</Titulo>
 
       {aviso === 'reenviado' && correo ? (
         <AvisoAccion estado={{ aviso: `Correo de acceso enviado a ${correo}. Su liga vale 30 días.` }} />

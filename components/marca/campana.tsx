@@ -28,6 +28,7 @@ const ETIQUETA_TIPO: Record<Notificacion['tipo'], string> = {
   announcement: 'Anuncio',
   blog: 'Blog',
   sesion: 'Sesión en vivo',
+  clase: 'Clase de V-AI-P',
   dinamica: 'Dinámica',
   exclusiva: 'Sesión exclusiva',
   respuesta: 'Te respondieron',

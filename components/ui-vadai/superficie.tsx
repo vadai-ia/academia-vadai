@@ -85,19 +85,30 @@ export function TarjetaEnlace({
  *
  * Un solo <h1> por pantalla y siempre en el mismo lugar: la jerarquía de
  * títulos tiene que ser predecible para quien navega con lector de pantalla.
+ *
+ * `ceja` (M25): en el panel, el grupo de la barra lateral al que pertenece la
+ * página —«V-AI-P», «Cursos»—. Reemplaza a las pestañas internas que repetían
+ * la barra: dice dónde estás sin agregar otra fila de navegación.
  */
 export function Titulo({
   children,
   apoyo,
   acciones,
+  ceja,
 }: {
   children: ReactNode
   apoyo?: ReactNode
   acciones?: ReactNode
+  ceja?: string
 }) {
   return (
     <header className="flex flex-wrap items-start justify-between gap-4">
       <div className="flex min-w-0 flex-col gap-1">
+        {ceja ? (
+          <p className="text-xs font-medium tracking-[0.14em] text-primary uppercase" data-ceja>
+            {ceja}
+          </p>
+        ) : null}
         <h1 className="text-[1.75rem] leading-tight font-medium tracking-tight text-balance">
           {children}
         </h1>

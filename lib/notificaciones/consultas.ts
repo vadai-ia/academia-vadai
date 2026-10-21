@@ -39,7 +39,7 @@ import { crearClienteServidor } from '@/lib/supabase/server'
 export type Notificacion = {
   id: string
   titulo: string
-  tipo: 'announcement' | 'blog' | 'sesion' | 'dinamica' | 'exclusiva' | 'respuesta' | 'noticia'
+  tipo: 'announcement' | 'blog' | 'sesion' | 'clase' | 'dinamica' | 'exclusiva' | 'respuesta' | 'noticia'
   /** Cuándo pasó lo que se avisa. */
   publicadoEn: string
   /** Una línea más, cuando hace falta: el horario de la sesión, el curso de la dinámica. */
@@ -95,22 +95,27 @@ export async function notificacionesDelAlumno(perfil: Perfil): Promise<Novedades
     titulo: p.titulo,
     tipo: p.tipo,
     publicadoEn: p.publicadoEn,
-    // M22: los anuncios de V-AI-P se leen en V-AI-P → Clases; los demás, en Inicio.
-    href: p.tipo === 'blog' ? '/blog' : casa && p.cursoId === casa.id ? `/vaip/clases#anuncio-${p.id}` : '/mis-cursos',
+    // Los anuncios son de los cursos (M25; los de V-AI-P ya no salen): se leen en Inicio.
+    href: p.tipo === 'blog' ? '/blog' : '/mis-cursos',
     nueva: new Date(p.publicadoEn).getTime() > desde,
   }))
 
   const deSesiones: Notificacion[] = sesiones
     .filter((s) => new Date(s.programadaEn).getTime() >= ahora - HORAS_DE_GRACIA * 60 * 60 * 1000)
-    .map((s) => ({
-      id: `sesion-${s.id}`,
-      titulo: s.titulo,
-      tipo: 'sesion' as const,
-      publicadoEn: s.actualizadaEn,
-      detalle: describirHorario(s.programadaEn),
-      href: `/curso/${s.cursoSlug}/en-vivo`,
-      nueva: new Date(s.actualizadaEn).getTime() > desde,
-    }))
+    .map((s) => {
+      // M25: una clase de V-AI-P se dice así y lleva a V-AI-P → Clases; la de
+      // un curso, a su pestaña En vivo.
+      const deVaip = casa !== null && s.cursoSlug === casa.slug
+      return {
+        id: `sesion-${s.id}`,
+        titulo: s.titulo,
+        tipo: deVaip ? ('clase' as const) : ('sesion' as const),
+        publicadoEn: s.actualizadaEn,
+        detalle: describirHorario(s.programadaEn),
+        href: deVaip ? '/vaip/clases' : `/curso/${s.cursoSlug}/en-vivo`,
+        nueva: new Date(s.actualizadaEn).getTime() > desde,
+      }
+    })
 
   const deDinamicas: Notificacion[] = dinamicas.map((d) => ({
     id: `dinamica-${d.id}`,

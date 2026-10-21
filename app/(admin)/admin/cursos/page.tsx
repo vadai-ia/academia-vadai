@@ -3,6 +3,7 @@ import Link from 'next/link'
 
 import { ConfirmarConModal } from '@/components/admin/confirmar-con-modal'
 import { Pestanas } from '@/components/ui-vadai/pestanas'
+import { Titulo } from '@/components/ui-vadai/superficie'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { archivarCurso, restaurarCurso } from '@/lib/admin/acciones'
@@ -38,22 +39,24 @@ export default async function PaginaCursos({
 
   return (
     <div className="flex flex-col gap-6">
-      <header className="flex flex-wrap items-center justify-between gap-3">
-        <div className="flex flex-col gap-1">
-          <h1 className="text-2xl font-semibold tracking-tight">Cursos</h1>
-          <p className="text-sm text-muted-foreground">
-            {cursos.length === 0
-              ? 'Todavía no hay cursos.'
-              : `${activos.length} activo(s) · ${archivados.length} archivado(s)`}
-          </p>
-        </div>
-        {/* Crear cursos es de admin: el community manager opera los que existen. */}
-        {esAdmin(perfil) ? (
-          <Button asChild>
-            <Link href="/admin/cursos/nuevo">Nuevo curso</Link>
-          </Button>
-        ) : null}
-      </header>
+      <Titulo
+        ceja="Cursos"
+        apoyo={
+          cursos.length === 0
+            ? 'Todavía no hay cursos.'
+            : `${activos.length} activo(s) · ${archivados.length} archivado(s). La casa de V-AI-P y sus herramientas viven en V-AI-P.`
+        }
+        acciones={
+          // Crear cursos es de admin: el community manager opera los que existen.
+          esAdmin(perfil) ? (
+            <Button asChild>
+              <Link href="/admin/cursos/nuevo">Nuevo curso</Link>
+            </Button>
+          ) : null
+        }
+      >
+        Cursos
+      </Titulo>
 
       <Pestanas
         etiqueta="Filtro de cursos"

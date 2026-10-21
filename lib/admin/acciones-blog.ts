@@ -4,6 +4,7 @@ import { revalidatePath } from 'next/cache'
 import { z } from 'zod'
 
 import { exigirEquipo } from '@/lib/auth/sesion'
+import { mundoVaip } from '@/lib/membresia/mundo'
 import { crearClienteServidor } from '@/lib/supabase/server'
 import type { Json } from '@/lib/supabase/types'
 
@@ -109,6 +110,12 @@ export async function crearPublicacion(
       .maybeSingle()
     if (!g) return { error: 'Esa generación ya no existe.' }
     resultado.data.audience_course_id = g.course_id
+  }
+
+  // M25: los anuncios son de los cursos. V-AI-P avisa con una publicación
+  // fijada en su Muro (decisión de Alejandro, 20-oct-2026).
+  if (resultado.data.audience_course_id && (await mundoVaip()).ids.has(resultado.data.audience_course_id)) {
+    return { error: 'Para V-AI-P usa Muro → Publicar en el muro → Aviso: los anuncios son de los cursos.' }
   }
 
   const { error } = await supabase.from('posts').insert({

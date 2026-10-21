@@ -5,6 +5,7 @@ import { NuevaDinamica } from '@/components/admin/nueva-dinamica'
 import { Badge } from '@/components/ui/badge'
 import { Titulo } from '@/components/ui-vadai/superficie'
 import { opcionesDeAlta } from '@/lib/admin/alumnos'
+import { mundoVaip, sinVaip } from '@/lib/membresia/mundo'
 import { fechaHoraCdmx } from '@/lib/admin/fechas'
 import { exigirEquipo } from '@/lib/auth/sesion'
 import { ETIQUETA_ESTADO_DINAMICA } from '@/lib/dinamicas/comun'
@@ -30,11 +31,13 @@ function lineaDeFecha(d: DinamicaEnLista): string {
 export default async function PaginaDinamicas() {
   await exigirEquipo()
 
-  const [dinamicas, cursos] = await Promise.all([listarDinamicas(), opcionesDeAlta()])
+  const [dinamicas, todos, mundo] = await Promise.all([listarDinamicas(), opcionesDeAlta(), mundoVaip()])
+  // Las dinámicas son de los cursos (M25): V-AI-P no sale en el selector.
+  const cursos = sinVaip(mundo, todos)
 
   return (
     <div className="flex flex-col gap-6">
-      <Titulo apoyo="Fijas los criterios y su peso; cada empresa agrega sus proyectos, los califica y ve el ponderado al momento.">
+      <Titulo ceja="Cursos" apoyo="Fijas los criterios y su peso; cada empresa agrega sus proyectos, los califica y ve el ponderado al momento.">
         Dinámicas empresariales
       </Titulo>
 

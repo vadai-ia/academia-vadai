@@ -1,5 +1,6 @@
 import 'server-only'
 
+import { mundoVaip } from '@/lib/membresia/mundo'
 import { crearClienteServidor } from '@/lib/supabase/server'
 import type { Json } from '@/lib/supabase/types'
 
@@ -12,6 +13,8 @@ export type PublicacionAdmin = {
   cursoAudiencia: string | null
   publicadoEn: string | null
   creadoEn: string
+  /** Su audiencia es lo de V-AI-P: ya no se le muestra a nadie (M25). */
+  deVaip: boolean
 }
 
 /** Todas las publicaciones, borradores incluidos. La policy da acceso al admin. */
@@ -20,8 +23,9 @@ export async function listarPublicaciones(): Promise<PublicacionAdmin[]> {
 
   const { data, error } = await supabase
     .from('posts')
-    .select('id, title, post_type, content_rich, cover_url, published_at, created_at, courses(title)')
+    .select('id, title, post_type, content_rich, cover_url, published_at, created_at, audience_course_id, courses(title)')
     .order('created_at', { ascending: false })
+  const mundo = await mundoVaip()
 
   if (error) {
     console.error(JSON.stringify({ operacion: 'listarPublicaciones', error: error.message }))
@@ -36,6 +40,7 @@ export async function listarPublicaciones(): Promise<PublicacionAdmin[]> {
     cover_url: string | null
     published_at: string | null
     created_at: string
+    audience_course_id: string | null
     courses: { title: string } | null
   }
 
@@ -48,5 +53,7 @@ export async function listarPublicaciones(): Promise<PublicacionAdmin[]> {
     cursoAudiencia: p.courses?.title ?? null,
     publicadoEn: p.published_at,
     creadoEn: p.created_at,
+    // M25: los anuncios de V-AI-P ya no se muestran (sus avisos van fijados en el Muro).
+    deVaip: mundo.ids.has(p.audience_course_id ?? ''),
   }))
 }

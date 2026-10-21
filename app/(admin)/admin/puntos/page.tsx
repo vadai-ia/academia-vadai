@@ -48,7 +48,7 @@ export default async function PaginaPuntos({ searchParams }: { searchParams: Pro
 
   return (
     <div className="flex flex-col gap-8">
-      <Titulo apoyo="Quién va arriba, de dónde salen sus puntos y cuánto le falta a cada uno para el siguiente nivel.">
+      <Titulo ceja="Cursos" apoyo="Quién va arriba, de dónde salen sus puntos y cuánto le falta a cada uno para el siguiente nivel.">
         Puntos y ranking
       </Titulo>
 

@@ -107,13 +107,19 @@ const SESIONES = {
       `/admin/cursos/${IDS.curso}?gen=nueva`,
       '/admin/alumnos',
       '/admin/empresas',
-      '/admin/comunidad',
+      '/admin/grupos',
       `/admin/modulos/${IDS.modulo1}/acceso`,
       '/admin/encuestas',
       '/admin/dinamicas',
       '/admin/entregas',
       '/admin/publicaciones',
+      // M25: el mundo de V-AI-P, una página por destino de la barra.
       '/admin/vaip',
+      '/admin/vaip/muro',
+      '/admin/vaip/clases',
+      '/admin/vaip/miembros',
+      '/admin/vaip/herramientas',
+      '/admin/vaip/planes',
     ],
   },
   // El community manager (0036): lo que ve sin los botones de admin.
@@ -121,7 +127,9 @@ const SESIONES = {
     email: correo.cm,
     rutas: [
       '/admin',
-      '/admin/comunidad',
+      '/admin/grupos',
+      '/admin/vaip/muro',
+      '/admin/vaip/clases',
       `/admin/cursos/${IDS.curso}?gen=${IDS.cohorte}&modulo=todos`,
       `/admin/lecciones/${IDS.leccionVideo}`,
       '/admin/alumnos',
@@ -136,7 +144,7 @@ const SESIONES = {
   // El agente (M21): los datos de `node scripts/test-agente.mjs --conservar`.
   agente: {
     email: correo.admin,
-    rutas: ['/admin/agente', '/admin/ajustes/agente', '/admin/comunidad?estado=agente', '/curso/qa-agente-casa/comunidad?por=100'],
+    rutas: ['/admin/agente', '/admin/agente/ajustes', '/admin/vaip/muro?estado=agente', '/curso/qa-agente-casa/comunidad?por=100'],
   },
   agenteCm: {
     email: correo.cm,
@@ -145,7 +153,7 @@ const SESIONES = {
   // M24: publicar y noticias. Los datos de `node scripts/test-noticias.mjs --conservar`.
   noticias: {
     email: correo.cm,
-    rutas: ['/admin/vaip/noticias', '/admin/vaip/publicar', '/curso/qa-noticias-casa/comunidad'],
+    rutas: ['/admin/vaip/noticias', '/admin/vaip/muro', '/curso/qa-noticias-casa/comunidad'],
   },
   publico: {
     email: null,

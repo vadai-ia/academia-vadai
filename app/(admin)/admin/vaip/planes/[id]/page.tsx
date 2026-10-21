@@ -14,7 +14,7 @@ import { SLUG_VAIP } from '@/lib/membresia/consultas'
 import { etiquetaDeMotivo } from '@/lib/membresia/motivos'
 import { ETIQUETA_ESTADO_PLAN, cancelacionesDelPlan, cursosElegibles, planDelPanel } from '@/lib/membresia/planes'
 
-export const metadata: Metadata = { title: 'Plan' }
+export const metadata: Metadata = { title: 'Plan · V-AI-P' }
 export const dynamic = 'force-dynamic'
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
@@ -49,9 +49,9 @@ export default async function PaginaPlan({
     <div className="flex flex-col gap-10">
       <div className="flex flex-col gap-2">
         <Link href="/admin/vaip/planes" className="w-fit text-sm text-muted-foreground hover:text-primary">
-          ← Planes
+          ← Planes y cobros
         </Link>
-        <Titulo apoyo={`${ETIQUETA_ESTADO_PLAN[plan.estado]} · ${moneda(plan.precioMxn)} al mes · ${plan.miembrosVigentes} con acceso`}>
+        <Titulo ceja="V-AI-P" apoyo={`${ETIQUETA_ESTADO_PLAN[plan.estado]} · ${moneda(plan.precioMxn)} al mes · ${plan.miembrosVigentes} con acceso`}>
           {plan.nombre}
         </Titulo>
       </div>

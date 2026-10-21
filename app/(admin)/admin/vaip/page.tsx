@@ -3,7 +3,7 @@ import Link from 'next/link'
 
 import { CodigoQr } from '@/components/encuestas/codigo-qr'
 import { moneda } from '@/components/membresias/precio'
-import { Cifra, Seccion, Tarjeta } from '@/components/ui-vadai/superficie'
+import { Cifra, Seccion, Tarjeta, Titulo } from '@/components/ui-vadai/superficie'
 import { Button } from '@/components/ui/button'
 import { pendientesDelAgente } from '@/lib/agente/panel'
 import { esAdmin, exigirEquipo } from '@/lib/auth/sesion'
@@ -12,7 +12,7 @@ import { planVaip } from '@/lib/membresia/consultas'
 import { resumenDelPortal } from '@/lib/membresia/portal'
 import { esCuentaQa } from '@/lib/qa'
 
-export const metadata: Metadata = { title: 'V-AI-P' }
+export const metadata: Metadata = { title: 'Resumen · V-AI-P' }
 export const dynamic = 'force-dynamic'
 
 /**
@@ -24,7 +24,12 @@ export default async function PaginaResumen() {
   const admin = esAdmin(perfil)
   const plan = await planVaip()
   if (!plan) {
-    return <p className="text-sm text-muted-foreground">El plan V-AI-P no está a la venta.</p>
+    return (
+      <div className="flex flex-col gap-6">
+        <Titulo ceja="V-AI-P">Resumen</Titulo>
+        <p className="text-sm text-muted-foreground">El plan V-AI-P no está a la venta.</p>
+      </div>
+    )
   }
   const [r, agente] = await Promise.all([
     resumenDelPortal(plan, { conCobros: admin, veQa: esCuentaQa(perfil.email) }),
@@ -36,6 +41,10 @@ export default async function PaginaResumen() {
 
   return (
     <div className="flex flex-col gap-10">
+      <Titulo ceja="V-AI-P" apoyo="La comunidad de paga de la academia: cómo va hoy, qué espera al equipo y la próxima clase.">
+        Resumen
+      </Titulo>
+
       {!plan.abierto ? (
         <Tarjeta className="flex flex-col gap-1 border-dashed p-5 text-sm">
           <p className="font-medium">La suscripción todavía no abre.</p>
@@ -43,8 +52,8 @@ export default async function PaginaResumen() {
             {admin ? (
               <>
                 Falta lo que dice{' '}
-                <Link href="/admin/vaip/cobros" className="font-medium text-primary hover:underline">
-                  Cobros
+                <Link href="/admin/vaip/planes" className="font-medium text-primary hover:underline">
+                  Planes y cobros
                 </Link>
                 : publicar el plan en Stripe y el curso V-AI-P.
               </>
@@ -81,7 +90,7 @@ export default async function PaginaResumen() {
               <p className="text-sm text-muted-foreground">No hay nada agendado.</p>
             )}
             <Link href="/admin/vaip/clases" className="w-fit text-sm font-medium text-primary hover:underline">
-              Clases y eventos
+              Ver el calendario
             </Link>
           </Tarjeta>
         </Seccion>
@@ -114,7 +123,7 @@ export default async function PaginaResumen() {
               </Button>
               {plan.casa ? (
                 <Button asChild variant="outline" size="sm">
-                  <Link href="/admin/vaip/noticias">Publicar una noticia</Link>
+                  <Link href="/admin/vaip/noticias">Ver las noticias de hoy</Link>
                 </Button>
               ) : null}
             </div>
@@ -128,7 +137,7 @@ export default async function PaginaResumen() {
             <Cifra valor={moneda(r.cobros.cobradoEsteMes)} etiqueta="Cobrado este mes" />
             <Cifra valor={String(r.cobros.seCancelan)} etiqueta="Cancelaron la renovación" detalle="Siguen dentro hasta su fecha" />
             <Cifra valor={String(r.cobros.atrasados)} etiqueta="Con pago pendiente" />
-            <Cifra valor={String(r.cobros.alertas)} etiqueta="Alertas" detalle={r.cobros.alertas ? 'Revísalas en Cobros' : 'Ninguna'} />
+            <Cifra valor={String(r.cobros.alertas)} etiqueta="Alertas" detalle={r.cobros.alertas ? 'Revísalas en Planes y cobros' : 'Ninguna'} />
           </div>
         </Seccion>
       ) : null}

@@ -28,7 +28,7 @@ export default async function PaginaEncuestas() {
 
   return (
     <div className="flex flex-col gap-6">
-      <Titulo apoyo="Proyecta un QR, la sala contesta desde el celular y ves las respuestas en vivo.">
+      <Titulo ceja="Cursos" apoyo="Proyecta un QR, la sala contesta desde el celular y ves las respuestas en vivo.">
         Encuestas en vivo
       </Titulo>
 

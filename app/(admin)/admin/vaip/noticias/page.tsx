@@ -1,3 +1,4 @@
+import type { Metadata } from 'next'
 import Image from 'next/image'
 import Link from 'next/link'
 
@@ -9,6 +10,7 @@ import { esAdmin, exigirEquipo } from '@/lib/auth/sesion'
 import { descartarNoticia } from '@/lib/noticias/acciones'
 import { tableroDeNoticias, type Busqueda } from '@/lib/noticias/consultas'
 
+export const metadata: Metadata = { title: 'Noticias · V-AI-P' }
 export const dynamic = 'force-dynamic'
 // La búsqueda corre después de responder (`after`): necesita el tiempo de la función.
 export const maxDuration = 300
@@ -56,7 +58,10 @@ export default async function PaginaNoticias({ searchParams }: { searchParams: P
     <div className="flex flex-col gap-10">
       {enCurso ? <meta httpEquiv="refresh" content="5" /> : null}
 
-      <Titulo apoyo="La IA busca y redacta; tú decides qué sale. Cada noticia se publica con su imagen de VADAI y la liga «Leer más».">
+      <Titulo
+        ceja="V-AI-P"
+        apoyo="La IA busca y redacta; tú decides qué sale. Cada noticia se publica con su imagen de VADAI y la liga «Leer más»."
+      >
         Noticias de IA
       </Titulo>
 

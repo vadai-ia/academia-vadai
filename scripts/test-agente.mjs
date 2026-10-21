@@ -512,12 +512,12 @@ try {
   const sAlumno = await entrar(CORREO_ALUMNO)
 
   // Subir el tope desde Ajustes quita la pausa.
-  const ajustes = await (await pedir('/admin/ajustes/agente', sAdmin)).text()
+  const ajustes = await (await pedir('/admin/agente/ajustes', sAdmin)).text()
   const formAjustes = formulario(ajustes, (f) => f.includes('name="tope_usd"'))
   afirmar(P, 'el admin ve Ajustes → Agente con el gasto', true, Boolean(formAjustes) && ajustes.includes('Gasto del mes'))
   // `formulario` no lee la opción elegida de un <select>: los modelos van explícitos.
   const guardado = await enviar(
-    '/admin/ajustes/agente',
+    '/admin/agente/ajustes',
     { ...formAjustes, modo: 'automatico', tope_usd: '5', busqueda_web: 'si', noticias: 'si', modelo_rapido: 'claude-haiku-5-5', modelo_fuerte: 'claude-sonnet-5-5' },
     sAdmin
   )
@@ -529,11 +529,11 @@ try {
 
   // El probador contesta sin publicar.
   const formProbador = formulario(ajustes, (f) => f.includes('name="pregunta"'))
-  const probado = await enviar('/admin/ajustes/agente', { ...formProbador, curso: casa.id, pregunta: '[[responder]] ¿Cómo concilio en Excel? (probador)' }, sAdmin)
+  const probado = await enviar('/admin/agente/ajustes', { ...formProbador, curso: casa.id, pregunta: '[[responder]] ¿Cómo concilio en Excel? (probador)' }, sAdmin)
   afirmar(P, 'el probador dice qué contestaría', true, probado.includes('Contestaría'))
   afirmar(P, '…y cuenta en el gasto', true, (await una(bd, `select count(*)::int n from academia.agent_runs where es_qa and tarea = 'probador'`)).n >= 1)
 
-  afirmar(P, 'el community manager no entra a Ajustes → Agente', true, (await pedir('/admin/ajustes/agente', sCm)).status !== 200)
+  afirmar(P, 'el community manager no entra a Ajustes → Agente', true, (await pedir('/admin/agente/ajustes', sCm)).status !== 200)
   const tableroCm = await (await pedir('/admin/agente', sCm)).text()
   afirmar(P, 'el community manager ve los borradores', true, tableroCm.includes(`borrador-${borrador?.id}`))
   afirmar(P, '…pero no el gasto', false, tableroCm.includes('Solo lo ve un admin'))
@@ -558,8 +558,9 @@ try {
   await enviar('/admin/agente', formDescartar ?? {}, sAdmin)
   afirmar(P, 'descartar un borrador', 'descartado', (await una(bd, `select estado from academia.agent_drafts where id = $1`, [idLiga]))?.estado)
 
-  // La bandeja: «Contestó el agente».
-  const bandeja = await (await pedir('/admin/comunidad?estado=agente', sAdmin)).text()
+  // La bandeja: «Contestó el agente». La casa es de un plan, así que vive en el
+  // Muro de V-AI-P (M25), no en Grupos.
+  const bandeja = await (await pedir('/admin/vaip/muro?estado=agente', sAdmin)).text()
   afirmar(P, 'la bandeja filtra lo que contestó el agente', true, bandeja.includes(`hilo-${pResponder}`))
   afirmar(P, '…y no lo revisado por el equipo', false, bandeja.includes(`hilo-${pBorrador}`))
 

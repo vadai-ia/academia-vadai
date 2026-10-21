@@ -3,6 +3,7 @@ import Link from 'next/link'
 
 import { RevisionEntrega } from '@/components/admin/revision-entrega'
 import { Badge } from '@/components/ui/badge'
+import { Titulo } from '@/components/ui-vadai/superficie'
 import { bandejaDeEntregas } from '@/lib/admin/tareas'
 import { exigirEquipo } from '@/lib/auth/sesion'
 
@@ -29,17 +30,19 @@ export default async function PaginaEntregas({
 
   return (
     <div className="flex max-w-3xl flex-col gap-6">
-      <header className="flex flex-wrap items-center justify-between gap-3">
-        <div className="flex flex-col gap-1">
-          <h1 className="text-2xl font-semibold tracking-tight">Entregas</h1>
-          <p className="text-sm text-muted-foreground">
-            {verTodas
+      <header className="flex flex-wrap items-end justify-between gap-3">
+        <Titulo
+          ceja="Cursos"
+          apoyo={
+            verTodas
               ? `${entregas.length} entrega(s) en total`
               : pendientes.length === 0
                 ? 'Nada por revisar'
-                : `${pendientes.length} por revisar`}
-          </p>
-        </div>
+                : `${pendientes.length} por revisar`
+          }
+        >
+          Entregas
+        </Titulo>
 
         <Link
           href={verTodas ? '/admin/entregas' : '/admin/entregas?todas=1'}

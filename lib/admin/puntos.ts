@@ -13,6 +13,7 @@ import {
 } from '@/lib/gamificacion/reglas'
 import { armarExclusivas, leccionesQueNoVe, SIN_EXCLUSIVAS, type Exclusivas } from '@/lib/acceso/exclusivas'
 import { esCuentaQa, esCursoQa } from '@/lib/qa'
+import { mundoVaip, sinVaip } from '@/lib/membresia/mundo'
 import { crearClienteServidor } from '@/lib/supabase/server'
 
 /**
@@ -107,7 +108,7 @@ const grupo = (cursoId: string, cohortId: string | null) => `${cursoId}::${cohor
 const datosDePuntos = cache(async function datosDePuntos(): Promise<Base> {
   const supabase = await crearClienteServidor()
 
-  const [actividad, perfiles, empresas, cursos, outline, miembros] = await Promise.all([
+  const [actividad, perfiles, empresas, cursos, outline, miembros, mundo] = await Promise.all([
     supabase.from('actividad_por_curso').select('*'),
     supabase
       .from('profiles')
@@ -118,6 +119,7 @@ const datosDePuntos = cache(async function datosDePuntos(): Promise<Base> {
     supabase.from('courses').select('id, slug, title, status').neq('status', 'archived').order('created_at'),
     supabase.from('lesson_outline').select('id, course_id, cohort_id, module_id, exclusiva'),
     supabase.from('module_members').select('module_id, user_id'),
+    mundoVaip(),
   ])
 
   const fallo = actividad.error ?? perfiles.error ?? empresas.error ?? cursos.error ?? outline.error ?? miembros.error
@@ -138,8 +140,9 @@ const datosDePuntos = cache(async function datosDePuntos(): Promise<Base> {
     leccionesPorGrupo.set(g, (leccionesPorGrupo.get(g) ?? 0) + 1)
   }
   // Ni archivados ni de pruebas: durante una corrida de las suites los QA
-  // están publicados y no tienen nada que hacer en un ranking de premios.
-  const reales = (cursos.data ?? []).filter((c) => !esCursoQa(c.slug))
+  // están publicados y no tienen nada que hacer en un ranking de premios. Ni
+  // lo de V-AI-P (M25): su ranking vive en /vaip/ranking, y aquí son los cursos.
+  const reales = sinVaip(mundo, (cursos.data ?? []).filter((c) => !esCursoQa(c.slug)))
   const vivos = new Set(reales.map((c) => c.id))
 
   const porAlumno = new Map<string, Map<string, { actividad: Actividad; cohortId: string | null }>>()

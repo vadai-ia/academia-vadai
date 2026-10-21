@@ -33,13 +33,16 @@ export function SesionesEnSerie({
   reinicio,
   nombre,
   avisar = false,
+  sinAnuncio = false,
 }: {
   cohorteId: string
   reinicio: number
   /** Acordeón: los desplegables con el mismo nombre se cierran entre sí. */
   nombre?: string
-  /** M17: en V-AI-P las clases son cada 15 días y se anuncian. */
+  /** M17: en V-AI-P las clases son cada 15 días. */
   avisar?: boolean
+  /** M25: es la casa de V-AI-P: sin anuncio, solo el correo. */
+  sinAnuncio?: boolean
 }) {
   const [estado, accion] = useActionState(crearSesionesEnSerie, SIN_ESTADO)
 
@@ -105,7 +108,7 @@ export function SesionesEnSerie({
           <p className="text-xs text-muted-foreground">La misma para todas. Se puede cambiar una por una después.</p>
         </div>
 
-        <AvisosDeSesion marcadas={avisar} />
+        <AvisosDeSesion marcadas={avisar} sinAnuncio={sinAnuncio} />
 
         <AvisoAccion estado={estado} />
 

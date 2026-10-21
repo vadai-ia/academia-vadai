@@ -191,7 +191,10 @@ try {
   const C = 'El curso'
   const contenido = await html(`/curso/${CURSO_QA.slug}`, sAlumno)
   const pestanas = (enlacesDelNav(contenido, 'Secciones del curso') ?? []).map((h) => h.replace(`/curso/${CURSO_QA.slug}`, '') || '/')
-  afirmar(C, 'Comunidad es la segunda pestaña', '/comunidad', pestanas[1])
+  afirmar(C, 'el Grupo es la segunda pestaña', '/comunidad', pestanas[1])
+  // M25: «Comunidad» es solo V-AI-P; el canal de un curso es su «Grupo».
+  const nav = contenido.slice(contenido.indexOf('aria-label="Secciones del curso"'), contenido.indexOf('</nav>', contenido.indexOf('aria-label="Secciones del curso"')))
+  afirmar(C, 'la pestaña se llama «Grupo»', true, />Grupo</.test(nav) && !/>Comunidad</.test(nav))
   afirmar(C, 'Dinámicas, la última', '/dinamicas', pestanas[pestanas.length - 1])
   afirmar(C, '«← Mis cursos» lleva a Mis cursos', true, contenido.includes('href="/cursos"'))
   const muro = await html(`/curso/${CURSO_QA.slug}/comunidad`, sAlumno)
@@ -219,6 +222,7 @@ try {
   // con «lo último de los muros» de Inicio, que liga a la misma publicación.
   const conCampana = await html('/perfil', sAlumno)
   afirmar(B, 'avisa «Te respondieron» en el muro', true, conCampana.includes('Te respondieron') && conCampana.includes(`${MARCA} ¿Cómo concilio el viernes?`))
+  afirmar(B, '…diciendo que es el grupo de su curso', true, conCampana.includes(`Grupo · ${CURSO_QA.title}`))
   afirmar(B, '…y lleva a la publicación', true, conCampana.includes(`/curso/${CURSO_QA.slug}/comunidad#publicacion-${post.id}`))
   afirmar(B, 'avisa la respuesta a su pregunta de la lección', true, conCampana.includes(`/curso/${CURSO_QA.slug}/${IDS.leccionVideo}#comentario-${pregunta.id}`))
   const delAdmin = await html('/perfil', sAdmin)

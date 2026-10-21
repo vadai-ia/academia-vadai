@@ -200,7 +200,8 @@ export async function resumenDelPortal(
           .order('scheduled_at')
           .limit(1)
       : Promise.resolve({ data: [] }),
-    plan.casa ? bandejaDeComunidad({ curso: plan.casa.id }) : Promise.resolve(null),
+    // M25: la bandeja de V-AI-P (su muro y las preguntas en sus clases).
+    plan.casa ? bandejaDeComunidad({}, 'vaip') : Promise.resolve(null),
     opciones.conCobros ? panelVaip(plan.id) : Promise.resolve(null),
   ])
 
@@ -217,8 +218,7 @@ export async function resumenDelPortal(
     proxima: siguiente
       ? { titulo: siguiente.title, programadaEn: siguiente.scheduled_at, tipo: siguiente.kind, lugar: siguiente.location }
       : null,
-    // `bandejaDeComunidad` cae a toda la academia si el curso no tiene hilos: solo vale si de verdad filtró.
-    sinRespuesta: bandeja && !bandeja.fallo ? (bandeja.filtros.curso === plan.casa?.id ? bandeja.conteos.sin : 0) : null,
+    sinRespuesta: bandeja && !bandeja.fallo ? bandeja.conteos.sin : null,
     cobros: panel
       ? {
           cobradoEsteMes: panel.cifras.cobradoEsteMes,

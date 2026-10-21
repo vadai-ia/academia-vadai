@@ -51,6 +51,7 @@ export function CalendarioDeGeneracion({
   sesionAbierta,
   prefijo = '?',
   deVaip = false,
+  esCasa = false,
 }: {
   generacion: GeneracionConSesiones
   ligables: Array<{ id: string; titulo: string; modulo: string }>
@@ -61,8 +62,10 @@ export function CalendarioDeGeneracion({
   sesionAbierta?: string | null
   /** Lo que precede a `sesion=` en los enlaces (`?gen=<id>&`). */
   prefijo?: string
-  /** M17: la generación es de V-AI-P: la serie propone cada quince días, con anuncio y correo. */
+  /** M17: la generación es de V-AI-P: la serie propone cada quince días, con correo marcado. */
   deVaip?: boolean
+  /** M25: es la casa de V-AI-P: agendar no publica anuncio (sus avisos van en el Muro). */
+  esCasa?: boolean
 }) {
   const ahora = Date.now()
   const proxima = cohorte.sesiones.find((s) => new Date(s.scheduled_at).getTime() >= ahora)
@@ -97,8 +100,14 @@ export function CalendarioDeGeneracion({
       {/* Lo que se puede hacer, como botones. Comparten `nombre`: abrir uno
           cierra los otros, sin JavaScript. */}
       <div className="flex flex-col gap-2">
-        <NuevaSesion cohorteId={cohorte.id} reinicio={cohorte.sesiones.length} nombre={acordeon} avisar={deVaip} />
-        <SesionesEnSerie cohorteId={cohorte.id} reinicio={cohorte.sesiones.length} nombre={acordeon} avisar={deVaip} />
+        <NuevaSesion cohorteId={cohorte.id} reinicio={cohorte.sesiones.length} nombre={acordeon} avisar={deVaip} sinAnuncio={esCasa} />
+        <SesionesEnSerie
+          cohorteId={cohorte.id}
+          reinicio={cohorte.sesiones.length}
+          nombre={acordeon}
+          avisar={deVaip}
+          sinAnuncio={esCasa}
+        />
         <EnviarCalendario
           cohorteId={cohorte.id}
           inscritos={cohorte.inscritos}

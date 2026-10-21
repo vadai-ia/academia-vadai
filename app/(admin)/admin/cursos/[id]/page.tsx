@@ -1,6 +1,6 @@
 import type { Metadata } from 'next'
 import Link from 'next/link'
-import { notFound } from 'next/navigation'
+import { notFound, redirect } from 'next/navigation'
 
 import { AgregarAlumnos } from '@/components/admin/agregar-alumnos'
 import { ArbolCurso } from '@/components/admin/arbol-curso'
@@ -20,7 +20,8 @@ import { candidatosParaCurso, inscritosDelCurso } from '@/lib/admin/inscritos'
 import { ETIQUETA_ESTADO_CURSO } from '@/lib/admin/tipos'
 import { esAdmin, exigirEquipo } from '@/lib/auth/sesion'
 import { esPorGeneraciones, generacionPorOmision } from '@/lib/generaciones'
-import { cursosDeVaip } from '@/lib/membresia/consultas'
+import { cursosDeVaip, planVaip } from '@/lib/membresia/consultas'
+import { mundoVaip } from '@/lib/membresia/mundo'
 
 export const dynamic = 'force-dynamic'
 
@@ -91,13 +92,26 @@ export default async function PaginaCurso({
   // Todo en una sola ronda (24-sep-2026): el id de la URL es el id del curso,
   // así que nada tiene que esperar al curso para arrancar. Si el curso no
   // existe, las demás vuelven vacías y se descartan con el notFound().
-  const [curso, generaciones, empresas, deVaip] = await Promise.all([
+  const [curso, generaciones, empresas, deVaip, mundo, vaip] = await Promise.all([
     obtenerCurso(id),
     generacionesDelCurso(id),
     listarEmpresas(),
     cursosDeVaip(),
+    mundoVaip(),
+    planVaip(),
   ])
   if (!curso) notFound()
+  // M25: la casa de V-AI-P se edita en V-AI-P → Clases (los dos mundos no se
+  // mezclan). Las ligas viejas llegan ahí con la sesión o el módulo que pedían.
+  // Las casas de los planes QA se quedan aquí: las suites las operan por URL.
+  if (vaip?.casa?.id === curso.id) {
+    const destino = new URLSearchParams()
+    if (filtros.sesion) destino.set('sesion', filtros.sesion)
+    if (filtros.modulo) destino.set('modulo', filtros.modulo)
+    const cadena = destino.toString()
+    redirect(`/admin/vaip/clases${cadena ? `?${cadena}` : ''}`)
+  }
+  const esHerramienta = mundo.herramientas.has(curso.id)
   const enVaip = deVaip.has(curso.id)
   // La fila del curso sin su árbol, para lo que viaja al navegador.
   const { modulos: _modulos, ...datosDelCurso } = curso
@@ -155,8 +169,11 @@ export default async function PaginaCurso({
   return (
     <div className="flex flex-col gap-8">
       <header className="flex flex-col gap-1">
-        <Link href="/admin/cursos" className="text-sm text-primary underline-offset-4 hover:underline">
-          ← Cursos
+        <Link
+          href={esHerramienta ? '/admin/vaip/herramientas' : '/admin/cursos'}
+          className="text-sm text-primary underline-offset-4 hover:underline"
+        >
+          {esHerramienta ? '← V-AI-P · Herramientas' : '← Cursos'}
         </Link>
         <h1 className="flex flex-wrap items-center gap-3 text-2xl font-semibold tracking-tight">
           {curso.title}
@@ -180,7 +197,7 @@ export default async function PaginaCurso({
             href={`/curso/${curso.slug}/comunidad${cohortId ? `?gen=${cohortId}` : ''}`}
             className="text-primary underline-offset-4 hover:underline"
           >
-            Comunidad →
+            Grupo →
           </Link>
           <a href="#inscritos" className="text-primary underline-offset-4 hover:underline">
             Alumnos ↓

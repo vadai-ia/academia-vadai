@@ -23,7 +23,12 @@ import type { EstadoAccion } from '@/lib/admin/tipos'
  * equipo para no ofrecer el formulario a quien no le toca.
  */
 
-const BANDEJA = '/admin/comunidad'
+/**
+ * A dónde vuelve una acción (M25): la bandeja de los grupos de los cursos o el
+ * muro de V-AI-P. Lista cerrada: `vuelta` viaja en el formulario.
+ */
+const BANDEJAS = ['/admin/grupos', '/admin/vaip/muro'] as const
+const BANDEJA = BANDEJAS[0]
 
 function registrar(operacion: string, detalle: Record<string, unknown>) {
   console.error(JSON.stringify({ operacion, ...detalle }))
@@ -32,7 +37,8 @@ function registrar(operacion: string, detalle: Record<string, unknown>) {
 /** La vista de la bandeja de la que vino el formulario, con su aviso. */
 function volver(datos: FormData, aviso: string, hilo?: string): never {
   const crudo = String(datos.get('vuelta') ?? '')
-  const url = new URL(crudo.startsWith(BANDEJA) ? crudo : BANDEJA, 'http://x')
+  const valida = BANDEJAS.some((b) => crudo === b || crudo.startsWith(`${b}?`) || crudo.startsWith(`${b}#`))
+  const url = new URL(valida ? crudo : BANDEJA, 'http://x')
   url.searchParams.delete('aviso')
   url.searchParams.delete('hilo')
   url.searchParams.set('aviso', aviso)

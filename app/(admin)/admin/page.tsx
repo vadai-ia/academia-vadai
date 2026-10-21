@@ -1,6 +1,5 @@
 import type { Metadata } from 'next'
 import Link from 'next/link'
-import type { ReactNode } from 'react'
 
 import { NuevaSesion } from '@/components/admin/nueva-sesion'
 import { TablaPuntos } from '@/components/admin/tabla-puntos'
@@ -14,6 +13,7 @@ import {
   Titulo,
 } from '@/components/ui-vadai/superficie'
 import { Button } from '@/components/ui/button'
+import { HORAS_DE_ESPERA, pendientesDeComunidad, type PendientesDeUnMundo } from '@/lib/admin/comunidad'
 import { topDePuntos } from '@/lib/admin/puntos'
 import { tableroAdmin } from '@/lib/admin/tablero'
 import { etiquetaDeRol } from '@/lib/auth/roles'
@@ -33,51 +33,6 @@ function fechaSesion(iso: string): string {
   }).format(new Date(iso))
 }
 
-const SECCIONES = [
-  {
-    href: '/admin/cursos',
-    titulo: 'Cursos',
-    apoyo: 'Módulos, lecciones, videos, adjuntos y generaciones',
-    icono: <IconoCursos />,
-  },
-  {
-    href: '/admin/alumnos',
-    titulo: 'Alumnos',
-    apoyo: 'Alta manual, vigencias, accesos y ficha de cada quien',
-    icono: <IconoAlumnos />,
-  },
-  {
-    href: '/admin/comunidad',
-    titulo: 'Comunidad',
-    apoyo: 'Contestar a los alumnos y dar seguimiento, por curso y generación',
-    icono: <IconoComunidad />,
-  },
-  {
-    href: '/admin/encuestas',
-    titulo: 'Encuestas en vivo',
-    apoyo: 'QR, proyección, resultados y exportación',
-    icono: <IconoEncuestas />,
-  },
-  {
-    href: '/admin/dinamicas',
-    titulo: 'Dinámicas empresariales',
-    apoyo: 'Criterios con peso, tableros por empresa y exportación',
-    icono: <IconoDinamicas />,
-  },
-  {
-    href: '/admin/entregas',
-    titulo: 'Entregas',
-    apoyo: 'Revisar y calificar las tareas',
-    icono: <IconoEntregas />,
-  },
-  {
-    href: '/admin/publicaciones',
-    titulo: 'Publicaciones',
-    apoyo: 'Anuncios del panel y entradas de blog',
-    icono: <IconoPublicaciones />,
-  },
-] as const
-
 /**
  * El panel principal.
  *
@@ -88,7 +43,12 @@ const SECCIONES = [
  * acceso abren el listado ya filtrado, y la sesión se agenda aquí mismo.
  */
 export default async function PaginaAdmin() {
-  const [perfil, t, ranking] = await Promise.all([exigirEquipo(), tableroAdmin(), topDePuntos(25)])
+  const [perfil, t, ranking, comunidad] = await Promise.all([
+    exigirEquipo(),
+    tableroAdmin(),
+    topDePuntos(25),
+    pendientesDeComunidad(),
+  ])
   const top5 = ranking.alumnos.slice(0, 5)
 
   const porcentajeEntraron = t.personas === 0 ? 0 : Math.round((t.entraron / t.personas) * 100)
@@ -115,6 +75,18 @@ export default async function PaginaAdmin() {
             <span className="text-primary transition-transform group-hover:translate-x-0.5">→</span>
           </span>
         </TarjetaEnlace>
+      ) : null}
+
+      {/* M25: lo que espera respuesta, por mundo y cada uno con su lugar. */}
+      {comunidad.vaip.sinRespuesta > 0 || comunidad.grupos.sinRespuesta > 0 ? (
+        <div className="grid gap-3 sm:grid-cols-2">
+          <AtenderComunidad
+            href="/admin/vaip/muro"
+            mundo="En el muro de V-AI-P"
+            pendientes={comunidad.vaip}
+          />
+          <AtenderComunidad href="/admin/grupos" mundo="En los grupos de los cursos" pendientes={comunidad.grupos} />
+        </div>
       ) : null}
 
       {/* --- Alumnos y accesos ------------------------------------------- */}
@@ -174,8 +146,8 @@ export default async function PaginaAdmin() {
                   </span>
                   <span className="text-xl font-medium">{siguiente.titulo}</span>
                   <span className="text-sm text-muted-foreground">
-                    {fechaSesion(siguiente.empiezaEn)} (CDMX) · {siguiente.cursoTitulo} ·{' '}
-                    {siguiente.generacion}
+                    {fechaSesion(siguiente.empiezaEn)} (CDMX) ·{' '}
+                    {siguiente.deVaip ? 'V-AI-P · Clase' : `${siguiente.cursoTitulo} · ${siguiente.generacion}`}
                   </span>
                 </div>
                 <div className="flex flex-wrap items-center gap-2">
@@ -191,9 +163,7 @@ export default async function PaginaAdmin() {
                     </span>
                   )}
                   <Button asChild variant="outline" size="sm">
-                    <Link href={`/admin/cursos/${siguiente.cursoId}?gen=${siguiente.cohorteId}&sesion=${siguiente.id}#sesion-${siguiente.id}`}>
-                      Editar
-                    </Link>
+                    <Link href={hrefDeSesion(siguiente)}>Editar</Link>
                   </Button>
                 </div>
               </div>
@@ -205,16 +175,13 @@ export default async function PaginaAdmin() {
                       <span className="flex min-w-0 flex-wrap items-baseline gap-x-2">
                         <span className="font-medium">{s.titulo}</span>
                         <span className="text-muted-foreground">
-                          {s.cursoTitulo} · {s.generacion}
+                          {s.deVaip ? 'V-AI-P · Clase' : `${s.cursoTitulo} · ${s.generacion}`}
                         </span>
                       </span>
                       <span className="flex items-baseline gap-3 text-muted-foreground">
                         <span>{fechaSesion(s.empiezaEn)}</span>
                         {s.ligaUrl ? null : <span className="text-xs text-destructive">sin liga</span>}
-                        <Link
-                          href={`/admin/cursos/${s.cursoId}?gen=${s.cohorteId}&sesion=${s.id}#sesion-${s.id}`}
-                          className="text-xs text-primary underline-offset-4 hover:underline"
-                        >
+                        <Link href={hrefDeSesion(s)} className="text-xs text-primary underline-offset-4 hover:underline">
                           Editar
                         </Link>
                       </span>
@@ -237,6 +204,13 @@ export default async function PaginaAdmin() {
               Para agendar sesiones primero crea una generación en el curso.
             </p>
           )}
+          <p className="text-xs text-muted-foreground">
+            Las clases de V-AI-P se agendan en{' '}
+            <Link href="/admin/vaip/clases" className="text-primary underline-offset-4 hover:underline">
+              V-AI-P → Clases
+            </Link>
+            .
+          </p>
         </Tarjeta>
       </Seccion>
 
@@ -402,24 +376,6 @@ export default async function PaginaAdmin() {
         </Seccion>
       </div>
 
-      <Seccion titulo="Gestionar">
-        <div className="grid gap-3 sm:grid-cols-2">
-          {SECCIONES.map((s) => (
-            <TarjetaEnlace key={s.href} href={s.href} className="p-5">
-              <span className="flex items-start gap-4">
-                <span className="mt-0.5 flex size-9 shrink-0 items-center justify-center rounded-[10px] bg-muted text-muted-foreground transition-colors group-hover:bg-primary/10 group-hover:text-primary">
-                  {s.icono}
-                </span>
-                <span className="flex min-w-0 flex-col gap-0.5">
-                  <span className="font-medium">{s.titulo}</span>
-                  <span className="text-sm text-pretty text-muted-foreground">{s.apoyo}</span>
-                </span>
-              </span>
-            </TarjetaEnlace>
-          ))}
-        </div>
-      </Seccion>
-
       <p className="text-sm text-muted-foreground">
         ¿Buscas cómo se ve del lado del alumno?{' '}
         <Link href="/mis-cursos" className="text-primary underline-offset-4 hover:underline">
@@ -440,90 +396,30 @@ function PuntoVivo() {
   )
 }
 
-/* Iconos de línea, un solo grosor (2) y un solo tamaño. Mezclar grosores o
-   meter emoji es de lo que más barata hace ver una interfaz. */
+/** Dónde se edita una sesión: las de V-AI-P en V-AI-P → Clases (M25). */
+function hrefDeSesion(s: { deVaip: boolean; id: string; cursoId: string; cohorteId: string }): string {
+  return s.deVaip
+    ? `/admin/vaip/clases?sesion=${s.id}#sesion-${s.id}`
+    : `/admin/cursos/${s.cursoId}?gen=${s.cohorteId}&sesion=${s.id}#sesion-${s.id}`
+}
 
-function marco(hijos: ReactNode) {
+/** «N hilos esperan respuesta», por mundo (M25). Sin nada pendiente no se pinta. */
+function AtenderComunidad({ href, mundo, pendientes }: { href: string; mundo: string; pendientes: PendientesDeUnMundo }) {
+  if (pendientes.sinRespuesta === 0) return null
   return (
-    <svg
-      viewBox="0 0 24 24"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="2"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-      className="size-[18px]"
-      aria-hidden
-    >
-      {hijos}
-    </svg>
-  )
-}
-
-function IconoCursos() {
-  return marco(
-    <>
-      <path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20" />
-      <path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2Z" />
-    </>
-  )
-}
-
-function IconoAlumnos() {
-  return marco(
-    <>
-      <path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2" />
-      <circle cx="9" cy="7" r="4" />
-      <path d="M22 21v-2a4 4 0 0 0-3-3.87" />
-    </>
-  )
-}
-
-function IconoComunidad() {
-  return marco(
-    <>
-      <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
-      <path d="M8 9h8M8 13h5" />
-    </>
-  )
-}
-
-function IconoEncuestas() {
-  return marco(
-    <>
-      <path d="M3 3v18h18" />
-      <path d="M7 15v-4M12 15V7M17 15v-6" />
-    </>
-  )
-}
-
-/* Rejilla 3×3, la misma figura que la pastilla de navegación pero en el
-   tamaño de esta página (18 px): el de iconos-navegacion.tsx es size-4 y no
-   se importa a propósito. */
-function IconoDinamicas() {
-  return marco(
-    <>
-      <rect x="3" y="3" width="18" height="18" rx="2" />
-      <path d="M3 9h18M3 15h18M9 3v18M15 3v18" />
-    </>
-  )
-}
-
-function IconoEntregas() {
-  return marco(
-    <>
-      <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8Z" />
-      <path d="M14 2v6h6" />
-      <path d="m9 15 2 2 4-4" />
-    </>
-  )
-}
-
-function IconoPublicaciones() {
-  return marco(
-    <>
-      <path d="M4 22h16a2 2 0 0 0 2-2V4a2 2 0 0 0-2-2H8a2 2 0 0 0-2 2v16a2 2 0 0 1-2 2Zm0 0a2 2 0 0 1-2-2v-9h4" />
-      <path d="M10 6h8M10 10h8M10 14h4" />
-    </>
+    <TarjetaEnlace href={href} className="border-primary/40 bg-primary/5 p-5">
+      <span className="flex flex-wrap items-center justify-between gap-4">
+        <span className="flex flex-col gap-0.5">
+          <span className="font-medium">
+            {pendientes.sinRespuesta} {pendientes.sinRespuesta === 1 ? 'conversación espera' : 'conversaciones esperan'} respuesta
+          </span>
+          <span className="text-sm text-muted-foreground">
+            {mundo}
+            {pendientes.vencidas > 0 ? ` · ${pendientes.vencidas} con más de ${HORAS_DE_ESPERA} horas` : ''}
+          </span>
+        </span>
+        <span className="text-primary transition-transform group-hover:translate-x-0.5">→</span>
+      </span>
+    </TarjetaEnlace>
   )
 }

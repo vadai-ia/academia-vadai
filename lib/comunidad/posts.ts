@@ -2,6 +2,7 @@ import 'server-only'
 
 import { esCuentaQa } from '@/lib/qa'
 import { obtenerSesion } from '@/lib/auth/sesion'
+import { mundoVaip } from '@/lib/membresia/mundo'
 import { crearClienteServidor } from '@/lib/supabase/server'
 import type { Json } from '@/lib/supabase/types'
 
@@ -311,10 +312,11 @@ export async function publicacionesParaAlumno(
 
   // Al equipo RLS le enseña todos los anuncios, también los del curso de
   // pruebas: una cuenta real no los ve (lib/qa.ts, 9-oct-2026).
-  const [{ data, error }, sesion, { data: cursosQa }] = await Promise.all([
+  const [{ data, error }, sesion, { data: cursosQa }, mundo] = await Promise.all([
     consulta,
     obtenerSesion(),
     supabase.from('courses').select('id, cohorts(id)').like('slug', 'qa-%'),
+    mundoVaip(),
   ])
   const cuentaQa = sesion.tipo === 'activo' && esCuentaQa(sesion.perfil.email)
   type CursoQa = { id: string; cohorts: Array<{ id: string }> | null }
@@ -345,6 +347,10 @@ export async function publicacionesParaAlumno(
         cuentaQa ||
         !((p.audience_course_id && deQa.has(p.audience_course_id)) || (p.audience_cohort_id && deQa.has(p.audience_cohort_id)))
     )
+    // M25: los anuncios son de los cursos. Los que quedaron dirigidos a V-AI-P
+    // (antes cada clase agendada publicaba uno) ya no se enseñan: su clase
+    // está en Clases y en la campana, y sus avisos van fijados en el Muro.
+    .filter((p) => !(p.post_type === 'announcement' && p.audience_course_id && mundo.casas.has(p.audience_course_id)))
     .map((p) => ({
       id: p.id,
       titulo: p.title,

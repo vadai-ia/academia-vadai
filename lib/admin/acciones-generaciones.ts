@@ -15,6 +15,7 @@ import { hoyCdmx } from '@/lib/calendario/mes'
 import { plantillaCalendario } from '@/lib/correo/plantillas'
 import { enviarCorreosEnLote } from '@/lib/correo/resend'
 import type { Json } from '@/lib/supabase/types'
+import { mundoVaip } from '@/lib/membresia/mundo'
 import { crearClienteServidor } from '@/lib/supabase/server'
 
 import type { EstadoAccion } from './tipos'
@@ -423,7 +424,9 @@ async function avisarDeSesionesNuevas(
 ): Promise<string> {
   await avisarAWebhooks(cohorteId, sesiones)
   const partes: string[] = []
-  if (datos.get('anunciar') === 'si') {
+  // M25: las clases de V-AI-P no publican anuncio, aunque el formulario lo
+  // pida (la API vieja, un formulario guardado): sus avisos van en el Muro.
+  if (datos.get('anunciar') === 'si' && !(await esCohorteDeVaip(cohorteId))) {
     partes.push((await anunciarSesiones(perfil, cohorteId, sesiones)) ? ' Salió el anuncio.' : ' El anuncio no se pudo publicar.')
   }
   if (datos.get('avisar') === 'si') {
@@ -431,6 +434,16 @@ async function avisarDeSesionesNuevas(
     partes.push(r.error ? ` El correo falló: ${r.error}` : ` ${r.aviso ?? ''}`)
   }
   return partes.join('')
+}
+
+/** ¿La generación es de lo de V-AI-P (la casa de un plan)? */
+async function esCohorteDeVaip(cohorteId: string): Promise<boolean> {
+  const supabase = await crearClienteServidor()
+  const [{ data: cohorte }, mundo] = await Promise.all([
+    supabase.from('cohorts').select('course_id').eq('id', cohorteId).maybeSingle(),
+    mundoVaip(),
+  ])
+  return Boolean(cohorte && mundo.casas.has(cohorte.course_id))
 }
 
 /**

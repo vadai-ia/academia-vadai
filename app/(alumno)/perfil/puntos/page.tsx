@@ -38,7 +38,7 @@ export const metadata: Metadata = { title: 'Puntos y logros' }
 const DESGLOSE = [
   { llave: 'lecciones', que: 'Lecciones completadas', vale: PUNTOS.leccion },
   { llave: 'comentarios', que: 'Comentarios', vale: PUNTOS.comentario },
-  { llave: 'publicaciones', que: 'Publicaciones en la comunidad', vale: PUNTOS.publicacion },
+  { llave: 'publicaciones', que: 'Publicaciones en V-AI-P y en tus grupos', vale: PUNTOS.publicacion },
   { llave: 'tareas', que: 'Tareas entregadas', vale: PUNTOS.tarea },
   { llave: 'quizzes', que: 'Quizzes aprobados', vale: PUNTOS.quiz },
   { llave: 'tareasAprobadas', que: 'Tareas aprobadas', vale: PUNTOS.tareaAprobada },

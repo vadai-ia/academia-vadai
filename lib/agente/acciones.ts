@@ -46,7 +46,8 @@ export type EstadoProbador = EstadoAgente & {
 }
 
 const uuid = z.uuid()
-const RUTA_AJUSTES = '/admin/ajustes/agente'
+// M25: los ajustes del agente viven dentro de Agente IA.
+const RUTA_AJUSTES = '/admin/agente/ajustes'
 const RUTA_TABLERO = '/admin/agente'
 
 function registrar(operacion: string, detalle: Record<string, unknown>) {

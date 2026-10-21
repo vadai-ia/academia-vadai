@@ -144,7 +144,8 @@ export async function misRespuestas(userId: string, casaSlug: string | null): Pr
       cuantas: g.cuantas,
       ultimaEn: g.ultimaEn,
       href: esCasa ? `/vaip#publicacion-${p.id}` : `/curso/${c.slug}/comunidad#publicacion-${p.id}`,
-      donde: esCasa ? 'Muro de V-AI-P' : `Comunidad · ${c.title}`,
+      // M25: «Comunidad» es solo V-AI-P; el canal de un curso es su «Grupo».
+      donde: esCasa ? 'Muro de V-AI-P' : `Grupo · ${c.title}`,
     })
   }
   for (const q of preguntas) {

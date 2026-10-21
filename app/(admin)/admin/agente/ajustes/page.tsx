@@ -1,4 +1,5 @@
 import type { Metadata } from 'next'
+import Link from 'next/link'
 
 import { FormularioAjustesAgente, FormularioVoz, NuevoConocimiento, Probador } from '@/components/admin/agente'
 import { BotonConEspera } from '@/components/admin/boton-con-espera'
@@ -16,7 +17,7 @@ import { esCuentaQa, esCursoQa } from '@/lib/qa'
 import { crearClienteServidor } from '@/lib/supabase/server'
 import { cn } from '@/lib/utils'
 
-export const metadata: Metadata = { title: 'Agente' }
+export const metadata: Metadata = { title: 'Ajustes del agente · Ajustes' }
 export const dynamic = 'force-dynamic'
 
 /**
@@ -54,7 +55,7 @@ export default async function PaginaAjustesAgente() {
   if (!ajustes) {
     return (
       <div className="flex flex-col gap-6">
-        <Titulo>Agente</Titulo>
+        <Titulo ceja="Ajustes · Agente IA">Voz, conocimiento y gasto</Titulo>
         <Tarjeta className="border-dashed p-5 text-sm">Falta aplicar la migración academia_0045_agente.</Tarjeta>
       </div>
     )
@@ -64,9 +65,17 @@ export default async function PaginaAjustesAgente() {
 
   return (
     <div className="flex flex-col gap-10">
-      <Titulo apoyo="Contesta en las comunidades con la voz de VADAI, deja borrador cuando no está seguro y le cuenta al equipo qué está pasando.">
-        Agente
-      </Titulo>
+      <div className="flex flex-col gap-2">
+        <Link href="/admin/agente" className="w-fit text-sm text-muted-foreground hover:text-primary">
+          ← Agente IA
+        </Link>
+        <Titulo
+          ceja="Ajustes · Agente IA"
+          apoyo="Solo admin. Cómo contesta, qué sabe, cuánto gasta y si está encendido."
+        >
+          Voz, conocimiento y gasto
+        </Titulo>
+      </div>
 
       {faltan.length > 0 ? (
         <Tarjeta className="border-dashed p-5 text-sm text-pretty">

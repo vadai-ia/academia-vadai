@@ -4,6 +4,7 @@ import { esRolDeEquipo } from '@/lib/auth/roles'
 import { cache } from 'react'
 
 import { exigirEquipo } from '@/lib/auth/sesion'
+import { mundoVaip } from '@/lib/membresia/mundo'
 import { esCuentaQa, esCursoQa } from '@/lib/qa'
 import { crearClienteServidor } from '@/lib/supabase/server'
 import type { Json } from '@/lib/supabase/types'
@@ -34,7 +35,15 @@ import type { Json } from '@/lib/supabase/types'
  * Lo de pruebas no se mezcla con lo real: a una cuenta real no le salen los
  * cursos `qa-…` ni lo que escribió una cuenta `qa-*` (las suites corren contra
  * producción). A una cuenta QA sí, porque las suites prueban la bandeja.
+ *
+ * Dos mundos (M25, 20-oct-2026): cada hilo es de V-AI-P (la casa o una
+ * herramienta, `lib/membresia/mundo.ts`) o de los cursos. La bandeja de los
+ * cursos es «Grupos» (/admin/grupos) y la de V-AI-P vive en su Muro
+ * (/admin/vaip/muro): nunca se mezclan.
  */
+
+/** De qué mundo es un hilo: el muro de V-AI-P o el grupo de un curso. */
+export type MundoDeHilo = 'vaip' | 'cursos'
 
 /** Pasadas estas horas sin respuesta, la campana del panel lo cuenta. */
 export const HORAS_DE_ESPERA = 12
@@ -79,6 +88,7 @@ export type MensajeDeHilo = {
 
 export type Hilo = {
   tipo: 'muro' | 'leccion'
+  mundo: MundoDeHilo
   /** El id de la publicación o del comentario raíz. */
   id: string
   curso: { id: string; titulo: string; slug: string }
@@ -110,6 +120,7 @@ export type OpcionCurso = {
   id: string
   titulo: string
   generaciones: Array<{ id: string; nombre: string }>
+  mundo: MundoDeHilo
 }
 
 export type Bandeja = {
@@ -159,7 +170,7 @@ const hilosDeLaAcademia = cache(async (): Promise<Crudo> => {
   const veQa = esCuentaQa(perfil.email)
   const supabase = await crearClienteServidor()
 
-  const [posts, comentarios, preguntas, cursos, generaciones, lecciones, modulos, perfiles, empresas] = await Promise.all([
+  const [posts, comentarios, preguntas, cursos, generaciones, lecciones, modulos, perfiles, empresas, mundo] = await Promise.all([
     supabase
       .from('community_posts')
       .select('id, course_id, cohort_id, user_id, title, content_rich, pinned, status, created_at, attended_at, attended_by')
@@ -178,7 +189,9 @@ const hilosDeLaAcademia = cache(async (): Promise<Crudo> => {
     supabase.from('modules').select('id, course_id, cohort_id'),
     supabase.from('profiles').select('user_id, full_name, email, role, company_id'),
     supabase.from('companies').select('id, name'),
+    mundoVaip(),
   ])
+  const mundoDe = (cursoId: string): MundoDeHilo => (mundo.ids.has(cursoId) ? 'vaip' : 'cursos')
 
   const error =
     posts.error ??
@@ -243,9 +256,11 @@ const hilosDeLaAcademia = cache(async (): Promise<Crudo> => {
     const portal = new URLSearchParams()
     if (generacion) portal.set('gen', generacion.id)
     const consulta = portal.toString()
+    const deVaip = mundoDe(curso.id) === 'vaip'
     hilos.push(
       armar({
         tipo: 'muro',
+        mundo: deVaip ? 'vaip' : 'cursos',
         id: p.id,
         curso,
         generacion,
@@ -259,6 +274,8 @@ const hilosDeLaAcademia = cache(async (): Promise<Crudo> => {
         fijado: p.pinned,
         atendida: p.attended_at ? { en: p.attended_at, por: p.attended_by ? autor(p.attended_by).nombre : null } : null,
         respuestas: comentariosPorPost.get(p.id) ?? [],
+        // Para la casa real esta ruta ya manda a /vaip (M22); las casas QA se
+        // quedan en su curso, que es donde las suites las leen.
         hrefPortal: `/curso/${curso.slug}/comunidad${consulta ? `?${consulta}` : ''}#publicacion-${p.id}`,
       })
     )
@@ -281,6 +298,7 @@ const hilosDeLaAcademia = cache(async (): Promise<Crudo> => {
     hilos.push(
       armar({
         tipo: 'leccion',
+        mundo: mundoDe(curso.id),
         id: c.id,
         curso,
         generacion: leccion.cohortId ? (generacionPorId.get(leccion.cohortId) ?? null) : null,
@@ -306,6 +324,7 @@ const hilosDeLaAcademia = cache(async (): Promise<Crudo> => {
       id: c.id,
       titulo: c.titulo,
       generaciones: (generaciones.data ?? []).filter((g) => g.course_id === c.id).map((g) => ({ id: g.id, nombre: g.name })),
+      mundo: mundoDe(c.id),
     }))
     .sort((a, b) => a.titulo.localeCompare(b.titulo, 'es'))
   const conHilos = new Set(hilos.map((h) => h.curso.id))
@@ -353,8 +372,17 @@ function vencida(h: Hilo, ahora: number): boolean {
   return h.estado === 'sin' && h.esperaDesde !== null && ahora - Date.parse(h.esperaDesde) > HORAS_DE_ESPERA * 3_600_000
 }
 
-export async function bandejaDeComunidad(crudos: FiltrosComunidad): Promise<Bandeja> {
-  const { hilos: todos, cursos, destinos, fallo } = await hilosDeLaAcademia()
+/**
+ * La bandeja con sus filtros. `mundo` (M25) la acota a los grupos de los
+ * cursos (/admin/grupos) o al muro de V-AI-P (/admin/vaip/muro); sin él, todo
+ * (el contexto de los borradores del agente).
+ */
+export async function bandejaDeComunidad(crudos: FiltrosComunidad, mundo?: MundoDeHilo): Promise<Bandeja> {
+  const crudo = await hilosDeLaAcademia()
+  const fallo = crudo.fallo
+  const todos = mundo ? crudo.hilos.filter((h) => h.mundo === mundo) : crudo.hilos
+  const cursos = mundo ? crudo.cursos.filter((c) => c.mundo === mundo) : crudo.cursos
+  const destinos = mundo ? crudo.destinos.filter((c) => c.mundo === mundo) : crudo.destinos
 
   const estado =
     crudos.estado === 'respondidas' || crudos.estado === 'agente' || crudos.estado === 'todas' ? crudos.estado : 'sin'
@@ -425,23 +453,40 @@ export async function hilosPorId(ids: string[]): Promise<Map<string, Hilo>> {
   return new Map(hilos.filter((h) => buscados.has(h.id)).map((h) => [h.id, h]))
 }
 
-export type PendientesDeComunidad = {
+export type PendientesDeUnMundo = {
   sinRespuesta: number
   vencidas: number
   /** Los que más llevan esperando, para la campana. */
   primeros: Hilo[]
 }
 
-/** Para la campana del panel: cuánto espera y qué es lo más viejo. */
+export type PendientesDeComunidad = PendientesDeUnMundo & {
+  /** M25: la campana los enseña por separado, cada uno con su lugar. */
+  vaip: PendientesDeUnMundo
+  grupos: PendientesDeUnMundo
+}
+
+/** Para la campana del panel: cuánto espera y qué es lo más viejo, por mundo. */
 export async function pendientesDeComunidad(): Promise<PendientesDeComunidad> {
   const { hilos } = await hilosDeLaAcademia()
   const ahora = Date.now()
   const pendientes = hilos
     .filter((h) => h.estado === 'sin' && !h.oculto)
     .sort((a, b) => (a.esperaDesde ?? a.creadoEn).localeCompare(b.esperaDesde ?? b.creadoEn))
+  const resumir = (lista: Hilo[]): PendientesDeUnMundo => ({
+    sinRespuesta: lista.length,
+    vencidas: lista.filter((h) => vencida(h, ahora)).length,
+    primeros: lista.slice(0, 5),
+  })
   return {
-    sinRespuesta: pendientes.length,
-    vencidas: pendientes.filter((h) => vencida(h, ahora)).length,
-    primeros: pendientes.slice(0, 5),
+    ...resumir(pendientes),
+    vaip: resumir(pendientes.filter((h) => h.mundo === 'vaip')),
+    grupos: resumir(pendientes.filter((h) => h.mundo === 'cursos')),
   }
+}
+
+/** Dónde se atiende un hilo en el panel (M25): su Muro o sus Grupos. */
+export function hrefEnPanel(h: Pick<Hilo, 'id' | 'mundo'>, estado?: 'todas'): string {
+  const base = h.mundo === 'vaip' ? '/admin/vaip/muro' : '/admin/grupos'
+  return `${base}${estado ? `?estado=${estado}` : ''}#hilo-${h.id}`
 }

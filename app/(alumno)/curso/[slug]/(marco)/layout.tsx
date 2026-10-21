@@ -60,16 +60,18 @@ export default async function LayoutCurso({
         ? 'Hoy'
         : undefined
 
-  // M22 (20-oct-2026): Contenido · Comunidad · En vivo · Dinámicas. El curso
-  // abre en Contenido (Alejandro), y la comunidad sube al segundo lugar: es lo
-  // que se quiere que la gente siga usando.
+  // M22 (20-oct-2026): el curso abre en Contenido (Alejandro), y el canal de
+  // la generación va segundo: es lo que se quiere que la gente siga usando.
+  // M25: se llama «Grupo» —el canal interno de tu generación, vivo durante el
+  // curso—; «Comunidad» es solo V-AI-P. La URL sigue siendo /comunidad: la
+  // usan correos, la campana, el agente y los webhooks.
   const pestanas: Pestana[] = [
     { href: base, etiqueta: 'Contenido', exacto: true },
     {
       href: `${base}/comunidad`,
-      etiqueta: 'Comunidad',
+      etiqueta: 'Grupo',
       deshabilitada: !curso.vigente,
-      motivo: 'Tu acceso venció. Renuévalo para volver a la comunidad.',
+      motivo: 'Tu acceso venció. Renuévalo para volver al grupo.',
     },
     // Con el acceso vencido las sesiones ya no se leen (la policy las esconde),
     // así que la pestaña se pinta apagada con su motivo en vez de desaparecer.

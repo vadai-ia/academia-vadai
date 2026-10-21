@@ -5,13 +5,13 @@ import { PublicarBorrador } from '@/components/admin/agente'
 import { BotonConEspera } from '@/components/admin/boton-con-espera'
 import { Cifra, Progreso, Seccion, Tarjeta, Titulo } from '@/components/ui-vadai/superficie'
 import { Badge } from '@/components/ui/badge'
-import { HORAS_DEL_AGENTE } from '@/lib/admin/comunidad'
+import { hrefEnPanel, HORAS_DEL_AGENTE } from '@/lib/admin/comunidad'
 import { atenderIdea, descartarBorrador } from '@/lib/agente/acciones'
 import { dolares } from '@/lib/agente/costos'
 import { tableroDelAgente, type BorradorDelPanel } from '@/lib/agente/panel'
 import { textoPlano } from '@/lib/comunidad/documento'
 
-export const metadata: Metadata = { title: 'Agente' }
+export const metadata: Metadata = { title: 'Agente IA · Ajustes' }
 export const dynamic = 'force-dynamic'
 
 /**
@@ -66,8 +66,8 @@ function Borrador({ b }: { b: BorradorDelPanel }) {
               {b.hilo.titulo ? <span className="font-medium">{b.hilo.titulo}</span> : null}
               {pregunta ? <p className="line-clamp-4 whitespace-pre-wrap text-muted-foreground">{pregunta}</p> : null}
               <span className="flex flex-wrap gap-x-4 text-xs">
-                <Link href={`/admin/comunidad?estado=todas#hilo-${b.hilo.id}`} className="text-primary underline-offset-4 hover:underline">
-                  Ver el hilo en la bandeja
+                <Link href={hrefEnPanel(b.hilo, 'todas')} className="text-primary underline-offset-4 hover:underline">
+                  {b.hilo.mundo === 'vaip' ? 'Ver el hilo en el Muro' : 'Ver el hilo en Grupos'}
                 </Link>
                 <Link href={b.hilo.hrefPortal} className="text-primary underline-offset-4 hover:underline">
                   Verlo como alumno
@@ -109,16 +109,17 @@ export default async function PaginaAgente() {
   return (
     <div className="flex flex-col gap-10">
       <Titulo
-        apoyo="Contesta en las comunidades con la voz de VADAI. Lo que no tiene claro lo deja aquí para que una persona lo revise."
+        ceja="Ajustes"
+        apoyo="Contesta en el muro de V-AI-P y en los grupos de los cursos con la voz de VADAI. Lo que no tiene claro lo deja aquí para que una persona lo revise."
         acciones={
           t.esAdmin ? (
-            <Link href="/admin/ajustes/agente" className="text-sm text-primary underline-offset-4 hover:underline">
-              Ajustes del agente
+            <Link href="/admin/agente/ajustes" className="text-sm text-primary underline-offset-4 hover:underline">
+              Voz, conocimiento y gasto
             </Link>
           ) : null
         }
       >
-        Agente
+        Agente IA
       </Titulo>
 
       {!t.ajustes ? (
@@ -143,8 +144,12 @@ export default async function PaginaAgente() {
       {t.contestadas48h > 0 ? (
         <p className="text-sm">
           Contestó solo {t.contestadas48h === 1 ? 'un hilo' : `${t.contestadas48h} hilos`} en las últimas {HORAS_DEL_AGENTE} horas.{' '}
-          <Link href="/admin/comunidad?estado=agente" className="text-primary underline-offset-4 hover:underline">
-            Revisarlos en la bandeja
+          <Link href="/admin/grupos?estado=agente" className="text-primary underline-offset-4 hover:underline">
+            Revisarlos en Grupos
+          </Link>{' '}
+          o en el{' '}
+          <Link href="/admin/vaip/muro?estado=agente" className="text-primary underline-offset-4 hover:underline">
+            Muro de V-AI-P
           </Link>
         </p>
       ) : null}

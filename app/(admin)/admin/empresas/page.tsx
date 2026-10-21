@@ -33,7 +33,7 @@ export default async function PaginaEmpresas() {
 
   return (
     <div className="flex flex-col gap-8">
-      <Titulo apoyo="De dónde viene cada alumno. Sin empresa = General.">Empresas</Titulo>
+      <Titulo ceja="Personas" apoyo="De dónde viene cada alumno. Sin empresa = General.">Empresas</Titulo>
 
       <Tarjeta className="p-5">
         <div className="grid grid-cols-2 gap-6 sm:grid-cols-3">

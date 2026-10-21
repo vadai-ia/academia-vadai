@@ -362,7 +362,8 @@ try {
   afirmar(P, 'ni a la vista previa de imágenes', 403, (await pedir('/api/noticias/vista-previa?titulo=hola%20mundo', sAlumno)).status)
   const paginaCm = await html('/admin/vaip/noticias', sCm)
   afirmar(P, 'el community manager sí entra', true, paginaCm.includes('Cazar noticias de hoy'))
-  afirmar(P, 'la barra lateral lleva Noticias y Publicar', true, paginaCm.includes('href="/admin/vaip/noticias"') && paginaCm.includes('href="/admin/vaip/publicar"'))
+  // M25: Publicar vive en el Muro de V-AI-P.
+  afirmar(P, 'la barra lateral lleva Noticias y Muro', true, paginaCm.includes('href="/admin/vaip/noticias"') && paginaCm.includes('href="/admin/vaip/muro"'))
 
   // =========================================================================
   // 2. Cazar noticias
@@ -490,11 +491,12 @@ try {
   // 6. El compositor: un aviso fijado
   // =========================================================================
   const A = 'Compositor'
-  const pagPublicar = await html('/admin/vaip/publicar', sAdmin)
-  afirmar(A, 'la página Publicar abre', true, pagPublicar.includes('Publicar en V-AI-P'))
-  const formCompositor = formularioDonde(pagPublicar, (f) => f.includes('name="tipo"'))
+  // M25: el compositor vive en el Muro, detrás de «Publicar en el muro».
+  const pagPublicar = await html('/admin/vaip/muro', sAdmin)
+  afirmar(A, 'el Muro trae el compositor', true, pagPublicar.includes('Publicar en V-AI-P'))
+  const formCompositor = formularioDonde(pagPublicar, (f) => f.includes('name="tipo"') && f.includes('name="titulo"'))
   await enviarFormulario(
-    '/admin/vaip/publicar',
+    '/admin/vaip/muro',
     { ...formCompositor, tipo: 'aviso', titulo: 'QA-AVISO herramienta nueva', texto: 'Ya está la plantilla de prompts para ventas.', fijar: '1', firma: 'equipo', imagen_generada: 'si', tema: '', resumen: '', enlace: '', medio: '' },
     sAdmin
   )
@@ -510,7 +512,7 @@ try {
   const horas = aviso?.pinned_until ? (Date.parse(aviso.pinned_until) - Date.now()) / 3_600_000 : -1
   afirmar(A, 'fijado por un día', true, aviso?.pinned === true && horas > 23 && horas < 25)
   afirmar(A, 'con la imagen de aviso dibujada', true, Boolean(Array.isArray(aviso?.images) && aviso.images[0]?.storage_path?.startsWith('vaip/qa/')))
-  afirmar(A, 'sale en «Lo que publicó el equipo»', true, (await html('/admin/vaip/publicar', sAdmin)).includes('QA-AVISO herramienta nueva'))
+  afirmar(A, 'sale en «Avisos fijados» del Muro', true, (await html('/admin/vaip/muro', sAdmin)).includes('QA-AVISO herramienta nueva'))
 
   // Un alumno no puede escribir en Avisos aunque esté en la generación.
   await bd.query('begin')

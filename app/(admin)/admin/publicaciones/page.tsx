@@ -4,12 +4,14 @@ import { ConfirmarConModal } from '@/components/admin/confirmar-con-modal'
 import { NuevaPublicacion } from '@/components/admin/nueva-publicacion'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
+import { Titulo } from '@/components/ui-vadai/superficie'
 import { alternarPublicacion, eliminarPublicacion } from '@/lib/admin/acciones-blog'
 import { opcionesDeAlta } from '@/lib/admin/alumnos'
 import { listarPublicaciones } from '@/lib/admin/blog'
 import { exigirEquipo } from '@/lib/auth/sesion'
+import { mundoVaip, sinVaip } from '@/lib/membresia/mundo'
 
-export const metadata: Metadata = { title: 'Publicaciones' }
+export const metadata: Metadata = { title: 'Anuncios y blog · Cursos' }
 export const dynamic = 'force-dynamic'
 
 function fecha(iso: string): string {
@@ -24,18 +26,21 @@ function fecha(iso: string): string {
 export default async function PaginaPublicaciones() {
   await exigirEquipo()
 
-  const [publicaciones, cursos] = await Promise.all([listarPublicaciones(), opcionesDeAlta()])
+  const [publicaciones, todos, mundo] = await Promise.all([listarPublicaciones(), opcionesDeAlta(), mundoVaip()])
+  // M25: los anuncios son de los cursos; V-AI-P avisa fijando en su Muro.
+  const cursos = sinVaip(mundo, todos)
   const borradores = publicaciones.filter((p) => !p.publicadoEn).length
 
   return (
     <div className="flex max-w-3xl flex-col gap-8">
-      <header className="flex flex-col gap-1.5">
-        <h1 className="text-2xl font-semibold tracking-tight">Publicaciones</h1>
-        <p className="text-sm text-muted-foreground">
-          {publicaciones.length} en total
-          {borradores > 0 ? ` · ${borradores} sin publicar` : ''}
-        </p>
-      </header>
+      <Titulo
+        ceja="Cursos"
+        apoyo={`Anuncios para los alumnos de los cursos y entradas del blog · ${publicaciones.length} en total${
+          borradores > 0 ? ` · ${borradores} sin publicar` : ''
+        }. Los avisos de V-AI-P se fijan en su Muro.`}
+      >
+        Anuncios y blog
+      </Titulo>
 
       <NuevaPublicacion
         cursos={cursos.map((c) => ({ id: c.id, titulo: c.titulo, generaciones: c.generaciones }))}
@@ -63,6 +68,7 @@ export default async function PaginaPublicaciones() {
                       {p.tipo === 'announcement' ? 'Anuncio' : 'Blog'}
                     </Badge>
                     {!p.publicadoEn ? <Badge variant="outline">Borrador</Badge> : null}
+                    {p.deVaip ? <Badge variant="outline">V-AI-P · ya no se muestra</Badge> : null}
                   </span>
                   <span className="text-xs text-muted-foreground">
                     {p.cursoAudiencia ? `Solo ${p.cursoAudiencia}` : 'Todos los alumnos'}

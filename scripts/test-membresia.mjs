@@ -520,8 +520,9 @@ try {
   const cm = await entrar(CORREO_CM)
   // M19: el portal es del equipo; los cobros siguen siendo solo de admin.
   afirmar('Pantallas', 'el community manager entra al portal de V-AI-P', 200, (await pedir('/admin/vaip', cm)).status)
-  const cobrosCm = await pedir('/admin/vaip/cobros', cm)
-  afirmar('Pantallas', 'pero Cobros lo rebota', true, cobrosCm.status === 307 || cobrosCm.status === 303)
+  // M25: Cobros y Planes son una sola página, «Planes y cobros».
+  const cobrosCm = await pedir('/admin/vaip/planes', cm)
+  afirmar('Pantallas', 'pero Planes y cobros lo rebota', true, cobrosCm.status === 307 || cobrosCm.status === 303)
   const admin = await entrar(CORREO_ADMIN)
   const panel = await pedir('/admin/vaip', admin)
   afirmar('Pantallas', '/admin/vaip abre para admin', 200, panel.status)
@@ -683,6 +684,8 @@ try {
     `select title, content_rich::text as cuerpo from academia.posts where audience_course_id = $1 and audience_cohort_id = $2 and post_type = 'announcement'`,
     [ids.casa, ids.gen]
   )
+  // `qa-vaip-casa` es un curso INCLUIDO en el plan, no su casa: sus clases sí
+  // se anuncian. Las de la casa ya no (M25), y eso lo prueban test-dos-mundos y test-api.
   afirmar('Serie quincenal', 'sale un anuncio para la generación', '3 clases en vivo agendadas', anuncio?.title ?? null)
   afirmar('Serie quincenal', 'con la liga a En vivo', true, Boolean(anuncio?.cuerpo.includes('/curso/qa-vaip-casa/en-vivo')))
   afirmar('Serie quincenal', 'el panel confirma el anuncio', true, avisoSerie.includes('Salió el anuncio.'))

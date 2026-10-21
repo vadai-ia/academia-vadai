@@ -1,6 +1,7 @@
 import 'server-only'
 
 import { estadoDeGeneracion, type EstadoGeneracion } from '@/lib/generaciones'
+import { mundoVaip } from '@/lib/membresia/mundo'
 import { crearClienteServidor } from '@/lib/supabase/server'
 import type { Tabla } from '@/lib/supabase/types'
 
@@ -101,12 +102,13 @@ export type GeneracionAgendable = {
  */
 export async function generacionesParaAgendar(): Promise<GeneracionAgendable[]> {
   const supabase = await crearClienteServidor()
-  const [generaciones, cursos] = await Promise.all([
+  const [generaciones, cursos, mundo] = await Promise.all([
     supabase
       .from('cohorts')
       .select('id, name, course_id, starts_on, ends_on, open_for_enrollment')
       .order('starts_on', { ascending: false }),
     supabase.from('courses').select('id, title, status'),
+    mundoVaip(),
   ])
 
   const fallo = generaciones.error ?? cursos.error
@@ -118,12 +120,15 @@ export async function generacionesParaAgendar(): Promise<GeneracionAgendable[]> 
   const curso = new Map((cursos.data ?? []).map((c) => [c.id, c]))
   return (generaciones.data ?? []).flatMap((g) => {
     const suyo = curso.get(g.course_id)
-    if (!suyo || suyo.status === 'archived') return []
+    // Las clases de V-AI-P se agendan en V-AI-P → Clases (M25).
+    if (!suyo || suyo.status === 'archived' || mundo.ids.has(suyo.id)) return []
     return [{ id: g.id, nombre: g.name, cursoTitulo: suyo.title, estado: estadoDeGeneracion(g) }]
   })
 }
 
 export type SesionProxima = {
+  /** M25: es una clase de V-AI-P; el panel la liga a V-AI-P → Clases. */
+  deVaip: boolean
   id: string
   titulo: string
   empiezaEn: string
@@ -143,7 +148,7 @@ export type SesionProxima = {
  */
 export async function proximasSesiones(limite = 5): Promise<SesionProxima[]> {
   const supabase = await crearClienteServidor()
-  const [sesiones, generaciones, cursos] = await Promise.all([
+  const [sesiones, generaciones, cursos, mundo] = await Promise.all([
     supabase
       .from('cohort_sessions')
       .select('id, title, scheduled_at, meet_url, cohort_id')
@@ -152,6 +157,7 @@ export async function proximasSesiones(limite = 5): Promise<SesionProxima[]> {
       .limit(limite * 4),
     supabase.from('cohorts').select('id, name, course_id'),
     supabase.from('courses').select('id, title, status'),
+    mundoVaip(),
   ])
 
   const fallo = sesiones.error ?? generaciones.error ?? cursos.error
@@ -170,6 +176,7 @@ export async function proximasSesiones(limite = 5): Promise<SesionProxima[]> {
       if (!g || !cu || cu.status === 'archived') return []
       return [
         {
+          deVaip: mundo.ids.has(cu.id),
           id: s.id,
           titulo: s.title,
           empiezaEn: s.scheduled_at,

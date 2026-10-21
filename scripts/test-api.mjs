@@ -302,7 +302,8 @@ try {
   const sesionId = r.datos?.id
   const sesion = await una(bd, `select kind, location, cohort_id from academia.cohort_sessions where id = $1`, [sesionId])
   afirmar('Eventos', 'queda como evento en la generación de la casa', `evento QA Sala ${gen.id}`, `${sesion?.kind} ${sesion?.location} ${sesion?.cohort_id}`)
-  afirmar('Eventos', 'y sale su anuncio, del bot', true, Boolean(await una(bd, `select 1 from academia.posts where audience_course_id = $1 and author_id = $2 and title like '%QA API evento'`, [casa.id, bot.user_id])))
+  // M25: `anunciar` se acepta pero ya no publica: las clases de V-AI-P no llevan anuncio.
+  afirmar('Eventos', 'y NO sale anuncio aunque se pida', false, Boolean(await una(bd, `select 1 from academia.posts where audience_course_id = $1 and title like '%QA API evento'`, [casa.id])))
   afirmar('Webhooks', 'el receptor recibe sesion.creada', true, Boolean(await esperarAviso((x) => x.headers['x-vadai-evento'] === 'sesion.creada')))
   afirmar('Eventos', 'se lista', true, (await api('GET', `/eventos${Q}`, lectura)).datos?.eventos?.some((e) => e.id === sesionId && e.lugar === 'QA Sala'))
   afirmar('Eventos', 'cancelar', 200, (await api('DELETE', `/eventos/${sesionId}${Q}`, escritura)).status)

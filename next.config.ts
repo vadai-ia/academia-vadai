@@ -27,6 +27,13 @@ const nextConfig: NextConfig = {
       // (correos del diploma, marcadores) siguen llegando.
       { source: '/puntos', destination: '/perfil/puntos', permanent: false },
       { source: '/certificaciones', destination: '/perfil/certificaciones', permanent: false },
+      // M25: el panel en «dos mundos». Publicar vive en el Muro, el Contenido
+      // se llama Herramientas, Cobros y Planes son una sola página, y los
+      // ajustes del agente viven dentro de Agente IA.
+      { source: '/admin/vaip/publicar', destination: '/admin/vaip/muro', permanent: false },
+      { source: '/admin/vaip/contenido', destination: '/admin/vaip/herramientas', permanent: false },
+      { source: '/admin/vaip/cobros', destination: '/admin/vaip/planes', permanent: false },
+      { source: '/admin/ajustes/agente', destination: '/admin/agente/ajustes', permanent: false },
     ]
   },
 };

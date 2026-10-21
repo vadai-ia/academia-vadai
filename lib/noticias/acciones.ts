@@ -31,7 +31,8 @@ import { crearClienteServidor } from '@/lib/supabase/server'
  */
 
 const RUTA_NOTICIAS = '/admin/vaip/noticias'
-const RUTA_PUBLICAR = '/admin/vaip/publicar'
+// M25: el compositor vive en el Muro de V-AI-P.
+const RUTA_PUBLICAR = '/admin/vaip/muro'
 
 /** Cacerías por día (contando la del cron de las 7:00) y ligas por día. */
 const LIMITE_CACERIAS = 3

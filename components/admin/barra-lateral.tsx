@@ -26,16 +26,24 @@ import { cn } from '@/lib/utils'
 
 export type GrupoDeNavegacion = { titulo?: string; destinos: Destino[] }
 
-function coincide(ruta: string, d: Destino): boolean {
-  return d.exacto ? ruta === d.href : ruta === d.href || ruta.startsWith(`${d.href}/`)
+/** Qué tan bien coincide la ruta con un destino: el largo del prefijo, o -1. */
+function coincidencia(ruta: string, d: Destino): number {
+  if (d.exacto) return ruta === d.href ? d.href.length : -1
+  if (ruta === d.href || ruta.startsWith(`${d.href}/`)) return d.href.length
+  // `tambien`: otras rutas que son de este destino (M25).
+  const otras = (d.tambien ?? []).filter((prefijo) => ruta.startsWith(prefijo)).map((prefijo) => prefijo.length)
+  return otras.length > 0 ? Math.max(...otras) : -1
 }
 
 /**
  * El destino activo es el MÁS específico que coincide (M24): en
- * /admin/vaip/noticias se enciende «Noticias», no también «V-AI-P».
+ * /admin/vaip/noticias se enciende «Noticias», no también «Resumen».
  */
 function destinoActual(ruta: string, destinos: Destino[]): Destino | undefined {
-  return destinos.filter((d) => coincide(ruta, d)).sort((a, b) => b.href.length - a.href.length)[0]
+  return destinos
+    .map((d) => ({ d, largo: coincidencia(ruta, d) }))
+    .filter((x) => x.largo >= 0)
+    .sort((a, b) => b.largo - a.largo)[0]?.d
 }
 
 function Enlace({ d, actual, tactil = false }: { d: Destino; actual: Destino | undefined; tactil?: boolean }) {
@@ -85,6 +93,8 @@ function Grupos({ grupos, pie, ruta, tactil = false }: { grupos: GrupoDeNavegaci
 export function BarraLateral({ grupos, pie }: { grupos: GrupoDeNavegacion[]; pie?: Destino }) {
   const ruta = usePathname()
   const actual = destinoActual(ruta, grupos.flatMap((g) => g.destinos))
+  // «Menú · V-AI-P · Muro» (M25): con dos mundos, el nombre solo no dice de cuál.
+  const grupo = actual ? grupos.find((g) => g.destinos.includes(actual))?.titulo : undefined
 
   return (
     <>
@@ -95,7 +105,9 @@ export function BarraLateral({ grupos, pie }: { grupos: GrupoDeNavegacion[]; pie
             <span className="flex items-center gap-2.5">
               {actual ? <span className="text-primary">{actual.icono}</span> : null}
               <span>
-                <span className="text-muted-foreground">Menú · </span>
+                <span className="text-muted-foreground">
+                  Menú · {grupo && grupo !== actual?.etiqueta ? `${grupo} · ` : ''}
+                </span>
                 {actual?.etiqueta ?? 'Secciones'}
               </span>
             </span>

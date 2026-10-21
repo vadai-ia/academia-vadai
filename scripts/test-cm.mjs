@@ -221,7 +221,7 @@ async function main() {
     const panel = await pedir('/admin', cm)
     afirmar(G1, 'el panel abre', 200, panel.status)
     afirmar(G1, 'su rol se lee «Community manager»', true, (await panel.text()).includes('Community manager'))
-    for (const ruta of ['/admin/comunidad', '/admin/alumnos', '/admin/encuestas', '/admin/dinamicas', '/admin/empresas', '/admin/puntos', '/admin/publicaciones', '/admin/entregas']) {
+    for (const ruta of ['/admin/grupos', '/admin/vaip/muro', '/admin/alumnos', '/admin/encuestas', '/admin/dinamicas', '/admin/empresas', '/admin/puntos', '/admin/publicaciones', '/admin/entregas']) {
       afirmar(G1, `abre ${ruta}`, 200, (await pedir(ruta, cm)).status)
     }
     afirmar(G1, 'crear un curso lo devuelve al panel', '/admin', destino(await pedir('/admin/cursos/nuevo', cm)))
@@ -316,7 +316,8 @@ async function main() {
        values ($1, $2, $3, 'visible', now() - interval '2 hours') returning id`,
       [IDS.leccionVideo, ids.alumno, MARCA_PREGUNTA])
 
-    const BANDEJA = `/admin/comunidad?curso=${IDS.curso}`
+    // M25: la bandeja de los cursos se llama Grupos.
+    const BANDEJA = `/admin/grupos?curso=${IDS.curso}`
     const bandeja = await texto(BANDEJA, cm)
     afirmar(G5, 'la bandeja le trae lo del alumno', true, bandeja.includes(MARCA_POST) && bandeja.includes(MARCA_PREGUNTA))
 

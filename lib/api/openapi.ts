@@ -85,7 +85,7 @@ export function especificacion(base: string) {
                     lugar: { type: 'string' },
                     liga: { type: 'string', format: 'uri' },
                     descripcion: { type: 'string' },
-                    anunciar: { type: 'boolean', description: 'Publicarlo en Anuncios de la casa.' },
+                    anunciar: { type: 'boolean', description: 'Ya no publica nada: las clases no llevan anuncio (los avisos de V-AI-P van fijados en el muro). Se acepta para no romper integraciones.' },
                   },
                 },
               },

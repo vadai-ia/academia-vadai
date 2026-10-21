@@ -2,6 +2,7 @@ import 'server-only'
 
 import { cache } from 'react'
 
+import { mundoVaip, sinVaip } from '@/lib/membresia/mundo'
 import { crearClienteServidor } from '@/lib/supabase/server'
 import type { Tabla } from '@/lib/supabase/types'
 
@@ -28,13 +29,20 @@ export type CursoEnLista = Curso & {
  * provisioning, webhooks y PDFs (CLAUDE.md).
  */
 
+/**
+ * Los cursos de la pantalla Cursos. Sin la casa de V-AI-P ni sus herramientas
+ * (M25, «dos mundos»): esas viven en V-AI-P → Clases y → Herramientas.
+ */
 export async function listarCursos(): Promise<CursoEnLista[]> {
   const supabase = await crearClienteServidor()
 
-  const { data, error } = await supabase
-    .from('courses')
-    .select('*, modules(id, lessons(id)), enrollments(id)')
-    .order('created_at', { ascending: false })
+  const [{ data, error }, mundo] = await Promise.all([
+    supabase
+      .from('courses')
+      .select('*, modules(id, lessons(id)), enrollments(id)')
+      .order('created_at', { ascending: false }),
+    mundoVaip(),
+  ])
 
   if (error) {
     console.error(JSON.stringify({ operacion: 'listarCursos', error: error.message }))
@@ -46,7 +54,7 @@ export async function listarCursos(): Promise<CursoEnLista[]> {
     enrollments: Array<{ id: string }>
   }
 
-  return (data as unknown as Anidado[]).map((curso) => {
+  return sinVaip(mundo, data as unknown as Anidado[]).map((curso) => {
     const { modules, enrollments, ...resto } = curso
     return {
       ...resto,

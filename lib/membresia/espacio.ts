@@ -6,7 +6,6 @@ import { esEquipo, obtenerSesion, type Perfil } from '@/lib/auth/sesion'
 import { faltaFuncion, type LlamadaRpc } from '@/lib/alumno/catalogo'
 import { cursoDelAlumno, misCursos, type CursoDelAlumno } from '@/lib/alumno/consultas'
 import { sesionesDelAlumno, type SesionDelAlumno } from '@/lib/alumno/sesiones'
-import { publicacionesParaAlumno, type AnuncioParaAlumno } from '@/lib/comunidad/posts'
 import { logrosDe, type Logro } from '@/lib/gamificacion/logros'
 import { ACTIVIDAD_VACIA, nivelDe, puntosDe, sumarActividad, type Actividad, type Nivel } from '@/lib/gamificacion/reglas'
 import { miMembresia, planVaip, type PlanVaip } from '@/lib/membresia/consultas'
@@ -17,8 +16,8 @@ import { crearClienteServidor } from '@/lib/supabase/server'
 /**
  * El espacio de V-AI-P (M17, fase 2): lo que ve un miembro en /vaip.
  *
- * Todo con la sesión de quien mira (RLS): la próxima clase y los anuncios son
- * los de su generación, y el ranking sale de `actividad_por_curso`, que solo
+ * Todo con la sesión de quien mira (RLS): la próxima clase y las noticias son
+ * las de su generación, y el ranking sale de `actividad_por_curso`, que solo
  * enseña a la gente de los cursos donde está inscrito.
  */
 
@@ -99,7 +98,6 @@ export async function rankingVaip(planId: string, userId: string): Promise<Ranki
 
 export type EspacioVaip = {
   proximaClase: SesionDelAlumno | null
-  anuncios: AnuncioParaAlumno[]
   /** M19: las últimas del tema «Noticias» del muro. */
   noticias: PostDeComunidad[]
   /** M19: las herramientas (cursos con área), por área. */
@@ -115,9 +113,8 @@ const VENTANA_EN_CURSO = 150 * 60 * 1000
 
 export async function espacioVaip(perfil: Perfil, plan: PlanVaip): Promise<EspacioVaip> {
   const supabase = await crearClienteServidor()
-  const [sesiones, anuncios, cursos, ranking, { data: membresias }] = await Promise.all([
+  const [sesiones, cursos, ranking, { data: membresias }] = await Promise.all([
     sesionesDelAlumno(),
-    publicacionesParaAlumno('announcement'),
     misCursos(),
     rankingVaip(plan.id, perfil.user_id),
     // Con user_id: la RLS deja al admin leer las membresías de todos.
@@ -139,7 +136,6 @@ export async function espacioVaip(perfil: Perfil, plan: PlanVaip): Promise<Espac
 
   return {
     proximaClase,
-    anuncios: anuncios.filter((a) => a.cursoId !== null && a.cursoId === casa?.id).slice(0, 3),
     noticias,
     herramientas: {
       creativas: delPlan.filter((c) => c.categoria === 'creativas'),

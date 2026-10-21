@@ -231,29 +231,35 @@ try {
   // --- 1. La barra lateral --------------------------------------------------
   const panelAdmin = await html('/admin', admin)
   afirmar('Barra lateral', 'el panel trae la barra lateral', true, panelAdmin.includes('aria-label="Secciones del panel"'))
+  // M25: dos mundos. V-AI-P y Cursos, cada destino una vez.
   for (const [ruta, nombre] of [
-    ['/admin/cursos', 'Cursos'], ['/admin/entregas', 'Entregas'], ['/admin/publicaciones', 'Publicaciones'], ['/admin/comunidad', 'Bandeja'],
+    ['/admin/vaip', 'Resumen'], ['/admin/vaip/muro', 'Muro'], ['/admin/vaip/noticias', 'Noticias'], ['/admin/vaip/clases', 'Clases'],
+    ['/admin/vaip/miembros', 'Miembros'], ['/admin/vaip/herramientas', 'Herramientas'], ['/admin/vaip/planes', 'Planes y cobros'],
+    ['/admin/cursos', 'Cursos'], ['/admin/entregas', 'Entregas'], ['/admin/grupos', 'Grupos'], ['/admin/publicaciones', 'Anuncios y blog'],
     ['/admin/puntos', 'Puntos'], ['/admin/alumnos', 'Alumnos'], ['/admin/empresas', 'Empresas'], ['/admin/encuestas', 'Encuestas'],
-    ['/admin/dinamicas', 'Dinámicas'], ['/admin/certificaciones', 'Certificaciones'], ['/admin/vaip', 'V-AI-P'], ['/mis-cursos', 'Portal de alumnos'],
+    ['/admin/dinamicas', 'Dinámicas'], ['/admin/certificaciones', 'Certificaciones'], ['/admin/agente', 'Agente IA'], ['/mis-cursos', 'Portal de alumnos'],
   ]) {
     afirmar('Barra lateral', `lleva a ${nombre}`, true, panelAdmin.includes(`href="${ruta}"`))
   }
-  for (const ruta of ['/admin', '/admin/cursos', '/admin/entregas', '/admin/publicaciones', '/admin/comunidad', '/admin/puntos', '/admin/alumnos', '/admin/empresas', '/admin/encuestas', '/admin/dinamicas', '/admin/certificaciones']) {
+  for (const vieja of ['/admin/comunidad', '/admin/vaip/publicar', '/admin/vaip/contenido', '/admin/vaip/cobros', '/admin/ajustes/agente']) {
+    afirmar('Barra lateral', `ya no lleva a ${vieja}`, false, panelAdmin.includes(`href="${vieja}"`))
+  }
+  for (const ruta of ['/admin', '/admin/cursos', '/admin/entregas', '/admin/publicaciones', '/admin/grupos', '/admin/puntos', '/admin/alumnos', '/admin/empresas', '/admin/encuestas', '/admin/dinamicas', '/admin/certificaciones']) {
     afirmar('Barra lateral', `${ruta} sigue abriendo`, 200, (await pedir(ruta, admin)).status)
   }
   afirmar('Barra lateral', 'el community manager ve V-AI-P', true, (await html('/admin', cm)).includes('href="/admin/vaip"'))
 
   // --- 2. Permisos del portal -------------------------------------------------
-  for (const pestana of ['', '/miembros', '/clases', '/contenido', '/muro']) {
+  for (const pestana of ['', '/miembros', '/clases', '/herramientas', '/muro', '/noticias']) {
     afirmar('Portal', `el CM entra a /admin/vaip${pestana}`, 200, (await pedir(`/admin/vaip${pestana}`, cm)).status)
   }
-  afirmar('Portal', 'Cobros rebota al CM', true, rebota(await pedir('/admin/vaip/cobros', cm)))
-  afirmar('Portal', 'Planes rebota al CM', true, rebota(await pedir('/admin/vaip/planes', cm)))
+  afirmar('Portal', 'Planes y cobros rebota al CM', true, rebota(await pedir('/admin/vaip/planes', cm)))
   const resumenCm = await html('/admin/vaip', cm)
-  afirmar('Portal', 'y al CM ni se le ofrecen', false, resumenCm.includes('href="/admin/vaip/cobros"') || resumenCm.includes('href="/admin/vaip/planes"'))
+  afirmar('Portal', 'y al CM ni se le ofrece', false, resumenCm.includes('href="/admin/vaip/planes"'))
   const resumenAdmin = await html('/admin/vaip', admin)
-  afirmar('Portal', 'al admin sí', true, resumenAdmin.includes('href="/admin/vaip/cobros"') && resumenAdmin.includes('href="/admin/vaip/planes"'))
-  afirmar('Portal', 'Cobros abre para admin', 200, (await pedir('/admin/vaip/cobros', admin)).status)
+  afirmar('Portal', 'al admin sí', true, resumenAdmin.includes('href="/admin/vaip/planes"'))
+  afirmar('Portal', 'Planes y cobros abre para admin', 200, (await pedir('/admin/vaip/planes', admin)).status)
+  afirmar('Portal', 'sin pestañas internas que repitan la barra', false, resumenAdmin.includes('aria-label="Secciones de V-AI-P"'))
   afirmar('Portal', 'el dinero del resumen es solo del admin', true, resumenAdmin.includes('Cobrado este mes') && !resumenCm.includes('Cobrado este mes'))
 
   // --- 3. Miembros ------------------------------------------------------------
@@ -280,7 +286,7 @@ try {
   // paquete de datos de React que Next mete en la página.
   const apariciones = espacio.match(/<h3[^>]*>QA · qa-portal-herramienta \(test-vaip-portal\)<\/h3>/g) ?? []
   afirmar('Herramientas', 'y no repetida en la Biblioteca', 1, apariciones.length)
-  const contenido = await html('/admin/vaip/contenido', cm)
+  const contenido = await html('/admin/vaip/herramientas', cm)
   afirmar('Herramientas', 'el portal la agrupa por área', true, /Herramientas creativas[\s\S]*qa-portal-herramienta/.test(contenido))
 
   // --- 5. Un tema solo del equipo ----------------------------------------------
