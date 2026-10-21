@@ -117,14 +117,3 @@ export function hostEn(host: string, dominios: readonly string[]): boolean {
   const h = hostReal(host)
   return dominios.some((d) => h === d || h.endsWith(`.${d}`))
 }
-
-/**
- * Los dominios que la API de Anthropic dice que su buscador no puede abrir, del
- * texto de su error: «The following domains are not accessible to our user
- * agent: ['apnews.com', 'reuters.com']». Vacío si el error es otro.
- */
-export function dominiosSinBuscador(error: string | undefined): string[] {
-  const lista = error?.match(/domains are not accessible[^[]*\[([^\]]*)\]/i)?.[1]
-  if (!lista) return []
-  return [...lista.matchAll(/['"]([a-z0-9.-]+)['"]/gi)].map((m) => (m[1] ?? '').toLowerCase()).filter(Boolean)
-}

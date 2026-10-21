@@ -59,8 +59,16 @@ export type Llamada<T> = {
   effort: 'low' | 'medium'
   /** Con esquema la salida es JSON validado; sin él, texto. */
   esquema?: z.ZodType<T>
-  /** Búsqueda web. Sin `dominios`, busca en toda la web. */
-  busqueda?: { maxUsos: number; dominios?: string[] }
+  /**
+   * Búsqueda web. Sin `dominios`, busca en toda la web (menos `bloqueados`).
+   * `ubicacion` acerca los resultados a un lugar (las noticias: la Ciudad de México).
+   */
+  busqueda?: {
+    maxUsos: number
+    dominios?: string[]
+    bloqueados?: string[]
+    ubicacion?: { ciudad: string; region: string; pais: string; zona: string }
+  }
   jobId?: string | null
   /** La búsqueda de noticias a la que pertenece la corrida (M24). */
   huntId?: string | null
@@ -167,10 +175,31 @@ export async function llamar<T>(l: Llamada<T>): Promise<Resultado<T>> {
         ? {
             tools: [
               {
-                type: 'web_search_20260209' as const,
+                // La versión clásica, a propósito (21-oct-2026). Con la de «filtrado
+                // dinámico» (web_search_20260209) el modelo busca escribiendo código:
+                // en la cacería repitió la misma consulta, un script se quedó sin
+                // tiempo y gastó todas sus búsquedas en una sola consulta distinta.
+                // Con esta, cada búsqueda es una consulta y sus resultados.
+                type: 'web_search_20250305' as const,
                 name: 'web_search' as const,
                 max_uses: l.busqueda.maxUsos,
-                ...(l.busqueda.dominios?.length ? { allowed_domains: l.busqueda.dominios } : {}),
+                // La API no acepta las dos listas a la vez: la de permitidos manda.
+                ...(l.busqueda.dominios?.length
+                  ? { allowed_domains: l.busqueda.dominios }
+                  : l.busqueda.bloqueados?.length
+                    ? { blocked_domains: l.busqueda.bloqueados }
+                    : {}),
+                ...(l.busqueda.ubicacion
+                  ? {
+                      user_location: {
+                        type: 'approximate' as const,
+                        city: l.busqueda.ubicacion.ciudad,
+                        region: l.busqueda.ubicacion.region,
+                        country: l.busqueda.ubicacion.pais,
+                        timezone: l.busqueda.ubicacion.zona,
+                      },
+                    }
+                  : {}),
               },
             ],
           }

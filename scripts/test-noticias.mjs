@@ -24,15 +24,6 @@ import http from 'node:http'
 
 import { cargarEnv, conectarPostgres, exigir } from './lib/entorno.mjs'
 
-// El lector del error de la API, de su única fuente (TypeScript puro). Node avisa
-// que el archivo no declara su tipo de módulo; ese aviso, y solo ese, se calla.
-const avisos = process.listeners('warning')
-process.removeAllListeners('warning')
-process.on('warning', (aviso) => {
-  if (aviso.code !== 'MODULE_TYPELESS_PACKAGE_JSON') for (const escucha of avisos) escucha(aviso)
-})
-const { dominiosSinBuscador } = await import('../lib/noticias/url.ts')
-
 const vars = cargarEnv()
 const SUPABASE = exigir(vars, 'NEXT_PUBLIC_SUPABASE_URL').replace(/\/+$/, '')
 const SERVICE = exigir(vars, 'SUPABASE_SERVICE_ROLE_KEY')
@@ -56,9 +47,15 @@ const URL_D = Q('reuters.com', '/no-existe')
 const URL_E = Q('openai.com', '/redirige')
 const URL_G = Q('anthropic.com', '/ya-publicada')
 const URL_H = Q('blog.google', '/inventada')
-const URL_I = Q('blog-raro.example', '/rumor')
+const URL_I = Q('x.com', '/rumor')
 const URL_J = Q('anthropic.com', '/claude-pdf')
 const URL_K = Q('microsoft.com', '/copilot-precios')
+// 21-oct-2026: la cacería a fondo, con cinco frentes.
+const URL_ROBOT = Q('therobotreport.com', '/humanoides-almacen')
+const URL_VIEJA5 = Q('spectrum.ieee.org', '/robot-de-hace-5-dias')
+const URL_MX = Q('elfinanciero.com.mx', '/ia-en-mexico')
+const URL_GUIA = Q('learn.microsoft.com', '/guia-copilot-excel')
+const URL_VIDEO_GUIA = 'https://youtube.com.qa-noticias.invalid/watch?v=qaGuia456'
 const URL_LIGA = Q('xataka.com.mx', '/nota-liga')
 const URL_VIDEO = 'https://youtube.com.qa-noticias.invalid/watch?v=qaVideo123'
 
@@ -91,7 +88,15 @@ const PAGINAS = {
   '/microsoft.com/copilot-precios': () =>
     pagina({ titulo: 'Copilot baja sus precios para pymes', medio: 'Microsoft', publicado: null, parrafos: [largo('Microsoft anunció precios nuevos de Copilot para empresas pequeñas.')] }),
   '/anthropic.com/ya-publicada': () => pagina({ titulo: 'Ya publicada', medio: 'Anthropic', publicado: haceHoras(3), parrafos: [largo('Ya salió.')] }),
-  '/blog-raro.example/rumor': () => pagina({ titulo: 'Rumor', medio: 'Blog raro', publicado: haceHoras(2), parrafos: [largo('Un rumor sin fuente.')] }),
+  '/x.com/rumor': () => pagina({ titulo: 'Rumor', medio: 'X', publicado: haceHoras(2), parrafos: [largo('Un rumor sin fuente.')] }),
+  '/therobotreport.com/humanoides-almacen': () =>
+    pagina({ titulo: 'Robots humanoides empiezan a trabajar en almacenes', medio: 'The Robot Report', publicado: haceHoras(6), parrafos: [largo('Una cadena de almacenes puso robots humanoides a mover cajas.')] }),
+  '/spectrum.ieee.org/robot-de-hace-5-dias': () =>
+    pagina({ titulo: 'Un robot de hace cinco días', medio: 'IEEE Spectrum', publicado: haceHoras(120), parrafos: [largo('Esto es noticia de la semana pasada.')] }),
+  '/elfinanciero.com.mx/ia-en-mexico': () =>
+    pagina({ titulo: 'Empresas mexicanas adoptan IA en sus áreas de ventas', medio: 'El Financiero', publicado: haceHoras(20), parrafos: [largo('Un estudio dice que más empresas mexicanas usan IA en ventas.')] }),
+  '/learn.microsoft.com/guia-copilot-excel': () =>
+    pagina({ titulo: 'Guía: Copilot en Excel paso a paso', medio: 'Microsoft Learn', publicado: haceHoras(120), parrafos: [largo('Una guía oficial para usar Copilot en Excel.')] }),
   '/xataka.com.mx/nota-liga': () =>
     pagina({ titulo: 'Gemini llega a Gmail en español', medio: 'Xataka México', publicado: haceHoras(20), parrafos: [largo('Google activó Gemini dentro de Gmail para cuentas en México.'), largo('Resume hilos largos y propone respuestas.')] }),
 }
@@ -153,7 +158,30 @@ const respuesta = (modelo, content, busquedas = 0) => ({
 // Los cinco de verdad nunca deben llegar; bloomberg.com hace del medio que «mañana»
 // empieza a bloquear, para probar que la cacería lo quita sola y reintenta.
 const SIN_BUSCADOR = ['apnews.com', 'arstechnica.com', 'reuters.com', 'theverge.com', 'wired.com']
-const BLOQUEA_MANANA = 'bloomberg.com'
+
+// Lo que encuentra y propone cada frente de la cacería (lib/noticias/prompt.ts, FRENTES).
+const POR_FRENTE = {
+  'Modelos y lanzamientos de IA': {
+    resultados: [RESULTADOS[0], RESULTADOS[1], RESULTADOS[5], RESULTADOS[7]],
+    candidatas: [URL_A, URL_B, URL_G, URL_H, URL_J],
+  },
+  'Herramientas de IA para empresas': {
+    resultados: [RESULTADOS[8], RESULTADOS[3], RESULTADOS[0]],
+    candidatas: [URL_K, URL_D, URL_A],
+  },
+  'Robótica y hardware': {
+    resultados: [[URL_ROBOT, 'Humanoides en almacenes', '6 hours ago'], [URL_VIEJA5, 'Robot de hace 5 días', '5 days ago']],
+    candidatas: [URL_ROBOT, URL_VIEJA5],
+  },
+  'IA en México y en español': {
+    resultados: [[URL_MX, 'IA en ventas en México', '20 hours ago'], RESULTADOS[4]],
+    candidatas: [URL_MX, URL_E],
+  },
+  'Aprender IA': {
+    resultados: [[URL_GUIA, 'Guía de Copilot en Excel', '5 days ago'], [URL_VIDEO_GUIA, 'Video: Claude con Excel', '2 days ago'], RESULTADOS[2], RESULTADOS[6]],
+    candidatas: [URL_GUIA, URL_VIDEO_GUIA, URL_C, URL_I],
+  },
+}
 
 const claude = http.createServer(async (req, res) => {
   let crudo = ''
@@ -164,7 +192,7 @@ const claude = http.createServer(async (req, res) => {
   peticiones.push({ sistema, mensaje, cuerpo })
   const enviar = (r) => res.writeHead(200, { 'content-type': 'application/json' }).end(JSON.stringify(r))
 
-  const bloqueados = (cuerpo.tools?.[0]?.allowed_domains ?? []).filter((d) => [...SIN_BUSCADOR, BLOQUEA_MANANA].includes(d))
+  const bloqueados = (cuerpo.tools?.[0]?.allowed_domains ?? []).filter((d) => SIN_BUSCADOR.includes(d))
   if (bloqueados.length > 0) {
     const lista = bloqueados.map((d) => `'${d}'`).join(', ')
     return res.writeHead(400, { 'content-type': 'application/json' }).end(
@@ -178,17 +206,22 @@ const claude = http.createServer(async (req, res) => {
     )
   }
 
-  if (sistema.includes('buscas las noticias de IA del día')) {
-    const candidatas = [URL_A, URL_B, URL_C, URL_D, URL_E, URL_G, URL_H, URL_I, URL_J, URL_K].map((url, i) => ({ url, titulo: `Candidata ${i + 1}`, por_que: 'Le sirve a una empresa.' }))
-    return enviar(respuesta(cuerpo.model, [...bloquesDeBusqueda(RESULTADOS), { type: 'text', text: `Aquí van:\n${JSON.stringify({ candidatas })}` }], 2))
+  if (sistema.includes('investigas A FONDO un frente')) {
+    const frente = POR_FRENTE[sistema.match(/Frente: ([^\n]+)\./)?.[1] ?? '']
+    if (!frente) return enviar(respuesta(cuerpo.model, [{ type: 'text', text: '{"candidatas":[]}' }]))
+    const candidatas = frente.candidatas.map((url, i) => ({ url, titulo: `Candidata ${i + 1}`, por_que: 'Le sirve a una empresa.', nuevo: '' }))
+    return enviar(respuesta(cuerpo.model, [...bloquesDeBusqueda(frente.resultados), { type: 'text', text: `Aquí van:\n${JSON.stringify({ candidatas })}` }], 2))
   }
   if (sistema.includes('escribes las noticias de IA')) {
-    const claves = [...mensaje.matchAll(/<candidata clave="(C\d+)">\nmedio: ([^\n]*)/g)].map((m) => ({ clave: m[1], medio: m[2] }))
-    const noticias = claves.slice(0, 3).map((c) => ({
+    const claves = [...mensaje.matchAll(/<candidata clave="(C\d+)">[\s\S]*?\nmedio: ([^\n]*)/g)].map((m) => ({ clave: m[1], medio: m[2] }))
+    // La segunda, como seguimiento de un tema ya publicado.
+    const noticias = claves.slice(0, 5).map((c, i) => ({
       clave: c.clave,
       titulo: `QA-NOTICIA ${c.medio}`,
       resumen: `Lo esencial de ${c.medio}.`,
       texto: `Qué cambió en ${c.medio}. Más en https://ejemplo.com/qa y escribe a qa@ejemplo.com.\n\nQué puede hacer tu empresa con eso.`,
+      seguimiento: i === 1,
+      nuevo: i === 1 ? 'Ahora también para pymes en México.' : '',
     }))
     return enviar(respuesta(cuerpo.model, [{ type: 'text', text: JSON.stringify({ noticias }) }]))
   }
@@ -375,7 +408,7 @@ try {
   )
   // La G ya está publicada: la cacería no la vuelve a proponer.
   await bd.query(
-    `insert into academia.news_items (es_qa, course_id, url, url_hash, medio, titulo, resumen, texto, estado) values (true, $1, $2, $3, 'Anthropic', 'QA ya publicada', 'r', 't', 'publicada')`,
+    `insert into academia.news_items (es_qa, course_id, url, url_hash, medio, titulo, resumen, texto, estado) values (true, $1, $2, $3, 'Anthropic', 'QA ya publicada', 'Lo que ya se contó de Claude.', 't', 'publicada')`,
     [casa.id, URL_G, hash(URL_G)]
   )
 
@@ -409,35 +442,41 @@ try {
   afirmar(C, 'mientras busca, la página se refresca sola', true, mientras.includes('http-equiv="refresh"') || caceria.estado !== 'buscando')
   afirmar(C, 'la búsqueda termina lista', 'lista', caceria.estado)
 
-  const propuestas = await varias(bd, `select id, url, orden, titulo, texto, medio, estado from academia.news_items where es_qa and hunt_id = $1 order by orden`, [idCaceria])
-  afirmar(C, 'deja exactamente el top 3 limpio', [URL_A, URL_J, URL_K].join(' '), propuestas.map((p) => p.url).join(' '))
+  const propuestas = await varias(bd, `select id, url, orden, titulo, texto, medio, estado, notas from academia.news_items where es_qa and hunt_id = $1 order by orden`, [idCaceria])
+  // Turnándose entre frentes: la J (otra de modelos) se queda fuera del top 5.
+  afirmar(C, 'deja el top 5, variado entre frentes', [URL_A, URL_K, URL_ROBOT, URL_MX, URL_GUIA].join(' '), propuestas.map((p) => p.url).join(' '))
+  const deK = propuestas.find((p) => p.url === URL_K)
+  afirmar(C, 'cada propuesta dice de qué frente viene', true, Boolean(deK?.notas?.includes('Frente: Herramientas de IA para empresas.')))
+  afirmar(C, 'un seguimiento queda marcado con lo nuevo', true, Boolean(deK?.notas?.includes('Seguimiento de un tema que ya se publicó. Lo nuevo: Ahora también para pymes en México.')))
   const motivos = Object.fromEntries((caceria.descartes ?? []).map((d) => [d.url, d.motivo]))
-  // La B normalizada es la A: su descarte queda con la URL de la A.
-  afirmar(C, 'la misma nota con utm y www cuenta como repetida', 'duplicada', motivos[URL_A])
+  // La B normalizada es la A, y otro frente también trajo la A: los dos descartes quedan con la URL de la A.
+  afirmar(C, 'la misma nota con utm, www o de otro frente cuenta como repetida', 'duplicada', motivos[URL_A])
   afirmar(C, 'la ya publicada no se vuelve a proponer', 'duplicada', motivos[URL_G])
-  afirmar(C, 'la de hace 10 días se descarta por vieja', 'vieja', motivos[URL_C])
+  afirmar(C, 'una guía de hace 10 días se descarta por vieja', 'vieja', motivos[URL_C])
+  afirmar(C, 'una noticia de hace 5 días se descarta por vieja', 'vieja', motivos[URL_VIEJA5])
+  afirmar(C, '…pero una guía de hace 5 días sí entra', true, propuestas.some((p) => p.url === URL_GUIA))
   afirmar(C, 'la que da 404 se descarta', 'rota', motivos[URL_D])
   afirmar(C, 'la que redirige a una IP interna se descarta', 'rota', motivos[URL_E])
   afirmar(C, 'una liga que no salió en la búsqueda no entra', 'inventada', motivos[URL_H])
-  afirmar(C, 'un medio fuera de la lista no entra', 'dominio', motivos[URL_I])
+  afirmar(C, 'una red social que pide sesión no entra', 'dominio', motivos[URL_I])
   afirmar(C, 'el texto no trae URLs ni correos', false, propuestas.some((p) => /https?:\/\/|@/.test(p.texto)))
-  const deBusqueda = peticiones.find((p) => p.sistema.includes('buscas las noticias de IA del día'))
-  afirmar(C, 'busca solo en los dominios permitidos', true, (deBusqueda?.cuerpo.tools?.[0]?.allowed_domains ?? []).includes('anthropic.com'))
-  afirmar(C, '…con tope de 5 búsquedas', 5, deBusqueda?.cuerpo.tools?.[0]?.max_uses)
-  // 21-oct-2026: la API rechaza la búsqueda entera si trae un medio que bloquea a su buscador.
-  const busquedas = peticiones.filter((p) => p.sistema.includes('buscas las noticias de IA del día'))
-  const dominiosDe = (p) => p?.cuerpo.tools?.[0]?.allowed_domains ?? []
-  afirmar(C, 'nunca pide los medios que bloquean al buscador de Anthropic', false, busquedas.some((p) => dominiosDe(p).some((d) => SIN_BUSCADOR.includes(d))))
-  afirmar(C, 'si la API rechaza otro medio, reintenta una vez sin él', 'true false', busquedas.map((p) => dominiosDe(p).includes(BLOQUEA_MANANA)).join(' '))
+
+  const busquedas = peticiones.filter((p) => p.sistema.includes('investigas A FONDO un frente'))
+  const herramienta = (p) => p?.cuerpo.tools?.[0] ?? {}
+  const frentesPedidos = busquedas.map((p) => p.sistema.match(/Frente: ([^\n]+)\./)?.[1]).sort()
+  afirmar(C, 'investiga los cinco frentes', Object.keys(POR_FRENTE).sort().join(' · '), frentesPedidos.join(' · '))
+  afirmar(C, '…cada uno con 4 búsquedas', true, busquedas.length === 5 && busquedas.every((p) => herramienta(p).max_uses === 4))
+  afirmar(C, '…en toda la web, sin lista de permitidos', false, busquedas.some((p) => 'allowed_domains' in herramienta(p)))
+  afirmar(C, '…bloqueando redes sociales y agregadores', true, busquedas.every((p) => ['x.com', 'facebook.com', 'news.google.com'].every((d) => (herramienta(p).blocked_domains ?? []).includes(d))))
+  afirmar(C, '…y desde México', true, busquedas.every((p) => herramienta(p).user_location?.country === 'MX'))
+  afirmar(C, 'cada frente sabe lo que la comunidad ya vio', true, busquedas.every((p) => p.mensaje.includes('QA ya publicada — Lo que ya se contó de Claude.')))
+  const deRedaccion = peticiones.find((p) => p.sistema.includes('escribes las noticias de IA'))
+  afirmar(C, 'la redacción también lo sabe', true, Boolean(deRedaccion?.mensaje.includes('QA ya publicada')))
+  afirmar(C, 'la redacción recibe candidatas de los cinco frentes', true, Object.keys(POR_FRENTE).every((f) => deRedaccion?.mensaje.includes(`frente: ${f}`)))
+  afirmar(C, 'un video de YouTube entra como candidata, con su canal', true, Boolean(deRedaccion?.mensaje.includes('medio: YouTube · Canal QA')))
   const corridas = await varias(bd, `select tarea, estado, busquedas from academia.agent_runs where news_hunt_id = $1 order by created_at`, [idCaceria])
-  afirmar(C, 'las tres llamadas quedan en el gasto, cerradas (la rechazada sin costo)', 'noticias:cerrada noticias:cerrada noticias_redactar:cerrada', corridas.map((r) => `${r.tarea}:${r.estado}`).join(' '))
-  afirmar(
-    C,
-    'el lector del error saca los cinco dominios del mensaje real',
-    SIN_BUSCADOR.join(' '),
-    dominiosSinBuscador(`400 {"type":"error","error":{"type":"invalid_request_error","message":"The following domains are not accessible to our user agent: ['apnews.com', 'arstechnica.com', 'reuters.com', 'theverge.com', 'wired.com']. Read more"}}`).join(' ')
-  )
-  afirmar(C, 'las búsquedas web cuentan', 2, corridas.reduce((s, r) => s + r.busquedas, 0))
+  afirmar(C, 'las seis llamadas quedan en el gasto, cerradas', '5 noticias · 1 noticias_redactar · todas cerradas', `${corridas.filter((r) => r.tarea === 'noticias').length} noticias · ${corridas.filter((r) => r.tarea === 'noticias_redactar').length} noticias_redactar · ${corridas.every((r) => r.estado === 'cerrada') ? 'todas cerradas' : 'alguna abierta'}`)
+  afirmar(C, 'las búsquedas web cuentan', 10, corridas.reduce((s, r) => s + r.busquedas, 0))
   afirmar(C, 'la cacería sola no publica nada', postsAntes, (await una(bd, `select count(*)::int n from academia.community_posts where course_id = $1`, [casa.id])).n)
   const conPropuestas = await html('/admin/vaip/noticias', sCm)
   afirmar(C, 'las propuestas esperan en el panel', true, conPropuestas.includes('Esperan tu clic') && conPropuestas.includes(`propuesta-${propuestas[0]?.id}`))
@@ -448,7 +487,7 @@ try {
   // 3. Publicar y descartar
   // =========================================================================
   const U = 'Publicar una noticia'
-  const [pA, pJ] = propuestas
+  const [pA, pOtra] = propuestas
   const formA = formularioDonde(conPropuestas, (f) => f.includes(`value="${pA?.id}"`) && f.includes('name="titulo"'))
   const camposA = { ...formA, titulo: 'QA-NOTICIA publicada', resumen: 'Lo esencial, corregido.', texto: 'Primer párrafo.\n\nSegundo párrafo.', fijar: 'no' }
   await enviarFormulario('/admin/vaip/noticias', camposA, sCm)
@@ -474,9 +513,9 @@ try {
   const muro = await html(`/curso/${CASA}/comunidad?tema=noticias`, sAdmin)
   afirmar(U, 'el muro la enseña con «Leer más en The Verge»', true, muro.includes('Leer más en The Verge') && muro.includes('Lo esencial, corregido.'))
 
-  const paraDescartar = formularioDonde(await html('/admin/vaip/noticias', sCm), (f) => f.includes(`value="${pJ?.id}"`) && !f.includes('name="titulo"'))
+  const paraDescartar = formularioDonde(await html('/admin/vaip/noticias', sCm), (f) => f.includes(`value="${pOtra?.id}"`) && !f.includes('name="titulo"'))
   await enviarFormulario('/admin/vaip/noticias', paraDescartar, sCm)
-  afirmar(U, 'descartar la saca de la bandeja', 'descartada', (await una(bd, `select estado from academia.news_items where id = $1`, [pJ?.id]))?.estado)
+  afirmar(U, 'descartar la saca de la bandeja', 'descartada', (await una(bd, `select estado from academia.news_items where id = $1`, [pOtra?.id]))?.estado)
 
   // =========================================================================
   // 4. Desde una liga

@@ -20,10 +20,10 @@ const LIMITE_LIGAS = 10
 
 const MOTIVOS: Record<string, string> = {
   duplicada: 'repetidas',
-  vieja: 'de hace más de 3 días',
+  vieja: 'fuera de fecha (más de 3 días las noticias, 7 las guías)',
   rota: 'que no abrieron',
   inventada: 'con ligas que no salieron en la búsqueda',
-  dominio: 'de medios fuera de la lista',
+  dominio: 'de redes sociales o sitios bloqueados',
   invalida: 'con ligas inválidas',
   sin_texto: 'sin texto que leer',
   no_publica: 'no públicas',
@@ -70,8 +70,9 @@ export default async function PaginaNoticias({ searchParams }: { searchParams: P
           <div className="flex flex-col gap-1">
             <h2 className="text-lg font-medium tracking-tight">Cazar noticias de hoy</h2>
             <p className="text-sm text-pretty text-muted-foreground">
-              Busca lo más importante de las últimas 48 horas en Anthropic, OpenAI, Google, Microsoft y medios serios.
-              Descarta lo repetido, lo viejo y lo que no abre, y te deja el top 3. Tarda de 1 a 3 minutos.
+              Investiga a fondo cinco frentes en toda la web: modelos y lanzamientos de IA, herramientas para empresas,
+              robótica y hardware, IA en México y en español, y aprender IA. Descarta lo repetido, lo viejo, lo que ya se
+              publicó (salvo que haya algo nuevo) y lo que no abre, y te deja el top 5. Tarda de 2 a 4 minutos.
             </p>
           </div>
           <BotonCazar

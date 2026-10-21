@@ -207,9 +207,16 @@ En su lugar: `pnpm db:migrate` → `scripts/migrate.mjs`, que aplica los `.sql` 
   evaluaciones, quizzes o módulos exclusivos.
 - **Noticias de V-AI-P** (M24, 20-oct-2026; `lib/noticias/*`, docs/M24.md): se cazan (botón y cron de
   las 7:00) o se crean desde una liga, y quedan como PROPUESTAS en `news_items`; **nada se publica
-  sin el clic de una persona**. Solo cuentan ligas que salieron en la búsqueda y de
-  `DOMINIOS_DE_NOTICIAS`; el código normaliza, deduplica por hash, abre cada página con
-  `lib/red/seguro.ts` (nunca IPs internas) y quita URLs del texto del modelo. La imagen de cada
+  sin el clic de una persona**. **La cacería va a fondo** (21-oct-2026): cinco frentes en paralelo
+  (`FRENTES` en `lib/noticias/prompt.ts`: modelos, empresas, robótica, México, aprender), en toda la
+  web menos `DOMINIOS_BLOQUEADOS`, desde México, y deja el top 5; noticias de 72 h y guías de 7 días.
+  Lo que la comunidad ya vio no vuelve, salvo como **seguimiento** con lo nuevo en sus notas. Usa la
+  búsqueda clásica (`web_search_20250305`): con la de filtrado dinámico el modelo quemaba sus
+  búsquedas. Nunca `allowed_domains` con medios que bloquean al buscador de Anthropic: la API tumba
+  la petición entera. Cuando algo del agente o de noticias falle, la causa está en
+  `agent_runs.motivo`. Solo cuentan ligas que salieron en la búsqueda; el código normaliza,
+  deduplica por hash, abre cada página con `lib/red/seguro.ts` (nunca IPs internas) y quita URLs del
+  texto del modelo. La imagen de cada
   noticia y aviso se **dibuja con código** (`lib/noticias/imagen.tsx`, `next/og`), no es la foto
   del medio. Todo lo del equipo en el muro pasa por `publicarComoEquipo()`. Avisos = tema
   «Avisos» fijado con fecha (`pinned_until`, se apaga al leer con `academia_desfijar_vencidos`).

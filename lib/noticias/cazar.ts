@@ -8,22 +8,27 @@ import { dbDelAgente, type ClienteAgente } from '@/lib/agente/servidor'
 import type { Json } from '@/lib/supabase/types'
 import { casaDeNoticias } from '@/lib/noticias/casa'
 import { leerPagina, leerVideo, type Pagina } from '@/lib/noticias/pagina'
-import { DOMINIOS_DE_BUSQUEDA, DOMINIOS_DE_NOTICIAS, REGLAS_CACERIA, REGLAS_LIGA, REGLAS_REDACCION } from '@/lib/noticias/prompt'
-import { dominiosSinBuscador, hashDeUrl, hostEn, idDeYoutube, medioDeHost, normalizarUrl } from '@/lib/noticias/url'
+import { DOMINIOS_BLOQUEADOS, FRENTES, REGLAS_LIGA, REGLAS_REDACCION, reglasDelFrente, type Frente } from '@/lib/noticias/prompt'
+import { hashDeUrl, hostEn, idDeYoutube, medioDeHost, normalizarUrl } from '@/lib/noticias/url'
 
 /**
  * Las noticias de V-AI-P (M24).
  *
- * CACERÍA («Cazar noticias de hoy», y el cron de las 7:00):
- *   1. Sonnet busca en la web (solo DOMINIOS_DE_BUSQUEDA: los medios de la
- *      lista que el buscador de Anthropic puede abrir) y propone hasta 10.
+ * CACERÍA («Cazar noticias de hoy», y el cron de las 7:00), a fondo desde el
+ * 21-oct-2026 (decisiones de Alejandro: cinco frentes, toda la web, top 5):
+ *   1. Cinco FRENTES investigan en paralelo, en toda la web (menos
+ *      DOMINIOS_BLOQUEADOS) y desde México: modelos y lanzamientos, herramientas
+ *      para empresas, robótica y hardware, IA en México y en español, y aprender
+ *      IA. Cada uno con 4 búsquedas, propone hasta 6. Todos saben qué temas YA
+ *      vio la comunidad: no se repiten salvo que haya algo nuevo.
  *   2. El CÓDIGO limpia: solo cuentan URLs que de verdad salieron en la
- *      búsqueda (el modelo no puede inventar una liga), del dominio permitido,
+ *      búsqueda (el modelo no puede inventar una liga), fuera de los bloqueados,
  *      normalizadas y sin repetir (contra la tanda y contra todo lo que ya se
- *      propuso o publicó); cada página se lee de verdad (si no abre, fuera) y
- *      se descarta lo de más de 72 horas.
+ *      propuso o publicó); cada página o video se lee de verdad (si no abre,
+ *      fuera) y se descarta lo viejo: 72 horas las noticias, 7 días las guías.
  *   3. Sonnet, sin herramientas y con las candidatas como datos, elige el top
- *      3 y lo escribe (título, resumen y texto). El código quita URLs y correos.
+ *      5 variado y lo escribe; un seguimiento de un tema ya publicado queda
+ *      marcado en las notas con lo nuevo. El código quita URLs y correos.
  *   4. Quedan como PROPUESTAS. Nada se publica sin el clic de una persona.
  *
  * DESDE UNA LIGA: se lee la página (o el título y la descripción del video),
@@ -33,13 +38,24 @@ import { dominiosSinBuscador, hashDeUrl, hostEn, idDeYoutube, medioDeHost, norma
  * del mes antes de salir.
  */
 
-const HORAS_DE_FRESCURA = 72
-const MAX_CANDIDATAS = 10
-const MAX_A_REDACTAR = 8
-const LECTURAS_A_LA_VEZ = 4
+const BUSQUEDAS_POR_FRENTE = 4
+const MAX_POR_FRENTE = 6
+const MAX_A_REDACTAR = 15
+const MAX_PROPUESTAS = 5
+const LECTURAS_A_LA_VEZ = 6
+
+/** Acerca los resultados a lo que se lee en México (sin dejar de buscar en el mundo). */
+const UBICACION = { ciudad: 'Ciudad de México', region: 'Ciudad de México', pais: 'MX', zona: 'America/Mexico_City' }
 
 const EsquemaCaceria = z.object({
-  candidatas: z.array(z.object({ url: z.string(), titulo: z.string().default(''), por_que: z.string().default('') })),
+  candidatas: z.array(
+    z.object({
+      url: z.string(),
+      titulo: z.string().default(''),
+      por_que: z.string().default(''),
+      nuevo: z.string().default(''),
+    })
+  ),
 })
 
 const EsquemaRedaccion = z.object({
@@ -50,9 +66,11 @@ const EsquemaRedaccion = z.object({
         titulo: z.string(),
         resumen: z.string(),
         texto: z.string(),
+        seguimiento: z.boolean().describe('Continúa un tema que la comunidad ya vio.'),
+        nuevo: z.string().describe('Si es seguimiento, qué cambió; si no, vacío.'),
       })
     )
-    .max(3),
+    .max(MAX_PROPUESTAS),
 })
 
 const EsquemaLiga = z.object({
@@ -64,14 +82,17 @@ const EsquemaLiga = z.object({
 
 type Descarte = { url: string; motivo: 'invalida' | 'inventada' | 'dominio' | 'duplicada' | 'rota' | 'vieja' | 'no_publica' | 'sin_texto' }
 
-type Candidata = {
+type PorLeer = {
   url: string
   urlOriginal: string
   hash: string
-  pagina: Pagina
   porQue: string
+  nuevo: string
   edad: string | null
+  f: Frente
 }
+
+type Candidata = PorLeer & { pagina: Pagina }
 
 function registrar(operacion: string, detalle: Record<string, unknown>) {
   console.error(JSON.stringify({ operacion, ...detalle }))
@@ -152,58 +173,143 @@ const hoyEnCdmx = () => new Intl.DateTimeFormat('es-MX', { timeZone: 'America/Me
 // Cacería
 // ==========================================================================
 
+type TemasVistos = { publicados: Array<{ titulo: string; resumen: string }>; propuestos: string[] }
+
+/**
+ * Lo que la comunidad ya vio: lo publicado en 30 días (de la cacería o escrito
+ * por el equipo en el tema Noticias) y lo que se propuso o descartó en 10.
+ * Alejandro (21-oct-2026): si ya se habló de un tema, no se vuelve a investigar
+ * a fondo, salvo que haya algo nuevo o algo que profundizar.
+ */
+async function temasVistos(db: ClienteAgente, esQa: boolean, casaId: string): Promise<TemasVistos> {
+  const hace30 = new Date(Date.now() - 30 * 86_400_000).toISOString()
+  const hace10 = new Date(Date.now() - 10 * 86_400_000).toISOString()
+  const [{ data: publicadas }, { data: otras }, { data: tema }] = await Promise.all([
+    db
+      .from('news_items')
+      .select('titulo, resumen')
+      .eq('es_qa', esQa)
+      .eq('estado', 'publicada')
+      .gte('created_at', hace30)
+      .order('created_at', { ascending: false })
+      .limit(40),
+    db
+      .from('news_items')
+      .select('titulo')
+      .eq('es_qa', esQa)
+      .neq('estado', 'publicada')
+      .gte('created_at', hace10)
+      .order('created_at', { ascending: false })
+      .limit(40),
+    db.from('community_topics').select('id').eq('course_id', casaId).eq('slug', 'noticias').maybeSingle(),
+  ])
+  const { data: posts } = tema
+    ? await db
+        .from('community_posts')
+        .select('title')
+        .eq('course_id', casaId)
+        .eq('topic_id', tema.id)
+        .eq('status', 'visible')
+        .gte('created_at', hace30)
+        .order('created_at', { ascending: false })
+        .limit(40)
+    : { data: [] as Array<{ title: string }> }
+
+  const vistos = new Map<string, { titulo: string; resumen: string }>()
+  for (const n of publicadas ?? []) vistos.set(n.titulo.toLowerCase(), { titulo: n.titulo, resumen: n.resumen })
+  for (const p of posts ?? []) if (!vistos.has(p.title.toLowerCase())) vistos.set(p.title.toLowerCase(), { titulo: p.title, resumen: '' })
+  return { publicados: [...vistos.values()], propuestos: (otras ?? []).map((o) => o.titulo) }
+}
+
+function textoDeVistos(v: TemasVistos): string {
+  const partes: string[] = []
+  if (v.publicados.length) {
+    partes.push(
+      `La comunidad YA vio estos temas (no los repitas salvo que haya algo nuevo):\n${v.publicados.map((p) => `- ${p.titulo}${p.resumen ? ` — ${p.resumen}` : ''}`).join('\n')}`
+    )
+  }
+  if (v.propuestos.length) {
+    partes.push(`Ya se propusieron o se descartaron (no los vuelvas a proponer):\n${v.propuestos.map((t) => `- ${t}`).join('\n')}`)
+  }
+  return partes.length ? `\n\n<ya_vistos>\n${partes.join('\n\n')}\n</ya_vistos>` : ''
+}
+
+/** Hasta `n` candidatas, turnándose entre frentes: que la redacción tenga de todo. */
+function variadas(lista: Candidata[], n: number): Candidata[] {
+  const porFrente = new Map<string, Candidata[]>()
+  for (const c of lista) porFrente.set(c.f.clave, [...(porFrente.get(c.f.clave) ?? []), c])
+  const colas = [...porFrente.values()]
+  const salida: Candidata[] = []
+  while (salida.length < n && colas.some((q) => q.length > 0)) {
+    for (const q of colas) {
+      const c = q.shift()
+      if (c && salida.length < n) salida.push(c)
+    }
+  }
+  return salida
+}
+
 export async function cazarNoticias(huntId: string): Promise<void> {
   const db = dbDelAgente()
   try {
     const [a, casa] = await Promise.all([ajustesDelAgente(), casaDeNoticias(db)])
     if (!a) return terminar(db, huntId, 'fallida', { detalle: 'Faltan los ajustes del agente.' })
     if (!casa) return terminar(db, huntId, 'fallida', { detalle: 'No encontré el muro de V-AI-P.' })
+    const yaVistos = textoDeVistos(await temasVistos(db, a.es_qa, casa.id))
 
-    // Lo que ya salió en 10 días, para que ni lo proponga.
-    const hace10 = new Date(Date.now() - 10 * 86_400_000).toISOString()
-    const { data: recientes } = await db
-      .from('news_items')
-      .select('titulo')
-      .eq('es_qa', a.es_qa)
-      .gte('created_at', hace10)
-      .order('created_at', { ascending: false })
-      .limit(40)
-    const yaSalieron = (recientes ?? []).map((r) => r.titulo)
-
-    await paso(db, huntId, 'Buscando en la web')
-    const buscar = (dominios: string[]) =>
-      llamar({
-        tarea: 'noticias',
-        modelo: a.modelo_fuerte,
-        sistema: [{ texto: REGLAS_CACERIA }],
-        mensaje: `Hoy es ${hoyEnCdmx()}.${yaSalieron.length ? `\n\nEstas ya se publicaron o propusieron; no las repitas:\n${yaSalieron.map((t) => `- ${t}`).join('\n')}` : ''}`,
-        maxTokens: 3000,
-        effort: 'medium',
-        busqueda: { maxUsos: 5, dominios },
-        huntId,
-      })
-    let busqueda = await buscar(DOMINIOS_DE_BUSQUEDA)
-    // Si un medio de la lista empezó a bloquear al buscador de Anthropic, la API
-    // rechaza la búsqueda entera: se quita ese medio y se intenta una vez más.
-    const sinBuscador = busqueda.ok ? [] : dominiosSinBuscador(busqueda.detalle)
-    if (sinBuscador.length > 0) {
-      registrar('noticias:dominios-sin-buscador', { huntId, dominios: sinBuscador })
-      busqueda = await buscar(DOMINIOS_DE_BUSQUEDA.filter((d) => !sinBuscador.includes(d)))
+    // --- 1. los frentes, en paralelo y en toda la web --------------------------
+    await paso(db, huntId, `Investigando ${FRENTES.length} frentes en la web`)
+    const frentes = await Promise.all(
+      FRENTES.map(async (f) => ({
+        f,
+        r: await llamar({
+          tarea: 'noticias',
+          modelo: a.modelo_fuerte,
+          sistema: [{ texto: reglasDelFrente(f) }],
+          mensaje: `Hoy es ${hoyEnCdmx()}.${yaVistos}`,
+          maxTokens: 2500,
+          effort: 'medium',
+          busqueda: { maxUsos: BUSQUEDAS_POR_FRENTE, bloqueados: DOMINIOS_BLOQUEADOS, ubicacion: UBICACION },
+          huntId,
+        }),
+      }))
+    )
+    const caidos: Array<{ f: Frente; motivo: string; detalle?: string }> = []
+    for (const { f, r } of frentes) {
+      if (r.ok) continue
+      caidos.push({ f, motivo: r.motivo, detalle: r.detalle })
+      registrar('noticias:frente', { huntId, frente: f.clave, motivo: r.motivo, detalle: r.detalle })
     }
-    if (!busqueda.ok) return terminar(db, huntId, 'fallida', { detalle: motivoDeFallo(busqueda.motivo, busqueda.detalle) })
-    const lectura = EsquemaCaceria.safeParse(primerJson(busqueda.texto))
-    if (!lectura.success) return terminar(db, huntId, 'fallida', { detalle: 'La IA no devolvió candidatas que se pudieran leer.' })
+    const [primerCaido] = caidos
+    if (primerCaido && caidos.length === frentes.length) {
+      return terminar(db, huntId, 'fallida', { detalle: motivoDeFallo(primerCaido.motivo, primerCaido.detalle) })
+    }
+    // Si un frente falla, la cacería sigue con los demás y lo dice.
+    const avisoDeCaidos = caidos.length
+      ? `${caidos.length === 1 ? 'Un frente no respondió' : `${caidos.length} frentes no respondieron`}: ${caidos.map((c) => c.f.nombre).join(', ')}.`
+      : ''
 
-    // --- limpiar en código ---------------------------------------------------
+    // --- 2. limpiar en código ---------------------------------------------------
     const descartes: Descarte[] = []
     const vistas = new Map<string, FuenteDeBusqueda>()
-    for (const f of busqueda.fuentes) {
-      const n = normalizarUrl(f.url)
-      if (n) vistas.set(n, f)
+    const crudas: Array<{ f: Frente; url: string; porQue: string; nuevo: string }> = []
+    for (const { f, r } of frentes) {
+      if (!r.ok) continue
+      for (const fuente of r.fuentes) {
+        const n = normalizarUrl(fuente.url)
+        if (n) vistas.set(n, fuente)
+      }
+      const lectura = EsquemaCaceria.safeParse(primerJson(r.texto))
+      if (!lectura.success) {
+        registrar('noticias:frente-ilegible', { huntId, frente: f.clave })
+        continue
+      }
+      for (const c of lectura.data.candidatas.slice(0, MAX_POR_FRENTE)) crudas.push({ f, url: c.url, porQue: c.por_que, nuevo: c.nuevo })
     }
+
     const enLote = new Set<string>()
-    const porLeer: { url: string; urlOriginal: string; hash: string; porQue: string; edad: string | null }[] = []
-    for (const c of lectura.data.candidatas.slice(0, MAX_CANDIDATAS)) {
+    const porLeer: PorLeer[] = []
+    for (const c of crudas) {
       const n = normalizarUrl(c.url)
       if (!n) {
         descartes.push({ url: c.url.slice(0, 300), motivo: 'invalida' })
@@ -214,7 +320,7 @@ export async function cazarNoticias(huntId: string): Promise<void> {
         descartes.push({ url: n, motivo: 'inventada' })
         continue
       }
-      if (!hostEn(new URL(n).hostname, DOMINIOS_DE_NOTICIAS)) {
+      if (hostEn(new URL(n).hostname, DOMINIOS_BLOQUEADOS)) {
         descartes.push({ url: n, motivo: 'dominio' })
         continue
       }
@@ -224,7 +330,7 @@ export async function cazarNoticias(huntId: string): Promise<void> {
         continue
       }
       enLote.add(hash)
-      porLeer.push({ url: n, urlOriginal: c.url, hash, porQue: c.por_que, edad: fuente.edad })
+      porLeer.push({ url: n, urlOriginal: c.url, hash, porQue: c.porQue, nuevo: c.nuevo, edad: fuente.edad, f: c.f })
     }
     if (porLeer.length) {
       const { data: existentes } = await db.from('news_items').select('url_hash').eq('es_qa', a.es_qa).in('url_hash', porLeer.map((p) => p.hash))
@@ -234,7 +340,11 @@ export async function cazarNoticias(huntId: string): Promise<void> {
     }
 
     await paso(db, huntId, `Leyendo ${porLeer.length} notas`)
-    const leidas = await deAPocos(porLeer, LECTURAS_A_LA_VEZ, async (p) => ({ p, pagina: await leerPagina(p.url, { extracto: 1500 }) }))
+    const leidas = await deAPocos(porLeer, LECTURAS_A_LA_VEZ, async (p) => ({
+      p,
+      // Los videos de YouTube son una fuente más (los «canales»): de ellos se lee el título y la descripción.
+      pagina: idDeYoutube(p.url) ? await leerVideo(p.url) : await leerPagina(p.url, { extracto: 1500 }),
+    }))
     const ahora = Date.now()
     const candidatas: Candidata[] = []
     for (const { p, pagina } of leidas) {
@@ -256,8 +366,9 @@ export async function cazarNoticias(huntId: string): Promise<void> {
         hash = h
         enLote.add(h)
       }
+      // Cada frente con su ventana: 72 horas las noticias, 7 días las guías.
       const fecha = pagina.publicado ?? fechaDeEdad(p.edad)
-      if (fecha && ahora - fecha.getTime() > HORAS_DE_FRESCURA * 3_600_000) {
+      if (fecha && ahora - fecha.getTime() > p.f.horas * 3_600_000) {
         descartes.push({ url, motivo: 'vieja' })
         continue
       }
@@ -265,35 +376,43 @@ export async function cazarNoticias(huntId: string): Promise<void> {
         descartes.push({ url, motivo: 'sin_texto' })
         continue
       }
-      candidatas.push({ url, urlOriginal: p.urlOriginal, hash, pagina, porQue: p.porQue, edad: p.edad })
+      candidatas.push({ ...p, url, hash, pagina })
     }
     if (candidatas.length === 0) {
-      return terminar(db, huntId, 'sin_resultados', { descartes, detalle: 'Ninguna candidata pasó la limpieza.' })
+      return terminar(db, huntId, 'sin_resultados', {
+        descartes,
+        detalle: ['Ninguna candidata pasó la limpieza.', avisoDeCaidos].filter(Boolean).join(' '),
+      })
     }
 
-    // --- elegir y redactar -------------------------------------------------
-    await paso(db, huntId, 'Eligiendo y redactando el top 3')
-    const lista = candidatas.slice(0, MAX_A_REDACTAR)
+    // --- 3. elegir y redactar el top 5 -----------------------------------------
+    await paso(db, huntId, `Eligiendo y redactando el top ${MAX_PROPUESTAS}`)
+    const lista = variadas(candidatas, MAX_A_REDACTAR)
     const bloque = lista
       .map((c, i) =>
         [
           `<candidata clave="C${i + 1}">`,
+          `frente: ${c.f.nombre}`,
+          `tipo: ${c.f.tipo === 'guia' ? 'guía para aprender' : 'noticia'}`,
           `medio: ${c.pagina.medio}`,
           `fecha: ${c.pagina.publicado?.toISOString().slice(0, 10) ?? c.edad ?? 'sin fecha'}`,
           `titulo: ${c.pagina.titulo ?? ''}`,
           `descripcion: ${c.pagina.descripcion ?? ''}`,
-          `por que le importa (segun la busqueda): ${c.porQue}`,
+          `por que le sirve (segun la busqueda): ${c.porQue}`,
+          c.nuevo ? `que hay de nuevo (segun la busqueda): ${c.nuevo}` : '',
           `texto de la pagina: ${c.pagina.extracto}`,
           `</candidata>`,
-        ].join('\n')
+        ]
+          .filter(Boolean)
+          .join('\n')
       )
       .join('\n\n')
     const redaccion = await llamar({
       tarea: 'noticias_redactar',
       modelo: a.modelo_fuerte,
       sistema: [{ texto: REGLAS_REDACCION }],
-      mensaje: `Hoy es ${hoyEnCdmx()}.\n\n${bloque}`,
-      maxTokens: 3000,
+      mensaje: `Hoy es ${hoyEnCdmx()}.${yaVistos}\n\n${bloque}`,
+      maxTokens: 4500,
       effort: 'medium',
       esquema: EsquemaRedaccion,
       huntId,
@@ -306,31 +425,40 @@ export async function cazarNoticias(huntId: string): Promise<void> {
     const filas = escritas.noticias
       .map((n) => ({ n, c: lista[Number(n.clave.replace(/\D/g, '')) - 1] }))
       .filter((x): x is { n: (typeof escritas.noticias)[number]; c: Candidata } => Boolean(x.c) && !usadas.has(x.n.clave) && Boolean(usadas.add(x.n.clave)))
-      .slice(0, 3)
-      .map(({ n, c }, i) => ({
-        es_qa: a.es_qa,
-        hunt_id: huntId,
-        course_id: casa.id,
-        url: c.url,
-        url_original: c.urlOriginal.slice(0, 2000),
-        url_hash: c.hash,
-        tipo_fuente: c.pagina.esVideo ? ('video' as const) : ('articulo' as const),
-        medio: c.pagina.medio.slice(0, 80),
-        titulo: textoLimpio(n.titulo, 160),
-        resumen: textoLimpio(n.resumen, 600),
-        texto: textoLimpio(n.texto, 5000),
-        publicado_en_fuente: c.pagina.publicado?.toISOString() ?? null,
-        orden: i + 1,
-      }))
+      .slice(0, MAX_PROPUESTAS)
+      .map(({ n, c }, i) => {
+        const nuevo = textoLimpio(n.nuevo, 400)
+        const notas = [`Frente: ${c.f.nombre}.`, n.seguimiento ? `Seguimiento de un tema que ya se publicó. Lo nuevo: ${nuevo || 'sin detalle'}.` : '']
+          .filter(Boolean)
+          .join('\n')
+        return {
+          es_qa: a.es_qa,
+          hunt_id: huntId,
+          course_id: casa.id,
+          url: c.url,
+          url_original: c.urlOriginal.slice(0, 2000),
+          url_hash: c.hash,
+          tipo_fuente: c.pagina.esVideo ? ('video' as const) : ('articulo' as const),
+          medio: c.pagina.medio.slice(0, 80),
+          titulo: textoLimpio(n.titulo, 160),
+          resumen: textoLimpio(n.resumen, 600),
+          texto: textoLimpio(n.texto, 5000),
+          publicado_en_fuente: c.pagina.publicado?.toISOString() ?? null,
+          notas: notas.slice(0, 2000),
+          orden: i + 1,
+        }
+      })
       .filter((f) => f.titulo.length >= 3 && f.resumen.length > 0 && f.texto.length > 0)
 
-    if (filas.length === 0) return terminar(db, huntId, 'sin_resultados', { descartes, detalle: 'La IA no eligió ninguna.' })
+    if (filas.length === 0) {
+      return terminar(db, huntId, 'sin_resultados', { descartes, detalle: ['La IA no eligió ninguna.', avisoDeCaidos].filter(Boolean).join(' ') })
+    }
     const { error } = await db.from('news_items').upsert(filas, { onConflict: 'es_qa,url_hash', ignoreDuplicates: true })
     if (error) {
       registrar('noticias:guardar', { huntId, error: error.message })
       return terminar(db, huntId, 'fallida', { descartes, detalle: 'No se pudieron guardar las propuestas.' })
     }
-    await terminar(db, huntId, 'lista', { descartes })
+    await terminar(db, huntId, 'lista', { descartes, ...(avisoDeCaidos ? { detalle: avisoDeCaidos } : {}) })
   } catch (e) {
     registrar('noticias:cazar', { huntId, error: e instanceof Error ? e.message : String(e) })
     await terminar(db, huntId, 'fallida', { detalle: 'Algo falló a la mitad. Intenta de nuevo.' })
