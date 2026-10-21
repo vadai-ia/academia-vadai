@@ -50,13 +50,15 @@ En su lugar: `pnpm db:migrate` → `scripts/migrate.mjs`, que aplica los `.sql` 
 ```
 /app
   /(auth)        login, reset
-  /(alumno)      mis-cursos (Inicio), cursos (Mis cursos), curso/[slug] (+ comunidad, en-vivo, dinamicas),
+  /(alumno)      mis-cursos (Inicio), cursos (Mis cursos), curso/[slug] (+ comunidad = pestaña «Grupo», en-vivo, dinamicas),
                  perfil (+ membresia, certificaciones, puntos), dinamicas, blog; comunidad solo redirige (M22)
   /vaip          V-AI-P: venta para quien no es miembro; para el miembro, Muro + clases, herramientas, ranking
                  # curso/[slug]/(marco)/ = el marco del curso (título, avance, pestañas) para Contenido,
-                 # En vivo, Comunidad y Dinámicas; curso/[slug]/[leccionId] va FUERA: modo lección (25-sep-2026)
-  /(admin)       admin/* (cursos, alumnos, alumnos/[userId] ficha, comunidad, puntos, entregas, posts, encuestas, dinamicas,
-                 modulos/[id]/acceso = quién entra a una sesión exclusiva)
+                 # En vivo, Grupo y Dinámicas; curso/[slug]/[leccionId] va FUERA: modo lección (25-sep-2026)
+  /(admin)       admin/* en dos mundos (M25): vaip (resumen), vaip/{muro,noticias,clases,miembros,herramientas,planes};
+                 cursos, entregas, grupos, publicaciones (Anuncios y blog), puntos, dinamicas, encuestas, certificaciones;
+                 alumnos (+ [userId] ficha), empresas; agente (+ ajustes), ajustes/api;
+                 modulos/[id]/acceso = quién entra a una sesión exclusiva. comunidad solo redirige a grupos o vaip/muro
                  # cursos/[id]?gen=<id>|nueva|sin = la pestaña de una generación (M16); generaciones/[id] solo redirige ahí
   /api/stripe/webhook
   /api/certificados/[folio]
@@ -154,8 +156,10 @@ En su lugar: `pnpm db:migrate` → `scripts/migrate.mjs`, que aplica los `.sql` 
   `/admin/puntos` (`lib/admin/puntos.ts`, 26-sep-2026): mismos pesos, sin cuentas `qa-*` ni cursos
   archivados, y el **lugar se calcula antes de filtrar** — filtrar por empresa enseña en qué lugar
   va cada quien en el ranking completo, no un ranking nuevo de esa empresa.
-- **La comunidad se atiende desde el panel** (`/admin/comunidad`, `lib/admin/comunidad.ts`,
-  3-oct-2026): muro y preguntas de lección en una bandeja, cada hilo con curso · generación ·
+- **Las conversaciones se atienden desde el panel** (`lib/admin/comunidad.ts`, 3-oct-2026; partida en
+  dos desde M25): los grupos de los cursos en **Cursos → Grupos** (`/admin/grupos`) y el muro de
+  V-AI-P en **V-AI-P → Muro** (`/admin/vaip/muro`), con el mismo componente (`components/admin/bandeja.tsx`)
+  y nunca mezclados: cada hilo es de un mundo (`Hilo.mundo`). Cada hilo trae curso · generación ·
   lección. El estado **no se guarda**: "sin respuesta" = el último mensaje visible no es del
   equipo. «Atendida sin responder» (0037, `attended_at` en la raíz del hilo) lo saca sin
   escribir ni ocultar, y si el alumno vuelve a escribir regresa solo. La campana del panel
@@ -195,7 +199,23 @@ En su lugar: `pnpm db:migrate` → `scripts/migrate.mjs`, que aplica los `.sql` 
 - **Empresas** (`academia.companies`, `profiles.company_id`; 20-sep-2026): de dónde viene cada
   alumno; null = General. Las asigna solo el equipo (trigger de perfil). El importador crea las
   que trae la columna Empresa. Es la base del puntaje y las dinámicas por empresa.
-- **Agregar un curso a quien ya tiene cuenta SIEMPRE avisa por correo** (`plantillaNuevoCurso`).
+- **Toda alta manda su correo de acceso y queda en la bitácora** (M25, 20-oct-2026; `access_emails`,
+  0047). Todos los caminos —alta manual, Excel, desde el curso o la ficha, Stripe, membresía,
+  encuestas, reenvíos y recordatorio— pasan por `avisarAccesos` (`lib/correo/avisos-de-acceso.ts`), y
+  qué correo le toca a quién lo decide `decidirCorreo` (`lib/correo/decision.ts`, pura y probada):
+  cuenta nueva o que **nunca entró** → bienvenida con liga de 30 días; ya entró → «curso nuevo»;
+  cambio de generación → «Ya estás en la Generación N» con las fechas (más liga si nunca entró);
+  nada cambió → nada. Un camino nuevo de alta NO manda correo por su cuenta: usa `darDeAlta`
+  (`correo: 'diferir'` si junta varios cursos) o `avisarAccesos`. La fila se escribe `pendiente`
+  antes de mandar; las QA quedan `omitido`. Alumnos enseña «N correos de acceso no salieron ·
+  Reenviar», la lista «Correo falló» y la ficha la bitácora con «Reintentar».
+- **Gen 1 → Gen 2 es MOVER la misma inscripción** (decisión de Alejandro, 20-oct-2026): una sola
+  inscripción por curso, conserva su avance, se reactiva sin acortar la vigencia y se le avisa. Al
+  dar de alta o agregar desde la pestaña de una generación, quien está en otra se cambia a esa.
+- **El recordatorio «Mandar a quien falta» solo va a quien nunca entró y tiene un curso o generación
+  activa** (`academia_por_activar`, 0047): inscripción vigente en un curso publicado que no es base y
+  cuya generación no terminó (`ends_on` ≥ hoy CDMX; incluye la que no ha empezado y «Miembros» de
+  V-AI-P). Solo el curso base o una generación terminada no cuentan.
 - **Dinámicas empresariales** (M13, 21-sep-2026): una calificación compartida por celda, gana el
   último y queda firmada con `updated_by`; el tablero se crea con un POST, nunca en un GET; "abierta
   de verdad" es `academia.dinamica_abierta()` (status open y fecha límite nula o futura, evaluada al
@@ -388,18 +408,28 @@ la página. **Página de venta**: cada botón de compra es `BotonSuscribir` (mis
 suscripción no abre), 3–4 en la página con texto distinto, el del encabezado visible sin scroll en
 390×844, y la barra `BarraSuscribir` en teléfono y tableta.
 
-**El panel de admin es la excepción: barra lateral agrupada** (M19, 16-oct-2026, pedido
-de Alejandro). Con doce destinos la fila envolvía y no decía qué iba con qué. Grupos:
-Panel · Membresía (V-AI-P; segunda desde el 20-oct-2026: ahí se entra a diario) · Academia
-(Cursos, Entregas, Publicaciones) · Comunidad (Bandeja, Agente, Puntos) · Contactos (Alumnos,
-Empresas) · Actividades (Encuestas, Dinámicas, Certificaciones), para admin Ajustes (Agente,
-API), y al pie «Portal de alumnos». En escritorio es una columna fija; en
-teléfono, un `<details>` «Menú» (`components/admin/barra-lateral.tsx`). El encabezado del
-panel queda en una fila: marca, campana y cuenta. El portal de alumnos sigue con dos filas.
+**El panel de admin es la excepción: barra lateral agrupada en «dos mundos»** (M19; M25,
+20-oct-2026, Alejandro: «hay tantas pestañas… muchas cosas significan lo mismo»). La barra es la
+ÚNICA navegación: ninguna página repite sus destinos en pestañas, y el encabezado de cada página
+lleva la ceja de su grupo (`<Titulo ceja="V-AI-P">`). Panel · **V-AI-P** (Resumen, Muro, Noticias,
+Clases, Miembros, Herramientas, Planes y cobros —solo admin—) · **Cursos** (Cursos, Entregas, Grupos,
+Anuncios y blog, Puntos, Dinámicas, Encuestas, Certificaciones) · **Personas** (Alumnos, Empresas) ·
+**Ajustes** (Agente IA; API solo admin), y al pie «Portal de alumnos». Cada destino aparece una vez.
+Nada de Cursos enseña V-AI-P ni al revés (`lib/membresia/mundo.ts`: las casas de los planes y las
+herramientas): la casa se edita en V-AI-P → Clases y sus herramientas en V-AI-P → Herramientas. En
+escritorio es una columna fija; en teléfono, un `<details>` «Menú · V-AI-P · Muro»
+(`components/admin/barra-lateral.tsx`). El encabezado del panel queda en una fila: marca, campana
+(muro de V-AI-P y grupos por separado) y cuenta. El portal de alumnos sigue con dos filas.
+
+**Vocabulario fijo** (M25): «**Comunidad**» es solo V-AI-P, la única comunidad. El canal interno de
+cada generación de un curso es su «**Grupo**» (pestaña del curso; la URL sigue siendo /comunidad).
+Las clases de un curso viven en «**En vivo**»; las de V-AI-P en «**Clases**». «**Avisos**» son de
+V-AI-P: publicaciones fijadas en su Muro (tema Avisos). «**Anuncios**» son de los cursos, con el
+blog; las clases de V-AI-P no publican anuncio.
 
 Estructura copiada de Skool: **pestañas por sección dentro del curso**
-(`components/ui-vadai/pestanas.tsx`) — Contenido · Comunidad · En vivo · Dinámicas (M22: el
-curso abre en Contenido y la comunidad va segunda) —, rejilla
+(`components/ui-vadai/pestanas.tsx`) — Contenido · Grupo · En vivo · Dinámicas (M22: el
+curso abre en Contenido y el grupo va segundo; M25: se llama «Grupo») —, rejilla
 de cursos con portada 16:9 y barra de avance, y feed con avatar a la izquierda.
 Las sesiones en vivo viven en **su propia pestaña** (21-sep-2026): encima del
 temario estorbaban para llegar a la primera lección. Y en el índice del curso
@@ -410,7 +440,7 @@ renglones donde nadie se ubica. Los primitivos viven en
 clases sueltas.
 
 **La lección va fuera del marco del curso** (decidido 25-sep-2026). `curso/[slug]/(marco)/`
-envuelve Contenido, En vivo, Comunidad y Dinámicas con el título del curso, el avance y
+envuelve Contenido, Grupo, En vivo y Dinámicas con el título del curso, el avance y
 las pestañas; `[leccionId]` queda fuera, con un encabezado corto (← curso, sesión, título,
 avance), el video primero —de borde a borde en teléfono— y a la derecha **solo la sesión
 actual** y el material, nunca el índice completo, que vive en Contenido: "que se vean
