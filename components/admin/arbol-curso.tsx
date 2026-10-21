@@ -105,6 +105,7 @@ export function ArbolCurso({
   cohortId = null,
   soloLectura = false,
   raiz: raizPedida,
+  titulo = 'Contenido',
 }: {
   /** Con los módulos ya acotados a la generación de la pestaña (M16). */
   curso: CursoCompleto
@@ -122,6 +123,8 @@ export function ArbolCurso({
    * V-AI-P → Clases, no en Cursos: ahí abrir y cerrar módulos se queda.
    */
   raiz?: string
+  /** El encabezado del árbol. En V-AI-P → Clases son las grabaciones. */
+  titulo?: string
 }) {
   const estaAbierto = (id: string) => moduloAbierto === 'todos' || moduloAbierto === id
   const raiz = raizPedida ?? `/admin/cursos/${curso.id}`
@@ -130,7 +133,7 @@ export function ArbolCurso({
   return (
     <div className="flex flex-col gap-5">
       <div className="flex flex-wrap items-baseline justify-between gap-2">
-        <h2 className="text-lg font-medium">Contenido</h2>
+        <h2 className="text-lg font-medium">{titulo}</h2>
         <span className="flex flex-wrap items-center gap-3">
           {curso.modulos.length > 1 ? (
             <span className="inline-flex items-center gap-1 text-xs">

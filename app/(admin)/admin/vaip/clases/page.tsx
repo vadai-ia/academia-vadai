@@ -87,6 +87,7 @@ export default async function PaginaClases({
             cohortId={generacion?.id ?? null}
             soloLectura={!soyAdmin}
             raiz="/admin/vaip/clases"
+            titulo="Grabaciones"
           />
         </section>
       ) : null}

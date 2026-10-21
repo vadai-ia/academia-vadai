@@ -19,7 +19,7 @@ function Botones() {
   return (
     <div className="flex flex-wrap gap-2">
       <Button type="submit" disabled={pending} className="w-full sm:w-auto">
-        {pending ? 'Publicando…' : 'Publicar en el muro'}
+        {pending ? 'Publicando…' : 'Publicar en el grupo'}
       </Button>
       <CerrarDesplegable />
     </div>
@@ -41,14 +41,14 @@ export function PublicarEnMuro({
   const [estado, accion] = useActionState(publicarDesdeElPanel, SIN_ESTADO)
 
   return (
-    <Desplegable etiqueta="Publicar en un muro" variante="contorno" abierto={Boolean(estado.error || estado.aviso)}>
+    <Desplegable etiqueta="Publicar en un grupo" variante="contorno" abierto={Boolean(estado.error || estado.aviso)}>
       <form key={reinicio} action={accion} className="flex flex-col gap-4">
         <div className="flex flex-col gap-1.5">
           <Label htmlFor="muro-destino">Dónde</Label>
           {/* «curso::generación» o «curso::todas»; el servidor lo reparte. */}
           <select id="muro-destino" name="destino" required className={claseSelect} defaultValue="">
             <option value="" disabled>
-              Elige un muro
+              Elige un grupo
             </option>
             {cursos.map((c) =>
               c.generaciones.length === 0 ? (

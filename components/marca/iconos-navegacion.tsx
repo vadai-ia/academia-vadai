@@ -226,3 +226,11 @@ export const IconoGrupos = marco(
     <path d="M18 9h2a2 2 0 0 1 2 2v11l-4-4h-6a2 2 0 0 1-2-2v-1" />
   </>
 )
+
+/** M25: el Muro de V-AI-P (un altavoz: avisos y conversación), distinto de Miembros. */
+export const IconoMuro = marco(
+  <>
+    <path d="m3 11 18-5v12L3 14v-3z" />
+    <path d="M11.6 16.8a3 3 0 1 1-5.8-1.6" />
+  </>
+)

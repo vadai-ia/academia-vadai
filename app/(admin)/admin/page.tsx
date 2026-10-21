@@ -107,7 +107,7 @@ export default async function PaginaAdmin() {
             <Cifra
               valor={t.nuncaEntraron}
               etiqueta="nunca han entrado"
-              detalle={t.nuncaEntraron > 0 ? 'se les manda recordatorio desde Alumnos' : undefined}
+              detalle={t.nuncaEntraron > 0 ? 'Alumnos dice a quién le toca recordatorio' : undefined}
             />
             <Cifra valor={t.activosSemana} etiqueta="entraron esta semana" />
             <Cifra valor={t.certificadosEmitidos} etiqueta="certificados emitidos" />

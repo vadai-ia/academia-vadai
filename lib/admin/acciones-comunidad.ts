@@ -231,7 +231,7 @@ export async function eliminarDeComunidad(_previo: EstadoAccion, datos: FormData
 export async function publicarDesdeElPanel(previo: EstadoAccion, datos: FormData): Promise<EstadoAccion> {
   await exigirEquipo()
   const [cursoId = '', destino = ''] = String(datos.get('destino') ?? '').split('::')
-  if (!cursoId) return { error: 'Elige en qué muro publicar.' }
+  if (!cursoId) return { error: 'Elige en qué grupo publicar.' }
 
   const supabase = await crearClienteServidor()
   const { data: curso } = await supabase.from('courses').select('slug').eq('id', cursoId).maybeSingle()
