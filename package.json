@@ -41,6 +41,7 @@
     "test:exclusivas": "node scripts/test-exclusivas.mjs",
     "test:venta": "node scripts/test-venta-vaip.mjs",
     "test:noticias": "node scripts/test-noticias.mjs",
+    "test:accesos": "node scripts/test-accesos.mjs",
     "test:todo": "node scripts/test-todo.mjs",
     "check:curso": "node scripts/check-curso.mjs",
     "curso:sembrar": "node scripts/seed-curso.mjs",

@@ -1,7 +1,8 @@
 import 'server-only'
 
 import { armarExclusivas, leCuenta, leccionesQueNoVe } from '@/lib/acceso/exclusivas'
-import { ultimosEnlaces, type UltimoEnlace } from '@/lib/admin/accesos'
+import { ultimosCorreos, ultimosEnlaces, type UltimoEnlace } from '@/lib/admin/accesos'
+import type { EstadoCorreo } from '@/lib/correo/decision'
 import { esPorGeneraciones, estadoDeGeneracion, type EstadoGeneracion } from '@/lib/generaciones'
 import { crearClienteServidor } from '@/lib/supabase/server'
 
@@ -18,6 +19,8 @@ export type AlumnoEnLista = {
   empresa: { id: string; nombre: string } | null
   /** El último enlace de 30 días que se le mandó, si alguno. */
   enlace: UltimoEnlace | null
+  /** El estado de su último correo de acceso (M25); null si no hay ninguno anotado. */
+  correo: EstadoCorreo | null
   inscripciones: Array<{
     cursoId: string
     cursoTitulo: string
@@ -223,7 +226,7 @@ export async function listarAlumnos(filtros: FiltrosAlumnos = {}): Promise<Pagin
   // Solo lo de esta página. `lesson_outline` (lecciones publicadas por curso)
   // es chica y da el total contra el que se mide el avance.
   const vacio = Promise.resolve({ data: [] as never[] })
-  const [progreso, outline, enlaces, empresas, inscripciones, miembros] = await Promise.all([
+  const [progreso, outline, enlaces, empresas, inscripciones, miembros, correos] = await Promise.all([
     ids.length
       ? supabase.from('lesson_progress').select('user_id, lesson_id').eq('completed', true).in('user_id', ids)
       : vacio,
@@ -237,6 +240,7 @@ export async function listarAlumnos(filtros: FiltrosAlumnos = {}): Promise<Pagin
           .in('user_id', ids)
       : vacio,
     miembrosP,
+    ultimosCorreos(ids),
   ])
 
   const inscripcionesDe = new Map<string, Inscripcion[]>()
@@ -286,6 +290,7 @@ export async function listarAlumnos(filtros: FiltrosAlumnos = {}): Promise<Pagin
       ? { id: p.company_id, nombre: nombreDeEmpresa.get(p.company_id) ?? 'Empresa' }
       : null,
     enlace: enlaces.get(p.user_id) ?? null,
+    correo: correos.get(p.user_id) ?? null,
     inscripciones: (inscripcionesDe.get(p.user_id) ?? []).map((e) => {
       const g = grupo(e.course_id, e.cohort_id)
       const total = (totalPorGrupo.get(g) ?? 0) - leccionesQueNoVe(exclusivas, g, p.user_id)

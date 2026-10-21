@@ -4,6 +4,7 @@ import { AvisoAccion } from '@/components/admin/aviso-accion'
 import { DarDeAlta } from '@/components/admin/dar-de-alta'
 import { claseSelect } from '@/components/admin/estilos'
 import { Paginacion } from '@/components/admin/paginacion'
+import { CorreosQueNoSalieron } from '@/components/admin/correos-fallidos'
 import { ReenviarPendientes } from '@/components/admin/reenviar-pendientes'
 import { TablaAlumnos } from '@/components/admin/tabla-alumnos'
 import { AutoEnviar } from '@/components/ui-vadai/auto-enviar'
@@ -11,7 +12,7 @@ import { Pestanas } from '@/components/ui-vadai/pestanas'
 import { Cifra, Tarjeta, Titulo } from '@/components/ui-vadai/superficie'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
-import { alumnosPendientesDeEntrar } from '@/lib/admin/accesos'
+import { alumnosPorActivar, correosQueNoSalieron } from '@/lib/admin/accesos'
 import {
   conteosDeAlumnos,
   listarAlumnos,
@@ -21,6 +22,7 @@ import {
 } from '@/lib/admin/alumnos'
 import { listarEmpresas } from '@/lib/admin/empresas'
 import { esAdmin, exigirEquipo } from '@/lib/auth/sesion'
+import { esCuentaQa } from '@/lib/qa'
 import { cn } from '@/lib/utils'
 
 export const metadata: Metadata = { title: 'Alumnos' }
@@ -72,7 +74,10 @@ export default async function PaginaAlumnos({ searchParams }: { searchParams: Pr
   // primera página sin filtros: es la vista de "cómo vamos", no la de buscar.
   const sinFiltros = paginaPedida === 1 && !busqueda && !empresaFiltro && corte === 'todos' && !verSuspendidos
 
-  const [lista, conteos, cursos, empresas, resumen, pendientes] = await Promise.all([
+  // Un admin real nunca ve cuentas `qa-*`; el admin QA de las suites, solo esas.
+  const qa = esCuentaQa(perfil.email)
+
+  const [lista, conteos, cursos, empresas, resumen, pendientes, noSalieron] = await Promise.all([
     listarAlumnos({
       q: busqueda,
       empresa: empresaFiltro,
@@ -84,7 +89,8 @@ export default async function PaginaAlumnos({ searchParams }: { searchParams: Pr
     opcionesDeAlta(),
     listarEmpresas(),
     sinFiltros ? resumenDeAlumnos() : null,
-    sinFiltros ? alumnosPendientesDeEntrar() : null,
+    sinFiltros ? alumnosPorActivar({ qa }) : null,
+    correosQueNoSalieron({ qa }),
   ])
 
   // Los filtros se conservan entre sí: cambiar de pestaña no pierde la
@@ -130,6 +136,14 @@ export default async function PaginaAlumnos({ searchParams }: { searchParams: Pr
       ) : null}
       {aviso === 'eliminado' && correo ? (
         <AvisoAccion estado={{ aviso: `La cuenta de ${correo} se eliminó. Sus pagos, si los había, se conservan para la contabilidad.` }} />
+      ) : null}
+
+      {/* M25: a quién no le salió su correo de acceso. Va arriba de todo
+          porque sin ese correo esa persona no puede entrar. */}
+      {noSalieron.length > 0 ? (
+        <CorreosQueNoSalieron
+          correos={noSalieron.map((c) => ({ userId: c.userId, email: c.email, nombre: c.nombre, motivo: c.motivo }))}
+        />
       ) : null}
 
       {/*
@@ -188,14 +202,22 @@ export default async function PaginaAlumnos({ searchParams }: { searchParams: Pr
             <Cifra valor={resumen.personas} etiqueta="personas con cuenta" />
             <Cifra valor={resumen.conAccesoVigente} etiqueta="con acceso vigente" />
             <Cifra valor={resumen.entraron} etiqueta="ya entraron" destacada />
-            <Cifra valor={resumen.nunca} etiqueta="nunca han entrado" />
+            <Cifra
+              valor={resumen.nunca}
+              etiqueta="nunca han entrado"
+              detalle={`${pendientes.porEnviar.length + pendientes.recibieronHoy} con curso activo`}
+            />
           </div>
 
           {/*
             Lo que se hace con el número de arriba. "Nunca han entrado" sin un
             botón al lado es una cifra que da ansiedad y no resuelve nada.
           */}
-          <ReenviarPendientes pendientes={pendientes.length} correoAdmin={perfil.email} />
+          <ReenviarPendientes
+            pendientes={pendientes.porEnviar.length}
+            recibieronHoy={pendientes.recibieronHoy}
+            correoAdmin={perfil.email}
+          />
         </Tarjeta>
       ) : null}
 

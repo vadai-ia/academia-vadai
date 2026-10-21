@@ -162,7 +162,6 @@ async function enlazarPersona(
     origen: 'membresia',
     expiraEn: membresia.access_until,
     titulosParaCorreo: cursos.map((c) => c.title),
-    urlRedireccion: `${process.env.NEXT_PUBLIC_APP_URL ?? ''}/nueva-contrasena`,
   })
   if (!alta.ok || !alta.userId) {
     // Se lanza para que Stripe reintente: el alta es idempotente.

@@ -6,6 +6,11 @@
 export type EstadoAccion = {
   error?: string
   aviso?: string
+  /**
+   * Renglones bajo el mensaje (M25): las direcciones a las que no salió el
+   * correo de acceso, con su motivo, para que el equipo sepa a quién buscar.
+   */
+  lista?: string[]
 }
 
 export const SIN_ESTADO: EstadoAccion = {}

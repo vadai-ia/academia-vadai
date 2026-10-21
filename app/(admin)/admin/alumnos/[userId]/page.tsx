@@ -4,6 +4,7 @@ import Link from 'next/link'
 import { notFound } from 'next/navigation'
 
 import { CambiarEmpresa, DarAcceso, EnlaceDeAcceso } from '@/components/admin/acciones-de-alumno'
+import { ReintentarCorreo } from '@/components/admin/correos-fallidos'
 import { AvisoAccion } from '@/components/admin/aviso-accion'
 import { ConfirmarConModal } from '@/components/admin/confirmar-con-modal'
 import { CambiarRol } from '@/components/admin/cambiar-rol'
@@ -21,10 +22,13 @@ import {
   reenviarAcceso,
   suspenderCuenta,
 } from '@/lib/admin/acciones-alumnos'
+import { correosDeAcceso } from '@/lib/admin/accesos'
 import { listarEmpresas } from '@/lib/admin/empresas'
 import { fichaDeAlumno } from '@/lib/admin/ficha-alumno'
 import { fechaConHora, fechaCorta } from '@/lib/admin/formato'
 import { exigirEquipo } from '@/lib/auth/sesion'
+import { ETIQUETA_ORIGEN_CORREO, ETIQUETA_TIPO_CORREO } from '@/lib/correo/decision'
+import { cn } from '@/lib/utils'
 
 export const dynamic = 'force-dynamic'
 // Eliminar una cuenta llama a Auth y recorre Storage: cabe en segundos, pero
@@ -62,7 +66,11 @@ export default async function PaginaFicha({
   const { aviso, correo } = await searchParams
   if (!UUID.test(userId)) notFound()
 
-  const [ficha, empresas] = await Promise.all([fichaDeAlumno(userId), listarEmpresas()])
+  const [ficha, empresas, correos] = await Promise.all([
+    fichaDeAlumno(userId),
+    listarEmpresas(),
+    correosDeAcceso(userId),
+  ])
   if (!ficha) notFound()
 
   const quien = ficha.nombre || ficha.email
@@ -335,6 +343,58 @@ export default async function PaginaFicha({
           {!esDelEquipo ? (
             <CambiarEmpresa userId={ficha.userId} actual={ficha.empresa?.id ?? ''} empresas={empresas} />
           ) : null}
+
+          {/* M25: cada correo de acceso que se le mandó y si salió. */}
+          <div className="flex flex-col gap-2 border-t border-border pt-3 text-sm" data-correos-de-acceso={correos.length}>
+            <span className="text-xs font-medium tracking-[0.12em] text-muted-foreground uppercase">
+              Correos de acceso
+            </span>
+            {correos.length === 0 ? (
+              <p className="text-muted-foreground">
+                Ninguno anotado todavía: la bitácora empezó el 20-oct-2026. Las ligas de abajo dicen qué se le mandó antes.
+              </p>
+            ) : (
+              <ul className="flex flex-col gap-1.5">
+                {correos.map((c, i) => (
+                  <li key={c.id} className="flex flex-col gap-1" data-estado={c.estado}>
+                    <span className="flex flex-wrap items-center gap-x-2 gap-y-1">
+                      <span className="tabular-nums text-muted-foreground">{fechaConHora(c.fecha)}</span>
+                      <span className="font-medium">{ETIQUETA_TIPO_CORREO[c.tipo]}</span>
+                      <Badge
+                        variant="outline"
+                        className={cn(
+                          'text-[11px]',
+                          c.estado === 'enviado' && 'border-exito/40 text-exito',
+                          c.estado === 'fallido' && 'border-destructive/40 text-destructive'
+                        )}
+                      >
+                        {c.estado === 'enviado'
+                          ? 'Enviado'
+                          : c.estado === 'fallido'
+                            ? 'Falló'
+                            : c.estado === 'omitido'
+                              ? 'No se manda: cuenta de prueba'
+                              : 'Enviando…'}
+                      </Badge>
+                    </span>
+                    <span className="text-xs text-pretty text-muted-foreground [overflow-wrap:anywhere]">
+                      {[
+                        c.generacion ?? (c.cursos.length > 0 ? c.cursos.join(', ') : null),
+                        c.conEnlace ? 'con liga de 30 días' : null,
+                        ETIQUETA_ORIGEN_CORREO[c.origen],
+                        c.porQuien ? `por ${c.porQuien}` : null,
+                        c.email !== ficha.email ? `a ${c.email}` : null,
+                        c.estado === 'fallido' && c.motivo ? `motivo: ${c.motivo}` : null,
+                      ]
+                        .filter(Boolean)
+                        .join(' · ')}
+                    </span>
+                    {i === 0 && c.estado === 'fallido' ? <ReintentarCorreo userId={ficha.userId} /> : null}
+                  </li>
+                ))}
+              </ul>
+            )}
+          </div>
 
           <div className="flex flex-col gap-1 border-t border-border pt-3 text-sm">
             <span className="text-xs font-medium tracking-[0.12em] text-muted-foreground uppercase">

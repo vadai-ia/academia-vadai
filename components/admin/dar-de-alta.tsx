@@ -122,9 +122,10 @@ function AltaIndividual({
       <AvisoAccion estado={estado} />
 
       <p className="text-xs text-muted-foreground">
-        Toca los cursos que quieras; toca otra vez para quitar. Se le manda un solo correo para
-        que defina su contraseña, y nombra todos los cursos. Si ya tiene cuenta, solo se le
-        agregan las inscripciones.
+        Toca los cursos que quieras; toca otra vez para quitar. Le llega un solo correo, que nombra
+        todos los cursos: la bienvenida con su liga si es nuevo o nunca ha entrado, o el aviso del
+        curso si ya entró. Si ya está en otra generación de un curso, se cambia a la que marques y
+        se le avisa con las fechas.
       </p>
 
       <div>
@@ -185,9 +186,10 @@ function AltaPorArchivo({
       <AvisoAccion estado={estado} />
 
       <p className="text-xs text-muted-foreground">
-        Toca los cursos que quieras; toca otra vez para quitar. Cada fila crea su cuenta y le
-        manda un solo correo, que nombra todos los cursos. Una fila con el correo mal escrito se
-        reporta y no detiene a las demás.
+        Toca los cursos que quieras; toca otra vez para quitar. A cada fila le llega un solo
+        correo, el que le toca: bienvenida con su liga, aviso del curso, o las fechas de su nueva
+        generación si ya estaba en otra (se cambia a la que marques). Una fila con el correo mal
+        escrito se reporta y no detiene a las demás; al final ves a quién no le salió el correo.
       </p>
 
       <div>

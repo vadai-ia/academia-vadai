@@ -5,16 +5,21 @@ import { revalidatePath } from 'next/cache'
 import { redirect } from 'next/navigation'
 import { z } from 'zod'
 
-import { alumnosPendientesDeEntrar } from '@/lib/admin/accesos'
+import { alumnosPorActivar, correosQueNoSalieron } from '@/lib/admin/accesos'
 import { empresaPorNombre } from '@/lib/admin/empresas'
 import { crearEnlacesDurables } from '@/lib/auth/enlace-durable'
 import { exigirAdmin, exigirEquipo } from '@/lib/auth/sesion'
-import { plantillaNuevoCurso, plantillaRecordatorio } from '@/lib/correo/plantillas'
+import { avisarAccesos } from '@/lib/correo/avisos-de-acceso'
+import { conteoVacio, juntarCambios, type CambioDeAcceso, type ConteoDeAvisos } from '@/lib/correo/decision'
+import { plantillaRecordatorio } from '@/lib/correo/plantillas'
 import { enviarCorreosEnLote } from '@/lib/correo/resend'
-import { darDeAlta, enviarAccesoInicial } from '@/lib/stripe/provisioning'
+import { esPorGeneraciones } from '@/lib/generaciones'
+import { esCuentaQa } from '@/lib/qa'
+import { darDeAlta } from '@/lib/stripe/provisioning'
 import { crearClienteServidor } from '@/lib/supabase/server'
 import { crearClienteServiceRole } from '@/lib/supabase/service-role'
 
+import { mensajeDeAltaEnLote, mensajeDeAltaIndividual } from './mensajes-de-alta'
 import { PAR, enLista, generacionDeAlta, leerPares, revisarSeleccion } from './seleccion-de-cursos'
 import type { EstadoAccion } from './tipos'
 
@@ -47,7 +52,7 @@ const esquema = z.object({
 })
 
 export async function altaManual(_previo: EstadoAccion, datos: FormData): Promise<EstadoAccion> {
-  await exigirAdmin()
+  const admin = await exigirAdmin()
 
   const resultado = esquema.safeParse({
     email: datos.get('email'),
@@ -82,13 +87,15 @@ export async function altaManual(_previo: EstadoAccion, datos: FormData): Promis
 
   const titulos = seleccion.cursos.map((c) => c.titulo)
 
-  // Una llamada a `darDeAlta` por curso. La primera crea la cuenta y manda el
-  // ÚNICO correo —que por eso nombra todos los cursos—; las demás encuentran la
-  // cuenta ya hecha y solo agregan su inscripción.
+  // Una llamada a `darDeAlta` por curso, con el correo DIFERIDO (M25): se
+  // junta lo que pasó en cada curso —nuevo, cambio de generación, sin cambio—
+  // y sale UN correo que lo nombra todo, el que le toca según `decidirCorreo`.
+  let hechos: CambioDeAcceso | null = null
   let creado = false
-  let invitado = false
-  let avisado = false
   const listos: string[] = []
+
+  const avisar = () =>
+    hechos ? avisarAccesos([hechos], { origen: 'alta_manual', creadoPor: admin.user_id }) : Promise.resolve(conteoVacio())
 
   for (const [i, curso] of seleccion.cursos.entries()) {
     const alta = await darDeAlta({
@@ -97,55 +104,46 @@ export async function altaManual(_previo: EstadoAccion, datos: FormData): Promis
       courseId: curso.id,
       cohortId: curso.cohorteId,
       origen: 'manual',
-      urlRedireccion: `${process.env.NEXT_PUBLIC_APP_URL ?? ''}/nueva-contrasena`,
-      titulosParaCorreo: titulos,
+      correo: 'diferir',
+      creadoPor: admin.user_id,
       // La empresa solo en la primera llamada; vacío no toca la que ya tenga.
       companyId: i === 0 && empresa ? empresa : undefined,
-      avisarNuevoCurso: i === 0,
     })
 
     if (!alta.ok) {
+      // Lo que sí quedó hecho se avisa igual: la persona no puede quedarse
+      // con cuenta y sin correo porque falló el segundo curso.
+      const conteo = await avisar()
       revalidatePath('/admin/alumnos')
       return {
         error:
           listos.length === 0
             ? (alta.motivo ?? 'No se pudo dar de alta.')
             : `${email} quedó con ${enLista(listos)}, pero falló "${titulos[i]}": ` +
-              `${alta.motivo ?? 'error desconocido'}. Vuelve a intentarlo solo con ese curso.`,
+              `${alta.motivo ?? 'error desconocido'}. Vuelve a intentarlo solo con ese curso.` +
+              (conteo.fallidos.length > 0 ? ' Además, su correo de acceso no salió.' : ''),
       }
     }
 
-    if (i === 0) {
-      creado = alta.creado === true
-      invitado = alta.invitado === true
-      avisado = alta.avisado === true
-    }
+    if (i === 0) creado = alta.creado === true
+    if (alta.hechos) hechos = hechos ? juntarCambios(hechos, alta.hechos) : alta.hechos
     listos.push(titulos[i] ?? 'Curso')
   }
+
+  const conteo = await avisar()
 
   revalidatePath('/admin/alumnos')
   revalidatePath('/admin/cursos')
   // También se da de alta desde la página del curso, que lista a sus inscritos.
   for (const curso of seleccion.cursos) revalidatePath(`/admin/cursos/${curso.id}`)
 
-  if (!creado) {
-    return {
-      aviso:
-        `${email} ya tenía cuenta; se le agregó ${enLista(listos)}` +
-        (avisado ? ' y se le avisó por correo.' : '. Ya tenía ese acceso, no se mandó correo.'),
-    }
-  }
-
-  // La cuenta y la inscripción existen aunque el correo no haya salido. Se dice
-  // sin rodeos, porque significa que hay que hacer algo: sin ese correo la
-  // persona no puede entrar.
-  return invitado
-    ? { aviso: `${email} dado de alta en ${enLista(listos)}. Le llegó el correo para definir su contraseña.` }
-    : {
-        error:
-          `${email} quedó dado de alta CON ${enLista(listos)}, pero el correo no salió. ` +
-          'Revisa RESEND_API_KEY y usa "Reenviar correo de acceso" cuando funcione.',
-      }
+  return mensajeDeAltaIndividual({
+    email,
+    cursos: listos,
+    creado,
+    yaEntro: hechos?.yaEntro ?? false,
+    conteo,
+  })
 }
 
 /** Reintenta el correo de acceso para alguien ya dado de alta. */
@@ -160,7 +158,7 @@ export async function reenviarAcceso(datos: FormData): Promise<void> {
   const supabase = await crearClienteServidor()
   const { data: persona } = await supabase
     .from('profiles')
-    .select('user_id, full_name')
+    .select('user_id, full_name, last_sign_in_at')
     .eq('email', email)
     .maybeSingle()
 
@@ -184,13 +182,28 @@ export async function reenviarAcceso(datos: FormData): Promise<void> {
     }
   }
 
-  const enviado = await enviarAccesoInicial(
-    email,
-    `${process.env.NEXT_PUBLIC_APP_URL ?? ''}/nueva-contrasena`,
-    cursos,
-    persona?.full_name,
-    admin.user_id
-  )
+  // La bienvenida con una liga nueva de 30 días, a propósito (M25: queda en
+  // la bitácora como reenvío). Sin perfil no hay a quién mandársela.
+  const conteo = persona
+    ? await avisarAccesos(
+        [
+          {
+            userId: persona.user_id,
+            email,
+            nombre: persona.full_name,
+            cuentaNueva: false,
+            yaEntro: Boolean(persona.last_sign_in_at),
+            cursosNuevos: [],
+            generacionesNuevas: [],
+            sinCambio: [],
+            forzar: 'bienvenida',
+            titulos: cursos,
+          },
+        ],
+        { origen: 'reenvio', creadoPor: admin.user_id }
+      )
+    : null
+  const enviado = conteo !== null && conteo.fallidos.length === 0
 
   console.log(JSON.stringify({ operacion: 'reenviarAcceso', email, enviado }))
   revalidatePath('/admin/alumnos')
@@ -227,7 +240,7 @@ export async function enviarPruebaDeRecordatorio(
   if (!/^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(para)) return { error: 'Ese correo no parece válido.' }
 
   const enlaces = await crearEnlacesDurables({ emails: [admin.email], creadoPor: admin.user_id })
-  const url = enlaces.get(admin.email)
+  const url = enlaces.get(admin.email)?.url
   if (!url) return { error: 'No se pudo generar la liga de prueba.' }
 
   const plantilla = plantillaRecordatorio({
@@ -253,16 +266,15 @@ export async function enviarPruebaDeRecordatorio(
 }
 
 /**
- * Manda el recordatorio a TODOS los alumnos que nunca han entrado, en un clic.
- *
- * La primera versión iba de diez en diez: Resend admite dos peticiones por
- * segundo y una server action en Vercel tiene segundos, así que ochenta
- * correos de uno en uno no cabían. Con el endpoint de lote de Resend ochenta
- * correos son una petición, y las ochenta ligas de 30 días un solo insert.
+ * Manda el recordatorio, en un clic, a quien nunca ha entrado y tiene un curso
+ * o generación ACTIVA (M25): en curso, por empezar, o V-AI-P vigente. Quien
+ * solo tiene el curso base o una generación terminada ya no lo recibe
+ * (decisión de Alejandro, 20-oct-2026). La regla vive en
+ * `academia_por_activar`; ver `alumnosPorActivar()`.
  *
  * Va la plantilla de recordatorio, no la bienvenida: esa ya está en su buzón.
- * La ventana de 24 h de `alumnosPendientesDeEntrar()` evita que un doble clic
- * mande dos recordatorios a la misma persona el mismo día.
+ * La ventana de 24 h evita que un doble clic mande dos recordatorios a la
+ * misma persona el mismo día. Todo queda en la bitácora de correos de acceso.
  */
 export async function recordarAccesoPendientes(
   _previo: EstadoAccion,
@@ -270,56 +282,166 @@ export async function recordarAccesoPendientes(
 ): Promise<EstadoAccion> {
   const admin = await exigirEquipo()
 
-  const pendientes = await alumnosPendientesDeEntrar()
-  if (pendientes.length === 0) {
-    return { aviso: 'Nadie está pendiente: todos ya entraron o recibieron su recordatorio hoy.' }
+  const { porEnviar, recibieronHoy } = await alumnosPorActivar({ qa: esCuentaQa(admin.email) })
+  if (porEnviar.length === 0) {
+    return {
+      aviso:
+        recibieronHoy > 0
+          ? `Nadie más está pendiente: ${recibieronHoy === 1 ? 'la persona que falta ya recibió' : `las ${recibieronHoy} que faltan ya recibieron`} su recordatorio hoy.`
+          : 'Nadie con un curso activo está pendiente de entrar.',
+    }
   }
 
-  const enlaces = await crearEnlacesDurables({
-    emails: pendientes.map((p) => p.email),
-    creadoPor: admin.user_id,
-  })
-
-  const base = process.env.NEXT_PUBLIC_APP_URL
-  const correos = pendientes.flatMap((p) => {
-    const url = enlaces.get(p.email)
-    if (!url) return []
-    const plantilla = plantillaRecordatorio({ url, cursos: p.cursos, nombre: p.nombre, base })
-    return [{ para: p.email, asunto: plantilla.asunto, html: plantilla.html, texto: plantilla.texto }]
-  })
-
-  const resultado = await enviarCorreosEnLote(correos)
+  const conteo = await avisarAccesos(
+    porEnviar.map((p) => ({
+      userId: p.userId,
+      email: p.email,
+      nombre: p.nombre,
+      cuentaNueva: false,
+      yaEntro: false,
+      cursosNuevos: [],
+      generacionesNuevas: [],
+      sinCambio: [],
+      forzar: 'recordatorio' as const,
+      titulos: p.cursos,
+    })),
+    { origen: 'recordatorio', creadoPor: admin.user_id }
+  )
 
   console.log(
     JSON.stringify({
       operacion: 'recordarAccesoPendientes',
       porQuien: admin.email,
-      pendientes: pendientes.length,
-      conEnlace: correos.length,
-      enviados: resultado.enviados,
-      omitidos: resultado.omitidos,
-      fallidos: resultado.fallidos.length,
-      motivo: resultado.motivo ?? null,
+      pendientes: porEnviar.length,
+      enviados: conteo.porTipo.recordatorio,
+      omitidos: conteo.omitidos,
+      fallidos: conteo.fallidos.length,
     })
   )
   revalidatePath('/admin/alumnos')
 
-  const sinEnlace = pendientes.length - correos.length
-  if (resultado.fallidos.length > 0) {
-    const muestra = resultado.fallidos.slice(0, 5).join(', ')
-    const resto = resultado.fallidos.length > 5 ? ` y ${resultado.fallidos.length - 5} más` : ''
-    return {
-      error:
-        `Salieron ${resultado.enviados} recordatorios y fallaron ${resultado.fallidos.length}` +
-        ` (${muestra}${resto}). Motivo: ${resultado.motivo ?? 'sin detalle'}.`,
+  return mensajeDeAltaEnLote({ partes: [], conteo, errores: [] })
+}
+
+/**
+ * «Reenviar» de la tarjeta «N correos de acceso no salieron» y «Reintentar»
+ * de la ficha (M25). Rearma cada correo desde la bitácora —el mismo tipo,
+ * para los mismos cursos o la misma generación— y lo vuelve a mandar con una
+ * liga nueva. Con `user_id`, solo el de esa persona.
+ *
+ * Se salta a quien recibió un correo de acceso en los últimos 2 minutos: un
+ * doble clic no le manda dos.
+ */
+export async function reenviarCorreosFallidos(
+  _previo: EstadoAccion,
+  datos: FormData
+): Promise<EstadoAccion> {
+  const admin = await exigirEquipo()
+  const soloDe = String(datos.get('user_id') ?? '')
+
+  const todos = await correosQueNoSalieron({ qa: esCuentaQa(admin.email) })
+  const pendientes = soloDe ? todos.filter((c) => c.userId === soloDe) : todos
+  if (pendientes.length === 0) return { aviso: 'No hay correos de acceso por reenviar: todos salieron.' }
+
+  const supabase = await crearClienteServidor()
+  const ids = pendientes.map((c) => c.userId)
+  const hace2min = new Date(Date.now() - 2 * 60 * 1000).toISOString()
+
+  const [recientes, perfiles, inscripciones] = await Promise.all([
+    supabase.from('access_emails').select('user_id').in('user_id', ids).gt('created_at', hace2min),
+    supabase.from('profiles').select('user_id, full_name, last_sign_in_at').in('user_id', ids),
+    supabase
+      .from('enrollments')
+      .select('user_id, course_id, courses(title, status)')
+      .in('user_id', ids)
+      .eq('status', 'active'),
+  ])
+  const recien = new Set((recientes.data ?? []).map((r) => r.user_id))
+  const perfil = new Map((perfiles.data ?? []).map((p) => [p.user_id, p]))
+
+  type Inscripcion = { user_id: string; course_id: string; courses: { title: string; status: string } | null }
+  const cursosDe = new Map<string, string[]>()
+  for (const e of (inscripciones.data ?? []) as unknown as Inscripcion[]) {
+    if (!e.courses || e.courses.status === 'archived') continue
+    cursosDe.set(e.user_id, [...(cursosDe.get(e.user_id) ?? []), e.courses.title])
+  }
+
+  // Lo que hace falta para rearmar «nuevo curso» y «nueva generación».
+  const cursoIds = [...new Set(pendientes.flatMap((c) => c.courseIds))]
+  const cohorteIds = [...new Set(pendientes.map((c) => c.cohorteId).filter((v): v is string => v !== null))]
+  const [cursos, cohortes] = await Promise.all([
+    cursoIds.length ? supabase.from('courses').select('id, title, slug').in('id', cursoIds) : Promise.resolve({ data: [] }),
+    cohorteIds.length
+      ? supabase.from('cohorts').select('id, name, starts_on, ends_on, course_id').in('id', cohorteIds)
+      : Promise.resolve({ data: [] }),
+  ])
+  const curso = new Map((cursos.data ?? []).map((c) => [c.id, c]))
+  const cohorte = new Map((cohortes.data ?? []).map((g) => [g.id, g]))
+
+  const cambios: CambioDeAcceso[] = []
+  for (const c of pendientes) {
+    if (recien.has(c.userId)) continue
+    const p = perfil.get(c.userId)
+    const base: CambioDeAcceso = {
+      userId: c.userId,
+      email: c.email,
+      nombre: p?.full_name?.trim() || c.nombre,
+      cuentaNueva: false,
+      yaEntro: Boolean(p?.last_sign_in_at),
+      cursosNuevos: [],
+      generacionesNuevas: [],
+      sinCambio: [],
+    }
+    const g = c.cohorteId ? cohorte.get(c.cohorteId) : undefined
+    const delCurso = g ? curso.get(g.course_id) : undefined
+    if (c.tipo === 'nueva_generacion' && g && delCurso) {
+      cambios.push({
+        ...base,
+        generacionesNuevas: [
+          {
+            cursoId: delCurso.id,
+            cursoTitulo: delCurso.title,
+            cursoSlug: delCurso.slug,
+            cohorteId: g.id,
+            nombre: g.name,
+            startsOn: g.starts_on,
+            endsOn: g.ends_on,
+            anterior: null,
+          },
+        ],
+      })
+    } else if (c.tipo === 'nuevo_curso' && c.courseIds.some((id) => curso.has(id))) {
+      cambios.push({
+        ...base,
+        cursosNuevos: c.courseIds.flatMap((id) => {
+          const x = curso.get(id)
+          return x ? [{ id: x.id, titulo: x.title }] : []
+        }),
+      })
+    } else {
+      cambios.push({
+        ...base,
+        forzar: c.tipo === 'recordatorio' ? 'recordatorio' : 'bienvenida',
+        titulos: cursosDe.get(c.userId) ?? [],
+      })
     }
   }
 
-  return {
-    aviso:
-      `Se mandó el recordatorio a ${resultado.enviados} persona${resultado.enviados === 1 ? '' : 's'}.` +
-      (sinEnlace > 0 ? ` ${sinEnlace} sin perfil, no se les pudo generar liga.` : ''),
+  if (cambios.length === 0) {
+    return { aviso: 'Ya se reenviaron hace un momento. Si en unos minutos siguen aquí, revisa las direcciones.' }
   }
+
+  const conteo = await avisarAccesos(cambios, { origen: 'reenvio_fallidos', creadoPor: admin.user_id })
+  console.log(
+    JSON.stringify({
+      operacion: 'reenviarCorreosFallidos',
+      porQuien: admin.email,
+      personas: cambios.length,
+      fallidos: conteo.fallidos.length,
+    })
+  )
+  revalidatePath('/admin/alumnos', 'layout')
+  return mensajeDeAltaEnLote({ partes: [], conteo, errores: [] })
 }
 
 /**
@@ -359,11 +481,16 @@ type ResultadoInscripciones =
   | {
       ok: true
       creadas: Par[]
+      /** Ya tenían el curso en otra generación y se cambiaron a la elegida (M25). */
+      movidas: Par[]
       omitidas: Par[]
-      /** Cuántos correos de "tienes un curso nuevo" salieron. */
-      avisados: number
+      /** Qué correo le llegó a quién, y a quién no le salió. */
+      conteo: ConteoDeAvisos
+      /** Movimientos que la base rechazó; lo demás sí quedó hecho. */
+      errores: string[]
       tituloDe: Map<string, string>
       nombreDe: Map<string, string>
+      nombreDeGeneracion: Map<string, string>
     }
 
 /**
@@ -375,14 +502,24 @@ type ResultadoInscripciones =
  * Va por el cliente de servidor y no por service role: `enrollments_insert_admin`
  * ya deja insertar al admin, y así respeta RLS como el resto de la pantalla.
  *
- * Solo CREA. Si la persona ya tiene inscripción en ese curso —vigente, vencida
- * o revocada— no se toca: un upsert le reiniciaría la vigencia y le borraría el
- * grupo, y para eso ya están "Restaurar acceso" y "Extender días".
+ * Cada par cae en uno de tres casos (M25, 20-oct-2026):
+ *   - **crear**: no tenía el curso.
+ *   - **mover**: lo tenía en OTRA generación —la Gen 1— y se eligió otra —la
+ *     Gen 2—. Decisión de Alejandro: se mueve la misma inscripción, conserva su
+ *     avance, se reactiva si estaba vencida o revocada y se le avisa con las
+ *     fechas. La vigencia nunca se acorta.
+ *   - **sin cambio**: lo tenía en esa misma generación (o el curso está
+ *     archivado). Si estaba vencida o revocada, para eso están «Restaurar
+ *     acceso» y «Extender días».
  *
- * No manda correo: la persona ya sabe entrar, y encuentra el curso nuevo en
- * /mis-cursos.
+ * El correo lo decide `avisarAccesos`: bienvenida con liga a quien nunca entró,
+ * «curso nuevo» a quien ya entró, «Ya estás en la Generación N» a quien se
+ * movió. Uno por persona, que nombra todo lo suyo.
  */
-async function crearInscripciones(pares: Par[]): Promise<ResultadoInscripciones> {
+async function crearInscripciones(
+  pares: Par[],
+  opciones: { origen: 'curso' | 'ficha'; creadoPor: string }
+): Promise<ResultadoInscripciones> {
   const userIds = [...new Set(pares.map((p) => p.userId))]
   const cursoIds = [...new Set(pares.map((p) => p.cursoId))]
   const cohorteIds = [
@@ -392,17 +529,17 @@ async function crearInscripciones(pares: Par[]): Promise<ResultadoInscripciones>
   const supabase = await crearClienteServidor()
 
   const [personas, cursos, cohortes, previas] = await Promise.all([
-    supabase.from('profiles').select('user_id, full_name, email').in('user_id', userIds),
+    supabase.from('profiles').select('user_id, full_name, email, last_sign_in_at').in('user_id', userIds),
     supabase
       .from('courses')
-      .select('id, title, access_days, status, course_type, cohorts(id, open_for_enrollment, ends_on)')
+      .select('id, title, slug, access_days, status, course_type, cohorts(id, name, starts_on, open_for_enrollment, ends_on)')
       .in('id', cursoIds),
     cohorteIds.length > 0
       ? supabase.from('cohorts').select('id, course_id').in('id', cohorteIds)
       : Promise.resolve({ data: [], error: null }),
     supabase
       .from('enrollments')
-      .select('user_id, course_id')
+      .select('user_id, course_id, cohort_id, status, expires_at')
       .in('user_id', userIds)
       .in('course_id', cursoIds),
   ])
@@ -413,6 +550,7 @@ async function crearInscripciones(pares: Par[]): Promise<ResultadoInscripciones>
     return { ok: false, error: 'No se pudo revisar la selección. Intenta de nuevo.' }
   }
 
+  const perfilDe = new Map((personas.data ?? []).map((p) => [p.user_id, p]))
   const nombreDe = new Map(
     (personas.data ?? []).map((p) => [p.user_id, p.full_name.trim() || p.email])
   )
@@ -423,10 +561,17 @@ async function crearInscripciones(pares: Par[]): Promise<ResultadoInscripciones>
   type CursoConGeneraciones = {
     id: string
     title: string
+    slug: string
     access_days: number | null
     status: string
     course_type: string
-    cohorts: Array<{ id: string; open_for_enrollment: boolean; ends_on: string | null }>
+    cohorts: Array<{
+      id: string
+      name: string
+      starts_on: string | null
+      open_for_enrollment: boolean
+      ends_on: string | null
+    }>
   }
   const listaCursos = (cursos.data ?? []) as unknown as CursoConGeneraciones[]
   const cursoPorId = new Map(listaCursos.map((c) => [c.id, c]))
@@ -449,32 +594,35 @@ async function crearInscripciones(pares: Par[]): Promise<ResultadoInscripciones>
     par.cohorteId = generacion.id
   }
 
-  const yaInscrito = new Set((previas.data ?? []).map((e) => `${e.user_id}::${e.course_id}`))
+  const previaDe = new Map((previas.data ?? []).map((e) => [`${e.user_id}::${e.course_id}`, e]))
   const creadas: Par[] = []
+  const movidas: Par[] = []
   const omitidas: Par[] = []
-  let avisados = 0
 
   for (const par of pares) {
-    const archivado = cursoPorId.get(par.cursoId)?.status === 'archived'
-    if (archivado || yaInscrito.has(`${par.userId}::${par.cursoId}`)) omitidas.push(par)
-    else creadas.push(par)
+    const curso = cursoPorId.get(par.cursoId)
+    const previa = previaDe.get(`${par.userId}::${par.cursoId}`)
+    if (curso?.status === 'archived') omitidas.push(par)
+    else if (!previa) creadas.push(par)
+    else if (esPorGeneraciones(curso?.course_type) && par.cohorteId !== null && par.cohorteId !== previa.cohort_id) {
+      movidas.push(par)
+    } else omitidas.push(par)
   }
+
+  const vigenciaNueva = (dias: number | null | undefined) =>
+    dias != null ? new Date(Date.now() + dias * 24 * 60 * 60 * 1000).toISOString() : null
 
   if (creadas.length > 0) {
     const { error } = await supabase.from('enrollments').insert(
-      creadas.map((par) => {
-        const dias = cursoPorId.get(par.cursoId)?.access_days
-        return {
-          user_id: par.userId,
-          course_id: par.cursoId,
-          cohort_id: par.cohorteId,
-          source: 'manual' as const,
-          status: 'active' as const,
-          // Misma regla que `darDeAlta`: la vigencia sale de los días del curso.
-          expires_at:
-            dias != null ? new Date(Date.now() + dias * 24 * 60 * 60 * 1000).toISOString() : null,
-        }
-      })
+      creadas.map((par) => ({
+        user_id: par.userId,
+        course_id: par.cursoId,
+        cohort_id: par.cohorteId,
+        source: 'manual' as const,
+        status: 'active' as const,
+        // Misma regla que `darDeAlta`: la vigencia sale de los días del curso.
+        expires_at: vigenciaNueva(cursoPorId.get(par.cursoId)?.access_days),
+      }))
     )
 
     if (error) {
@@ -483,32 +631,99 @@ async function crearInscripciones(pares: Par[]): Promise<ResultadoInscripciones>
       )
       return { ok: false, error: 'No se pudo dar el acceso.' }
     }
-
     console.log(JSON.stringify({ operacion: 'crearInscripciones:ok', creadas }))
-
-    // Se les avisa por correo (pedido 20-sep-2026). Antes no salía nada:
-    // "la persona ya sabe entrar". Pero si nadie te avisa, el curso nuevo no
-    // existe hasta que entres por otra razón. Un correo por persona que nombra
-    // todos sus cursos nuevos, en lote: veinte personas son una petición.
-    const tituloDeCurso = new Map(listaCursos.map((c) => [c.id, c.title]))
-    const cursosDe = new Map<string, string[]>()
-    for (const par of creadas) {
-      const titulo = tituloDeCurso.get(par.cursoId)
-      if (titulo) cursosDe.set(par.userId, [...(cursosDe.get(par.userId) ?? []), titulo])
-    }
-    const correos = [...cursosDe].flatMap(([userId, titulos]) => {
-      const persona = (personas.data ?? []).find((p) => p.user_id === userId)
-      if (!persona?.email) return []
-      const plantilla = plantillaNuevoCurso({
-        cursos: titulos,
-        nombre: persona.full_name,
-        base: process.env.NEXT_PUBLIC_APP_URL,
-      })
-      return [{ para: persona.email, asunto: plantilla.asunto, html: plantilla.html, texto: plantilla.texto }]
-    })
-    const envio = await enviarCorreosEnLote(correos)
-    avisados = envio.enviados
   }
+
+  // Los movimientos van uno por uno por `academia_mover_de_generacion`, la
+  // misma validación que «Cambiar de generación». Un fallo no deshace los
+  // anteriores: se reporta y se sigue con el correo de lo que sí se hizo.
+  const rpc = (supabase.rpc as unknown as LlamadaRpc).bind(supabase)
+  const errores: string[] = []
+  const movidasHechas: Par[] = []
+  for (const par of movidas) {
+    const { error } = await rpc('academia_mover_de_generacion', {
+      alumno: par.userId,
+      curso: par.cursoId,
+      generacion: par.cohorteId,
+    })
+    if (error) {
+      console.error(JSON.stringify({ operacion: 'crearInscripciones:mover', ...par, error: error.message }))
+      errores.push(`No se pudo cambiar de generación a ${nombreDe.get(par.userId) ?? 'alguien'}.`)
+      continue
+    }
+    // Se reactiva y la vigencia nunca se acorta: sin días en el curso, sin
+    // vencimiento; con días, lo que sea más tarde entre la que tenía y la nueva.
+    const previa = previaDe.get(`${par.userId}::${par.cursoId}`)
+    const nueva = vigenciaNueva(cursoPorId.get(par.cursoId)?.access_days)
+    const expira =
+      previa?.expires_at == null || nueva === null
+        ? null
+        : Date.parse(previa.expires_at) > Date.parse(nueva)
+          ? previa.expires_at
+          : nueva
+    if (previa?.status !== 'active' || expira !== previa.expires_at) {
+      const { error: errorVigencia } = await supabase
+        .from('enrollments')
+        .update({ status: 'active', expires_at: expira })
+        .eq('user_id', par.userId)
+        .eq('course_id', par.cursoId)
+      if (errorVigencia) {
+        console.error(JSON.stringify({ operacion: 'crearInscripciones:vigencia', ...par, error: errorVigencia.message }))
+      }
+    }
+    movidasHechas.push(par)
+  }
+
+  // El correo: uno por persona con todo lo suyo.
+  const generacionPorId = new Map(
+    listaCursos.flatMap((c) => (c.cohorts ?? []).map((g) => [g.id, { ...g, curso: c }] as const))
+  )
+  const cambios = new Map<string, CambioDeAcceso>()
+  const cambioDe = (userId: string): CambioDeAcceso => {
+    const existente = cambios.get(userId)
+    if (existente) return existente
+    const p = perfilDe.get(userId)
+    const nuevo: CambioDeAcceso = {
+      userId,
+      email: p?.email ?? '',
+      nombre: p?.full_name?.trim() || null,
+      cuentaNueva: false,
+      yaEntro: Boolean(p?.last_sign_in_at),
+      cursosNuevos: [],
+      generacionesNuevas: [],
+      sinCambio: [],
+    }
+    cambios.set(userId, nuevo)
+    return nuevo
+  }
+  for (const par of creadas) {
+    const curso = cursoPorId.get(par.cursoId)
+    if (curso) cambioDe(par.userId).cursosNuevos.push({ id: curso.id, titulo: curso.title })
+  }
+  for (const par of movidasHechas) {
+    const g = par.cohorteId ? generacionPorId.get(par.cohorteId) : undefined
+    const previa = previaDe.get(`${par.userId}::${par.cursoId}`)
+    if (!g) continue
+    cambioDe(par.userId).generacionesNuevas.push({
+      cursoId: g.curso.id,
+      cursoTitulo: g.curso.title,
+      cursoSlug: g.curso.slug,
+      cohorteId: g.id,
+      nombre: g.name,
+      startsOn: g.starts_on,
+      endsOn: g.ends_on,
+      anterior: previa?.cohort_id ? (generacionPorId.get(previa.cohort_id)?.name ?? null) : null,
+    })
+  }
+  for (const par of omitidas) {
+    const curso = cursoPorId.get(par.cursoId)
+    if (curso) cambioDe(par.userId).sinCambio.push({ id: curso.id, titulo: curso.title })
+  }
+
+  const conteo = await avisarAccesos([...cambios.values()], {
+    origen: opciones.origen,
+    creadoPor: opciones.creadoPor,
+  })
 
   revalidatePath('/admin/alumnos')
   revalidatePath('/admin/cursos')
@@ -517,10 +732,13 @@ async function crearInscripciones(pares: Par[]): Promise<ResultadoInscripciones>
   return {
     ok: true,
     creadas,
+    movidas: movidasHechas,
     omitidas,
-    avisados,
+    conteo,
+    errores,
     tituloDe: new Map(listaCursos.map((c) => [c.id, c.title])),
     nombreDe,
+    nombreDeGeneracion: new Map([...generacionPorId].map(([id, g]) => [id, g.name])),
   }
 }
 
@@ -584,7 +802,7 @@ const esquemaAccesos = z.object({
  * pero nadie lo adivina.
  */
 export async function darAccesoACursos(_previo: EstadoAccion, datos: FormData): Promise<EstadoAccion> {
-  await exigirAdmin()
+  const admin = await exigirAdmin()
 
   const resultado = esquemaAccesos.safeParse({
     user_id: datos.get('user_id'),
@@ -602,25 +820,34 @@ export async function darAccesoACursos(_previo: EstadoAccion, datos: FormData): 
       userId: resultado.data.user_id,
       cursoId,
       cohorteId,
-    }))
+    })),
+    { origen: 'ficha', creadoPor: admin.user_id }
   )
   if (!hecho.ok) return { error: hecho.error }
 
-  if (hecho.creadas.length === 0) {
+  if (hecho.creadas.length === 0 && hecho.movidas.length === 0 && hecho.errores.length === 0) {
     return {
       error:
-        'No había nada que agregar: ya tiene esos cursos, o están archivados. ' +
+        'No había nada que agregar: ya tiene esos cursos en esa generación, o están archivados. ' +
         'Para uno que ya tiene, usa "Restaurar acceso" o "Extender días".',
     }
   }
 
-  const sinCambios = enumerar(hecho.omitidas.map((p) => hecho.tituloDe.get(p.cursoId)))
-  return {
-    aviso:
-      `Acceso dado a: ${enumerar(hecho.creadas.map((p) => hecho.tituloDe.get(p.cursoId)))}.` +
-      (hecho.avisados > 0 ? ' Se le avisó por correo.' : '') +
-      (sinCambios ? ` Sin cambios en: ${sinCambios}.` : ''),
-  }
+  return mensajeDeAltaEnLote({
+    partes: [
+      hecho.creadas.length > 0
+        ? `Acceso dado a: ${enumerar(hecho.creadas.map((p) => hecho.tituloDe.get(p.cursoId)))}`
+        : '',
+      hecho.movidas.length > 0
+        ? `Cambio de generación en: ${enumerar(hecho.movidas.map((p) => hecho.tituloDe.get(p.cursoId)))}`
+        : '',
+      hecho.omitidas.length > 0
+        ? `Sin cambios en: ${enumerar(hecho.omitidas.map((p) => hecho.tituloDe.get(p.cursoId)))}`
+        : '',
+    ],
+    conteo: hecho.conteo,
+    errores: hecho.errores,
+  })
 }
 
 const esquemaInscribir = z.object({
@@ -632,10 +859,11 @@ const esquemaInscribir = z.object({
 /**
  * Desde la página de un curso: le da acceso a una o varias personas que ya
  * tienen cuenta. Es el espejo de `darAccesoACursos`. Quien todavía no tiene
- * cuenta entra por `altaManual`, que sí manda el correo de bienvenida.
+ * cuenta entra por `altaManual`. Quien ya está en otra generación de este
+ * curso se cambia a la de esta pestaña (M25) y se le avisa con las fechas.
  */
 export async function inscribirEnCurso(_previo: EstadoAccion, datos: FormData): Promise<EstadoAccion> {
-  await exigirAdmin()
+  const admin = await exigirAdmin()
 
   const resultado = esquemaInscribir.safeParse({
     course_id: datos.get('course_id'),
@@ -652,23 +880,31 @@ export async function inscribirEnCurso(_previo: EstadoAccion, datos: FormData): 
       userId,
       cursoId,
       cohorteId: cohorte || null,
-    }))
+    })),
+    { origen: 'curso', creadoPor: admin.user_id }
   )
   if (!hecho.ok) return { error: hecho.error }
 
-  if (hecho.creadas.length === 0) {
-    return { error: 'No había nada que agregar: ya tenían este curso, o está archivado.' }
+  if (hecho.creadas.length === 0 && hecho.movidas.length === 0 && hecho.errores.length === 0) {
+    return { error: 'No había nada que agregar: ya estaban en esta generación, o el curso está archivado.' }
   }
 
-  const yaLoTenian = enumerar(hecho.omitidas.map((p) => hecho.nombreDe.get(p.userId)))
-  return {
-    aviso:
-      `Acceso dado a: ${enumerar(hecho.creadas.map((p) => hecho.nombreDe.get(p.userId)))}.` +
-      (hecho.avisados > 0
-        ? ` Se avisó por correo a ${hecho.avisados}.`
-        : '') +
-      (yaLoTenian ? ` Ya lo tenían: ${yaLoTenian}.` : ''),
-  }
+  const generacion = hecho.movidas[0]?.cohorteId ? hecho.nombreDeGeneracion.get(hecho.movidas[0].cohorteId) : null
+  return mensajeDeAltaEnLote({
+    partes: [
+      hecho.creadas.length > 0
+        ? `Acceso dado a: ${enumerar(hecho.creadas.map((p) => hecho.nombreDe.get(p.userId)))}`
+        : '',
+      hecho.movidas.length > 0
+        ? `Cambiados a ${generacion ?? 'esta generación'}: ${enumerar(hecho.movidas.map((p) => hecho.nombreDe.get(p.userId)))}`
+        : '',
+      hecho.omitidas.length > 0
+        ? `Ya estaban aquí: ${enumerar(hecho.omitidas.map((p) => hecho.nombreDe.get(p.userId)))}`
+        : '',
+    ],
+    conteo: hecho.conteo,
+    errores: hecho.errores,
+  })
 }
 
 const esquemaCuenta = z.object({ user_id: z.uuid('Cuenta inválida.') })
@@ -856,13 +1092,24 @@ export async function cambiarCorreoDeAlumno(
     ? await servicio.from('courses').select('title').in('id', ids).neq('status', 'archived').order('title')
     : { data: [] }
 
-  const enviado = await enviarAccesoInicial(
-    nuevo,
-    undefined,
-    (cursos ?? []).map((c) => c.title),
-    actual.full_name,
-    admin.user_id
+  const conteo = await avisarAccesos(
+    [
+      {
+        userId,
+        email: nuevo,
+        nombre: actual.full_name,
+        cuentaNueva: false,
+        yaEntro: false,
+        cursosNuevos: [],
+        generacionesNuevas: [],
+        sinCambio: [],
+        forzar: 'bienvenida',
+        titulos: (cursos ?? []).map((c) => c.title),
+      },
+    ],
+    { origen: 'cambio_correo', creadoPor: admin.user_id }
   )
+  const enviado = conteo.fallidos.length === 0
 
   console.log(
     JSON.stringify({ operacion: 'cambiarCorreo:ok', porQuien: admin.email, userId, de: actual.email, a: nuevo, correoEnviado: enviado })
@@ -958,7 +1205,7 @@ const esquemaCambio = z.object({
  * tocan (decisión 4, 3-oct-2026).
  */
 export async function cambiarDeGeneracion(_previo: EstadoAccion, datos: FormData): Promise<EstadoAccion> {
-  await exigirEquipo()
+  const quien = await exigirEquipo()
 
   const resultado = esquemaCambio.safeParse({
     course_id: datos.get('course_id'),
@@ -992,10 +1239,47 @@ export async function cambiarDeGeneracion(_previo: EstadoAccion, datos: FormData
 
   revalidatePath(`/admin/cursos/${cursoId}`)
   revalidatePath('/admin/alumnos')
-  return {
-    aviso:
-      movidos === 1
-        ? 'Cambio hecho: ve la nueva generación y deja de ver la anterior.'
-        : `${movidos} personas cambiadas de generación.`,
-  }
+
+  const hecho =
+    movidos === 1
+      ? 'Cambio hecho: ve la nueva generación y deja de ver la anterior.'
+      : `${movidos} personas cambiadas de generación.`
+
+  // «Avisarles por correo» (M25), marcada por defecto: «Ya estás en la
+  // Generación N» con las fechas, y la liga a quien nunca ha entrado.
+  if (datos.get('avisar') !== 'si') return { aviso: `${hecho} No se mandó correo.` }
+
+  const ids = [...new Set(resultado.data.user_ids)]
+  const [curso, cohorte, perfiles] = await Promise.all([
+    supabase.from('courses').select('id, title, slug').eq('id', cursoId).maybeSingle(),
+    supabase.from('cohorts').select('id, name, starts_on, ends_on').eq('id', generacion).maybeSingle(),
+    supabase.from('profiles').select('user_id, email, full_name, last_sign_in_at').in('user_id', ids),
+  ])
+  if (!curso.data || !cohorte.data) return { aviso: `${hecho} No se pudo armar el correo de aviso.` }
+
+  const conteo = await avisarAccesos(
+    (perfiles.data ?? []).map((p) => ({
+      userId: p.user_id,
+      email: p.email,
+      nombre: p.full_name?.trim() || null,
+      cuentaNueva: false,
+      yaEntro: Boolean(p.last_sign_in_at),
+      cursosNuevos: [],
+      generacionesNuevas: [
+        {
+          cursoId,
+          cursoTitulo: curso.data!.title,
+          cursoSlug: curso.data!.slug,
+          cohorteId: generacion,
+          nombre: cohorte.data!.name,
+          startsOn: cohorte.data!.starts_on,
+          endsOn: cohorte.data!.ends_on,
+          anterior: null,
+        },
+      ],
+      sinCambio: [],
+    })),
+    { origen: 'cambio_generacion', creadoPor: quien.user_id }
+  )
+  return mensajeDeAltaEnLote({ partes: [hecho.replace(/\.$/, '')], conteo, errores: [] })
 }

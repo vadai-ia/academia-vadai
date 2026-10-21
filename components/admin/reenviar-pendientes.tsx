@@ -10,8 +10,13 @@ import { enviarPruebaDeRecordatorio, recordarAccesoPendientes } from '@/lib/admi
 import { SIN_ESTADO } from '@/lib/admin/tipos'
 
 /**
- * "Mandar recordatorio a los que nunca han entrado", todos de un clic, y una
- * prueba a un correo antes de hacerlo.
+ * "Mandar recordatorio a quien falta", todos de un clic, y una prueba a un
+ * correo antes de hacerlo.
+ *
+ * Desde M25 (20-oct-2026) «quien falta» es quien nunca entró Y tiene un curso o
+ * generación activa —en curso, por empezar, o V-AI-P vigente—. Quien solo tiene
+ * el curso base o una generación terminada ya no cuenta. El número del botón es
+ * el mismo que la acción recalcula al hacer clic.
  *
  * Sale por el endpoint de lote de Resend: ochenta correos son una petición,
  * así que ya no hace falta ir de diez en diez. El botón se deshabilita mientras
@@ -24,7 +29,16 @@ import { SIN_ESTADO } from '@/lib/admin/tipos'
  * Vive detrás de su botón (M14): se usa una vez por lanzamiento, no cada vez
  * que se abre la lista.
  */
-export function ReenviarPendientes({ pendientes, correoAdmin }: { pendientes: number; correoAdmin: string }) {
+export function ReenviarPendientes({
+  pendientes,
+  recibieronHoy,
+  correoAdmin,
+}: {
+  /** Con curso activo, sin entrar y sin liga en las últimas 24 h. */
+  pendientes: number
+  recibieronHoy: number
+  correoAdmin: string
+}) {
   const [estado, accion, enviando] = useActionState(recordarAccesoPendientes, SIN_ESTADO)
   const [estadoPrueba, probar, probando] = useActionState(enviarPruebaDeRecordatorio, SIN_ESTADO)
 
@@ -33,7 +47,13 @@ export function ReenviarPendientes({ pendientes, correoAdmin }: { pendientes: nu
       etiqueta="Mandar recordatorio a quien falta"
       variante="contorno"
       icono="ninguno"
-      ayuda={pendientes > 0 ? `${pendientes} nunca han entrado` : 'Todos han entrado'}
+      ayuda={
+        pendientes > 0
+          ? `${pendientes} con curso activo no han entrado`
+          : recibieronHoy > 0
+            ? 'Ya recibieron su recordatorio hoy'
+            : 'Nadie con curso activo está pendiente'
+      }
       abierto={Boolean(estado.error || estado.aviso || estadoPrueba.error || estadoPrueba.aviso)}
     >
       <div className="flex flex-col gap-3">
@@ -53,13 +73,19 @@ export function ReenviarPendientes({ pendientes, correoAdmin }: { pendientes: nu
         <AvisoAccion estado={estadoPrueba} />
 
         <form action={accion} className="flex flex-wrap items-center gap-3">
-          <Button type="submit" size="sm" disabled={enviando || pendientes === 0}>
+          <Button type="submit" size="sm" disabled={enviando || pendientes === 0} data-recordatorio={pendientes}>
             {enviando
               ? 'Mandando…'
-              : `Mandar recordatorio a los ${pendientes} que nunca han entrado`}
+              : pendientes === 1
+                ? 'Mandar recordatorio a la persona con curso activo que no ha entrado'
+                : `Mandar recordatorio a los ${pendientes} con curso activo que no han entrado`}
           </Button>
-          <span className="text-xs text-muted-foreground">
-            Correo de recordatorio con liga de 30 días. No repite a quien ya recibió uno hoy.
+          <span className="text-xs text-pretty text-muted-foreground">
+            {pendientes > 0
+              ? 'Correo de recordatorio con liga de 30 días. No repite a quien ya recibió uno hoy.'
+              : recibieronHoy > 0
+                ? `${recibieronHoy === 1 ? 'La persona que falta ya recibió' : `Las ${recibieronHoy} que faltan ya recibieron`} su recordatorio hoy.`
+                : 'Quien nunca ha entrado es de una generación terminada o solo tiene el curso base: el recordatorio no le aplica.'}
           </span>
         </form>
         <AvisoAccion estado={estado} />

@@ -53,6 +53,7 @@ const SUITES = [
   { llave: 'venta', archivo: 'test-venta-vaip.mjs', titulo: 'Página de venta de V-AI-P', milestone: 'M23' },
   // Necesita la app con ANTHROPIC_SIMULADO y NOTICIAS_SITIO_DE_PRUEBA=http://127.0.0.1:4806 (docs/M24.md).
   { llave: 'noticias', archivo: 'test-noticias.mjs', titulo: 'Publicar y noticias con IA', milestone: 'M24' },
+  { llave: 'accesos', archivo: 'test-accesos.mjs', titulo: 'Correos de acceso y su bitácora', milestone: 'M25' },
 ]
 
 /** Corre una suite heredando stdio y devuelve su código de salida. */

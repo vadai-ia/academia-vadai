@@ -80,16 +80,20 @@ export async function crearEnlaceDurable(opciones: {
  *
  * Es la mitad del "mandar recordatorio a todos": ochenta inserts de uno en
  * uno cabrían, pero uno solo cabe seguro en el tiempo de una server action.
- * Devuelve correo -> URL; quien no tiene perfil simplemente no aparece.
+ * Devuelve correo -> { url, id }; quien no tiene perfil simplemente no
+ * aparece. El id es el de la fila de `access_links`, que la bitácora de
+ * correos de acceso (M25) guarda junto a cada correo.
  */
+export type EnlaceCreado = { url: string; id: string }
+
 export async function crearEnlacesDurables(opciones: {
   emails: string[]
   creadoPor?: string | null
   dias?: number
-}): Promise<Map<string, string>> {
+}): Promise<Map<string, EnlaceCreado>> {
   const supabase = crearClienteServiceRole()
   const emails = [...new Set(opciones.emails.map((e) => e.trim().toLowerCase()))]
-  const resultado = new Map<string, string>()
+  const resultado = new Map<string, EnlaceCreado>()
   if (emails.length === 0) return resultado
 
   const { data: perfiles, error: errorPerfiles } = await supabase
@@ -106,23 +110,29 @@ export async function crearEnlacesDurables(opciones: {
   const expira = new Date(Date.now() + dias * 24 * 60 * 60 * 1000).toISOString()
   const base = (process.env.NEXT_PUBLIC_APP_URL ?? '').replace(/\/+$/, '')
 
+  const urlDe = new Map<string, { email: string; url: string }>()
   const filas = perfiles.map((p) => {
     const token = randomBytes(32).toString('base64url')
-    resultado.set(p.email, `${base}/acceso/${token}`)
+    const hash = hashDe(token)
+    urlDe.set(hash, { email: p.email, url: `${base}/acceso/${token}` })
     return {
       user_id: p.user_id,
-      token_hash: hashDe(token),
+      token_hash: hash,
       expires_at: expira,
       created_by: opciones.creadoPor ?? null,
     }
   })
 
-  const { error } = await supabase.from('access_links').insert(filas)
-  if (error) {
-    registrar('crearEnlacesDurables:fallo', { cuantos: filas.length, error: error.message })
+  const { data: creadas, error } = await supabase.from('access_links').insert(filas).select('id, token_hash')
+  if (error || !creadas) {
+    registrar('crearEnlacesDurables:fallo', { cuantos: filas.length, error: error?.message ?? 'sin datos' })
     return new Map()
   }
 
+  for (const fila of creadas) {
+    const enlace = urlDe.get(fila.token_hash)
+    if (enlace) resultado.set(enlace.email, { url: enlace.url, id: fila.id })
+  }
   return resultado
 }
 

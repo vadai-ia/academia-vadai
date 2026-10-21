@@ -101,9 +101,17 @@ export function TablaAlumnos({
                     ) : equipo ? (
                       <span className="text-muted-foreground">—</span>
                     ) : (
-                      <Badge variant="outline" className="border-destructive/40 text-[11px] text-destructive">
-                        Nunca ha entrado
-                      </Badge>
+                      <span className="flex flex-wrap gap-1">
+                        <Badge variant="outline" className="border-destructive/40 text-[11px] text-destructive">
+                          Nunca ha entrado
+                        </Badge>
+                        {/* M25: su último correo de acceso no salió; sin él no puede entrar. */}
+                        {a.correo === 'fallido' ? (
+                          <Badge variant="outline" className="border-destructive/40 text-[11px] text-destructive" data-correo-fallo>
+                            Correo falló
+                          </Badge>
+                        ) : null}
+                      </span>
                     )}
                   </td>
 

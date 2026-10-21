@@ -107,7 +107,7 @@ export async function entrarAEncuesta(
         nombre,
         ...(yaTeniaCuenta ? {} : { rol: 'invitado' as const }),
         origen: 'manual',
-        urlRedireccion: `${process.env.NEXT_PUBLIC_APP_URL ?? ''}/nueva-contrasena`,
+        origenCorreo: 'encuesta',
       })
       return alta.ok ? (alta.userId ?? null) : null
     },

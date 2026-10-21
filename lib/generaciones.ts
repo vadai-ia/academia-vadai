@@ -65,6 +65,41 @@ export function rangoDeGeneracion(startsOn: string | null, endsOn: string | null
   return ''
 }
 
+const DIA_DEL_MES = new Intl.DateTimeFormat('es-MX', { day: 'numeric', timeZone: 'UTC' })
+const MES_LARGO = new Intl.DateTimeFormat('es-MX', { month: 'long', timeZone: 'UTC' })
+
+/**
+ * «del 5 al 23 de noviembre de 2026», con las palabras completas: es como lo
+ * dice el correo de «Ya estás en la Generación 2» (M25). '' si no hay fechas.
+ */
+export function fechasDeGeneracion(startsOn: string | null, endsOn: string | null): string {
+  const partes = (fecha: string) => {
+    const d = aMediodia(fecha)
+    return { dia: DIA_DEL_MES.format(d), mes: MES_LARGO.format(d), anio: d.getUTCFullYear() }
+  }
+  if (startsOn && endsOn) {
+    const a = partes(startsOn)
+    const b = partes(endsOn)
+    if (a.anio !== b.anio) return `del ${a.dia} de ${a.mes} de ${a.anio} al ${b.dia} de ${b.mes} de ${b.anio}`
+    if (a.mes !== b.mes) return `del ${a.dia} de ${a.mes} al ${b.dia} de ${b.mes} de ${b.anio}`
+    return `del ${a.dia} al ${b.dia} de ${b.mes} de ${b.anio}`
+  }
+  if (startsOn) {
+    const a = partes(startsOn)
+    return `a partir del ${a.dia} de ${a.mes} de ${a.anio}`
+  }
+  if (endsOn) {
+    const b = partes(endsOn)
+    return `hasta el ${b.dia} de ${b.mes} de ${b.anio}`
+  }
+  return ''
+}
+
+/** «Generación 2» de «Generación 2 · nov–dic 2026»: el nombre sin las fechas. */
+export function nombreCortoDeGeneracion(nombre: string): string {
+  return nombre.split(' · ')[0]?.trim() || nombre
+}
+
 /** «3 nov» para la tarjeta del catálogo. */
 export function diaCorto(fecha: string): string {
   return sinPunto(DIA_MES.format(aMediodia(fecha)))

@@ -2,7 +2,9 @@ import 'server-only'
 
 import { accesoMayor, vigente } from '@/lib/membresia/acceso'
 import { esCuentaQa, esCursoQa } from '@/lib/qa'
-import { avisarCursoNuevo, generacionAbierta } from '@/lib/stripe/provisioning'
+import { avisarAccesos } from '@/lib/correo/avisos-de-acceso'
+import type { CursoDelCambio } from '@/lib/correo/decision'
+import { generacionAbierta } from '@/lib/stripe/provisioning'
 import { crearClienteServiceRole } from '@/lib/supabase/service-role'
 
 /**
@@ -106,7 +108,7 @@ export async function sincronizarMembresia(
 
   const { data: perfil } = await supabase
     .from('profiles')
-    .select('email, full_name')
+    .select('email, full_name, last_sign_in_at')
     .eq('user_id', userId)
     .maybeSingle()
   if (!perfil) return { ok: false, nuevos: [], actualizados: 0, hasta: null, motivo: 'Sin perfil.' }
@@ -134,6 +136,7 @@ export async function sincronizarMembresia(
 
   const porCurso = new Map((previas ?? []).map((e) => [e.course_id, e]))
   const nuevos: string[] = []
+  const cursosNuevos: CursoDelCambio[] = []
   let actualizados = 0
   let fallas = 0
 
@@ -157,6 +160,7 @@ export async function sincronizarMembresia(
         registrar('membresia:inscripcionFallida', { userId, curso: curso.slug, error: error.message })
       } else {
         nuevos.push(curso.title)
+        cursosNuevos.push({ id: curso.id, titulo: curso.title })
       }
       continue
     }
@@ -190,10 +194,25 @@ export async function sincronizarMembresia(
     }
   }
 
-  // Cada curso nuevo para alguien que ya tiene cuenta se avisa (CLAUDE.md).
-  // Las renovaciones no mandan nada.
-  if (nuevos.length > 0 && (opciones.avisar ?? true)) {
-    await avisarCursoNuevo(perfil.email, nuevos, perfil.full_name)
+  // Cada curso nuevo para alguien que ya tiene cuenta se avisa (CLAUDE.md), y
+  // queda en la bitácora (M25): a quien nunca ha entrado le llega la
+  // bienvenida con su liga. Las renovaciones no mandan nada.
+  if (cursosNuevos.length > 0 && (opciones.avisar ?? true)) {
+    await avisarAccesos(
+      [
+        {
+          userId,
+          email: perfil.email,
+          nombre: perfil.full_name?.trim() || null,
+          cuentaNueva: false,
+          yaEntro: Boolean(perfil.last_sign_in_at),
+          cursosNuevos,
+          generacionesNuevas: [],
+          sinCambio: [],
+        },
+      ],
+      { origen: 'membresia' }
+    )
   }
 
   registrar('membresia:sincronizada', { userId, hasta, nuevos: nuevos.length, actualizados, fallas })

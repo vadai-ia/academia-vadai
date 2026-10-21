@@ -1,5 +1,7 @@
 import 'server-only'
 
+import { faltaFuncion, type LlamadaRpc } from '@/lib/alumno/catalogo'
+import type { EstadoCorreo, OrigenCorreoAcceso, TipoCorreoAcceso } from '@/lib/correo/decision'
 import { crearClienteServidor } from '@/lib/supabase/server'
 
 /**
@@ -58,65 +60,199 @@ export async function ultimosEnlaces(userIds?: string[]): Promise<Map<string, Ul
   return mapa
 }
 
+/** La tabla todavía no existe (migración 0047 sin aplicar): la pantalla se pinta igual. */
+function faltaTabla(error: { code?: string }): boolean {
+  return error.code === '42P01' || error.code === 'PGRST205'
+}
+
 export type Pendiente = { userId: string; email: string; nombre: string | null; cursos: string[] }
 
 /**
- * Alumnos activos que nunca han entrado y a los que no se les mandó un enlace
- * en las últimas 24 horas. Es la lista del botón "reenviar acceso a quien
- * falta": la ventana de 24 h es lo que hace que dos clics seguidos no manden
- * dos correos a la misma persona.
+ * A quién le toca el recordatorio «Mandar a quien falta» (M25, 20-oct-2026).
  *
- * Fuera quedan el equipo, los invitados de encuestas y las cuentas QA: a esas
- * el correo ni les llega (`lib/correo/resend.ts` las corta) y contarlas
- * inflaría el "quedan N".
+ * Decisión de Alejandro, con la Generación 2 por empezar: «si ellos estaban
+ * ligados a un curso o generación que ya terminó… no les reenvíe… y que solo
+ * lo mande a los de cursos o generaciones activas». La regla vive en la base,
+ * en `academia_por_activar` (migración 0047): nunca entró y tiene al menos una
+ * inscripción vigente en un curso que NO es base y cuya generación no ha
+ * terminado —en curso, por empezar, o V-AI-P vigente—.
+ *
+ * Además se salta a quien recibió una liga en las últimas 24 horas: es lo que
+ * hace que dos clics seguidos no le manden dos correos a la misma persona.
+ *
+ * `qa`: un admin real nunca ve cuentas `qa-*` y el admin QA de las suites solo
+ * ve esas. Va por el cliente del admin, con su RLS.
  */
-export async function alumnosPendientesDeEntrar(): Promise<Pendiente[]> {
+export async function alumnosPorActivar(opciones: {
+  qa: boolean
+}): Promise<{ porEnviar: Pendiente[]; recibieronHoy: number }> {
   const supabase = await crearClienteServidor()
-
-  const { data, error } = await supabase
-    .from('profiles')
-    .select('user_id, email, full_name, enrollments(status, created_at, courses(title))')
-    .eq('role', 'alumno')
-    .eq('status', 'active')
-    .is('last_sign_in_at', null)
-    .order('created_at', { ascending: true })
+  const rpc = (supabase.rpc as unknown as LlamadaRpc).bind(supabase)
+  const { data, error } = await rpc('academia_por_activar', { p_qa: opciones.qa })
 
   if (error) {
-    console.error(JSON.stringify({ operacion: 'alumnosPendientesDeEntrar', error: error.message }))
+    if (!faltaFuncion(error)) console.error(JSON.stringify({ operacion: 'alumnosPorActivar', error: error.message }))
+    return { porEnviar: [], recibieronHoy: 0 }
+  }
+
+  type Fila = { user_id: string; email: string; full_name: string | null; cursos: string[] | null; ultimo_enlace: string | null }
+  const hace24h = Date.now() - 24 * 60 * 60 * 1000
+  const filas = (data ?? []) as Fila[]
+  const recientes = filas.filter((f) => f.ultimo_enlace && new Date(f.ultimo_enlace).getTime() > hace24h)
+
+  return {
+    porEnviar: filas
+      .filter((f) => !recientes.includes(f))
+      .map((f) => ({
+        userId: f.user_id,
+        email: f.email,
+        nombre: f.full_name?.trim() || null,
+        cursos: f.cursos ?? [],
+      })),
+    recibieronHoy: recientes.length,
+  }
+}
+
+// ==========================================================================
+// La bitácora de correos de acceso (M25)
+// ==========================================================================
+
+export type CorreoQueNoSalio = {
+  id: string
+  userId: string
+  email: string
+  nombre: string | null
+  tipo: TipoCorreoAcceso
+  courseIds: string[]
+  cohorteId: string | null
+  motivo: string | null
+  fecha: string
+}
+
+/**
+ * A quién no le salió su último correo de acceso y todavía no ha entrado.
+ * Es la tarjeta «N correos de acceso no salieron · Reenviar» de Alumnos.
+ */
+export async function correosQueNoSalieron(opciones: { qa: boolean }): Promise<CorreoQueNoSalio[]> {
+  const supabase = await crearClienteServidor()
+  const rpc = (supabase.rpc as unknown as LlamadaRpc).bind(supabase)
+  const { data, error } = await rpc('academia_correos_por_reintentar', { p_qa: opciones.qa })
+
+  if (error) {
+    if (!faltaFuncion(error)) console.error(JSON.stringify({ operacion: 'correosQueNoSalieron', error: error.message }))
     return []
   }
 
-  type Anidado = {
+  type Fila = {
+    id: string
     user_id: string
     email: string
     full_name: string | null
-    enrollments: Array<{ status: string; created_at: string; courses: { title: string } | null }>
+    tipo: TipoCorreoAcceso
+    course_ids: string[] | null
+    cohort_id: string | null
+    motivo: string | null
+    created_at: string
+  }
+  return ((data ?? []) as Fila[]).map((f) => ({
+    id: f.id,
+    userId: f.user_id,
+    email: f.email,
+    nombre: f.full_name?.trim() || null,
+    tipo: f.tipo,
+    courseIds: f.course_ids ?? [],
+    cohorteId: f.cohort_id,
+    motivo: f.motivo,
+    fecha: f.created_at,
+  }))
+}
+
+export type CorreoDeAcceso = {
+  id: string
+  fecha: string
+  email: string
+  tipo: TipoCorreoAcceso
+  origen: OrigenCorreoAcceso
+  estado: EstadoCorreo
+  motivo: string | null
+  conEnlace: boolean
+  cursos: string[]
+  generacion: string | null
+  porQuien: string | null
+}
+
+/** Los últimos correos de acceso de una persona, para su ficha. */
+export async function correosDeAcceso(userId: string, limite = 10): Promise<CorreoDeAcceso[]> {
+  const supabase = await crearClienteServidor()
+  const { data, error } = await supabase
+    .from('access_emails')
+    .select('id, created_at, email, tipo, origen, estado, motivo, con_enlace, course_ids, cohort_id, creado_por')
+    .eq('user_id', userId)
+    .order('created_at', { ascending: false })
+    .limit(limite)
+
+  if (error) {
+    // Sin la migración 0047 la tabla no existe: la ficha se pinta igual.
+    if (!faltaTabla(error)) console.error(JSON.stringify({ operacion: 'correosDeAcceso', userId, error: error.message }))
+    return []
   }
 
-  const perfiles = ((data ?? []) as unknown as Anidado[]).filter(
-    (p) => !/^qa-.*@academia\.vadai\.com\.mx$/i.test(p.email)
-  )
-  const enlaces = await ultimosEnlaces(perfiles.map((p) => p.user_id))
-  const hace24h = Date.now() - 24 * 60 * 60 * 1000
+  const filas = data ?? []
+  const cursoIds = [...new Set(filas.flatMap((f) => f.course_ids))]
+  const cohorteIds = [...new Set(filas.map((f) => f.cohort_id).filter((v): v is string => v !== null))]
+  const autores = [...new Set(filas.map((f) => f.creado_por).filter((v): v is string => v !== null))]
 
-  return perfiles
-    .filter((p) => {
-      const ultimo = enlaces.get(p.user_id)
-      return !(ultimo && new Date(ultimo.enviadoEn).getTime() > hace24h)
-    })
-    .map((p) => {
-      // Los cursos con inscripción activa, para que el correo los nombre igual
-      // que la bienvenida original y no hable de "la plataforma" a secas.
-      const cursos = (p.enrollments ?? [])
-        .filter((e) => e.status === 'active' && e.courses?.title)
-        .sort((a, b) => a.created_at.localeCompare(b.created_at))
-        .map((e) => e.courses?.title ?? '')
-        .filter(Boolean)
-      return {
-        userId: p.user_id,
-        email: p.email,
-        nombre: p.full_name?.trim() || null,
-        cursos: [...new Set(cursos)],
-      }
-    })
+  const [cursos, cohortes, perfiles] = await Promise.all([
+    cursoIds.length ? supabase.from('courses').select('id, title').in('id', cursoIds) : Promise.resolve({ data: [] }),
+    cohorteIds.length ? supabase.from('cohorts').select('id, name').in('id', cohorteIds) : Promise.resolve({ data: [] }),
+    autores.length ? supabase.from('profiles').select('user_id, full_name, email').in('user_id', autores) : Promise.resolve({ data: [] }),
+  ])
+  const titulo = new Map((cursos.data ?? []).map((c) => [c.id, c.title]))
+  const generacion = new Map((cohortes.data ?? []).map((g) => [g.id, g.name]))
+  const autor = new Map((perfiles.data ?? []).map((p) => [p.user_id, p.full_name?.trim() || p.email]))
+
+  return filas.map((f) => ({
+    id: f.id,
+    fecha: f.created_at,
+    email: f.email,
+    tipo: f.tipo,
+    origen: f.origen,
+    // Pendiente de más de 15 minutos: el envío no terminó. Se dice como falla.
+    estado:
+      f.estado === 'pendiente' && Date.now() - new Date(f.created_at).getTime() > 15 * 60 * 1000 ? 'fallido' : f.estado,
+    motivo: f.estado === 'pendiente' && Date.now() - new Date(f.created_at).getTime() > 15 * 60 * 1000
+      ? 'El envío no terminó.'
+      : f.motivo,
+    conEnlace: f.con_enlace,
+    cursos: f.course_ids.map((id) => titulo.get(id)).filter((t): t is string => Boolean(t)),
+    generacion: f.cohort_id ? (generacion.get(f.cohort_id) ?? null) : null,
+    porQuien: f.creado_por ? (autor.get(f.creado_por) ?? null) : null,
+  }))
+}
+
+/**
+ * user_id → el estado de su último correo de acceso, para la insignia de la
+ * lista («Correo falló»). Solo los de la página que se está viendo.
+ */
+export async function ultimosCorreos(userIds: string[]): Promise<Map<string, EstadoCorreo>> {
+  if (userIds.length === 0) return new Map()
+  const supabase = await crearClienteServidor()
+  const { data, error } = await supabase
+    .from('access_emails')
+    .select('user_id, estado, created_at')
+    .in('user_id', userIds)
+    .order('created_at', { ascending: false })
+
+  if (error) {
+    if (!faltaTabla(error)) console.error(JSON.stringify({ operacion: 'ultimosCorreos', error: error.message }))
+    return new Map()
+  }
+
+  const mapa = new Map<string, EstadoCorreo>()
+  for (const f of data ?? []) {
+    if (mapa.has(f.user_id)) continue // viene ordenado: el primero es el último
+    const atorado = f.estado === 'pendiente' && Date.now() - new Date(f.created_at).getTime() > 15 * 60 * 1000
+    mapa.set(f.user_id, atorado ? 'fallido' : f.estado)
+  }
+  return mapa
 }

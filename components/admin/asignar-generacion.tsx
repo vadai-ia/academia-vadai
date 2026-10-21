@@ -60,6 +60,10 @@ export function AsignarGeneracion({
           ))}
         </select>
       </div>
+      <label className="flex items-center gap-2 text-sm">
+        <input type="checkbox" name="avisar" value="si" defaultChecked />
+        Avisarles por correo, con las fechas
+      </label>
       <Boton />
       <span className="text-xs text-muted-foreground">
         Marca a las personas en la tabla. Ven la nueva generación y dejan de ver la anterior; su

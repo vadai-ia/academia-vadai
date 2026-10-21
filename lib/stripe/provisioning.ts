@@ -1,8 +1,7 @@
 import 'server-only'
 
-import { crearEnlaceDurable } from '@/lib/auth/enlace-durable'
-import { plantillaBienvenida, plantillaNuevoCurso } from '@/lib/correo/plantillas'
-import { enviarCorreo } from '@/lib/correo/resend'
+import { avisarAccesos } from '@/lib/correo/avisos-de-acceso'
+import type { CambioDeAcceso, ConteoDeAvisos, GeneracionDelCambio, OrigenCorreoAcceso } from '@/lib/correo/decision'
 import { estadoDeGeneracion } from '@/lib/generaciones'
 import { crearClienteServiceRole } from '@/lib/supabase/service-role'
 
@@ -22,9 +21,18 @@ export type ResultadoAlta = {
   ok: boolean
   userId?: string
   creado?: boolean
-  invitado?: boolean
-  /** true si ya tenía cuenta, el curso era nuevo y se le avisó por correo. */
-  avisado?: boolean
+  /**
+   * Qué pasó con la inscripción de ESTA llamada (M25): `nuevo` (no lo tenía,
+   * o lo tenía vencido o revocado), `generacion` (lo tenía y cambió de
+   * generación), `sin_cambio` (ya lo tenía tal cual) o `sin_curso`.
+   */
+  cambio?: 'nuevo' | 'generacion' | 'sin_cambio' | 'sin_curso'
+  /** Ya había abierto sesión alguna vez. */
+  yaEntro?: boolean
+  /** Los hechos para el correo de acceso; con `correo: 'diferir'` los junta quien llama. */
+  hechos?: CambioDeAcceso
+  /** Con `correo: 'enviar'`: qué pasó con el correo. */
+  correo?: ConteoDeAvisos
   motivo?: string
 }
 
@@ -63,13 +71,10 @@ type Opciones = {
    * webhook y el alta de alumno. Ver el comentario del upsert de perfil.
    */
   rol?: RolDeAlta
-  /** URL a la que apunta el correo de invitación. */
-  urlRedireccion?: string
   /**
-   * Los cursos que nombra el correo de bienvenida. Solo lo usa el alta manual
-   * con varios cursos: la cuenta se crea en la primera llamada —que es la única
-   * que manda correo— y ese correo debe nombrarlos todos, no solo el primero.
-   * Sin esto se usa el título del curso de esta llamada, como siempre.
+   * Los cursos que nombra el correo. Lo usa la membresía: entra por la casa,
+   * pero la bienvenida nombra todo lo que trae el plan. Sin esto, el curso de
+   * esta llamada.
    */
   titulosParaCorreo?: string[]
   /**
@@ -78,11 +83,22 @@ type Opciones = {
    */
   companyId?: string | null
   /**
-   * Si la cuenta YA existía y el curso es nuevo, se le avisa por correo. El
-   * alta a varios cursos lo pone en true solo en la primera llamada, que es
-   * la que nombra todos los cursos; las demás no repiten el correo.
+   * El correo de acceso (M25). `enviar` (default): esta llamada lo manda.
+   * `diferir`: no manda nada y devuelve los `hechos`; es lo que usan el alta a
+   * varios cursos y el Excel, que juntan todo lo de una persona y mandan UN
+   * correo que lo nombra todo.
    */
-  avisarNuevoCurso?: boolean
+  correo?: 'enviar' | 'diferir'
+  /** De dónde sale el correo, para la bitácora. Default según `origen`. */
+  origenCorreo?: OrigenCorreoAcceso
+  /** Quién del equipo hizo el alta, para la liga y la bitácora. */
+  creadoPor?: string | null
+}
+
+const ORIGEN_DEL_CORREO: Record<Opciones['origen'], OrigenCorreoAcceso> = {
+  stripe: 'stripe',
+  manual: 'alta_manual',
+  membresia: 'membresia',
 }
 
 function registrar(operacion: string, detalle: Record<string, unknown>) {
@@ -177,12 +193,13 @@ export async function darDeAlta(opciones: Opciones): Promise<ResultadoAlta> {
 
   // 1. El curso, para calcular la vigencia. Puede no haber: un alta de equipo
   //    crea la cuenta y el rol, sin inscribir a nadie en nada.
-  let curso: { id: string; access_days: number | null; title: string; course_type: string } | null = null
+  let curso: { id: string; access_days: number | null; title: string; slug: string; course_type: string } | null =
+    null
 
   if (opciones.courseId) {
     const { data, error: errorCurso } = await supabase
       .from('courses')
-      .select('id, access_days, title, course_type')
+      .select('id, access_days, title, slug, course_type')
       .eq('id', opciones.courseId)
       .maybeSingle()
 
@@ -196,7 +213,6 @@ export async function darDeAlta(opciones: Opciones): Promise<ResultadoAlta> {
   // 2. El usuario de auth
   let usuario = await buscarUsuario(email)
   let creado = false
-  let invitado = false
 
   if (!usuario) {
     // Se crea la cuenta SIN mandar correo, y el correo se intenta después.
@@ -240,7 +256,7 @@ export async function darDeAlta(opciones: Opciones): Promise<ResultadoAlta> {
   // con «Corregir nombre» en su ficha (`corregirNombreDeAlumno`).
   const { data: previo } = await supabase
     .from('profiles')
-    .select('role, full_name')
+    .select('role, full_name, last_sign_in_at')
     .eq('user_id', usuario.id)
     .maybeSingle()
 
@@ -280,12 +296,12 @@ export async function darDeAlta(opciones: Opciones): Promise<ResultadoAlta> {
         ? new Date(Date.now() + curso.access_days * 24 * 60 * 60 * 1000).toISOString()
         : null
 
-  // ¿Ya tenía este curso? Se mira ANTES del upsert: es lo que decide si a una
-  // cuenta existente se le avisa "tienes un curso nuevo" o no se le dice nada.
+  // ¿Ya tenía este curso? Se mira ANTES del upsert: es lo que decide qué
+  // correo le toca —curso nuevo, nueva generación o ninguno— (M25).
   const { data: inscripcionPrevia } = curso
     ? await supabase
         .from('enrollments')
-        .select('user_id, cohort_id')
+        .select('user_id, cohort_id, status, expires_at')
         .eq('user_id', usuario.id)
         .eq('course_id', curso.id)
         .maybeSingle()
@@ -337,36 +353,52 @@ export async function darDeAlta(opciones: Opciones): Promise<ResultadoAlta> {
     await inscribirEnCursosBase(usuario.id, opciones.origen === 'membresia' ? 'stripe' : opciones.origen)
   }
 
-  // 5. El correo para definir contraseña, como paso aparte y no bloqueante.
-  //    Si el SMTP está caído, el alumno ya tiene cuenta e inscripción; lo único
-  //    que falta es que pueda entrar, y eso se reintenta desde el admin.
-  if (creado) {
-    invitado = await enviarAccesoInicial(
-      email,
-      opciones.urlRedireccion,
-      // Sin curso la lista va vacía y el correo habla de la plataforma.
-      opciones.titulosParaCorreo ?? (curso ? [curso.title] : []),
-      opciones.nombre
-    )
-    if (!invitado) {
-      registrar('darDeAlta:sinCorreo', {
-        email,
-        aviso: 'cuenta e inscripcion creadas; falta enviarle el acceso',
-      })
+  // 5. Qué cambió (M25). Primero la generación: quien estaba en la Gen 1 y se
+  //    da de alta en la Gen 2 se MUEVE —es la misma inscripción, conserva su
+  //    avance— y se le avisa con las fechas. Si no cambió de generación, un
+  //    curso que no tenía, o que tenía vencido o revocado, es nuevo para él.
+  let cambio: NonNullable<ResultadoAlta['cambio']> = 'sin_curso'
+  let generacionNueva: GeneracionDelCambio | null = null
+  if (curso) {
+    const vigente =
+      inscripcionPrevia !== null &&
+      inscripcionPrevia.status === 'active' &&
+      (inscripcionPrevia.expires_at === null || Date.parse(inscripcionPrevia.expires_at) > Date.now())
+    const cambioDeGeneracion =
+      inscripcionPrevia !== null &&
+      curso.course_type === 'cohort' &&
+      generacion !== null &&
+      generacion !== inscripcionPrevia.cohort_id
+    cambio = cambioDeGeneracion ? 'generacion' : vigente ? 'sin_cambio' : 'nuevo'
+
+    if (cambioDeGeneracion && generacion) {
+      generacionNueva = await datosDeGeneracion(curso, generacion, inscripcionPrevia?.cohort_id ?? null)
+      if (!generacionNueva) cambio = 'nuevo'
     }
   }
 
-  // 6. Cuenta que ya existía y curso nuevo: se le avisa (pedido 20-sep-2026).
-  //    Antes no salía nada y "la persona ya sabe entrar"; pero si nadie te
-  //    avisa, el curso nuevo no existe hasta que entres por otra razón.
-  let avisado = false
-  if (!creado && curso && !inscripcionPrevia && (opciones.avisarNuevoCurso ?? true)) {
-    avisado = await avisarCursoNuevo(
-      email,
-      opciones.titulosParaCorreo ?? [curso.title],
-      opciones.nombre ?? previo?.full_name
-    )
+  const delCurso = curso ? [{ id: curso.id, titulo: curso.title }] : []
+  const hechos: CambioDeAcceso = {
+    userId: usuario.id,
+    email,
+    nombre: previo?.full_name?.trim() || opciones.nombre?.trim() || null,
+    cuentaNueva: creado,
+    yaEntro: Boolean(previo?.last_sign_in_at),
+    cursosNuevos: cambio === 'nuevo' ? delCurso : [],
+    generacionesNuevas: generacionNueva ? [generacionNueva] : [],
+    sinCambio: cambio === 'sin_cambio' ? delCurso : [],
+    titulos: opciones.titulosParaCorreo,
   }
+
+  // 6. El correo, como paso aparte y no bloqueante: si falla, la persona ya
+  //    tiene cuenta e inscripción, y el panel enseña que hay que reenviarlo.
+  const correo =
+    (opciones.correo ?? 'enviar') === 'enviar'
+      ? await avisarAccesos([hechos], {
+          origen: opciones.origenCorreo ?? ORIGEN_DEL_CORREO[opciones.origen],
+          creadoPor: opciones.creadoPor,
+        })
+      : undefined
 
   registrar('darDeAlta:ok', {
     email,
@@ -374,11 +406,37 @@ export async function darDeAlta(opciones: Opciones): Promise<ResultadoAlta> {
     rol: opciones.rol ?? null,
     origen: opciones.origen,
     cuentaNueva: creado,
-    correoEnviado: invitado,
-    avisadoCursoNuevo: avisado,
+    cambio,
+    correo: correo ? { fallidos: correo.fallidos.length, omitidos: correo.omitidos } : 'diferido',
   })
 
-  return { ok: true, userId: usuario.id, creado, invitado, avisado }
+  return { ok: true, userId: usuario.id, creado, cambio, yaEntro: hechos.yaEntro, hechos, correo }
+}
+
+/** Lo que el correo de «Ya estás en la Generación N» necesita saber de ella. */
+async function datosDeGeneracion(
+  curso: { id: string; title: string; slug: string },
+  cohorteId: string,
+  anteriorId: string | null
+): Promise<GeneracionDelCambio | null> {
+  const supabase = crearClienteServiceRole()
+  const ids = anteriorId ? [cohorteId, anteriorId] : [cohorteId]
+  const { data, error } = await supabase.from('cohorts').select('id, name, starts_on, ends_on').in('id', ids)
+  const nueva = data?.find((g) => g.id === cohorteId)
+  if (error || !nueva) {
+    registrar('darDeAlta:generacion', { cohorteId, error: error?.message ?? 'no existe' })
+    return null
+  }
+  return {
+    cursoId: curso.id,
+    cursoTitulo: curso.title,
+    cursoSlug: curso.slug,
+    cohorteId,
+    nombre: nueva.name,
+    startsOn: nueva.starts_on,
+    endsOn: nueva.ends_on,
+    anterior: data?.find((g) => g.id === anteriorId)?.name ?? null,
+  }
 }
 
 /** La generación abierta a inscripciones del curso, o null. Service role: aquí no hay sesión. */
@@ -391,26 +449,6 @@ export async function generacionAbierta(cursoId: string): Promise<string | null>
     .eq('open_for_enrollment', true)
   const abierta = (data ?? []).find((g) => estadoDeGeneracion(g) === 'abierta')
   return abierta?.id ?? null
-}
-
-/**
- * "Te dimos acceso a X": para quien ya tiene cuenta. Sin liga de acceso, con
- * el botón a Mis cursos. Devuelve false en vez de lanzar, como todo correo.
- */
-export async function avisarCursoNuevo(
-  email: string,
-  cursos: string[],
-  nombre?: string | null
-): Promise<boolean> {
-  const plantilla = plantillaNuevoCurso({ cursos, nombre, base: process.env.NEXT_PUBLIC_APP_URL })
-  const resultado = await enviarCorreo({
-    para: email.trim().toLowerCase(),
-    asunto: plantilla.asunto,
-    html: plantilla.html,
-    texto: plantilla.texto,
-  })
-  if (!resultado.ok) registrar('avisarCursoNuevo:fallo', { email, motivo: resultado.motivo })
-  return resultado.ok
 }
 
 /**
@@ -488,48 +526,6 @@ export async function generarEnlaceDeAcceso(
 
   const base = (process.env.NEXT_PUBLIC_APP_URL ?? '').replace(/\/+$/, '')
   return `${base}/auth/confirmar?token_hash=${encodeURIComponent(token)}&type=recovery&proximo=${encodeURIComponent(destino)}`
-}
-
-/**
- * Manda el correo de bienvenida con el enlace para definir contraseña.
- *
- * Va por la API de Resend, no por el SMTP de Supabase: ver lib/correo/resend.ts
- * para el porqué. Devuelve false en vez de lanzar, porque quien llama debe poder
- * seguir adelante sin el correo — un fallo de correo no puede costar una
- * inscripción.
- */
-export async function enviarAccesoInicial(
-  email: string,
-  _urlRedireccion?: string,
-  cursos: string[] = [],
-  nombre?: string | null,
-  creadoPor?: string | null
-): Promise<boolean> {
-  // La liga del correo vale 30 días y no se gasta con un GET (ver
-  // lib/auth/enlace-durable.ts). Antes iba un recovery de Supabase de una
-  // hora y un solo uso: la víspera del lanzamiento 75 alumnos tenían en el
-  // buzón una liga muerta.
-  const enlace = await crearEnlaceDurable({ email, creadoPor })
-  if (!enlace) return false
-
-  const plantilla = plantillaBienvenida({
-    url: enlace,
-    cursos,
-    nombre,
-    base: process.env.NEXT_PUBLIC_APP_URL,
-  })
-  const resultado = await enviarCorreo({
-    para: email.trim().toLowerCase(),
-    asunto: plantilla.asunto,
-    html: plantilla.html,
-    texto: plantilla.texto,
-  })
-
-  if (!resultado.ok) {
-    registrar('enviarAccesoInicial:fallo', { email, motivo: resultado.motivo })
-    return false
-  }
-  return true
 }
 
 /**

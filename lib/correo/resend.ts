@@ -1,5 +1,7 @@
 import 'server-only'
 
+import { direccionValida, repartirLote, type ResultadoPorDestinatario } from '@/lib/correo/decision'
+
 /**
  * Envío de correo por la API de Resend.
  *
@@ -152,6 +154,12 @@ export type ResultadoLote = {
   /** Los que Resend rechazó, o el lote entero si la petición falló. */
   fallidos: string[]
   motivo?: string
+  /**
+   * Lo que pasó con cada correo, en el mismo orden en que llegaron (M25). Es
+   * lo que escribe la bitácora de correos de acceso: enviado con su id de
+   * Resend, fallido con su motivo, u omitido (QA o sin buzón).
+   */
+  porDestinatario: ResultadoPorDestinatario[]
 }
 
 /** Tope del endpoint de lote de Resend. */
@@ -170,31 +178,55 @@ const POR_LOTE = 100
  * antes de armar el lote y cuentan como omitidos, no como fallos.
  *
  * Resend valida el lote completo: si una dirección viene mal formada rechaza
- * las cien. Por eso un lote que falla se reporta entero como fallido, con el
- * motivo, en vez de adivinar cuál fue.
+ * las cien. Por eso cada dirección se revisa ANTES de armar el lote (M25): una
+ * mala queda fallida sola, en vez de tumbar a las otras 99. Si aun así un lote
+ * falla, se reporta entero como fallido, con el motivo, en vez de adivinar.
  */
 export async function enviarCorreosEnLote(correos: CorreoEnLote[]): Promise<ResultadoLote> {
-  const llave = process.env.RESEND_API_KEY
-  if (!llave) {
-    console.error(JSON.stringify({ operacion: 'enviarCorreosEnLote', error: 'falta RESEND_API_KEY' }))
-    return { enviados: 0, omitidos: 0, fallidos: correos.map((c) => c.para), motivo: 'Correo no configurado.' }
+  const porDestinatario: Array<ResultadoPorDestinatario | undefined> = correos.map(() => undefined)
+  const porEnviar: number[] = []
+
+  for (const [i, c] of correos.entries()) {
+    if (esDireccionQA(c.para)) {
+      porDestinatario[i] = {
+        para: c.para,
+        estado: 'omitido',
+        motivo: SIN_BUZON.has(c.para.trim().toLowerCase()) ? 'sin_buzon' : 'qa',
+      }
+    } else if (!direccionValida(c.para)) {
+      porDestinatario[i] = { para: c.para, estado: 'fallido', motivo: 'Correo inválido.' }
+    } else {
+      porEnviar.push(i)
+    }
   }
 
-  const reales = correos.filter((c) => !esDireccionQA(c.para))
-  const omitidos = correos.length - reales.length
+  const omitidos = porDestinatario.filter((r) => r?.estado === 'omitido').length
   if (omitidos > 0) {
     console.log(JSON.stringify({ operacion: 'enviarCorreosEnLote:omitidos', cuantos: omitidos, motivo: 'QA' }))
   }
 
-  let enviados = 0
-  const fallidos: string[] = []
   let motivo: string | undefined
+  const invalidos = porDestinatario.filter((r) => r?.estado === 'fallido').length
+  if (invalidos > 0) motivo = 'Correo inválido.'
 
-  for (let i = 0; i < reales.length; i += POR_LOTE) {
-    const lote = reales.slice(i, i + POR_LOTE)
+  const llave = process.env.RESEND_API_KEY
+  if (!llave && porEnviar.length > 0) {
+    console.error(JSON.stringify({ operacion: 'enviarCorreosEnLote', error: 'falta RESEND_API_KEY' }))
+    motivo = 'Correo no configurado.'
+    for (const i of porEnviar) {
+      porDestinatario[i] = { para: correos[i]!.para, estado: 'fallido', motivo }
+    }
+    porEnviar.length = 0
+  }
+
+  for (let inicio = 0; inicio < porEnviar.length; inicio += POR_LOTE) {
+    const indices = porEnviar.slice(inicio, inicio + POR_LOTE)
+    const lote = indices.map((i) => correos[i]!)
+    const numero = inicio / POR_LOTE + 1
     // Dos peticiones por segundo: entre lotes se espera, no dentro del lote.
-    if (i > 0) await new Promise((r) => setTimeout(r, 600))
+    if (inicio > 0) await new Promise((r) => setTimeout(r, 600))
 
+    let repartido: ResultadoPorDestinatario[]
     try {
       const respuesta = await fetch(`${API}/batch`, {
         method: 'POST',
@@ -219,22 +251,34 @@ export async function enviarCorreosEnLote(correos: CorreoEnLote[]): Promise<Resu
       if (!respuesta.ok) {
         motivo = cuerpo?.message ?? `HTTP ${respuesta.status}`
         console.error(
-          JSON.stringify({ operacion: 'enviarCorreosEnLote', lote: i / POR_LOTE + 1, status: respuesta.status, error: motivo })
+          JSON.stringify({ operacion: 'enviarCorreosEnLote', lote: numero, status: respuesta.status, error: motivo })
         )
-        fallidos.push(...lote.map((c) => c.para))
-        continue
+        repartido = repartirLote(lote.map((c) => c.para), { ok: false, motivo })
+      } else {
+        // Resend devuelve un id por correo, en el mismo orden del lote.
+        repartido = repartirLote(lote.map((c) => c.para), {
+          ok: true,
+          ids: lote.map((_, j) => cuerpo?.data?.[j]?.id),
+        })
+        console.log(JSON.stringify({ operacion: 'enviarCorreosEnLote:ok', lote: numero, cuantos: lote.length }))
       }
-
-      enviados += cuerpo?.data?.length ?? lote.length
-      console.log(
-        JSON.stringify({ operacion: 'enviarCorreosEnLote:ok', lote: i / POR_LOTE + 1, cuantos: lote.length })
-      )
     } catch (error) {
       motivo = error instanceof Error ? error.message : 'error desconocido'
-      console.error(JSON.stringify({ operacion: 'enviarCorreosEnLote', lote: i / POR_LOTE + 1, error: motivo }))
-      fallidos.push(...lote.map((c) => c.para))
+      console.error(JSON.stringify({ operacion: 'enviarCorreosEnLote', lote: numero, error: motivo }))
+      repartido = repartirLote(lote.map((c) => c.para), { ok: false, motivo })
     }
+
+    for (const [j, i] of indices.entries()) porDestinatario[i] = repartido[j]
   }
 
-  return { enviados, omitidos, fallidos, motivo }
+  const final = porDestinatario.map(
+    (r, i) => r ?? { para: correos[i]!.para, estado: 'fallido' as const, motivo: 'No se intentó.' }
+  )
+  return {
+    enviados: final.filter((r) => r.estado === 'enviado').length,
+    omitidos,
+    fallidos: final.filter((r) => r.estado === 'fallido').map((r) => r.para),
+    motivo,
+    porDestinatario: final,
+  }
 }

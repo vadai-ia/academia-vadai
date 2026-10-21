@@ -338,20 +338,41 @@ function resumenVacio(): ResumenInscritos {
   }
 }
 
-export type Candidato = { userId: string; nombre: string; email: string; empresa: string | null }
+export type Candidato = {
+  userId: string
+  nombre: string
+  email: string
+  empresa: string | null
+  /**
+   * M25: ya está en el curso, en OTRA generación (su nombre). Al darle acceso
+   * aquí se cambia a la generación elegida y se le avisa con las fechas.
+   */
+  generacionActual: string | null
+}
 
 /** Tope de la lista de candidatos: se busca, no se recorre. */
 const TOPE_CANDIDATOS = 30
 
 /**
- * Personas con cuenta que NO tienen este curso, para agregarlas. Se filtra
- * por lo que se escribió: con mil cuentas una lista completa es inservible y
- * pesa; treinta que coinciden con "aztlan" es lo que se necesita.
+ * Personas con cuenta que NO están en esta generación del curso, para
+ * agregarlas. Se filtra por lo que se escribió: con mil cuentas una lista
+ * completa es inservible y pesa; treinta que coinciden con "aztlan" es lo que
+ * se necesita.
+ *
+ * M25 (20-oct-2026): en un curso por generaciones también salen quienes están
+ * en OTRA generación —la Gen 1, cuando se arma la Gen 2—, marcados con la suya:
+ * darles acceso los cambia de generación. Solo se excluye a quien ya está en
+ * la de la pestaña (`cohorteId`). En un curso sin generaciones, como antes,
+ * solo quien no lo tiene.
  */
-export async function candidatosParaCurso(cursoId: string, buscar: string): Promise<Candidato[]> {
+export async function candidatosParaCurso(
+  cursoId: string,
+  buscar: string,
+  cohorteId: string | null = null
+): Promise<Candidato[]> {
   const supabase = await crearClienteServidor()
   const [inscripciones, perfiles, empresas] = await Promise.all([
-    supabase.from('enrollments').select('user_id').eq('course_id', cursoId),
+    supabase.from('enrollments').select('user_id, cohort_id, cohorts(name)').eq('course_id', cursoId),
     supabase
       .from('profiles')
       .select('user_id, full_name, email, company_id')
@@ -361,18 +382,28 @@ export async function candidatosParaCurso(cursoId: string, buscar: string): Prom
     supabase.from('companies').select('id, name'),
   ])
 
-  const yaTienen = new Set((inscripciones.data ?? []).map((e) => e.user_id))
+  type Inscripcion = { user_id: string; cohort_id: string | null; cohorts: { name: string } | null }
+  const inscripcionDe = new Map(((inscripciones.data ?? []) as unknown as Inscripcion[]).map((e) => [e.user_id, e]))
   const nombreDeEmpresa = new Map((empresas.data ?? []).map((e) => [e.id, e.name]))
   const termino = buscar.trim().toLowerCase()
 
   return (perfiles.data ?? [])
-    .filter((p) => !yaTienen.has(p.user_id))
-    .map((p) => ({
-      userId: p.user_id,
-      nombre: p.full_name?.trim() || '',
-      email: p.email,
-      empresa: p.company_id ? (nombreDeEmpresa.get(p.company_id) ?? null) : null,
-    }))
+    .filter((p) => {
+      const suya = inscripcionDe.get(p.user_id)
+      if (!suya) return true
+      // Solo se puede mover entre generaciones: sin pestaña de generación, no.
+      return cohorteId !== null && suya.cohort_id !== cohorteId
+    })
+    .map((p) => {
+      const suya = inscripcionDe.get(p.user_id)
+      return {
+        userId: p.user_id,
+        nombre: p.full_name?.trim() || '',
+        email: p.email,
+        empresa: p.company_id ? (nombreDeEmpresa.get(p.company_id) ?? null) : null,
+        generacionActual: suya ? (suya.cohorts?.name ?? 'sin generación') : null,
+      }
+    })
     .filter(
       (c) =>
         !termino ||

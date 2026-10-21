@@ -91,10 +91,9 @@ export default async function PaginaCurso({
   // Todo en una sola ronda (24-sep-2026): el id de la URL es el id del curso,
   // así que nada tiene que esperar al curso para arrancar. Si el curso no
   // existe, las demás vuelven vacías y se descartan con el notFound().
-  const [curso, generaciones, candidatos, empresas, deVaip] = await Promise.all([
+  const [curso, generaciones, empresas, deVaip] = await Promise.all([
     obtenerCurso(id),
     generacionesDelCurso(id),
-    candidatosParaCurso(id, filtros.buscar ?? ''),
     listarEmpresas(),
     cursosDeVaip(),
   ])
@@ -116,9 +115,12 @@ export default async function PaginaCurso({
   // La pestaña acota los inscritos y las lecciones ligables; con eso resuelto
   // van en paralelo.
   const filtrosInscritos = { ...filtros, gen: vista === 'sin' ? 'sin' : (cohortId ?? undefined) }
-  const [{ visibles, resumen }, ligables] = await Promise.all([
+  // Las candidatas dependen de la pestaña (M25): en la Gen 2 salen también las
+  // de la Gen 1, para cambiarlas.
+  const [{ visibles, resumen }, ligables, candidatos] = await Promise.all([
     inscritosDelCurso(id, filtrosInscritos),
     leccionesLigables(id, cohortId),
+    candidatosParaCurso(id, filtros.buscar ?? '', porGeneraciones ? cohortId : null),
   ])
 
   // El árbol solo con los módulos de la pestaña.

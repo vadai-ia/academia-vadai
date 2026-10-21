@@ -639,7 +639,7 @@ async function mandarFechas(
     destinatarios = alumnos.map((p) => ({
       email: p.email,
       nombre: p.full_name,
-      urlAcceso: ligas.get(p.email) ?? null,
+      urlAcceso: ligas.get(p.email)?.url ?? null,
     }))
   }
   const conAcceso = para ? 0 : destinatarios.filter((d) => d.urlAcceso).length

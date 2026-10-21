@@ -22,6 +22,66 @@ export type Json =
 export type Database = {
   academia: {
     Tables: {
+      access_emails: {
+        Row: {
+          id: string
+          user_id: string
+          email: string
+          tipo: 'bienvenida' | 'recordatorio' | 'nuevo_curso' | 'nueva_generacion'
+          origen: 'alta_manual' | 'alta_masiva' | 'curso' | 'ficha' | 'stripe' | 'membresia' | 'encuesta' | 'equipo' | 'recordatorio' | 'reenvio' | 'reenvio_fallidos' | 'cambio_correo' | 'cambio_generacion'
+          con_enlace: boolean
+          access_link_id: string | null
+          course_ids: string[]
+          cohort_id: string | null
+          estado: 'pendiente' | 'enviado' | 'fallido' | 'omitido'
+          motivo: string | null
+          resend_id: string | null
+          lote_id: string | null
+          es_qa: boolean
+          creado_por: string | null
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          user_id: string
+          email: string
+          tipo: 'bienvenida' | 'recordatorio' | 'nuevo_curso' | 'nueva_generacion'
+          origen: 'alta_manual' | 'alta_masiva' | 'curso' | 'ficha' | 'stripe' | 'membresia' | 'encuesta' | 'equipo' | 'recordatorio' | 'reenvio' | 'reenvio_fallidos' | 'cambio_correo' | 'cambio_generacion'
+          con_enlace?: boolean
+          access_link_id?: string | null
+          course_ids?: string[]
+          cohort_id?: string | null
+          estado?: 'pendiente' | 'enviado' | 'fallido' | 'omitido'
+          motivo?: string | null
+          resend_id?: string | null
+          lote_id?: string | null
+          es_qa?: boolean
+          creado_por?: string | null
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          user_id?: string
+          email?: string
+          tipo?: 'bienvenida' | 'recordatorio' | 'nuevo_curso' | 'nueva_generacion'
+          origen?: 'alta_manual' | 'alta_masiva' | 'curso' | 'ficha' | 'stripe' | 'membresia' | 'encuesta' | 'equipo' | 'recordatorio' | 'reenvio' | 'reenvio_fallidos' | 'cambio_correo' | 'cambio_generacion'
+          con_enlace?: boolean
+          access_link_id?: string | null
+          course_ids?: string[]
+          cohort_id?: string | null
+          estado?: 'pendiente' | 'enviado' | 'fallido' | 'omitido'
+          motivo?: string | null
+          resend_id?: string | null
+          lote_id?: string | null
+          es_qa?: boolean
+          creado_por?: string | null
+          created_at?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       access_links: {
         Row: {
           id: string

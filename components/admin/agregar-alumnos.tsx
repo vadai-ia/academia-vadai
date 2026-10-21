@@ -73,8 +73,8 @@ function SelectorDeGeneracion({
         ))}
       </select>
       <p className="text-xs text-muted-foreground">
-        La generación decide qué contenido, calendario y comunidad ve. Aplica a todos los que
-        agregues ahora.
+        La generación decide qué contenido, calendario y grupo ve. Aplica a todos los que agregues
+        ahora; si alguien ya está en otra generación de este curso, se cambia a esta.
       </p>
     </div>
   )
@@ -90,7 +90,7 @@ export function AgregarAlumnos({
   reinicio,
 }: {
   cursoId: string
-  /** Los que coinciden con `buscar` y no tienen el curso; máximo treinta. */
+  /** Los que coinciden con `buscar` y no están en esta generación; máximo treinta. */
   candidatos: Candidato[]
   buscar: string
   /** Vacío en cursos sin generaciones. */
@@ -140,8 +140,8 @@ export function AgregarAlumnos({
                 nombre="user_ids"
                 leyenda={
                   buscar
-                    ? `${candidatos.length} coinciden con "${buscar}" y no tienen este curso`
-                    : `Sin este curso (los primeros ${candidatos.length}; busca para acotar)`
+                    ? `${candidatos.length} coinciden con "${buscar}" y no ${generaciones.length > 0 ? 'están en esta generación' : 'tienen este curso'}`
+                    : `${generaciones.length > 0 ? 'Fuera de esta generación' : 'Sin este curso'} (los primeros ${candidatos.length}; busca para acotar)`
                 }
                 conScroll
                 grupos={[
@@ -150,7 +150,14 @@ export function AgregarAlumnos({
                     opciones: candidatos.map((c) => ({
                       valor: c.userId,
                       etiqueta: c.nombre || c.email,
-                      detalle: [c.nombre ? c.email : null, c.empresa].filter(Boolean).join(' · ') || undefined,
+                      detalle:
+                        [
+                          c.nombre ? c.email : null,
+                          c.empresa,
+                          c.generacionActual ? `en ${c.generacionActual} · se cambia a la que elijas` : null,
+                        ]
+                          .filter(Boolean)
+                          .join(' · ') || undefined,
                     })),
                   },
                 ]}
@@ -159,8 +166,9 @@ export function AgregarAlumnos({
               <SelectorDeGeneracion id="generacion-lista" generaciones={generaciones} propuesta={propuesta} />
 
               <p className="text-xs text-muted-foreground">
-                Toca a quienes quieras; toca otra vez para quitar. Se les avisa por correo que ya
-                tienen el curso.
+                Toca a quienes quieras; toca otra vez para quitar. A cada quien le llega su correo: la
+                bienvenida con su liga si nunca ha entrado, el aviso del curso si ya entró, y las
+                fechas de su nueva generación si se cambia.
               </p>
 
               <AvisoAccion estado={estadoLista} />

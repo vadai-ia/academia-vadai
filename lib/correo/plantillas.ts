@@ -350,6 +350,117 @@ Equipo VADAI`
 }
 
 /**
+ * «Ya estás en la Generación 2» (M25, 20-oct-2026): a quien se pasa de una
+ * generación a otra del mismo curso. Decisión de Alejandro: se mueve la misma
+ * inscripción —conserva su avance— y se le avisa con las fechas, para que sepa
+ * cuándo son sus clases sin tener que buscarlo.
+ *
+ * Si nunca ha entrado lleva la liga de 30 días como acción principal: sin
+ * contraseña no podría abrir nada de lo que el correo le anuncia. Si ya entró,
+ * la acción es ver sus clases.
+ */
+export function plantillaNuevaGeneracion(opciones: {
+  nombre?: string | null
+  curso: string
+  cursoSlug: string
+  /** «Generación 2», sin las fechas del nombre. */
+  generacion: string
+  /** «del 5 al 23 de noviembre de 2026», o '' si la generación no tiene fechas. */
+  fechas: string
+  /** La liga de 30 días, solo si nunca ha entrado. */
+  urlAcceso?: string | null
+  /** Otros cursos que recibió en la misma operación. */
+  otrosCursos?: string[]
+  base?: string | null
+}): Plantilla {
+  const nombre = opciones.nombre?.trim() ?? ''
+  const base = (opciones.base ?? '').replace(/\/+$/, '')
+  const urlClases = `${base}/curso/${opciones.cursoSlug}/en-vivo`
+  const urlRecuperar = `${base}/recuperar`
+  const otros = (opciones.otrosCursos ?? []).filter((c) => c !== opciones.curso)
+
+  const saludo = nombre ? `Hola ${nombre},` : 'Hola,'
+  const cuando = opciones.fechas ? `, que va ${opciones.fechas}` : ''
+  const parrafo = `margin:0 0 14px;font-size:15px;color:${TEXTO};line-height:1.65;`
+  const paso = `margin:22px 0 6px;font-size:16px;font-weight:600;color:${TEXTO};line-height:1.4;`
+
+  const accion = opciones.urlAcceso
+    ? `
+    <p style="${paso}">Crea tu contraseña para entrar</p>
+    <p style="${parrafo}">
+      Tu usuario es este correo. Esta liga te sirve durante 30 días, las veces que la necesites.
+    </p>
+    ${boton(opciones.urlAcceso, 'Crear mi contraseña')}
+    ${urlEnTexto(opciones.urlAcceso)}
+    <p style="${paso}">Después, revisa las fechas de tus clases</p>
+    ${botonSecundario(urlClases, 'Ver mis clases en vivo')}`
+    : `
+    <p style="${parrafo}">
+      Tu avance se queda contigo: las lecciones que ya completaste siguen marcadas.
+    </p>
+    ${boton(urlClases, 'Ver mis clases en vivo')}
+    ${urlEnTexto(urlClases)}
+    <p style="${parrafo};margin-top:18px;">
+      Entra con tu correo y tu contraseña de siempre. Si no la recuerdas, pide una nueva en
+      <a href="${urlRecuperar}" style="color:${CYAN};">${escapar(urlRecuperar.replace(/^https?:\/\//, ''))}</a>.
+    </p>`
+
+  const html = envoltura(
+    `
+    <p style="${parrafo}">${escapar(saludo)}</p>
+    <p style="${parrafo}">
+      Ya estás en la <strong>${escapar(opciones.generacion)}</strong> de
+      <strong>${escapar(opciones.curso)}</strong>${escapar(cuando)}.
+    </p>
+    <p style="${parrafo}">
+      Desde hoy ves el grupo, el calendario y las clases en vivo de tu nueva generación.${
+        otros.length > 0 ? ` También te dimos acceso a <strong>${escapar(enLista(otros))}</strong>.` : ''
+      }
+    </p>
+    ${accion}
+    <p style="${parrafo}">Si tienes alguna duda, responde este correo y te ayudamos.</p>
+    <p style="margin:0;font-size:15px;color:${TEXTO};line-height:1.65;">Equipo VADAI</p>
+  `,
+    opciones.fechas
+      ? `Tus clases van ${opciones.fechas}.`
+      : `Ya tienes lugar en la ${opciones.generacion}.`
+  )
+
+  const texto = `${saludo}
+
+Ya estás en la ${opciones.generacion} de ${opciones.curso}${cuando}.
+
+Desde hoy ves el grupo, el calendario y las clases en vivo de tu nueva generación.${
+    otros.length > 0 ? ` También te dimos acceso a ${enLista(otros)}.` : ''
+  }
+
+${
+  opciones.urlAcceso
+    ? `Crea tu contraseña para entrar. Tu usuario es este correo; la liga te sirve durante 30 días:
+${opciones.urlAcceso}
+
+Después, revisa las fechas de tus clases:
+${urlClases}`
+    : `Tu avance se queda contigo: las lecciones que ya completaste siguen marcadas.
+
+Tus clases en vivo:
+${urlClases}
+
+Entra con tu correo y tu contraseña de siempre. Si no la recuerdas, pide una nueva en ${urlRecuperar}`
+}
+
+Si tienes alguna duda, responde este correo y te ayudamos.
+
+Equipo VADAI`
+
+  return {
+    asunto: `Ya estás en la ${opciones.generacion} de ${opciones.curso}`,
+    html,
+    texto,
+  }
+}
+
+/**
  * Te dimos acceso a una sesión exclusiva (0038, 9-oct-2026): un módulo que
  * solo abre para una lista que elige el equipo. Va solo a quien se agrega,
  * y solo si el equipo marca «avisar» al guardar la lista.

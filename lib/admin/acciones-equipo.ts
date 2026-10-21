@@ -1,5 +1,7 @@
 'use server'
 
+import { randomUUID } from 'node:crypto'
+
 import { revalidatePath } from 'next/cache'
 import { z } from 'zod'
 
@@ -8,9 +10,12 @@ import { filasDeArchivo, interpretar } from '@/lib/admin/importar'
 import { crearEnlaceDurable } from '@/lib/auth/enlace-durable'
 import { esRolDeEquipo } from '@/lib/auth/roles'
 import { exigirAdmin, exigirEquipo } from '@/lib/auth/sesion'
+import { avisarAccesos } from '@/lib/correo/avisos-de-acceso'
+import { conteoVacio, juntarCambios, sumarConteos, type CambioDeAcceso } from '@/lib/correo/decision'
 import { crearClienteServidor } from '@/lib/supabase/server'
 import { darDeAlta, type RolDeAlta } from '@/lib/stripe/provisioning'
 
+import { mensajeDeAltaEnLote } from './mensajes-de-alta'
 import { enLista, revisarSeleccion } from './seleccion-de-cursos'
 import type { EstadoAccion } from './tipos'
 
@@ -21,9 +26,6 @@ import type { EstadoAccion } from './tipos'
  * exige superadmin, la otra procesa archivos — y mezclarlas haría más difícil
  * ver la guarda de escalación, que es la parte delicada.
  */
-
-const urlNuevaContrasena = () =>
-  `${process.env.NEXT_PUBLIC_APP_URL ?? ''}/nueva-contrasena`
 
 // ---------------------------------------------------------------------------
 // Alta de gente del equipo
@@ -78,7 +80,8 @@ export async function altaDeEquipo(
     nombre: resultado.data.nombre || null,
     rol: resultado.data.rol as RolDeAlta,
     origen: 'manual',
-    urlRedireccion: urlNuevaContrasena(),
+    origenCorreo: 'equipo',
+    creadoPor: perfil.user_id,
   })
 
   if (!alta.ok) return { error: alta.motivo ?? 'No se pudo dar de alta.' }
@@ -94,6 +97,12 @@ export async function altaDeEquipo(
 
   revalidatePath('/admin/alumnos')
 
+  const fallo = alta.correo?.fallidos[0]
+  if (fallo) {
+    return {
+      error: `${resultado.data.email} ahora es ${resultado.data.rol}, pero su correo de acceso no salió (${fallo.motivo}). Reenvíaselo desde su ficha.`,
+    }
+  }
   const extra = alta.creado ? ' Le llegó el correo para definir su contraseña.' : ''
   return { aviso: `${resultado.data.email} ahora es ${resultado.data.rol}.${extra}` }
 }
@@ -109,27 +118,32 @@ function plural(n: number, singular: string, plural_: string) {
   return `${n} ${n === 1 ? singular : plural_}`
 }
 
+/** Cada cuántas personas sale una tanda de correos: un timeout pierde poco. */
+const POR_TANDA = 50
+
 /**
  * Da de alta a mucha gente desde un CSV o un Excel.
  *
  * Se procesa EN SERIE, no en paralelo. Con 40 filas la tentación es lanzar 40
- * altas a la vez, pero cada una crea un usuario de auth y manda un correo: en
- * paralelo se golpean los límites de la Admin API de Supabase y de Resend, y lo
- * que se gana en segundos se pierde en altas a medias.
+ * altas a la vez, pero cada una crea un usuario de auth: en paralelo se
+ * golpean los límites de la Admin API de Supabase, y lo que se gana en
+ * segundos se pierde en altas a medias.
  *
  * Una fila que falla NO detiene a las demás. Un padrón de 40 con un correo mal
  * escrito tiene que dar de alta a los 39 buenos y reportar el malo, no abortar
  * y dejar el trabajo a medias sin decir por dónde iba.
  *
  * Todo el archivo entra a los MISMOS cursos, uno o varios. Por persona se llama
- * a `darDeAlta` una vez por curso: la primera crea la cuenta y manda el único
- * correo —que nombra todos los cursos—, las demás solo agregan su inscripción.
+ * a `darDeAlta` una vez por curso con el correo DIFERIDO (M25): se junta lo que
+ * pasó —cuenta nueva, curso nuevo, cambio de generación— y le sale UN correo,
+ * el que le toca. Los correos salen en tandas de 50 por el endpoint de lote, y
+ * el resultado dice exactamente a quién no le salió.
  */
 export async function altaMasiva(
   _previo: EstadoAccion,
   datos: FormData
 ): Promise<EstadoAccion> {
-  await exigirAdmin()
+  const admin = await exigirAdmin()
 
   const archivo = datos.get('archivo')
 
@@ -167,7 +181,6 @@ export async function altaMasiva(
 
   let nuevas = 0
   let existentes = 0
-  let sinCorreo = 0
   const fallidas: string[] = []
   /** Entraron a la academia, pero no a todos los cursos marcados. */
   const aMedias: string[] = []
@@ -181,9 +194,17 @@ export async function altaMasiva(
     : String(datos.get('company_id') ?? '')
   const empresaDe = new Map<string, string | null>()
 
-  for (const persona of personas) {
-    let completa = true
+  const loteId = randomUUID()
+  let conteo = conteoVacio()
+  let tanda: CambioDeAcceso[] = []
+  const mandarTanda = async () => {
+    if (tanda.length === 0) return
+    const enviada = await avisarAccesos(tanda, { origen: 'alta_masiva', creadoPor: admin.user_id, loteId })
+    conteo = sumarConteos(conteo, enviada)
+    tanda = []
+  }
 
+  for (const persona of personas) {
     let companyId: string | null | undefined
     if (persona.empresa) {
       if (!empresaDe.has(persona.empresa)) {
@@ -194,6 +215,7 @@ export async function altaMasiva(
       companyId = empresaFija
     }
 
+    let hechos: CambioDeAcceso | null = null
     for (const [i, curso] of seleccion.cursos.entries()) {
       const alta = await darDeAlta({
         email: persona.email,
@@ -201,14 +223,12 @@ export async function altaMasiva(
         courseId: curso.id,
         cohortId: curso.cohorteId,
         origen: 'manual',
-        urlRedireccion: urlNuevaContrasena(),
-        titulosParaCorreo: titulos,
+        correo: 'diferir',
+        creadoPor: admin.user_id,
         companyId: i === 0 ? companyId : undefined,
-        avisarNuevoCurso: i === 0,
       })
 
       if (!alta.ok) {
-        completa = false
         // Si falló el primero no hay cuenta: es una fallida. Si falló uno
         // posterior, la persona ya existe y le falta un curso.
         if (i === 0) fallidas.push(persona.email)
@@ -216,31 +236,23 @@ export async function altaMasiva(
         break
       }
 
-      // Solo la primera llamada dice si la cuenta es nueva y si salió su correo.
+      // Solo la primera llamada dice si la cuenta es nueva.
       if (i === 0) {
-        if (alta.creado) {
-          nuevas += 1
-          if (!alta.invitado) sinCorreo += 1
-        } else {
-          existentes += 1
-        }
+        if (alta.creado) nuevas += 1
+        else existentes += 1
       }
+      if (alta.hechos) hechos = hechos ? juntarCambios(hechos, alta.hechos) : alta.hechos
     }
 
-    if (!completa) continue
+    // Lo que sí quedó hecho se avisa, aunque le haya faltado un curso.
+    if (hechos) tanda.push(hechos)
+    if (tanda.length >= POR_TANDA) await mandarTanda()
   }
+  await mandarTanda()
 
   revalidatePath('/admin/alumnos')
   revalidatePath('/admin/cursos')
   for (const curso of seleccion.cursos) revalidatePath(`/admin/cursos/${curso.id}`)
-
-  const partes = [
-    plural(nuevas, 'cuenta nueva', 'cuentas nuevas'),
-    existentes > 0 ? `${plural(existentes, 'ya existía', 'ya existían')} y se les agregó la inscripción` : null,
-    aMedias.length > 0 ? `${aMedias.length} sin todos los cursos` : null,
-    descartadas.length > 0 ? `${plural(descartadas.length, 'fila descartada', 'filas descartadas')}` : null,
-    sinCorreo > 0 ? `${sinCorreo} sin correo enviado` : null,
-  ].filter(Boolean)
 
   // Una fila DESCARTADA nunca llegó a intentarse —no traía correo válido—; una
   // FALLIDA sí se intentó y algo salió mal. Son cosas distintas y se reportan
@@ -248,18 +260,20 @@ export async function altaMasiva(
   const muestra = (lista: string[]) =>
     lista.slice(0, 5).join(', ') + (lista.length > 5 ? ` y ${lista.length - 5} más` : '')
 
-  if (fallidas.length > 0 || aMedias.length > 0) {
-    return {
-      error:
-        `${partes.join(', ')}.` +
-        (fallidas.length > 0 ? ` No se pudo dar de alta a: ${muestra(fallidas)}.` : '') +
-        (aMedias.length > 0
-          ? ` Les faltó algún curso a: ${muestra(aMedias)}. Vuelve a subir el archivo: no duplica nada.`
-          : ''),
-    }
-  }
-
-  return { aviso: `Listo, en ${enLista(titulos)}: ${partes.join(', ')}.` }
+  return mensajeDeAltaEnLote({
+    partes: [
+      `En ${enLista(titulos)}: ${plural(nuevas, 'cuenta nueva', 'cuentas nuevas')}` +
+        (existentes > 0 ? `, ${plural(existentes, 'ya existía', 'ya existían')}` : '') +
+        (descartadas.length > 0 ? `, ${plural(descartadas.length, 'fila descartada', 'filas descartadas')}` : ''),
+    ],
+    conteo,
+    errores: [
+      fallidas.length > 0 ? `No se pudo dar de alta a: ${muestra(fallidas)}.` : '',
+      aMedias.length > 0
+        ? `Les faltó algún curso a: ${muestra(aMedias)}. Vuelve a subir el archivo: no duplica nada.`
+        : '',
+    ].filter(Boolean),
+  })
 }
 
 // ---------------------------------------------------------------------------

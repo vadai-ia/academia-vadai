@@ -133,7 +133,6 @@ async function manejarCompra(sesion: Stripe.Checkout.Session) {
     // Sin `cohort_id` en los metadatos, el alta resuelve la generación (M16).
     cohortId: sesion.metadata?.cohort_id || undefined,
     origen: 'stripe',
-    urlRedireccion: `${process.env.NEXT_PUBLIC_APP_URL ?? ''}/nueva-contrasena`,
   })
 
   if (!alta.ok) {
