@@ -52,6 +52,11 @@ export type Destino = {
    * un cero en un contador es ruido, y peor, se lee como si algo fallara.
    */
   novedades?: number
+  /**
+   * M26, barra lateral del panel: lo que espera acción en ese destino, ya
+   * pintado (un `<Suspense>` con su número, que llega cuando está).
+   */
+  insignia?: ReactNode
 }
 
 export function NavegacionPrincipal({ destinos }: { destinos: Destino[] }) {

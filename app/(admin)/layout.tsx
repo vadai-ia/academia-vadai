@@ -2,6 +2,7 @@ import { Suspense, type ReactNode } from 'react'
 
 import { BarraLateral, type GrupoDeNavegacion } from '@/components/admin/barra-lateral'
 import { CampanaDeComunidad } from '@/components/admin/campana-comunidad'
+import { InsigniaDelPanel, TotalDelPanel } from '@/components/admin/insignias'
 import { Encabezado } from '@/components/marca/encabezado'
 import {
   IconoAgente,
@@ -28,6 +29,7 @@ import {
 } from '@/components/marca/iconos-navegacion'
 import { BarraDeNavegacion } from '@/components/marca/barra-de-navegacion'
 import { SaltarAlContenido } from '@/components/marca/saltar-al-contenido'
+import type { ClaveDeContador } from '@/lib/admin/contadores'
 import { esAdmin, exigirEquipo } from '@/lib/auth/sesion'
 
 /**
@@ -45,6 +47,13 @@ import { esAdmin, exigirEquipo } from '@/lib/auth/sesion'
 export default async function LayoutAdmin({ children }: { children: ReactNode }) {
   const perfil = await exigirEquipo()
   const admin = esAdmin(perfil)
+  // M26: el número de cada entrada, lo que espera que alguien actúe. Cada uno
+  // en su <Suspense>, como la campana: contar no frena el panel.
+  const numero = (clave: ClaveDeContador) => (
+    <Suspense fallback={null}>
+      <InsigniaDelPanel clave={clave} />
+    </Suspense>
+  )
 
   const grupos: GrupoDeNavegacion[] = [
     { destinos: [{ href: '/admin', etiqueta: 'Panel', icono: IconoPanel, exacto: true }] },
@@ -52,22 +61,22 @@ export default async function LayoutAdmin({ children }: { children: ReactNode })
       titulo: 'V-AI-P',
       destinos: [
         { href: '/admin/vaip', etiqueta: 'Resumen', icono: IconoVaip, exacto: true },
-        { href: '/admin/vaip/muro', etiqueta: 'Muro', icono: IconoMuro },
-        { href: '/admin/vaip/noticias', etiqueta: 'Noticias', icono: IconoNoticias },
-        { href: '/admin/vaip/clases', etiqueta: 'Clases', icono: IconoClases },
+        { href: '/admin/vaip/muro', etiqueta: 'Muro', icono: IconoMuro, insignia: numero('muro') },
+        { href: '/admin/vaip/noticias', etiqueta: 'Noticias', icono: IconoNoticias, insignia: numero('noticias') },
+        { href: '/admin/vaip/clases', etiqueta: 'Clases', icono: IconoClases, insignia: numero('clases') },
         { href: '/admin/vaip/miembros', etiqueta: 'Miembros', icono: IconoMiembros },
         { href: '/admin/vaip/herramientas', etiqueta: 'Herramientas', icono: IconoHerramientas },
         // Los cobros son solo de admin: el community manager no ve pagos (la página lo exige también).
-        ...(admin ? [{ href: '/admin/vaip/planes', etiqueta: 'Planes y cobros', icono: IconoCobros }] : []),
+        ...(admin ? [{ href: '/admin/vaip/planes', etiqueta: 'Planes y cobros', icono: IconoCobros, insignia: numero('planes') }] : []),
       ],
     },
     {
       titulo: 'Cursos',
       destinos: [
         { href: '/admin/cursos', etiqueta: 'Cursos', icono: IconoCursos },
-        { href: '/admin/entregas', etiqueta: 'Entregas', icono: IconoEntregas },
+        { href: '/admin/entregas', etiqueta: 'Entregas', icono: IconoEntregas, insignia: numero('entregas') },
         // El canal interno de cada generación, con sus preguntas en lecciones.
-        { href: '/admin/grupos', etiqueta: 'Grupos', icono: IconoGrupos },
+        { href: '/admin/grupos', etiqueta: 'Grupos', icono: IconoGrupos, insignia: numero('grupos') },
         { href: '/admin/publicaciones', etiqueta: 'Anuncios y blog', icono: IconoBlog },
         { href: '/admin/puntos', etiqueta: 'Puntos', icono: IconoPuntos },
         { href: '/admin/dinamicas', etiqueta: 'Dinámicas', icono: IconoDinamicas },
@@ -79,7 +88,7 @@ export default async function LayoutAdmin({ children }: { children: ReactNode })
     {
       titulo: 'Personas',
       destinos: [
-        { href: '/admin/alumnos', etiqueta: 'Alumnos', icono: IconoPerfil },
+        { href: '/admin/alumnos', etiqueta: 'Alumnos', icono: IconoPerfil, insignia: numero('alumnos') },
         { href: '/admin/empresas', etiqueta: 'Empresas', icono: IconoEmpresas },
       ],
     },
@@ -88,7 +97,7 @@ export default async function LayoutAdmin({ children }: { children: ReactNode })
       destinos: [
         // Una sola entrada: los borradores y el resumen son de todo el equipo;
         // la voz, el conocimiento y el gasto (dentro) son solo de admin.
-        { href: '/admin/agente', etiqueta: 'Agente IA', icono: IconoAgente },
+        { href: '/admin/agente', etiqueta: 'Agente IA', icono: IconoAgente, insignia: numero('agente') },
         ...(admin ? [{ href: '/admin/ajustes/api', etiqueta: 'API', icono: IconoAjustes }] : []),
       ],
     },
@@ -116,6 +125,11 @@ export default async function LayoutAdmin({ children }: { children: ReactNode })
       <div className="flex w-full flex-1 flex-col lg:flex-row">
         <BarraLateral
           grupos={grupos}
+          total={
+            <Suspense fallback={null}>
+              <TotalDelPanel />
+            </Suspense>
+          }
           // Antes «Vista de alumno»: no es una vista simulada, es el portal
           // real, el mismo que usan los alumnos (3-oct-2026).
           pie={{ href: '/mis-cursos', etiqueta: 'Portal de alumnos', icono: IconoPortal }}

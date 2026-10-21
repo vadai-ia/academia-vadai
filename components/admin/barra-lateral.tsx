@@ -3,6 +3,8 @@
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 
+import type { ReactNode } from 'react'
+
 import type { Destino } from '@/components/marca/navegacion'
 import { cn } from '@/lib/utils'
 
@@ -60,7 +62,8 @@ function Enlace({ d, actual, tactil = false }: { d: Destino; actual: Destino | u
       )}
     >
       <span className="shrink-0">{d.icono}</span>
-      <span className="truncate">{d.etiqueta}</span>
+      <span className="min-w-0 flex-1 truncate">{d.etiqueta}</span>
+      {d.insignia ? <span className="shrink-0">{d.insignia}</span> : null}
     </Link>
   )
 }
@@ -90,7 +93,16 @@ function Grupos({ grupos, pie, ruta, tactil = false }: { grupos: GrupoDeNavegaci
   )
 }
 
-export function BarraLateral({ grupos, pie }: { grupos: GrupoDeNavegacion[]; pie?: Destino }) {
+export function BarraLateral({
+  grupos,
+  pie,
+  total,
+}: {
+  grupos: GrupoDeNavegacion[]
+  pie?: Destino
+  /** M26: la suma de los números, en el resumen «Menú» del teléfono. */
+  total?: ReactNode
+}) {
   const ruta = usePathname()
   const actual = destinoActual(ruta, grupos.flatMap((g) => g.destinos))
   // «Menú · V-AI-P · Muro» (M25): con dos mundos, el nombre solo no dice de cuál.
@@ -111,6 +123,7 @@ export function BarraLateral({ grupos, pie }: { grupos: GrupoDeNavegacion[]; pie
                 {actual?.etiqueta ?? 'Secciones'}
               </span>
             </span>
+            <span className="ml-auto shrink-0">{total}</span>
             <svg
               viewBox="0 0 24 24"
               fill="none"
