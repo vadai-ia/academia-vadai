@@ -116,7 +116,8 @@ function etiquetasDeLaBarra(pagina) {
   const i = pagina.indexOf('aria-label="Secciones del panel"')
   if (i < 0) return []
   const fin = pagina.indexOf('</nav>', i)
-  return [...pagina.slice(i, fin).matchAll(/<span class="truncate">([^<]+)<\/span>/g)].map((m) => m[1])
+  // M26: la etiqueta lleva más clases (deja lugar al número de la derecha).
+  return [...pagina.slice(i, fin).matchAll(/<span class="[^"]*\btruncate\b[^"]*">([^<]+)<\/span>/g)].map((m) => m[1])
 }
 
 const resultados = []

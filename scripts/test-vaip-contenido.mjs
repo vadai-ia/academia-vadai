@@ -32,7 +32,15 @@
 
 import { cargarEnv, conectarPostgres, exigir } from './lib/entorno.mjs'
 import { CLAVE_QA, CURSO_QA } from './lib/qa.mjs'
-import { actividadDeFila, PUNTOS, puntosDe } from '../lib/gamificacion/reglas.ts'
+
+// Los pesos de los puntos se leen de su única fuente (TypeScript puro). Node avisa que el
+// archivo no declara su tipo de módulo; ese aviso, y solo ese, se calla.
+const avisos = process.listeners('warning')
+process.removeAllListeners('warning')
+process.on('warning', (aviso) => {
+  if (aviso.code !== 'MODULE_TYPELESS_PACKAGE_JSON') for (const escucha of avisos) escucha(aviso)
+})
+const { actividadDeFila, PUNTOS, puntosDe } = await import('../lib/gamificacion/reglas.ts')
 
 const vars = cargarEnv()
 const SUPABASE = exigir(vars, 'NEXT_PUBLIC_SUPABASE_URL').replace(/\/+$/, '')
@@ -184,15 +192,19 @@ function imprimir() {
 const una = async (bd, sql, params = []) => (await bd.query(sql, params)).rows[0] ?? null
 const idDe = async (bd, email) => (await una(bd, `select user_id from academia.profiles where lower(email) = $1`, [email]))?.user_id ?? null
 
-async function borrarPortadas(casaId) {
-  const prefijo = `vaip/herramientas/${casaId}`
+/** Las rutas de los archivos de una carpeta de `academia-media`, según el storage. */
+async function archivosDe(prefijo) {
   const r = await fetch(`${SUPABASE}/storage/v1/object/list/${BUCKET}`, {
     method: 'POST',
     headers: { apikey: SERVICE, Authorization: `Bearer ${SERVICE}`, 'Content-Type': 'application/json' },
     body: JSON.stringify({ prefix: prefijo, limit: 200 }),
   })
   const archivos = (await r.json().catch(() => [])) ?? []
-  const rutas = (Array.isArray(archivos) ? archivos : []).map((a) => `${prefijo}/${a.name}`)
+  return (Array.isArray(archivos) ? archivos : []).map((a) => `${prefijo}/${a.name}`)
+}
+
+async function borrarPortadas(casaId) {
+  const rutas = await archivosDe(`vaip/herramientas/${casaId}`)
   if (rutas.length === 0) return
   await fetch(`${SUPABASE}/storage/v1/object/${BUCKET}`, {
     method: 'DELETE',
@@ -265,7 +277,8 @@ try {
     `insert into academia.membership_plans (slug, name, price_mxn, status, hub_course_id) values ($1, 'QA Contenido', 100, 'active', $2) returning id`,
     [PLAN, casa.id]
   )
-  await bd.query(`insert into academia.membership_plan_courses (plan_id, course_id) values ($1, $2)`, [plan.id, casa.id])
+  // La casa entra sola a los cursos del plan (trigger); por si acaso, sin duplicar.
+  await bd.query(`insert into academia.membership_plan_courses (plan_id, course_id) values ($1, $2) on conflict do nothing`, [plan.id, casa.id])
   const sesion = async (titulo, fecha) =>
     (
       await una(
@@ -452,7 +465,11 @@ try {
   const a2 = await una(bd, `select title, cover_path from academia.lessons where id = $1`, [A])
   afirmar(H, 'renombrar cambia el título', 'QA Contenido · herramienta vertical renombrada', a2?.title)
   afirmar(H, 'y dibuja otra portada', true, Boolean(a2?.cover_path && a2.cover_path !== a?.cover_path))
-  afirmar(H, 'la portada vieja ya no existe', false, (await fetch(urlPublica(a?.cover_path ?? 'nada'))).ok)
+  // Se le pregunta al storage, no a la URL pública: el CDN puede seguir sirviendo una copia en
+  // caché un rato (por eso cada dibujo va a una ruta nueva y nadie ve la vieja).
+  const enLaCarpeta = await archivosDe(`vaip/herramientas/${casa.id}`)
+  afirmar(H, 'la portada vieja se borró del storage', false, enLaCarpeta.includes(a?.cover_path ?? 'nada'))
+  afirmar(H, 'y la nueva está', true, enLaCarpeta.includes(a2?.cover_path ?? 'nada'))
 
   // Publicar las tres (con video simulado), en orden: A, luego B, luego C.
   await bd.query(`update academia.lessons set bunny_video_id = 'qa-contenido-' || left(id::text, 8), video_duration_sec = 45 where id = any($1)`, [[A, B2, C]])
