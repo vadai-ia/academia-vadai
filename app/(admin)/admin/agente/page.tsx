@@ -113,7 +113,10 @@ export default async function PaginaAgente() {
         apoyo="Contesta en el muro de V-AI-P y en los grupos de los cursos con la voz de VADAI. Lo que no tiene claro lo deja aquí para que una persona lo revise."
         acciones={
           t.esAdmin ? (
-            <Link href="/admin/agente/ajustes" className="text-sm text-primary underline-offset-4 hover:underline">
+            <Link
+              href="/admin/agente/ajustes"
+              className="inline-flex items-center text-sm text-primary underline-offset-4 pointer-coarse:min-h-11 hover:underline"
+            >
               Voz, conocimiento y gasto
             </Link>
           ) : null
@@ -219,7 +222,9 @@ export default async function PaginaAgente() {
             {t.resumen.temas.length > 0 ? (
               <div className="flex flex-wrap gap-2">
                 {t.resumen.temas.map((x) => (
-                  <Badge key={x.tema} variant="outline">
+                  // Un tema largo se parte en renglones: con `whitespace-nowrap`
+                  // del Badge empujaba la página más allá del teléfono.
+                  <Badge key={x.tema} variant="outline" className="h-auto max-w-full shrink py-1 text-left whitespace-normal">
                     {x.tema} · {x.conversaciones}
                   </Badge>
                 ))}

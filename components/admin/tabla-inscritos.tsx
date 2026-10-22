@@ -51,7 +51,7 @@ function fecha(iso: string | null): string {
 
 /** El mismo aspecto que un Button fantasma chico, en una décima del HTML. */
 const botonPlano =
-  'inline-flex h-8 items-center rounded-md px-2 text-sm font-medium text-foreground/80 ' +
+  'inline-flex h-8 items-center rounded-md px-2 text-sm pointer-coarse:h-11 pointer-coarse:px-3 font-medium text-foreground/80 ' +
   'transition-colors hover:bg-muted focus-visible:ring-3 focus-visible:ring-ring/50 focus-visible:outline-none'
 
 const claseSelect =

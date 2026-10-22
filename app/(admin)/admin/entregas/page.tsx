@@ -46,7 +46,7 @@ export default async function PaginaEntregas({
 
         <Link
           href={verTodas ? '/admin/entregas' : '/admin/entregas?todas=1'}
-          className="text-sm text-primary underline-offset-4 hover:underline"
+          className="inline-flex items-center text-sm text-primary underline-offset-4 pointer-coarse:min-h-11 hover:underline"
         >
           {verTodas ? 'Ver solo pendientes' : 'Ver todas'}
         </Link>

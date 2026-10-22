@@ -622,6 +622,7 @@ export function Comunidad({
   invitacion = 'Escribe algo…',
   intermedio = null,
   intermedioTras = 2,
+  intermedioSoloMovil = false,
 }: {
   posts: PostDeComunidad[]
   cursoId: string
@@ -657,6 +658,8 @@ export function Comunidad({
    */
   intermedio?: ReactNode
   intermedioTras?: number
+  /** Desde `lg` lo intermedio vive en otra columna: aquí se esconde. */
+  intermedioSoloMovil?: boolean
 }) {
   const nombreDeTema = new Map(temas.map((t) => [t.id, t.nombre]))
   const elegido = temas.find((t) => t.slug === temaActual) ?? null
@@ -735,7 +738,7 @@ export function Comunidad({
       {posts.length === 0 ? (
         <>
           {/* Sin publicaciones, lo que sí hay (noticias, ranking) va primero. */}
-          {intermedio ? <div className="flex flex-col gap-6 pb-2">{intermedio}</div> : null}
+          {intermedio ? <div className={cn('flex flex-col gap-6 pb-2', intermedioSoloMovil && 'lg:hidden')}>{intermedio}</div> : null}
           <p className="rounded-[14px] border border-dashed border-border px-5 py-10 text-center text-[0.95rem] text-muted-foreground">
             {elegido ? 'Todavía no hay publicaciones en este tema.' : 'Todavía no hay publicaciones. Empieza la conversación.'}
           </p>
@@ -743,7 +746,7 @@ export function Comunidad({
       ) : (
         <>
           <ul className="flex flex-col gap-3">{posts.slice(0, intermedioTras).map(tarjeta)}</ul>
-          {intermedio ? <div className="flex flex-col gap-6 py-2">{intermedio}</div> : null}
+          {intermedio ? <div className={cn('flex flex-col gap-6 py-2', intermedioSoloMovil && 'lg:hidden')}>{intermedio}</div> : null}
           {posts.length > intermedioTras ? (
             <ul className="flex flex-col gap-3">{posts.slice(intermedioTras).map(tarjeta)}</ul>
           ) : null}

@@ -1,7 +1,7 @@
 import type { Metadata } from 'next'
 import { notFound } from 'next/navigation'
 
-import { CarruselDeNoticias, RankingBreve } from '@/components/vaip/noticias'
+import { CarruselDeNoticias, NoticiasLaterales, RankingBreve } from '@/components/vaip/noticias'
 import { Comunidad } from '@/components/alumno/comunidad'
 import { SelectorDeGeneracion } from '@/components/alumno/selector-de-generacion'
 import { LoNuevoVaip } from '@/components/vaip/contenido'
@@ -145,7 +145,11 @@ async function MuroVaip({ ctx, q }: { ctx: ContextoVaip; q: Parametros }) {
           Todavía no estás en el grupo de miembros. Escríbenos y te agregamos.
         </p>
       ) : (
-        <div className="max-w-2xl">
+        // 22-oct-2026: en computadora, dos columnas como Skool —el feed y, a la
+        // derecha, noticias y ranking fijos—; en teléfono y tableta esos dos
+        // van dentro del feed, después de las primeras publicaciones.
+        <div className="grid items-start gap-8 lg:grid-cols-[minmax(0,1fr)_20rem]">
+        <div className="min-w-0 max-w-2xl lg:max-w-none">
           <Comunidad
             posts={feed.posts}
             cursoId={casa.id}
@@ -160,6 +164,7 @@ async function MuroVaip({ ctx, q }: { ctx: ContextoVaip; q: Parametros }) {
             temasOcultos={['noticias']}
             yo={{ nombre, avatar: perfil.avatar_url }}
             invitacion="Comparte algo con la comunidad…"
+            intermedioSoloMovil
             intermedio={
               noticias || ranking ? (
                 <>
@@ -176,6 +181,16 @@ async function MuroVaip({ ctx, q }: { ctx: ContextoVaip; q: Parametros }) {
             temas={temas}
             temaActual={temaElegido?.slug ?? null}
           />
+        </div>
+        {noticias || ranking ? (
+          <aside
+            aria-label="Noticias y ranking"
+            className="hidden lg:sticky lg:top-[calc(var(--alto-encabezado)+1rem)] lg:flex lg:flex-col lg:gap-4"
+          >
+            {noticias ? <NoticiasLaterales posts={noticias.posts.slice(0, 4)} /> : null}
+            {ranking ? <RankingBreve ranking={ranking} /> : null}
+          </aside>
+        ) : null}
         </div>
       )}
     </div>

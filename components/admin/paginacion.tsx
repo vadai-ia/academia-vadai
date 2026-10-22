@@ -29,7 +29,7 @@ export function Paginacion({
   const numeros = [...ventana].sort((a, b) => a - b)
 
   const pastilla =
-    'inline-flex min-h-9 min-w-9 items-center justify-center rounded-full border px-3 text-sm font-medium tabular-nums transition-colors'
+    'inline-flex min-h-9 min-w-9 items-center justify-center rounded-full border px-3 text-sm font-medium tabular-nums transition-colors pointer-coarse:min-h-11 pointer-coarse:min-w-11'
 
   return (
     <div className="flex flex-wrap items-center justify-between gap-3">

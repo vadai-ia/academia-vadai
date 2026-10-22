@@ -98,14 +98,12 @@ export function TarjetaNoticia({ post, destacada = false }: { post: PostDeComuni
         ) : null}
         <div className={cn('flex flex-1 flex-col gap-2 p-4 sm:p-5', destacada && 'lg:justify-center lg:p-8')}>
           <span className="text-[0.8125rem] text-muted-foreground">{fecha(post.creadoEn)}</span>
-          {/* Sin imagen, el título sí se ve: no hay dónde más leerlo. */}
+          {/* Sin imagen, el título sí se ve: no hay dónde más leerlo. Con
+              imagen queda para el lector de pantalla, SIN la liga: un sr-only
+              mide 1 px y recorta el ::after que cubría la tarjeta (22-oct-2026:
+              «al hacer click en la noticia no abre nada»). */}
           <h3 className={cn(imagen ? 'sr-only' : 'text-[1.0625rem] leading-snug font-medium text-pretty')}>
-            <Link
-              href={ligaEnVaip(post.id, true)}
-              className="after:absolute after:inset-0 after:rounded-[14px] focus-visible:outline-none focus-visible:after:ring-3 focus-visible:after:ring-ring/50"
-            >
-              {post.titulo}
-            </Link>
+            {post.titulo}
           </h3>
           {resumen ? (
             <p
@@ -130,9 +128,14 @@ export function TarjetaNoticia({ post, destacada = false }: { post: PostDeComuni
 
           <div className="mt-auto flex items-center justify-between gap-3 pt-2">
             <span className="flex items-center gap-3 text-sm">
-              <span className="font-medium text-primary">
-                Leer <span aria-hidden>→</span>
-              </span>
+              {/* La liga de la tarjeta: «Leer» con un ::after que cubre todo el
+                  artículo. El medio (z-10) queda encima y abre la nota original. */}
+              <Link
+                href={ligaEnVaip(post.id, true)}
+                className="font-medium text-primary after:absolute after:inset-0 after:rounded-[14px] focus-visible:outline-none focus-visible:after:ring-3 focus-visible:after:ring-ring/50"
+              >
+                Leer<span className="sr-only">: {post.titulo}</span> <span aria-hidden>→</span>
+              </Link>
               <ResumenDeReacciones datos={post.reacciones} />
               {respuestas > 0 ? (
                 <span className="text-muted-foreground">
@@ -228,6 +231,60 @@ export function CarruselDeNoticias({ posts }: { posts: PostDeComunidad[] }) {
           </li>
         </ul>
       </div>
+    </section>
+  )
+}
+
+/**
+ * Las noticias en la columna derecha del muro, en computadora (22-oct-2026,
+ * Alejandro: «en computadora dejaste el mismo ancho del carrusel»). Debajo de
+ * `lg` va el carrusel; aquí, una lista: miniatura, medio y resumen.
+ */
+export function NoticiasLaterales({ posts }: { posts: PostDeComunidad[] }) {
+  if (posts.length === 0) return null
+  return (
+    <section aria-labelledby="noticias-laterales" className="flex flex-col gap-3 rounded-[14px] border border-border bg-card p-4">
+      <div className="flex items-baseline justify-between gap-3">
+        <h2 id="noticias-laterales" className="text-[1.0625rem] font-medium tracking-tight">
+          Noticias de IA
+        </h2>
+        <Link href="/vaip/noticias" className="text-sm font-medium text-primary underline-offset-4 hover:underline">
+          Ver todas
+        </Link>
+      </div>
+      <ul className="flex flex-col gap-1">
+        {posts.map((p) => {
+          const imagen = p.imagenes[0] ?? null
+          return (
+            <li key={p.id}>
+              <Link
+                href={ligaEnVaip(p.id, true)}
+                className="group flex gap-3 rounded-[10px] p-2 transition-colors hover:bg-muted focus-visible:ring-3 focus-visible:ring-ring/50 focus-visible:outline-none"
+              >
+                {imagen ? (
+                  <Image
+                    src={imagen.url}
+                    alt=""
+                    width={320}
+                    height={180}
+                    unoptimized
+                    className="aspect-video h-auto w-24 shrink-0 rounded-md border border-border object-cover"
+                  />
+                ) : null}
+                <span className="flex min-w-0 flex-col gap-0.5">
+                  <span className="truncate text-xs text-muted-foreground">
+                    {p.noticia?.medio ? `${p.noticia.medio} · ` : ''}
+                    {fecha(p.creadoEn)}
+                  </span>
+                  <span className="line-clamp-3 text-sm leading-snug font-medium group-hover:text-primary">
+                    {p.noticia?.resumen || p.titulo}
+                  </span>
+                </span>
+              </Link>
+            </li>
+          )
+        })}
+      </ul>
     </section>
   )
 }
