@@ -53,6 +53,16 @@ export default async function PaginaCurso({ params }: { params: Promise<{ slug: 
   const ahora = Date.now()
   const proxima = proximaOActual(sesiones, ahora)
 
+  const certificado = (
+    <CertificadoDelCurso
+      cursoId={curso.id}
+      cursoSlug={curso.slug}
+      folio={folio}
+      cumple={elegibilidad.cumple}
+      faltantes={curso.vigente ? elegibilidad.faltantes : []}
+    />
+  )
+
   return (
     <div className="flex flex-col gap-8">
       {/* "Continuar" es la única acción primaria de la pantalla y por eso va
@@ -87,13 +97,9 @@ export default async function PaginaCurso({ params }: { params: Promise<{ slug: 
 
       {!curso.vigente ? <AccesoVencido curso={curso} /> : null}
 
-      <CertificadoDelCurso
-        cursoId={curso.id}
-        cursoSlug={curso.slug}
-        folio={folio}
-        cumple={elegibilidad.cumple}
-        faltantes={curso.vigente ? elegibilidad.faltantes : []}
-      />
+      {/* Terminado o con certificado: arriba, es la noticia. Lo que falta,
+          debajo del temario (22-oct-2026). */}
+      {folio || elegibilidad.cumple ? certificado : null}
 
       <Seccion
         titulo="Contenido del curso"
@@ -113,6 +119,8 @@ export default async function PaginaCurso({ params }: { params: Promise<{ slug: 
           <IndiceCurso curso={curso} />
         )}
       </Seccion>
+
+      {folio || elegibilidad.cumple ? null : certificado}
     </div>
   )
 }

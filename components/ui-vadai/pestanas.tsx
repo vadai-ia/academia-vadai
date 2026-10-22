@@ -56,10 +56,17 @@ export type Pestana = {
 export function Pestanas({
   pestanas,
   etiqueta = 'Secciones del curso',
+  llenar = false,
 }: {
   pestanas: Pestana[]
   /** Para el lector de pantalla. Estas pestañas ya no son solo de un curso. */
   etiqueta?: string
+  /**
+   * En el teléfono, las pestañas se reparten el ancho y no se desplazan
+   * (22-oct-2026). Para filas de cuatro cortas —el curso, Mi perfil—, donde
+   * la última quedaba cortada a la mitad («Pu…», «Dinámi…»).
+   */
+  llenar?: boolean
 }) {
   const ruta = usePathname()
   const fila = useRef<HTMLElement>(null)
@@ -84,10 +91,11 @@ export function Pestanas({
         'relative -mx-5 overflow-x-auto px-5 pr-10 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden',
         '[mask-image:linear-gradient(to_right,transparent,black_1.25rem,black_calc(100%-2.5rem),transparent)]',
         // En escritorio caben todas: sin máscara ni relleno extra.
-        'md:pr-5 md:[mask-image:none]'
+        'md:pr-5 md:[mask-image:none]',
+        llenar && 'max-sm:pr-5 max-sm:[mask-image:none]'
       )}
     >
-      <ul className="flex min-w-max items-center gap-1 border-b border-border">
+      <ul className={cn('flex min-w-max items-center gap-1 border-b border-border', llenar && 'max-sm:w-full max-sm:min-w-0 max-sm:gap-0')}>
         {pestanas.map((p) => {
           const activa =
             p.activa ??
@@ -95,6 +103,7 @@ export function Pestanas({
 
           const clases = cn(
             'relative -mb-px inline-flex items-center gap-2 border-b-2 px-3.5 py-3',
+            llenar && 'max-sm:w-full max-sm:justify-center max-sm:gap-1 max-sm:px-1 max-sm:text-sm',
             'text-[0.95rem] font-medium whitespace-nowrap transition-colors',
             'focus-visible:ring-3 focus-visible:ring-ring/50 focus-visible:outline-none',
             activa
@@ -104,7 +113,7 @@ export function Pestanas({
 
           if (p.deshabilitada) {
             return (
-              <li key={p.href}>
+              <li key={p.href} className={cn(llenar && 'max-sm:flex-1')}>
                 <span
                   className={cn(clases, 'cursor-not-allowed opacity-50 hover:border-transparent')}
                   title={p.motivo}
@@ -118,7 +127,7 @@ export function Pestanas({
           }
 
           return (
-            <li key={p.href}>
+            <li key={p.href} className={cn(llenar && 'max-sm:flex-1')}>
               <Link href={p.href} className={clases} data-slot="pestana" aria-current={activa ? 'page' : undefined}>
                 {p.etiqueta}
                 {p.insignia !== undefined && p.insignia !== 0 ? (

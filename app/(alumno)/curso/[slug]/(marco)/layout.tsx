@@ -1,7 +1,7 @@
 import type { ReactNode } from 'react'
-import Link from 'next/link'
 import { notFound } from 'next/navigation'
 
+import { Regreso } from '@/components/ui-vadai/regreso'
 import { Pestanas, type Pestana } from '@/components/ui-vadai/pestanas'
 import { Progreso } from '@/components/ui-vadai/superficie'
 import { cursoDelAlumno } from '@/lib/alumno/consultas'
@@ -97,12 +97,7 @@ export default async function LayoutCurso({
       <header className="flex flex-col gap-4">
         {/* M22: «Mis cursos» es la pastilla /cursos; antes este regreso iba a
             Inicio con otro nombre. */}
-        <Link
-          href="/cursos"
-          className="inline-flex w-fit items-center gap-1.5 text-sm text-muted-foreground underline-offset-4 pointer-coarse:min-h-11 hover:text-foreground hover:underline"
-        >
-          <span aria-hidden>←</span> Mis cursos
-        </Link>
+        <Regreso href="/cursos">Mis cursos</Regreso>
 
         <div className="flex flex-wrap items-end justify-between gap-x-6 gap-y-3">
           <div className="flex min-w-0 flex-col gap-1">
@@ -114,7 +109,9 @@ export default async function LayoutCurso({
             {curso.generacion ? (
               <p className="text-sm text-muted-foreground">
                 <span className="font-medium text-foreground/80">{curso.generacion.nombre}</span>
-                {rango ? ` · ${rango}` : ''}
+                {/* Hay generaciones que ya traen las fechas en el nombre
+                    («Generación 2 · nov–dic 2026»): no se repiten. */}
+                {rango && !/\b20\d\d\b/.test(curso.generacion.nombre) ? ` · ${rango}` : ''}
               </p>
             ) : curso.sinGeneracion ? (
               <p className="text-sm text-destructive">
@@ -151,7 +148,7 @@ export default async function LayoutCurso({
         </div>
       </header>
 
-      <Pestanas pestanas={pestanas} />
+      <Pestanas pestanas={pestanas} llenar />
 
       {children}
     </div>

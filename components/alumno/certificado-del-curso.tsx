@@ -89,17 +89,26 @@ export function CertificadoDelCurso({
 
   if (faltantes.length === 0) return null
 
+  // 22-oct-2026: lo que falta va plegado y DEBAJO del temario (la página lo
+  // pone ahí). Abierto y arriba, una lista de pendientes era lo primero que se
+  // leía al entrar al curso, antes que el contenido.
   return (
-    <section className="flex flex-col gap-3 rounded-lg border border-border p-5">
-      <div className="flex flex-col gap-1">
-        <h2 className="font-semibold">Certificado</h2>
-        <p className="text-sm text-muted-foreground">
-          Te falta{faltantes.length === 1 ? '' : 'n'} {faltantes.length}{' '}
-          {faltantes.length === 1 ? 'lección obligatoria' : 'lecciones obligatorias'}:
-        </p>
-      </div>
+    <details className="group/cert rounded-[10px] border border-border bg-card">
+      <summary className="flex cursor-pointer list-none items-center justify-between gap-3 px-5 py-4 select-none pointer-coarse:min-h-11 focus-visible:ring-3 focus-visible:ring-ring/50 focus-visible:outline-none [&::-webkit-details-marker]:hidden">
+        <span className="flex min-w-0 flex-col gap-0.5">
+          <span className="font-medium">Tu certificado</span>
+          <span className="text-sm text-muted-foreground">
+            Te falta{faltantes.length === 1 ? '' : 'n'} {faltantes.length}{' '}
+            {faltantes.length === 1 ? 'lección obligatoria' : 'lecciones obligatorias'}
+          </span>
+        </span>
+        <span className="shrink-0 text-sm font-medium text-primary">
+          <span className="group-open/cert:hidden">Ver cuáles</span>
+          <span className="hidden group-open/cert:inline">Ocultar</span>
+        </span>
+      </summary>
 
-      <ul className="flex flex-col gap-1.5">
+      <ul className="flex flex-col gap-1.5 border-t border-border px-5 py-4">
         {faltantes.map((faltante) => (
           <li key={faltante.leccionId} className="flex flex-wrap items-baseline gap-x-2 text-sm">
             <Link
@@ -112,6 +121,6 @@ export function CertificadoDelCurso({
           </li>
         ))}
       </ul>
-    </section>
+    </details>
   )
 }

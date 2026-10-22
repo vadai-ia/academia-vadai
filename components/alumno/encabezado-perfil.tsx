@@ -17,6 +17,7 @@ export function EncabezadoPerfil({ apoyo }: { apoyo?: string }) {
       <Titulo apoyo={apoyo}>Mi perfil</Titulo>
       <Pestanas
         etiqueta="Secciones de tu perfil"
+        llenar
         pestanas={[
           { href: '/perfil', etiqueta: 'Datos', exacto: true },
           { href: '/perfil/membresia', etiqueta: 'Membresía' },
