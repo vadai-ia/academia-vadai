@@ -191,7 +191,14 @@ export async function feedDelCurso(
   cursoId: string,
   cohortId: string | null,
   usuarioActual: string,
-  opciones: { pagina?: number; porPagina?: number; temaId?: string | null; soloNoticias?: boolean } = {}
+  opciones: {
+    pagina?: number
+    porPagina?: number
+    temaId?: string | null
+    soloNoticias?: boolean
+    /** El muro de V-AI-P sin noticias: van en su carrusel y en su pestaña. */
+    sinNoticias?: boolean
+  } = {}
 ): Promise<FeedDeComunidad> {
   const supabase = await crearClienteServidor()
 
@@ -215,6 +222,7 @@ export async function feedDelCurso(
     if (opciones.temaId) consulta = consulta.eq('topic_id', opciones.temaId)
     // 22-oct-2026: la sección Noticias de V-AI-P, solo lo que trae resumen o liga.
     if (opciones.soloNoticias) consulta = consulta.or('resumen.not.is.null,enlace_url.not.is.null')
+    if (opciones.sinNoticias) consulta = consulta.is('resumen', null).is('enlace_url', null)
     return (cohortId ? consulta.eq('cohort_id', cohortId) : consulta.is('cohort_id', null))
       .order('pinned', { ascending: false })
       .order('created_at', { ascending: false })

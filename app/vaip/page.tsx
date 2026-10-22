@@ -1,6 +1,7 @@
 import type { Metadata } from 'next'
 import { notFound } from 'next/navigation'
 
+import { CarruselDeNoticias, RankingBreve } from '@/components/vaip/noticias'
 import { Comunidad } from '@/components/alumno/comunidad'
 import { SelectorDeGeneracion } from '@/components/alumno/selector-de-generacion'
 import { LoNuevoVaip } from '@/components/vaip/contenido'
@@ -13,7 +14,7 @@ import { estadoDe, proximaOActual } from '@/lib/calendario/estado'
 import { feedDelCurso } from '@/lib/comunidad/posts'
 import { temasDelCurso } from '@/lib/comunidad/temas'
 import { enlaceDeSuscripcion, miMembresia, planDeLaVenta, planVaip } from '@/lib/membresia/consultas'
-import { contextoVaip, type ContextoVaip } from '@/lib/membresia/espacio'
+import { contextoVaip, rankingVaip, type ContextoVaip } from '@/lib/membresia/espacio'
 import { situacionDeVenta } from '@/lib/membresia/venta'
 import { sellarCanal } from '@/lib/notificaciones/canales'
 import { loNuevoDeVaip } from '@/lib/vaip/contenido'
@@ -103,24 +104,32 @@ async function MuroVaip({ ctx, q }: { ctx: ContextoVaip; q: Parametros }) {
   const cohortId = generacion?.id ?? null
   const temas = await temasDelCurso(casa.id)
   const temaElegido = temas.find((t) => t.slug === q.tema) ?? null
-  const [feed, sesiones, nuevo] = await Promise.all([
+  // Solo en la primera página del muro y sin filtro de tema.
+  const conLoNuevo = (Number(q.p) || 1) === 1 && !temaElegido
+  // 22-oct-2026 (Alejandro: «en el muro lo primero que se ve son las
+  // noticias… mejor algo más mixto»): el feed es de la comunidad; las noticias
+  // van en un carrusel y el ranking en un resumen, después de las primeras
+  // publicaciones. Las noticias completas, en su pestaña.
+  const [feed, sesiones, nuevo, , noticias, ranking] = await Promise.all([
     feedDelCurso(casa.id, cohortId, perfil.user_id, {
       pagina: Number(q.p) || 1,
       porPagina: q.por === undefined ? 10 : Number(q.por),
       temaId: temaElegido?.id ?? null,
+      sinNoticias: true,
     }),
     sesionesDelCurso(casa.slug),
     loNuevoDeVaip(ctx),
     sellarCanal(perfil, 'comunidad'),
+    conLoNuevo
+      ? feedDelCurso(casa.id, cohortId, perfil.user_id, { pagina: 1, porPagina: 6, soloNoticias: true })
+      : Promise.resolve(null),
+    conLoNuevo ? rankingVaip(ctx.plan.id, perfil.user_id) : Promise.resolve(null),
   ])
   const extra: Record<string, string> = q.gen && generacion?.id === q.gen ? { gen: q.gen } : {}
   const ahora = Date.now()
   const clase = proximaOActual(sesiones, ahora)
   // Por empezar o en curso, la clase ya va arriba con «Entrar»: no se repite.
   const claseEnLoNuevo = clase && estadoDe(clase.programadaEn, ahora) === 'proxima' ? clase : null
-  // Solo en la primera página del muro y sin filtro de tema.
-  const conLoNuevo = (Number(q.p) || 1) === 1 && !temaElegido
-
   return (
     <div className="flex flex-col gap-8">
       <EncabezadoVaip nombre={nombre} clase={clase} />
@@ -151,6 +160,14 @@ async function MuroVaip({ ctx, q }: { ctx: ContextoVaip; q: Parametros }) {
             temasOcultos={['noticias']}
             yo={{ nombre, avatar: perfil.avatar_url }}
             invitacion="Comparte algo con la comunidad…"
+            intermedio={
+              noticias || ranking ? (
+                <>
+                  {noticias ? <CarruselDeNoticias posts={noticias.posts} /> : null}
+                  {ranking ? <RankingBreve ranking={ranking} /> : null}
+                </>
+              ) : null
+            }
             pagina={feed.pagina}
             paginas={feed.paginas}
             porPagina={feed.porPagina}

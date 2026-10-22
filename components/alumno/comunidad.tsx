@@ -2,7 +2,7 @@
 
 import Image from 'next/image'
 import Link from 'next/link'
-import { useActionState } from 'react'
+import { useActionState, type ReactNode } from 'react'
 import { useFormStatus } from 'react-dom'
 
 import { Reaccionar, ResumenDeReacciones } from '@/components/alumno/reacciones'
@@ -620,6 +620,8 @@ export function Comunidad({
   temasOcultos = [],
   yo = null,
   invitacion = 'Escribe algo…',
+  intermedio = null,
+  intermedioTras = 2,
 }: {
   posts: PostDeComunidad[]
   cursoId: string
@@ -649,6 +651,12 @@ export function Comunidad({
   yo?: Yo | null
   /** El texto del «Escribe algo…». */
   invitacion?: string
+  /**
+   * Lo que va entre publicaciones (22-oct-2026): en el muro de V-AI-P, el
+   * carrusel de noticias y el ranking, después de las primeras dos.
+   */
+  intermedio?: ReactNode
+  intermedioTras?: number
 }) {
   const nombreDeTema = new Map(temas.map((t) => [t.id, t.nombre]))
   const elegido = temas.find((t) => t.slug === temaActual) ?? null
@@ -659,6 +667,17 @@ export function Comunidad({
     const cadena = q.toString()
     return cadena ? `${ruta}?${cadena}` : ruta
   }
+  const tarjeta = (post: PostDeComunidad) => (
+    <TarjetaPublicacion
+      key={`${post.id}:${post.comentarios.length}:${post.reacciones.total}:${post.reacciones.mias.join('')}`}
+      post={post}
+      href={post.noticia && rutaNoticias ? `${rutaNoticias}/${post.id}` : `${rutaDetalle}/${post.id}`}
+      cursoSlug={cursoSlug}
+      ruta={ruta}
+      soyEquipo={soyEquipo}
+      temaNombre={post.temaId ? (nombreDeTema.get(post.temaId) ?? null) : null}
+    />
+  )
   const hrefPagina = (p: number) => {
     const params = new URLSearchParams(elegido ? { ...extra, tema: elegido.slug } : extra)
     if (p > 1) params.set('p', String(p))
@@ -714,24 +733,20 @@ export function Comunidad({
       ) : null}
 
       {posts.length === 0 ? (
-        <p className="rounded-[14px] border border-dashed border-border px-5 py-12 text-center text-[0.95rem] text-muted-foreground">
-          {elegido ? 'Todavía no hay publicaciones en este tema.' : 'Todavía no hay publicaciones. Empieza la conversación.'}
-        </p>
+        <>
+          {/* Sin publicaciones, lo que sí hay (noticias, ranking) va primero. */}
+          {intermedio ? <div className="flex flex-col gap-6 pb-2">{intermedio}</div> : null}
+          <p className="rounded-[14px] border border-dashed border-border px-5 py-10 text-center text-[0.95rem] text-muted-foreground">
+            {elegido ? 'Todavía no hay publicaciones en este tema.' : 'Todavía no hay publicaciones. Empieza la conversación.'}
+          </p>
+        </>
       ) : (
         <>
-          <ul className="flex flex-col gap-3">
-            {posts.map((post) => (
-              <TarjetaPublicacion
-                key={`${post.id}:${post.comentarios.length}:${post.reacciones.total}:${post.reacciones.mias.join('')}`}
-                post={post}
-                href={post.noticia && rutaNoticias ? `${rutaNoticias}/${post.id}` : `${rutaDetalle}/${post.id}`}
-                cursoSlug={cursoSlug}
-                ruta={ruta}
-                soyEquipo={soyEquipo}
-                temaNombre={post.temaId ? (nombreDeTema.get(post.temaId) ?? null) : null}
-              />
-            ))}
-          </ul>
+          <ul className="flex flex-col gap-3">{posts.slice(0, intermedioTras).map(tarjeta)}</ul>
+          {intermedio ? <div className="flex flex-col gap-6 py-2">{intermedio}</div> : null}
+          {posts.length > intermedioTras ? (
+            <ul className="flex flex-col gap-3">{posts.slice(intermedioTras).map(tarjeta)}</ul>
+          ) : null}
 
           <Paginacion
             pagina={pagina}
@@ -812,22 +827,15 @@ export function PublicacionCompleta({
   despues: string
 }) {
   const imagenesExtra = post.imagenes.slice(post.noticia ? 1 : 0)
+  // La imagen de una noticia trae su título dibujado (lib/noticias/imagen.tsx):
+  // va primero y el <h1> queda para el lector de pantalla, sin repetirlo.
+  const portadaConTitulo = post.noticia && post.imagenes[0] ? post.imagenes[0] : null
 
   return (
     <article className="flex flex-col gap-6">
-      <div className="flex items-start gap-2">
-        <Autoria post={post} temaNombre={temaNombre} tamano={44} />
-        {post.fijado ? <Fijado /> : null}
-        <MenuDePublicacion post={post} cursoSlug={cursoSlug} ruta={ruta} soyEquipo={soyEquipo} despues={despues} />
-      </div>
-
-      <h1 className="text-[1.625rem] leading-tight font-medium tracking-tight text-pretty [overflow-wrap:anywhere] sm:text-[2rem]">
-        {post.titulo}
-      </h1>
-
-      {post.noticia && post.imagenes[0] ? (
+      {portadaConTitulo ? (
         <Image
-          src={post.imagenes[0].url}
+          src={portadaConTitulo.url}
           alt=""
           width={1200}
           height={675}
@@ -837,10 +845,32 @@ export function PublicacionCompleta({
         />
       ) : null}
 
+      <div className="flex items-start gap-2">
+        <Autoria post={post} temaNombre={temaNombre} tamano={44} />
+        {post.fijado ? <Fijado /> : null}
+        <MenuDePublicacion post={post} cursoSlug={cursoSlug} ruta={ruta} soyEquipo={soyEquipo} despues={despues} />
+      </div>
+
+      <h1
+        className={cn(
+          'text-[1.625rem] leading-tight font-medium tracking-tight text-pretty [overflow-wrap:anywhere] sm:text-[2rem]',
+          portadaConTitulo && 'sr-only'
+        )}
+      >
+        {post.titulo}
+      </h1>
+
       {post.noticia?.resumen ? (
-        <p className="rounded-[14px] border-l-4 border-primary bg-primary/6 px-5 py-4 text-[1.0625rem] leading-relaxed text-pretty">
-          {post.noticia.resumen}
-        </p>
+        portadaConTitulo ? (
+          // Con la portada, el resumen es el subtítulo de la nota.
+          <p className="text-[1.25rem] leading-snug font-medium tracking-tight text-pretty sm:text-[1.5rem]">
+            {post.noticia.resumen}
+          </p>
+        ) : (
+          <p className="rounded-[14px] border-l-4 border-primary bg-primary/6 px-5 py-4 text-[1.0625rem] leading-relaxed text-pretty">
+            {post.noticia.resumen}
+          </p>
+        )
       ) : null}
 
       {post.contenido ? (
