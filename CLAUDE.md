@@ -207,7 +207,10 @@ En su lugar: `pnpm db:migrate` → `scripts/migrate.mjs`, que aplica los `.sql` 
   evaluaciones, quizzes o módulos exclusivos.
 - **Noticias de V-AI-P** (M24, 20-oct-2026; `lib/noticias/*`, docs/M24.md): se cazan (botón y cron de
   las 7:00) o se crean desde una liga, y quedan como PROPUESTAS en `news_items`; **nada se publica
-  sin el clic de una persona**. **La cacería va a fondo** (21-oct-2026): cinco frentes en paralelo
+  sin el clic de una persona**. **Cuántas deja cada cacería** (botón y cron) lo guarda el panel en
+  `agent_settings.noticias_por_caceria` (0050, de 1 a 5, arranca en 1; lo cambia un admin en
+  V-AI-P → Noticias). Con 1 no hay top variado: la IA elige la noticia que **más medios distintos**
+  cubren entre las candidatas (`reglasDeRedaccion` en `lib/noticias/prompt.ts`). **La cacería va a fondo** (21-oct-2026): cinco frentes en paralelo
   (`FRENTES` en `lib/noticias/prompt.ts`: modelos, empresas, robótica, México, aprender), en toda la
   web menos `DOMINIOS_BLOQUEADOS`, desde México, y deja el top 5; noticias de 72 h y guías de 7 días.
   Lo que la comunidad ya vio no vuelve, salvo como **seguimiento** con lo nuevo en sus notas. Usa la

@@ -2,7 +2,7 @@ import type { Metadata } from 'next'
 import Image from 'next/image'
 import Link from 'next/link'
 
-import { BotonCazar, FormularioLiga, FormularioPropuesta } from '@/components/admin/noticias'
+import { BotonCazar, FormularioLiga, FormularioPropuesta, NoticiasPorCaceria } from '@/components/admin/noticias'
 import { Button } from '@/components/ui/button'
 import { Seccion, Tarjeta, Titulo } from '@/components/ui-vadai/superficie'
 import { dolares } from '@/lib/agente/costos'
@@ -72,9 +72,11 @@ export default async function PaginaNoticias({ searchParams }: { searchParams: P
             <p className="text-sm text-pretty text-muted-foreground">
               Investiga a fondo cinco frentes en toda la web: modelos y lanzamientos de IA, herramientas para empresas,
               robótica y hardware, IA en México y en español, y aprender IA. Descarta lo repetido, lo viejo, lo que ya se
-              publicó (salvo que haya algo nuevo) y lo que no abre, y te deja el top 5. Tarda de 2 a 4 minutos.
+              publicó (salvo que haya algo nuevo) y lo que no abre, y te deja{' '}
+              {t.porCaceria === 1 ? 'la noticia más hablada del momento' : `el top ${t.porCaceria}`}. Tarda de 2 a 4 minutos.
             </p>
           </div>
+          <NoticiasPorCaceria valor={t.porCaceria} editable={admin} />
           <BotonCazar
             deshabilitado={enCurso?.tipo === 'caceria' || t.hoy.cacerias >= LIMITE_CACERIAS}
             motivo={motivoCaceria}

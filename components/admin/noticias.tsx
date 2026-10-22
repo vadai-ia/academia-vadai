@@ -12,7 +12,7 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
 import { SIN_ESTADO, type EstadoAccion } from '@/lib/admin/tipos'
-import { borrarPublicacion, crearDesdeLiga, iniciarCaceria, publicarEnVaip, publicarNoticia } from '@/lib/noticias/acciones'
+import { borrarPublicacion, crearDesdeLiga, guardarNoticiasPorCaceria, iniciarCaceria, publicarEnVaip, publicarNoticia } from '@/lib/noticias/acciones'
 
 /**
  * Los formularios de Noticias y Publicar del panel de V-AI-P (M24). Cada
@@ -52,6 +52,43 @@ export function BotonCazar({ deshabilitado, motivo }: { deshabilitado: boolean; 
       <input type="hidden" name="cazar" value="hoy" />
       <Enviar texto="Cazar noticias de hoy" ocupado="Empezando…" variante="acento" deshabilitado={deshabilitado} className="w-full sm:w-fit" />
       {motivo ? <p className="text-sm text-muted-foreground">{motivo}</p> : null}
+      <AvisoAccion estado={estado} />
+    </form>
+  )
+}
+
+/**
+ * Cuántas noticias deja cada búsqueda (0050). Se guarda y lo usan el botón y
+ * la de las 7:00. Solo un admin lo cambia; el community manager lo ve.
+ */
+export function NoticiasPorCaceria({ valor, editable }: { valor: number; editable: boolean }) {
+  const [estado, accion] = useActionState(guardarNoticiasPorCaceria, SIN_ESTADO)
+  const explicacion =
+    valor === 1 ? 'La más hablada del momento: la que más medios distintos están cubriendo.' : `Un top ${valor} variado entre los cinco frentes.`
+  if (!editable) {
+    return (
+      <p className="text-sm text-muted-foreground">
+        Cada búsqueda deja <span className="font-medium text-foreground">{valor === 1 ? '1 noticia' : `${valor} noticias`}</span>. {explicacion} Lo
+        cambia un admin.
+      </p>
+    )
+  }
+  return (
+    <form key={valor} action={accion} className="flex flex-col gap-2 rounded-lg border border-border p-3">
+      <div className="flex flex-wrap items-end gap-2">
+        <div className="flex flex-col gap-1.5">
+          <Label htmlFor="noticias-por-caceria">Noticias por búsqueda</Label>
+          <select id="noticias-por-caceria" name="noticias_por_caceria" defaultValue={String(valor)} className={claseSelect + ' w-auto'}>
+            <option value="1">1 · la más hablada</option>
+            <option value="2">2</option>
+            <option value="3">3</option>
+            <option value="4">4</option>
+            <option value="5">5</option>
+          </select>
+        </div>
+        <Enviar texto="Guardar" ocupado="Guardando…" variante="outline" />
+      </div>
+      <p className="text-xs text-pretty text-muted-foreground">{explicacion} Se queda guardado y aplica también a la búsqueda de las 7:00.</p>
       <AvisoAccion estado={estado} />
     </form>
   )

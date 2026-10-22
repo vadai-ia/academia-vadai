@@ -370,6 +370,7 @@ export type Database = {
           pausado_por_tope: boolean
           updated_at: string
           updated_by: string | null
+          noticias_por_caceria: number
         }
         Insert: {
           es_qa?: boolean
@@ -388,6 +389,7 @@ export type Database = {
           pausado_por_tope?: boolean
           updated_at?: string
           updated_by?: string | null
+          noticias_por_caceria?: number
         }
         Update: {
           es_qa?: boolean
@@ -406,6 +408,7 @@ export type Database = {
           pausado_por_tope?: boolean
           updated_at?: string
           updated_by?: string | null
+          noticias_por_caceria?: number
         }
         Relationships: []
       }

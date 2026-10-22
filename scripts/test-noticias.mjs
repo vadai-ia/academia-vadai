@@ -394,9 +394,10 @@ try {
   const alumno = await una(bd, `select user_id from academia.profiles where email = $1`, [CORREO_ALUMNO])
   const bot = await una(bd, `select user_id from academia.profiles where es_bot and status = 'active' limit 1`)
   if (!bot) throw new Error('Falta la cuenta «Equipo VADAI»: node scripts/cuenta-equipo-vadai.mjs')
-  ajustesPrevios = await una(bd, `select tope_usd, pausado_por_tope, noticias from academia.agent_settings where es_qa`)
-  if (!ajustesPrevios) throw new Error('Faltan los ajustes del agente QA (agent_settings es_qa).')
-  await bd.query(`update academia.agent_settings set tope_usd = 5, pausado_por_tope = false where es_qa`)
+  ajustesPrevios = await una(bd, `select tope_usd, pausado_por_tope, noticias, noticias_por_caceria from academia.agent_settings where es_qa`)
+  if (!ajustesPrevios) throw new Error('Faltan los ajustes del agente QA (agent_settings es_qa). ¿Aplicaste 0050?')
+  // La cacería grande prueba el top 5 variado; al final se prueba la de 1 (0050).
+  await bd.query(`update academia.agent_settings set tope_usd = 5, pausado_por_tope = false, noticias_por_caceria = 5 where es_qa`)
 
   // --- la casa QA: curso, generación, plan y temas --------------------------
   const casa = await una(bd, `insert into academia.courses (slug, title, course_type, status, certificate_enabled) values ($1, 'QA · Casa de noticias (test-noticias)', 'cohort', 'published', false) returning id`, [CASA])
@@ -618,6 +619,34 @@ try {
   await html(`/curso/${CASA}/comunidad`, sAdmin)
   afirmar(A, 'el fijado vencido se apaga solo', false, (await una(bd, `select pinned from academia.community_posts where id = $1`, [aviso?.id]))?.pinned)
 
+  // =========================================================================
+  // 7. Cuántas noticias por búsqueda (0050): se guarda desde el panel, y con 1
+  //    la IA elige la más hablada y queda una sola.
+  // =========================================================================
+  const N = 'Noticias por búsqueda'
+  const pagCm = await html('/admin/vaip/noticias', sCm)
+  afirmar(N, 'el community manager ve el valor, sin poder cambiarlo', true, pagCm.includes('Cada búsqueda deja') && !pagCm.includes('name="noticias_por_caceria"'))
+  const pagAdmin = await html('/admin/vaip/noticias', sAdmin)
+  const formCantidad = formularioDonde(pagAdmin, (f) => f.includes('name="noticias_por_caceria"'))
+  afirmar(N, 'el admin tiene el selector', true, Boolean(formCantidad))
+  if (formCantidad) {
+    await enviarFormulario('/admin/vaip/noticias', { ...formCantidad, noticias_por_caceria: '1' }, sAdmin)
+    afirmar(N, 'el valor queda guardado', 1, (await una(bd, `select noticias_por_caceria from academia.agent_settings where es_qa`))?.noticias_por_caceria)
+    afirmar(N, 'la página lo dice', true, (await html('/admin/vaip/noticias', sAdmin)).includes('la noticia más hablada del momento'))
+  }
+  // Una búsqueda limpia: sin lo que ya propuso la de arriba.
+  await bd.query(`delete from academia.news_items where es_qa`)
+  await bd.query(`delete from academia.news_hunts where es_qa`)
+  const antesTop1 = peticiones.length
+  const respTop1 = await enviarFormulario('/admin/vaip/noticias', formularioDonde(await html('/admin/vaip/noticias', sCm), (f) => f.includes('name="cazar"')), sCm)
+  const idTop1 = idDeRedireccion(respTop1)
+  const top1 = await esperarBusqueda(bd, idTop1)
+  afirmar(N, 'con 1, la búsqueda termina lista', 'lista', top1.estado)
+  const deTop1 = await varias(bd, `select url from academia.news_items where es_qa and hunt_id = $1`, [idTop1])
+  afirmar(N, '…y deja una sola noticia aunque la IA escriba más', 1, deTop1.length)
+  const redaccionTop1 = peticiones.slice(antesTop1).find((p) => p.sistema.includes('escribes las noticias de IA'))
+  afirmar(N, '…pidiéndole la más hablada: la que más medios distintos cubren', true, Boolean(redaccionTop1?.sistema.includes('UNA SOLA') && redaccionTop1?.sistema.includes('MÁS MEDIOS DISTINTOS')))
+
   verde = imprimir()
 } catch (e) {
   afirmar('Suite', 'terminó sin detenerse', true, false)
@@ -626,7 +655,7 @@ try {
 } finally {
   if (ajustesPrevios) {
     await bd
-      .query(`update academia.agent_settings set tope_usd = $1, pausado_por_tope = $2, noticias = $3 where es_qa`, [ajustesPrevios.tope_usd, ajustesPrevios.pausado_por_tope, ajustesPrevios.noticias])
+      .query(`update academia.agent_settings set tope_usd = $1, pausado_por_tope = $2, noticias = $3, noticias_por_caceria = $4 where es_qa`, [ajustesPrevios.tope_usd, ajustesPrevios.pausado_por_tope, ajustesPrevios.noticias, ajustesPrevios.noticias_por_caceria])
       .catch(() => {})
   }
   if (!CONSERVAR) await purgar(bd).catch((e) => console.error(`  No se pudo limpiar: ${e.message}`))

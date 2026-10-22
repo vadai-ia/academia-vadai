@@ -55,6 +55,8 @@ export type TableroDeNoticias = {
   propuestas: Propuesta[]
   historial: Historial[]
   hoy: { cacerias: number; ligas: number }
+  /** Cuántas noticias deja cada cacería (0050). */
+  porCaceria: number
 }
 
 const inicioDelDiaEnCdmx = () => {
@@ -78,7 +80,7 @@ export async function tableroDeNoticias(busquedaId: string | null): Promise<Tabl
   const supabase = await crearClienteServidor()
   const casa = await casaDeNoticias(dbDelAgente())
 
-  const [{ data: busquedas }, { data: propuestas }, { data: historial }, { data: hoy }] = await Promise.all([
+  const [{ data: busquedas }, { data: propuestas }, { data: historial }, { data: hoy }, { data: ajustes }] = await Promise.all([
     supabase
       .from('news_hunts')
       .select('id, tipo, estado, paso, detalle, url_pedida, started_at, finished_at, descartes')
@@ -101,6 +103,7 @@ export async function tableroDeNoticias(busquedaId: string | null): Promise<Tabl
       .order('revisado_en', { ascending: false, nullsFirst: false })
       .limit(15),
     supabase.from('news_hunts').select('tipo, estado').eq('es_qa', qa).gte('started_at', inicioDelDiaEnCdmx()),
+    supabase.from('agent_settings').select('noticias_por_caceria').eq('es_qa', qa).maybeSingle(),
   ])
 
   const ids = (busquedas ?? []).map((b) => b.id)
@@ -157,6 +160,7 @@ export async function tableroDeNoticias(busquedaId: string | null): Promise<Tabl
       cacerias: (hoy ?? []).filter((h) => h.tipo === 'caceria' && h.estado !== 'fallida').length,
       ligas: (hoy ?? []).filter((h) => h.tipo === 'liga' && h.estado !== 'fallida').length,
     },
+    porCaceria: ajustes?.noticias_por_caceria ?? 1,
   }
 }
 

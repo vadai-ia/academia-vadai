@@ -8,7 +8,7 @@ import { dbDelAgente, type ClienteAgente } from '@/lib/agente/servidor'
 import type { Json } from '@/lib/supabase/types'
 import { casaDeNoticias } from '@/lib/noticias/casa'
 import { leerPagina, leerVideo, type Pagina } from '@/lib/noticias/pagina'
-import { DOMINIOS_BLOQUEADOS, FRENTES, REGLAS_LIGA, REGLAS_REDACCION, reglasDelFrente, type Frente } from '@/lib/noticias/prompt'
+import { DOMINIOS_BLOQUEADOS, FRENTES, REGLAS_LIGA, reglasDeRedaccion, reglasDelFrente, type Frente } from '@/lib/noticias/prompt'
 import { hashDeUrl, hostEn, idDeYoutube, medioDeHost, normalizarUrl } from '@/lib/noticias/url'
 
 /**
@@ -26,8 +26,9 @@ import { hashDeUrl, hostEn, idDeYoutube, medioDeHost, normalizarUrl } from '@/li
  *      normalizadas y sin repetir (contra la tanda y contra todo lo que ya se
  *      propuso o publicó); cada página o video se lee de verdad (si no abre,
  *      fuera) y se descarta lo viejo: 72 horas las noticias, 7 días las guías.
- *   3. Sonnet, sin herramientas y con las candidatas como datos, elige el top
- *      5 variado y lo escribe; un seguimiento de un tema ya publicado queda
+ *   3. Sonnet, sin herramientas y con las candidatas como datos, elige y
+ *      escribe las que diga el panel (`noticias_por_caceria`, 0050): con 1, la
+ *      más hablada del momento; con 2 a 5, un top variado; un seguimiento de un tema ya publicado queda
  *      marcado en las notas con lo nuevo. El código quita URLs y correos.
  *   4. Quedan como PROPUESTAS. Nada se publica sin el clic de una persona.
  *
@@ -41,6 +42,9 @@ import { hashDeUrl, hostEn, idDeYoutube, medioDeHost, normalizarUrl } from '@/li
 const BUSQUEDAS_POR_FRENTE = 4
 const MAX_POR_FRENTE = 6
 const MAX_A_REDACTAR = 15
+/** Con una sola noticia se le dan más candidatas: para medir qué es lo más cubierto. */
+const MAX_A_REDACTAR_TOP1 = 24
+/** El tope; cuántas deja cada cacería lo decide `agent_settings.noticias_por_caceria` (0050). */
 const MAX_PROPUESTAS = 5
 const LECTURAS_A_LA_VEZ = 6
 
@@ -385,9 +389,13 @@ export async function cazarNoticias(huntId: string): Promise<void> {
       })
     }
 
-    // --- 3. elegir y redactar el top 5 -----------------------------------------
-    await paso(db, huntId, `Eligiendo y redactando el top ${MAX_PROPUESTAS}`)
-    const lista = variadas(candidatas, MAX_A_REDACTAR)
+    // --- 3. elegir y redactar -------------------------------------------------
+    // Cuántas: las que diga el panel (0050). Con una, no se reparte entre
+    // frentes: se busca la más cubierta, así que van todas las candidatas que
+    // quepan, en el orden en que llegaron.
+    const cuantas = Math.min(MAX_PROPUESTAS, Math.max(1, a.noticias_por_caceria ?? 1))
+    await paso(db, huntId, cuantas === 1 ? 'Eligiendo la noticia más hablada y redactándola' : `Eligiendo y redactando el top ${cuantas}`)
+    const lista = cuantas === 1 ? candidatas.slice(0, MAX_A_REDACTAR_TOP1) : variadas(candidatas, MAX_A_REDACTAR)
     const bloque = lista
       .map((c, i) =>
         [
@@ -410,7 +418,7 @@ export async function cazarNoticias(huntId: string): Promise<void> {
     const redaccion = await llamar({
       tarea: 'noticias_redactar',
       modelo: a.modelo_fuerte,
-      sistema: [{ texto: REGLAS_REDACCION }],
+      sistema: [{ texto: reglasDeRedaccion(cuantas) }],
       mensaje: `Hoy es ${hoyEnCdmx()}.${yaVistos}\n\n${bloque}`,
       maxTokens: 4500,
       effort: 'medium',
@@ -425,7 +433,7 @@ export async function cazarNoticias(huntId: string): Promise<void> {
     const filas = escritas.noticias
       .map((n) => ({ n, c: lista[Number(n.clave.replace(/\D/g, '')) - 1] }))
       .filter((x): x is { n: (typeof escritas.noticias)[number]; c: Candidata } => Boolean(x.c) && !usadas.has(x.n.clave) && Boolean(usadas.add(x.n.clave)))
-      .slice(0, MAX_PROPUESTAS)
+      .slice(0, cuantas)
       .map(({ n, c }, i) => {
         const nuevo = textoLimpio(n.nuevo, 400)
         const notas = [`Frente: ${c.f.nombre}.`, n.seguimiento ? `Seguimiento de un tema que ya se publicó. Lo nuevo: ${nuevo || 'sin detalle'}.` : '']

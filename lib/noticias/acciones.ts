@@ -9,7 +9,7 @@ import type { EstadoAccion } from '@/lib/admin/tipos'
 import { claudeConfigurado, esModoQa } from '@/lib/agente/claude'
 import { dbDelAgente } from '@/lib/agente/servidor'
 import type { LlamadaRpc } from '@/lib/alumno/catalogo'
-import { exigirEquipo } from '@/lib/auth/sesion'
+import { exigirAdmin, exigirEquipo } from '@/lib/auth/sesion'
 import { borrarImagenes, subirArchivos, subirImagen, type ImagenDelMuro } from '@/lib/comunidad/imagenes'
 import { publicarComoEquipo } from '@/lib/comunidad/publicar-del-equipo'
 import { casaDeNoticias } from '@/lib/noticias/casa'
@@ -58,6 +58,36 @@ function mensajeDeInicio(error: { message: string }, tipo: 'caceria' | 'liga'): 
 function carpeta(tipo: 'noticias' | 'vaip'): string {
   const ahora = new Date()
   return `${tipo}/${esModoQa() ? 'qa/' : ''}${ahora.getUTCFullYear()}/${String(ahora.getUTCMonth() + 1).padStart(2, '0')}`
+}
+
+// ==========================================================================
+// Cuántas noticias deja cada cacería (0050)
+// ==========================================================================
+
+/**
+ * Guarda cuántas noticias deja cada cacería, del 1 al 5 (22-oct-2026). Lo usan
+ * el botón y el cron de las 7:00. Con 1 la IA elige la más hablada del momento.
+ * Es un ajuste del agente: lo cambia un admin (`agent_settings_admin`); el
+ * community manager lo ve en la página pero no lo edita.
+ */
+export async function guardarNoticiasPorCaceria(_previo: EstadoAccion, datos: FormData): Promise<EstadoAccion> {
+  const perfil = await exigirAdmin()
+  const r = z.coerce.number().int().min(1).max(5).safeParse(datos.get('noticias_por_caceria'))
+  if (!r.success) return { error: 'Elige de 1 a 5 noticias.' }
+  const supabase = await crearClienteServidor()
+  const { data, error } = await supabase
+    .from('agent_settings')
+    .update({ noticias_por_caceria: r.data, updated_at: new Date().toISOString(), updated_by: perfil.user_id })
+    .eq('es_qa', esModoQa())
+    .select('noticias_por_caceria')
+  if (error || !data?.length) {
+    console.error(JSON.stringify({ operacion: 'guardarNoticiasPorCaceria', valor: r.data, error: error?.message ?? 'sin fila' }))
+    return { error: 'No se pudo guardar. Intenta de nuevo.' }
+  }
+  revalidatePath(RUTA_NOTICIAS)
+  return {
+    aviso: r.data === 1 ? 'Guardado. Cada búsqueda deja la noticia más hablada del momento.' : `Guardado. Cada búsqueda deja las ${r.data} más relevantes.`,
+  }
 }
 
 // ==========================================================================
