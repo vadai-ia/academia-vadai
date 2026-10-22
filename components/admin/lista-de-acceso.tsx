@@ -261,7 +261,7 @@ function Casillas({
       ) : null}
 
       {/* --- Guardar: pegado abajo para no tener que volver ---------------- */}
-      <div className="sticky bottom-0 -mx-1 flex flex-col gap-3 border-t border-border bg-background/95 px-1 py-3 backdrop-blur sm:flex-row sm:items-center sm:justify-between">
+      <div className="sticky bottom-[var(--alto-barra-inferior,0px)] -mx-1 flex flex-col gap-3 border-t border-border bg-background/95 px-1 py-3 backdrop-blur sm:flex-row sm:items-center sm:justify-between">
         <label className="flex items-center gap-2 text-sm">
           <input type="checkbox" name="avisar" value="si" defaultChecked className="size-4 accent-[var(--primary)]" />
           Mandar correo a las personas nuevas

@@ -2,6 +2,7 @@
 
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
+import { useEffect } from 'react'
 
 import type { ReactNode } from 'react'
 
@@ -19,12 +20,76 @@ import { cn } from '@/lib/utils'
  *
  *   - Escritorio (lg+): columna fija a la izquierda, pegada bajo el
  *     encabezado, con scroll propio si no cabe.
- *   - Teléfono: un <details> «Menú» arriba del contenido, que dice en qué
- *     sección estás. Nativo: abre y cierra sin JavaScript (CLAUDE.md).
+ *   - Teléfono y tableta (22-oct-2026, antes un <details> «Menú» arriba):
+ *     barra abajo como app —Panel, Muro, Grupos, Alumnos y «Menú»— y «Menú»
+ *     sube una hoja con todo el panel. Popover nativo: sin JavaScript abre y
+ *     cierra igual (CLAUDE.md).
  *
  * Solo navegación: ninguna ruta, acción ni guarda cambió. Qué destinos ve
  * cada rol lo decide el layout, igual que antes.
  */
+
+/** Lo que el equipo abre a diario: va en la barra de abajo del teléfono. */
+const RAPIDOS = ['/admin', '/admin/vaip/muro', '/admin/grupos', '/admin/alumnos']
+const ID_HOJA = 'menu-del-panel'
+
+function IconoMenu() {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" className="size-4" aria-hidden>
+      <path d="M4 6h16M4 12h16M4 18h16" />
+    </svg>
+  )
+}
+
+/**
+ * Un lugar de la barra de abajo: icono en su pastilla, nombre debajo y el
+ * número de lo que espera arriba a la derecha. Sin `href` es el botón «Menú».
+ */
+function BotonDeBarra({
+  href,
+  activo,
+  icono,
+  etiqueta,
+  insignia,
+}: {
+  href?: string
+  activo: boolean
+  icono: ReactNode
+  etiqueta: string
+  insignia?: ReactNode
+}) {
+  const contenido = (
+    <>
+      <span
+        className={cn(
+          'relative inline-flex h-8 w-14 items-center justify-center rounded-full transition-colors [&_svg]:size-[1.375rem]',
+          'group-focus-visible:ring-3 group-focus-visible:ring-ring/50',
+          activo ? 'bg-primary/12' : 'group-active:bg-muted'
+        )}
+      >
+        {icono}
+        {insignia ? <span className="absolute -top-1.5 -right-0.5 scale-90">{insignia}</span> : null}
+      </span>
+      <span className="max-w-full truncate px-1">{etiqueta}</span>
+    </>
+  )
+  const clases = cn(
+    'group flex min-w-0 flex-col items-center justify-center gap-1 text-[0.6875rem] leading-none font-medium transition-colors focus-visible:outline-none',
+    activo ? 'text-primary' : 'text-muted-foreground'
+  )
+  if (href) {
+    return (
+      <Link href={href} aria-current={activo ? 'page' : undefined} className={clases}>
+        {contenido}
+      </Link>
+    )
+  }
+  return (
+    <button type="button" popoverTarget={ID_HOJA} className={cn(clases, 'cursor-pointer')}>
+      {contenido}
+    </button>
+  )
+}
 
 export type GrupoDeNavegacion = { titulo?: string; destinos: Destino[] }
 
@@ -105,44 +170,64 @@ export function BarraLateral({
   total?: ReactNode
 }) {
   const ruta = usePathname()
-  const actual = destinoActual(ruta, grupos.flatMap((g) => g.destinos))
-  // «Menú · V-AI-P · Muro» (M25): con dos mundos, el nombre solo no dice de cuál.
-  const grupo = actual ? grupos.find((g) => g.destinos.includes(actual))?.titulo : undefined
+  const todos = grupos.flatMap((g) => g.destinos)
+  const actual = destinoActual(ruta, todos)
+  const rapidos = RAPIDOS.flatMap((href) => todos.filter((d) => d.href === href))
+  const enRapidos = Boolean(actual && rapidos.includes(actual))
+
+  // Un <Link> cambia de página sin recargar: la hoja seguiría abierta encima.
+  useEffect(() => {
+    const hoja = document.getElementById(ID_HOJA) as (HTMLElement & { hidePopover?: () => void }) | null
+    try {
+      hoja?.hidePopover?.()
+    } catch {
+      // Ya estaba cerrada.
+    }
+  }, [ruta])
 
   return (
     <>
-      {/* Teléfono y tableta */}
-      <div className="border-b border-border px-5 py-2 lg:hidden">
-        <details className="group">
-          <summary className="flex min-h-11 cursor-pointer list-none items-center justify-between gap-3 rounded-lg px-1 text-sm font-medium focus-visible:ring-3 focus-visible:ring-ring/50 focus-visible:outline-none [&::-webkit-details-marker]:hidden">
-            <span className="flex items-center gap-2.5">
-              {actual ? <span className="text-primary">{actual.icono}</span> : null}
-              <span>
-                <span className="text-muted-foreground">
-                  Menú · {grupo && grupo !== actual?.etiqueta ? `${grupo} · ` : ''}
-                </span>
-                {actual?.etiqueta ?? 'Secciones'}
-              </span>
-            </span>
-            <span className="ml-auto shrink-0">{total}</span>
-            <svg
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="2"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              className="size-4 text-muted-foreground transition-transform group-open:rotate-180"
-              aria-hidden
-            >
-              <path d="m6 9 6 6 6-6" />
-            </svg>
-          </summary>
-          <nav aria-label="Secciones del panel" className="flex flex-col gap-4 pt-2 pb-3">
-            <Grupos grupos={grupos} pie={pie} ruta={ruta} tactil />
-          </nav>
-        </details>
+      {/* Teléfono y tableta (22-oct-2026): como app. Abajo, lo que el equipo
+          abre a diario con su número; «Menú» sube una hoja con todo el panel.
+          Es un popover nativo: abre, cierra con Esc o tocando fuera, y sin
+          JavaScript funciona igual. */}
+      <div
+        id={ID_HOJA}
+        popover="auto"
+        className="inset-x-0 top-auto bottom-0 m-0 max-h-[85dvh] w-full max-w-none overflow-y-auto rounded-t-[18px] border-t border-border bg-background p-0 text-foreground shadow-[0_-8px_32px_rgba(0,0,0,0.18)] lg:hidden"
+      >
+        <div className="sticky top-0 z-10 flex items-center justify-between border-b border-border bg-background/95 px-5 py-3 backdrop-blur-md">
+          <span className="text-[0.95rem] font-medium">Panel de VADAI</span>
+          <button
+            type="button"
+            popoverTarget={ID_HOJA}
+            popoverTargetAction="hide"
+            className="inline-flex h-11 items-center rounded-full px-4 text-sm font-medium text-primary hover:bg-muted focus-visible:ring-3 focus-visible:ring-ring/50 focus-visible:outline-none"
+          >
+            Cerrar
+          </button>
+        </div>
+        <nav aria-label="Secciones del panel" className="flex flex-col gap-4 px-3 pt-3 pb-[max(1.5rem,env(safe-area-inset-bottom))]">
+          <Grupos grupos={grupos} pie={pie} ruta={ruta} tactil />
+        </nav>
       </div>
+
+      <nav
+        aria-label="Accesos del panel"
+        className="fixed inset-x-0 bottom-0 z-30 border-t border-border bg-background/95 pb-[env(safe-area-inset-bottom)] backdrop-blur-md lg:hidden"
+      >
+        <div className="mx-auto grid h-16 max-w-lg grid-cols-5">
+          {rapidos.map((d) => (
+            <BotonDeBarra key={d.href} activo={actual?.href === d.href} icono={d.icono} etiqueta={d.etiqueta} insignia={d.insignia} href={d.href} />
+          ))}
+          <BotonDeBarra
+            activo={!enRapidos}
+            icono={<IconoMenu />}
+            etiqueta={enRapidos || !actual ? 'Menú' : actual.etiqueta}
+            insignia={total}
+          />
+        </div>
+      </nav>
 
       {/* Escritorio */}
       <aside className="hidden w-60 shrink-0 border-r border-border lg:block">

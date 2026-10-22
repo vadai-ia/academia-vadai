@@ -2,6 +2,7 @@ import type { Metadata } from 'next'
 import Link from 'next/link'
 import { notFound, redirect } from 'next/navigation'
 
+import { Regreso } from '@/components/ui-vadai/regreso'
 import { AgregarAlumnos } from '@/components/admin/agregar-alumnos'
 import { ArbolCurso } from '@/components/admin/arbol-curso'
 import { AsignarGeneracion } from '@/components/admin/asignar-generacion'
@@ -166,12 +167,7 @@ export default async function PaginaCurso({
   return (
     <div className="flex flex-col gap-8">
       <header className="flex flex-col gap-1">
-        <Link
-          href="/admin/cursos"
-          className="text-sm text-primary underline-offset-4 hover:underline"
-        >
-          ← Cursos
-        </Link>
+        <Regreso href="/admin/cursos">Cursos</Regreso>
         <h1 className="flex flex-wrap items-center gap-3 text-2xl font-semibold tracking-tight">
           {curso.title}
           <Badge variant={curso.status === 'published' ? 'default' : 'secondary'}>
@@ -186,7 +182,7 @@ export default async function PaginaCurso({
 
         {/* El equipo entra al curso sin estar inscrito. Es la única puerta a la
             comunidad y a los hilos de comentarios, que se moderan desde ahí. */}
-        <p className="flex flex-wrap gap-4 pt-1 text-sm">
+        <p className="flex flex-wrap gap-x-4 pt-1 text-sm [&>a]:inline-flex [&>a]:items-center [&>a]:pointer-coarse:min-h-11">
           <Link href={`/curso/${curso.slug}`} className="text-primary underline-offset-4 hover:underline">
             Verlo en el portal de alumnos →
           </Link>

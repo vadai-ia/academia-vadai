@@ -454,8 +454,9 @@ alguien actúe —Muro y Grupos sin respuesta, Noticias por publicar, Clases que
 grabación, Entregas por revisar, borradores del Agente IA, correos de acceso que no salieron en
 Alumnos y pagos con problema en Planes y cobros (solo admin)—; en 0 no se pinta
 (`lib/admin/contadores.ts`, cada uno en su `<Suspense>`). En
-escritorio es una columna fija; en teléfono, un `<details>` «Menú · V-AI-P · Muro»
-(`components/admin/barra-lateral.tsx`). El encabezado del panel queda en una fila: marca, campana
+escritorio es una columna fija; en teléfono y tableta (22-oct-2026), una barra abajo como app
+—Panel, Muro, Grupos, Alumnos con sus números, y «Menú», que sube una hoja (popover nativo) con
+todo el panel— (`components/admin/barra-lateral.tsx`). El encabezado del panel queda en una fila: marca, campana
 (muro de V-AI-P y grupos por separado) y cuenta. El portal de alumnos sigue con dos filas.
 
 **Vocabulario fijo** (M25): «**Comunidad**» es solo V-AI-P, la única comunidad. El canal interno de

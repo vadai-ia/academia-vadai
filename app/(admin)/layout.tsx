@@ -104,7 +104,7 @@ export default async function LayoutAdmin({ children }: { children: ReactNode })
   ]
 
   return (
-    <div className="relative flex min-h-dvh flex-col">
+    <div className="con-barra-panel relative flex min-h-dvh flex-col">
       <SaltarAlContenido />
       {/* Sin señal entre el clic y la página nueva, la gente vuelve a apretar.
           Suspense porque lee la URL y algunas rutas del árbol son estáticas. */}
@@ -134,7 +134,10 @@ export default async function LayoutAdmin({ children }: { children: ReactNode })
           // real, el mismo que usan los alumnos (3-oct-2026).
           pie={{ href: '/mis-cursos', etiqueta: 'Portal de alumnos', icono: IconoPortal }}
         />
-        <main id="contenido" className="w-full min-w-0 flex-1 px-5 py-8 sm:py-10 lg:px-10">
+        <main
+          id="contenido"
+          className="w-full min-w-0 flex-1 px-5 pt-6 pb-[calc(var(--alto-barra-inferior)+2rem)] sm:pt-10 lg:px-10 lg:pb-10"
+        >
           <div className="mx-auto w-full max-w-6xl">{children}</div>
         </main>
       </div>
