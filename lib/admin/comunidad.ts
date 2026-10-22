@@ -1,5 +1,6 @@
 import 'server-only'
 
+import { ligaEnGrupo } from '@/lib/comunidad/ligas'
 import { esRolDeEquipo } from '@/lib/auth/roles'
 import { cache } from 'react'
 
@@ -257,9 +258,6 @@ const hilosDeLaAcademia = cache(async (): Promise<Crudo> => {
     const curso = cursoPorId.get(p.course_id)
     if (!curso || !cuenta(p.user_id)) continue
     const generacion = p.cohort_id ? (generacionPorId.get(p.cohort_id) ?? null) : null
-    const portal = new URLSearchParams()
-    if (generacion) portal.set('gen', generacion.id)
-    const consulta = portal.toString()
     const deVaip = mundoDe(curso.id) === 'vaip'
     hilos.push(
       armar({
@@ -280,7 +278,7 @@ const hilosDeLaAcademia = cache(async (): Promise<Crudo> => {
         respuestas: comentariosPorPost.get(p.id) ?? [],
         // Para la casa real esta ruta ya manda a /vaip (M22); las casas QA se
         // quedan en su curso, que es donde las suites las leen.
-        hrefPortal: `/curso/${curso.slug}/comunidad${consulta ? `?${consulta}` : ''}#publicacion-${p.id}`,
+        hrefPortal: ligaEnGrupo(curso.slug, p.id),
       })
     )
   }

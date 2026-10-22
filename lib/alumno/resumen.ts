@@ -1,5 +1,6 @@
 import 'server-only'
 
+import { ligaEnVaip } from '@/lib/comunidad/ligas'
 import { misCursos, type CursoDelAlumno, type LeccionEnIndice } from '@/lib/alumno/consultas'
 import { cursoDelAlumno } from '@/lib/alumno/consultas'
 import { sesionesDelAlumno, sesionesDelCurso, type SesionDelAlumno } from '@/lib/alumno/sesiones'
@@ -70,7 +71,8 @@ const breve = (p: PostDeComunidad, href: string): PublicacionBreve => ({
   avatar: p.autor.avatar,
   creadoEn: p.creadoEn,
   respuestas: p.comentarios.length,
-  href: `${href}#publicacion-${p.id}`,
+  // 22-oct-2026: cada publicación tiene su página (lib/comunidad/ligas.ts).
+  href: href === '/vaip' ? ligaEnVaip(p.id, Boolean(p.noticia)) : `${href}/${p.id}`,
 })
 
 /**

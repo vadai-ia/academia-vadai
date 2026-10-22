@@ -136,7 +136,7 @@ async function MuroVaip({ ctx, q }: { ctx: ContextoVaip; q: Parametros }) {
           Todavía no estás en el grupo de miembros. Escríbenos y te agregamos.
         </p>
       ) : (
-        <div className="max-w-3xl">
+        <div className="max-w-2xl">
           <Comunidad
             posts={feed.posts}
             cursoId={casa.id}
@@ -145,6 +145,12 @@ async function MuroVaip({ ctx, q }: { ctx: ContextoVaip; q: Parametros }) {
             cursoSlug={casa.slug}
             soyEquipo={equipo}
             ruta="/vaip"
+            rutaDetalle="/vaip/muro"
+            rutaNoticias="/vaip/noticias"
+            // Las noticias tienen su pestaña: como filtro del muro sobraban.
+            temasOcultos={['noticias']}
+            yo={{ nombre, avatar: perfil.avatar_url }}
+            invitacion="Comparte algo con la comunidad…"
             pagina={feed.pagina}
             paginas={feed.paginas}
             porPagina={feed.porPagina}

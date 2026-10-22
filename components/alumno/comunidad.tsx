@@ -5,8 +5,7 @@ import Link from 'next/link'
 import { useActionState } from 'react'
 import { useFormStatus } from 'react-dom'
 
-import { Reacciones } from '@/components/alumno/reacciones'
-import { AutoEnviar } from '@/components/ui-vadai/auto-enviar'
+import { Reaccionar, ResumenDeReacciones } from '@/components/alumno/reacciones'
 import { RenderRico } from '@/components/alumno/render-rico'
 import { Avatar } from '@/components/ui-vadai/superficie'
 import { TextoConLigas } from '@/components/ui-vadai/texto-con-ligas'
@@ -24,41 +23,32 @@ import {
   publicarEnComunidad,
 } from '@/lib/comunidad/acciones-posts'
 import { insigniaDeAutor } from '@/lib/agente/firma'
+import { textoPlano } from '@/lib/comunidad/documento'
 import type { ComentarioDePost, PostDeComunidad } from '@/lib/comunidad/posts'
 import { cn } from '@/lib/utils'
 
 /**
- * Feed de comunidad (§3.8).
+ * Muro y grupos (§3.8), como feed de Skool (22-oct-2026).
  *
- * UNA PUBLICACIÓN Y UNA RESPUESTA NO SE VEN IGUAL (21-sep-2026). Antes sí, y
- * Alejandro lo dijo mirando el feed: "no se ve como un comentario y un
- * subcomentario". La publicación es una tarjeta con su avatar grande y su
- * título; las respuestas cuelgan de ella, con sangría, línea al costado, fondo
- * distinto y avatar chico. La jerarquía se lee sin leer.
+ * Alejandro: «que se sienta fácil de leer… como un blog increíble donde la
+ * gente quiera interactuar». Antes cada publicación salía entera en el feed,
+ * con seis botones de emoji, «Responder» y, al equipo, «Fijar · Ocultar ·
+ * eliminar» encima: una noticia medía 1,100 px y la segunda quedaba a tres
+ * pantallas. Ahora el feed es de TARJETAS —autor, título, tres líneas, la
+ * imagen y una fila «👍 12 · 💬 5 · Me gusta»— y cada una se abre en su página
+ * (`PublicacionCompleta`) con el texto entero y la conversación.
  *
- * LAS RESPUESTAS SE PLIEGAN. Con tres o más vienen cerradas tras "Ver N
- * respuestas": en un hilo largo, tener que pasar veinte comentarios para llegar
- * a la siguiente publicación es justo lo que cansa. Con una o dos se quedan
- * abiertas, porque esconderlas sería esconder la conversación entera.
+ * Una sola reacción con selector (`Reaccionar`), y lo del equipo dentro de un
+ * menú «⋯». Todo lo que se abre y se cierra son <details>, y las acciones van
+ * directas al <form>: sin JavaScript la comunidad sigue funcionando. React solo
+ * emite el $ACTION_ID cuando la acción llega sin envolver; el reset de los
+ * campos lo da `key`, desde el servidor.
  *
- * Lo oculto por moderación no llega hasta aquí — lo filtra RLS. Este componente
- * no tiene lógica de visibilidad, y eso es deliberado.
- *
- * Todo lo que se abre y se cierra son <details>, y las acciones van directas al
- * <form>. Un onClick o un closure alrededor de la acción dejarían la comunidad
- * inservible sin JavaScript: React solo emite el $ACTION_ID cuando la acción
- * llega sin envolver. El reset de los campos lo da `key`, desde el servidor.
+ * Lo oculto por moderación no llega hasta aquí — lo filtra RLS.
  */
 
-/** Con tres o más, el hilo viene plegado. */
-const PLIEGA_DESDE = 3
-
 /** El <summary> se disfraza de botón; el triángulo nativo estorba. */
-const claseResumen =
-  'inline-flex w-fit cursor-pointer list-none items-center rounded-md border border-border ' +
-  'px-3 py-1.5 text-sm font-medium transition-colors select-none hover:bg-accent ' +
-  'focus-visible:ring-3 focus-visible:ring-ring/50 focus-visible:outline-none ' +
-  '[&::-webkit-details-marker]:hidden'
+const sinMarcador = 'list-none [&::-webkit-details-marker]:hidden'
 
 function fechaCorta(iso: string): string {
   // Zona fija: el servidor pinta en UTC y el navegador en la suya; si no
@@ -72,63 +62,184 @@ function fechaCorta(iso: string): string {
   }).format(new Date(iso))
 }
 
-function Boton({ etiqueta, pendienteEtiqueta, size = 'default' }: {
+function Boton({
+  etiqueta,
+  pendienteEtiqueta,
+  className,
+}: {
   etiqueta: string
   pendienteEtiqueta: string
-  size?: 'default' | 'sm'
+  className?: string
 }) {
   const { pending } = useFormStatus()
   return (
-    <Button type="submit" size={size} disabled={pending}>
+    <Button type="submit" disabled={pending} className={className}>
       {pending ? pendienteEtiqueta : etiqueta}
     </Button>
-  )
-}
-
-/**
- * Borrar de verdad, detrás de una confirmación.
- *
- * Ocultar es un clic porque se deshace; borrar no se deshace, así que pide
- * decirlo dos veces. Es un `<details>`, no un `confirm()` ni un modal de
- * React: funciona con el JavaScript apagado.
- */
-function BorrarConAviso({
-  id,
-  tipo,
-  ruta,
-  que,
-}: {
-  id: string
-  tipo: 'post' | 'comentario'
-  ruta: string
-  que: string
-}) {
-  return (
-    <details className="inline-block">
-      <summary className="inline-flex cursor-pointer list-none items-center px-2 py-1 text-xs text-destructive underline-offset-2 select-none hover:underline [&::-webkit-details-marker]:hidden">
-        eliminar
-      </summary>
-      <form
-        action={eliminarComoEquipo}
-        className="mt-1 flex flex-wrap items-center gap-2 rounded-md border border-destructive/40 bg-destructive/5 px-3 py-2"
-      >
-        <input type="hidden" name="id" value={id} />
-        <input type="hidden" name="tipo" value={tipo} />
-        <input type="hidden" name="ruta" value={ruta} />
-        <span className="text-xs text-muted-foreground">
-          {que} No se puede deshacer. Si solo estorba, usa ocultar.
-        </span>
-        <Button type="submit" variant="destructive" size="sm">
-          Sí, eliminar
-        </Button>
-      </form>
-    </details>
   )
 }
 
 /** Un tema del muro (M17). Local: `lib/comunidad/temas.ts` es server-only. */
 type TemaDelMuro = { id: string; nombre: string; slug: string; soloEquipo: boolean }
 
+/** Quién está escribiendo: el avatar del «Escribe algo…». */
+type Yo = { nombre: string; avatar: string | null }
+
+// --- El menú «⋯» -----------------------------------------------------------
+
+const renglonDeMenu =
+  'flex w-full items-center rounded-md px-3 py-2 text-left text-sm transition-colors hover:bg-muted pointer-coarse:min-h-11 ' +
+  'focus-visible:ring-3 focus-visible:ring-ring/50 focus-visible:outline-none'
+
+function IconoTresPuntos() {
+  return (
+    <svg viewBox="0 0 24 24" fill="currentColor" className="size-4" aria-hidden>
+      <circle cx="5" cy="12" r="1.8" />
+      <circle cx="12" cy="12" r="1.8" />
+      <circle cx="19" cy="12" r="1.8" />
+    </svg>
+  )
+}
+
+/**
+ * Fijar, ocultar y eliminar, guardados en «⋯» (22-oct-2026). Estaban a la
+ * vista en cada publicación, en rojo, y el equipo los ve en el portal real: eran
+ * lo primero que se leía. Borrar sigue pidiendo confirmarlo, porque no se
+ * deshace; ocultar es un toque.
+ *
+ * `despues`: desde la página de una publicación, a dónde volver al ocultarla o
+ * borrarla (la página ya no existiría).
+ */
+function MenuDePublicacion({
+  post,
+  cursoSlug,
+  ruta,
+  soyEquipo,
+  despues,
+}: {
+  post: PostDeComunidad
+  cursoSlug: string
+  ruta: string
+  soyEquipo: boolean
+  despues?: string
+}) {
+  if (!soyEquipo && !post.esMio) return null
+  const ocultos = (
+    <>
+      <input type="hidden" name="id" value={post.id} />
+      <input type="hidden" name="curso_slug" value={cursoSlug} />
+      <input type="hidden" name="ruta" value={ruta} />
+      {despues ? <input type="hidden" name="despues" value={despues} /> : null}
+    </>
+  )
+
+  return (
+    <details className="group/menu relative z-10 shrink-0">
+      <summary
+        aria-label="Opciones de la publicación"
+        className={cn(
+          'flex size-9 cursor-pointer items-center justify-center rounded-full text-muted-foreground transition-colors select-none pointer-coarse:size-11',
+          'hover:bg-muted hover:text-foreground focus-visible:ring-3 focus-visible:ring-ring/50 focus-visible:outline-none',
+          'group-open/menu:bg-muted',
+          sinMarcador
+        )}
+      >
+        <IconoTresPuntos />
+      </summary>
+      <div className="absolute top-full right-0 z-30 mt-1 flex w-56 flex-col rounded-[10px] border border-border bg-card p-1 shadow-[0_4px_16px_rgba(0,0,0,0.1)]">
+        {soyEquipo ? (
+          <>
+            <form action={fijarPost}>
+              {ocultos}
+              <input type="hidden" name="fijar" value={post.fijado ? 'no' : 'si'} />
+              <button type="submit" className={renglonDeMenu}>
+                {post.fijado ? 'Desfijar' : 'Fijar arriba'}
+              </button>
+            </form>
+            <form action={moderarPost}>
+              {ocultos}
+              <input type="hidden" name="tipo" value="post" />
+              <button type="submit" className={renglonDeMenu}>
+                Ocultar
+              </button>
+            </form>
+            <details className="group/borrar">
+              <summary className={cn(renglonDeMenu, 'cursor-pointer text-destructive', sinMarcador)}>
+                Eliminar…
+              </summary>
+              <form action={eliminarComoEquipo} className="flex flex-col gap-2 px-3 pt-1 pb-2">
+                {ocultos}
+                <input type="hidden" name="tipo" value="post" />
+                <span className="text-xs text-muted-foreground">
+                  Se borra con sus {post.comentarios.length} respuesta(s) y no se puede deshacer. Si solo estorba, usa
+                  Ocultar.
+                </span>
+                <Button type="submit" variant="destructive" size="sm">
+                  Sí, eliminar
+                </Button>
+              </form>
+            </details>
+          </>
+        ) : (
+          <form action={eliminarPostPropio}>
+            {ocultos}
+            <button type="submit" className={cn(renglonDeMenu, 'text-destructive')}>
+              Eliminar mi publicación
+            </button>
+          </form>
+        )}
+      </div>
+    </details>
+  )
+}
+
+/** Ocultar o eliminar una respuesta (equipo), en su propio «⋯». */
+function MenuDeRespuesta({ comentario, ruta }: { comentario: ComentarioDePost; ruta: string }) {
+  return (
+    <details className="group/menu relative shrink-0">
+      <summary
+        aria-label="Opciones de la respuesta"
+        className={cn(
+          'flex size-8 cursor-pointer items-center justify-center rounded-full text-muted-foreground transition-colors select-none pointer-coarse:size-11',
+          'hover:bg-muted hover:text-foreground focus-visible:ring-3 focus-visible:ring-ring/50 focus-visible:outline-none',
+          sinMarcador
+        )}
+      >
+        <IconoTresPuntos />
+      </summary>
+      <div className="absolute top-full right-0 z-30 mt-1 flex w-52 flex-col rounded-[10px] border border-border bg-card p-1 shadow-[0_4px_16px_rgba(0,0,0,0.1)]">
+        <form action={moderarPost}>
+          <input type="hidden" name="id" value={comentario.id} />
+          <input type="hidden" name="tipo" value="comentario" />
+          <input type="hidden" name="ruta" value={ruta} />
+          <button type="submit" className={renglonDeMenu}>
+            Ocultar
+          </button>
+        </form>
+        <details>
+          <summary className={cn(renglonDeMenu, 'cursor-pointer text-destructive', sinMarcador)}>Eliminar…</summary>
+          <form action={eliminarComoEquipo} className="flex flex-col gap-2 px-3 pt-1 pb-2">
+            <input type="hidden" name="id" value={comentario.id} />
+            <input type="hidden" name="tipo" value="comentario" />
+            <input type="hidden" name="ruta" value={ruta} />
+            <span className="text-xs text-muted-foreground">Se borra esta respuesta. No se puede deshacer.</span>
+            <Button type="submit" variant="destructive" size="sm">
+              Sí, eliminar
+            </Button>
+          </form>
+        </details>
+      </div>
+    </details>
+  )
+}
+
+// --- Escribir ----------------------------------------------------------------
+
+/**
+ * «Escribe algo…» como en Skool: un renglón con tu avatar que se abre en el
+ * formulario. Era un botón suelto, «Escribir una publicación», que se leía como
+ * un control más entre los filtros.
+ */
 function NuevaPublicacion({
   cursoId,
   cohortId,
@@ -138,6 +249,8 @@ function NuevaPublicacion({
   ruta,
   temas,
   temaActual,
+  yo,
+  invitacion,
 }: {
   cursoId: string
   cohortId: string | null
@@ -147,15 +260,29 @@ function NuevaPublicacion({
   ruta: string
   temas: TemaDelMuro[]
   temaActual: TemaDelMuro | null
+  yo: Yo | null
+  invitacion: string
 }) {
   const temasParaPublicar = temas.filter((t) => soyEquipo || !t.soloEquipo)
   const [estado, accion] = useActionState(publicarEnComunidad, {})
 
   return (
-    <details>
-      <summary className={claseResumen}>Escribir una publicación</summary>
+    <details className="group/escribir rounded-[14px] border border-border bg-card" open={Boolean(estado.error)}>
+      <summary
+        className={cn(
+          'flex cursor-pointer items-center gap-3 rounded-[14px] p-3 transition-colors select-none hover:bg-muted/50 sm:p-4',
+          'focus-visible:ring-3 focus-visible:ring-ring/50 focus-visible:outline-none',
+          sinMarcador
+        )}
+      >
+        {yo ? <Avatar nombre={yo.nombre} foto={yo.avatar} tamano={36} /> : null}
+        <span className="flex h-11 flex-1 items-center rounded-full bg-muted px-4 text-[0.95rem] text-muted-foreground group-open/escribir:hidden">
+          {invitacion}
+        </span>
+        <span className="hidden flex-1 text-[0.95rem] font-medium group-open/escribir:inline">Nueva publicación</span>
+      </summary>
 
-      <form action={accion} className="mt-3 flex flex-col gap-4 rounded-lg border border-border p-4">
+      <form action={accion} className="flex flex-col gap-4 border-t border-border p-4">
         <input type="hidden" name="course_id" value={cursoId} />
         <input type="hidden" name="cohort_id" value={cohortId ?? ''} />
         <input type="hidden" name="curso_slug" value={cursoSlug} />
@@ -177,27 +304,6 @@ function NuevaPublicacion({
           </fieldset>
         ) : null}
 
-        {/* M19: un alumno no ve los temas donde solo publica el equipo (Noticias);
-            la base lo rechazaría igual (academia_0043). */}
-        {temasParaPublicar.length > 0 ? (
-          <div className="flex flex-col gap-1.5">
-            <Label htmlFor="post-tema">Tema</Label>
-            <select
-              id="post-tema"
-              name="topic_id"
-              defaultValue={temasParaPublicar.some((t) => t.id === temaActual?.id) ? temaActual?.id : ''}
-              className="h-9 rounded-md border border-border bg-background px-2 text-sm"
-            >
-              <option value="">Sin tema</option>
-              {temasParaPublicar.map((t) => (
-                <option key={t.id} value={t.id}>
-                  {t.nombre}
-                </option>
-              ))}
-            </select>
-          </div>
-        ) : null}
-
         <div className="flex flex-col gap-1.5">
           <Label htmlFor="post-titulo">Título</Label>
           <Input
@@ -206,25 +312,48 @@ function NuevaPublicacion({
             placeholder="¿De qué quieres hablar?"
             required
             minLength={3}
+            className="h-11 text-base"
           />
         </div>
 
         <div className="flex flex-col gap-1.5">
           <Label htmlFor="post-cuerpo">Mensaje</Label>
-          <Textarea id="post-cuerpo" name="cuerpo" rows={4} placeholder="Cuéntanos…" />
+          <Textarea id="post-cuerpo" name="cuerpo" rows={5} placeholder="Cuéntanos…" className="text-base" />
         </div>
 
-        <div className="flex flex-col gap-1.5">
-          <Label htmlFor="post-imagenes">Imágenes</Label>
-          <Input
-            id="post-imagenes"
-            name="imagenes"
-            type="file"
-            accept="image/*"
-            multiple
-            className="file:mr-3 file:text-sm"
-          />
-          <p className="text-xs text-muted-foreground">Hasta 4 imágenes. Opcional.</p>
+        <div className="grid gap-4 sm:grid-cols-2">
+          {/* M19: un alumno no ve los temas donde solo publica el equipo
+              (Noticias); la base lo rechazaría igual (academia_0043). */}
+          {temasParaPublicar.length > 0 ? (
+            <div className="flex flex-col gap-1.5">
+              <Label htmlFor="post-tema">Tema</Label>
+              <select
+                id="post-tema"
+                name="topic_id"
+                defaultValue={temasParaPublicar.some((t) => t.id === temaActual?.id) ? temaActual?.id : ''}
+                className="h-11 rounded-lg border border-border bg-background px-3 text-sm"
+              >
+                <option value="">Sin tema</option>
+                {temasParaPublicar.map((t) => (
+                  <option key={t.id} value={t.id}>
+                    {t.nombre}
+                  </option>
+                ))}
+              </select>
+            </div>
+          ) : null}
+
+          <div className="flex flex-col gap-1.5">
+            <Label htmlFor="post-imagenes">Imágenes (hasta 4)</Label>
+            <Input
+              id="post-imagenes"
+              name="imagenes"
+              type="file"
+              accept="image/*"
+              multiple
+              className="h-11 py-2 file:mr-3 file:text-sm"
+            />
+          </div>
         </div>
 
         {estado.error ? (
@@ -233,23 +362,15 @@ function NuevaPublicacion({
           </p>
         ) : null}
 
-        <div>
-          <Boton etiqueta="Publicar" pendienteEtiqueta="Publicando…" />
+        <div className="flex justify-end">
+          <Boton etiqueta="Publicar" pendienteEtiqueta="Publicando…" className="h-10 px-5" />
         </div>
       </form>
     </details>
   )
 }
 
-function Comentar({
-  postId,
-  cursoSlug,
-  ruta,
-}: {
-  postId: string
-  cursoSlug: string
-  ruta: string
-}) {
+function Comentar({ postId, cursoSlug, ruta }: { postId: string; cursoSlug: string; ruta: string }) {
   const [estado, accion] = useActionState(comentarEnPost, {})
 
   return (
@@ -260,425 +381,224 @@ function Comentar({
 
       <Textarea
         name="contenido"
-        rows={2}
+        rows={3}
         placeholder="Escribe una respuesta…"
         aria-label="Respuesta"
         required
         minLength={2}
+        className="text-base"
       />
 
       {estado.error ? <p className="text-sm text-destructive">{estado.error}</p> : null}
 
-      <div>
-        <Boton etiqueta="Responder" pendienteEtiqueta="Publicando…" size="sm" />
+      <div className="flex justify-end">
+        <Boton etiqueta="Responder" pendienteEtiqueta="Publicando…" className="h-10 px-5" />
       </div>
     </form>
   )
 }
 
-/** Una respuesta. Se ve claramente colgada de su publicación, no al lado. */
-function Respuesta({
-  comentario,
-  ruta,
-  soyEquipo,
+// --- Piezas comunes ---------------------------------------------------------
+
+function Autoria({
+  post,
+  temaNombre,
+  tamano = 40,
 }: {
-  comentario: ComentarioDePost
-  ruta: string
-  soyEquipo: boolean
+  post: PostDeComunidad
+  temaNombre: string | null
+  tamano?: number
 }) {
   return (
-    <li className="flex gap-2.5 rounded-md bg-muted/40 px-3 py-2.5">
-      <Avatar nombre={comentario.autor.nombre} foto={comentario.autor.avatar} tamano={28} />
-
-      <div className="flex min-w-0 flex-1 flex-col gap-1">
-        <span className="flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-muted-foreground">
-          <span className="font-medium text-foreground">{comentario.autor.nombre}</span>
-          <Insignia texto={insigniaDeAutor(comentario.autor, comentario.via)} />
-          <span>· {fechaCorta(comentario.creadoEn)}</span>
-
-          {soyEquipo ? (
+    <div className="flex min-w-0 flex-1 items-center gap-3">
+      <Avatar nombre={post.autor.nombre} foto={post.autor.avatar} tamano={tamano} />
+      <div className="flex min-w-0 flex-col">
+        <span className="flex flex-wrap items-center gap-x-2 gap-y-0.5">
+          <span className="truncate text-[0.95rem] font-medium">{post.autor.nombre}</span>
+          <Insignia texto={insigniaDeAutor(post.autor, post.via)} />
+        </span>
+        <span className="flex flex-wrap items-center gap-x-1.5 text-[0.8125rem] text-muted-foreground">
+          <span>{fechaCorta(post.creadoEn)}</span>
+          {temaNombre ? (
             <>
-              <form action={moderarPost} className="inline">
-                <input type="hidden" name="id" value={comentario.id} />
-                <input type="hidden" name="tipo" value="comentario" />
-                <input type="hidden" name="ruta" value={ruta} />
-                <button
-                  type="submit"
-                  className="px-1 text-destructive underline-offset-2 hover:underline"
-                >
-                  ocultar
-                </button>
-              </form>
-              <BorrarConAviso
-                id={comentario.id}
-                tipo="comentario"
-                ruta={ruta}
-                que="Se borra esta respuesta."
-              />
+              <span aria-hidden>·</span>
+              <span className="text-primary">{temaNombre}</span>
             </>
           ) : null}
         </span>
-
-        <p className="text-sm break-words whitespace-pre-wrap">
-          <TextoConLigas texto={comentario.contenido} />
-        </p>
-
-        <Reacciones
-          datos={comentario.reacciones}
-          comentarioId={comentario.id}
-          ruta={ruta}
-          tamano="chico"
-        />
       </div>
-    </li>
+    </div>
   )
 }
 
-/** El hilo de respuestas: plegado cuando es largo, con su contador. */
-function Respuestas({
-  comentarios,
-  ruta,
-  soyEquipo,
-}: {
-  comentarios: ComentarioDePost[]
-  ruta: string
-  soyEquipo: boolean
-}) {
-  if (comentarios.length === 0) return null
-
-  const lista = (
-    <ul className="flex flex-col gap-2">
-      {comentarios.map((c) => (
-        <Respuesta key={c.id} comentario={c} ruta={ruta} soyEquipo={soyEquipo} />
-      ))}
-    </ul>
-  )
-
-  // La sangría y la línea son lo que dice "esto cuelga de arriba".
-  const envoltura = (hijo: React.ReactNode) => (
-    <div className="ml-4 border-l-2 border-border pl-3 sm:ml-5 sm:pl-4">{hijo}</div>
-  )
-
-  if (comentarios.length < PLIEGA_DESDE) return envoltura(lista)
-
-  return envoltura(
-    <details className="group/hilo">
-      <summary className="mb-2 inline-flex cursor-pointer list-none items-center gap-1.5 rounded-md px-2 py-1 text-sm font-medium text-primary transition-colors select-none hover:bg-muted focus-visible:ring-3 focus-visible:ring-ring/50 focus-visible:outline-none [&::-webkit-details-marker]:hidden">
-        <svg
-          viewBox="0 0 24 24"
-          fill="none"
-          stroke="currentColor"
-          strokeWidth="2"
-          strokeLinecap="round"
-          strokeLinejoin="round"
-          className="size-4 transition-transform group-open/hilo:rotate-180"
-          aria-hidden
-        >
-          <path d="m6 9 6 6 6-6" />
-        </svg>
-        <span className="group-open/hilo:hidden">Ver {comentarios.length} respuestas</span>
-        <span className="hidden group-open/hilo:inline">Ocultar respuestas</span>
-      </summary>
-      {lista}
-    </details>
+function Fijado() {
+  return (
+    <Badge className="shrink-0 bg-vadai-lima text-[11px] text-vadai-navy">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="size-3" aria-hidden>
+        <path d="M12 17v5M9 10.76V6h6v4.76l2 3.24H7l2-3.24ZM8 2h8" />
+      </svg>
+      Fijado
+    </Badge>
   )
 }
 
-function Publicacion({
+function IconoComentario() {
+  return (
+    <svg
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      className="size-4"
+      aria-hidden
+    >
+      <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
+    </svg>
+  )
+}
+
+// --- La tarjeta del feed -----------------------------------------------------
+
+/**
+ * Una publicación en el feed: lo justo para decidir si abrirla. Toda la tarjeta
+ * abre la publicación (el título lleva un `after:` que la cubre), y encima
+ * quedan tocables «⋯», «Me gusta» y su selector.
+ */
+function TarjetaPublicacion({
   post,
+  href,
   cursoSlug,
   ruta,
   soyEquipo,
-  temaNombre = null,
+  temaNombre,
 }: {
   post: PostDeComunidad
+  href: string
   cursoSlug: string
   ruta: string
   soyEquipo: boolean
-  temaNombre?: string | null
+  temaNombre: string | null
 }) {
+  const extracto = (post.noticia?.resumen || textoPlano(post.contenido)).trim()
+  const portada = post.imagenes[0] ?? null
+  const respuestas = post.comentarios.length
+
   return (
     <li
       id={`publicacion-${post.id}`}
-      className="flex scroll-mt-32 flex-col gap-3 rounded-[10px] border border-border bg-card p-4 sm:p-5"
+      className="relative flex scroll-mt-32 flex-col gap-3 rounded-[14px] border border-border bg-card p-4 transition-[border-color,box-shadow] hover:border-primary/40 hover:shadow-[0_1px_2px_rgba(0,0,0,0.05),0_4px_12px_rgba(0,0,0,0.05)] sm:p-5"
     >
-      {/* Estructura del feed de Skool: avatar a la izquierda, y a la derecha
-          autor · fecha arriba con el título debajo. El avatar es lo que hace
-          que un hilo de veinte mensajes se escanee — sin él todos los posts
-          arrancan igual y hay que leer para saber quién habla. */}
-      <div className="flex flex-wrap items-start justify-between gap-3">
-        {/* `basis-64`: si no caben juntos, los botones del equipo bajan a su
-            renglón en vez de aplastar el título a una palabra por línea (M24). */}
-        <div className="flex min-w-0 flex-1 basis-64 items-start gap-3">
-          <Avatar nombre={post.autor.nombre} foto={post.autor.avatar} tamano={38} />
-
-          <div className="flex min-w-0 flex-col gap-0.5">
-            <span className="flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-muted-foreground">
-              <span className="font-medium text-foreground">{post.autor.nombre}</span>
-              <Insignia texto={insigniaDeAutor(post.autor, post.via)} />
-              <span>· {fechaCorta(post.creadoEn)}</span>
-              {post.fijado ? (
-                <Badge className="bg-vadai-lima text-vadai-navy text-[11px]">Fijado</Badge>
-              ) : null}
-              {temaNombre ? (
-                <Badge variant="outline" className="border-primary/40 text-[11px] text-primary">
-                  {temaNombre}
-                </Badge>
-              ) : null}
-            </span>
-
-            {/* El título de una publicación pesa más que cualquier respuesta:
-                es lo que distingue "alguien abrió un tema" de "alguien
-                contestó". */}
-            <h3 className="text-[1.05rem] leading-snug font-medium text-pretty [overflow-wrap:anywhere]">{post.titulo}</h3>
-          </div>
-        </div>
-
-        <div className="flex shrink-0 flex-wrap items-center">
-          {soyEquipo ? (
-            <>
-              <form action={fijarPost}>
-                <input type="hidden" name="id" value={post.id} />
-                <input type="hidden" name="curso_slug" value={cursoSlug} />
-                <input type="hidden" name="ruta" value={ruta} />
-                <input type="hidden" name="fijar" value={post.fijado ? 'no' : 'si'} />
-                <Button type="submit" variant="ghost" size="sm">
-                  {post.fijado ? 'Desfijar' : 'Fijar'}
-                </Button>
-              </form>
-
-              <form action={moderarPost}>
-                <input type="hidden" name="id" value={post.id} />
-                <input type="hidden" name="tipo" value="post" />
-                <input type="hidden" name="ruta" value={ruta} />
-                <Button
-                  type="submit"
-                  variant="ghost"
-                  size="sm"
-                  className="text-destructive hover:text-destructive"
-                >
-                  Ocultar
-                </Button>
-              </form>
-
-              <BorrarConAviso
-                id={post.id}
-                tipo="post"
-                ruta={ruta}
-                que={`Se borra la publicación y sus ${post.comentarios.length} respuesta(s).`}
-              />
-            </>
-          ) : post.esMio ? (
-            <form action={eliminarPostPropio}>
-              <input type="hidden" name="id" value={post.id} />
-              <input type="hidden" name="curso_slug" value={cursoSlug} />
-              <input type="hidden" name="ruta" value={ruta} />
-              <Button
-                type="submit"
-                variant="ghost"
-                size="sm"
-                className="text-destructive hover:text-destructive"
-              >
-                Eliminar
-              </Button>
-            </form>
-          ) : null}
-        </div>
+      <div className="flex items-start gap-2">
+        <Autoria post={post} temaNombre={temaNombre} />
+        {post.fijado ? <Fijado /> : null}
+        <MenuDePublicacion post={post} cursoSlug={cursoSlug} ruta={ruta} soyEquipo={soyEquipo} />
       </div>
 
-      {/* M24: una noticia es una tarjeta: su imagen a todo lo ancho, el
-          resumen en un recuadro, el texto y «Leer más» en la fuente. */}
-      {post.noticia && post.imagenes[0] ? (
-        <Image
-          src={post.imagenes[0].url}
-          alt=""
-          width={1200}
-          height={675}
-          unoptimized
-          className="aspect-video h-auto w-full rounded-lg border border-border object-cover"
-        />
-      ) : null}
+      <div className="flex flex-col gap-1.5">
+        <h3 className="text-[1.125rem] leading-snug font-medium text-pretty [overflow-wrap:anywhere]">
+          <Link
+            href={href}
+            className="after:absolute after:inset-0 after:rounded-[14px] focus-visible:outline-none focus-visible:after:ring-3 focus-visible:after:ring-ring/50"
+          >
+            {post.titulo}
+          </Link>
+        </h3>
+        {extracto ? (
+          <p className="line-clamp-3 text-[0.95rem] leading-relaxed text-muted-foreground [overflow-wrap:anywhere]">
+            {extracto}
+          </p>
+        ) : null}
+      </div>
 
-      {post.noticia?.resumen ? (
-        <p className="rounded-lg border-l-4 border-primary bg-primary/5 px-4 py-3 text-[0.95rem] text-pretty">
-          {post.noticia.resumen}
-        </p>
-      ) : null}
-
-      {post.contenido ? <RenderRico contenido={post.contenido} /> : null}
-
-      {post.noticia?.url ? (
-        <a
-          href={post.noticia.url}
-          target="_blank"
-          rel="noopener noreferrer nofollow"
-          className="inline-flex w-fit items-center gap-1.5 rounded-full border border-border px-4 py-2 text-sm font-medium transition-colors pointer-coarse:min-h-11 hover:border-primary/50 hover:text-primary"
-        >
-          {post.noticia.medio ? `Leer más en ${post.noticia.medio}` : 'Abrir la liga'}
-          <span aria-hidden>↗</span>
-        </a>
-      ) : null}
-
-      {post.imagenes.length > (post.noticia ? 1 : 0) ? (
-        <div className="grid gap-2 sm:grid-cols-2">
-          {post.imagenes.slice(post.noticia ? 1 : 0).map((img) => (
-            <Image
-              key={img.url}
-              src={img.url}
-              alt=""
-              width={600}
-              height={400}
-              unoptimized
-              className="h-auto w-full rounded-md border border-border object-cover"
-            />
-          ))}
+      {portada ? (
+        <div className="relative overflow-hidden rounded-[10px] border border-border">
+          <Image
+            src={portada.url}
+            alt=""
+            width={1200}
+            height={675}
+            unoptimized
+            className="aspect-video h-auto w-full object-cover"
+          />
+          {post.imagenes.length > 1 ? (
+            <span className="absolute right-2 bottom-2 rounded-full bg-black/60 px-2 py-0.5 text-xs font-medium text-white">
+              +{post.imagenes.length - 1}
+            </span>
+          ) : null}
         </div>
       ) : null}
 
-      {/* Reaccionar cuesta un toque; responder cuesta escribir. Por eso la fila
-          va antes de las respuestas y siempre visible, aunque nadie haya
-          reaccionado: escondida hasta la primera reacción, no hay primera. */}
-      <Reacciones datos={post.reacciones} postId={post.id} ruta={ruta} />
-
-      <Respuestas comentarios={post.comentarios} ruta={ruta} soyEquipo={soyEquipo} />
-
-      <details>
-        <summary className={claseResumen}>Responder</summary>
-        <div className="pt-2">
-          <Comentar postId={post.id} cursoSlug={cursoSlug} ruta={ruta} />
-        </div>
-      </details>
+      <div className="flex items-center gap-4 pt-1">
+        <Reaccionar datos={post.reacciones} postId={post.id} ruta={ruta} />
+        <ResumenDeReacciones datos={post.reacciones} />
+        <span className="ml-auto inline-flex items-center gap-1.5 text-sm text-muted-foreground">
+          <IconoComentario />
+          {respuestas === 0 ? 'Responder' : `${respuestas} respuesta${respuestas === 1 ? '' : 's'}`}
+        </span>
+      </div>
     </li>
   )
 }
 
 /**
- * Cuántas por página, y las flechas para moverse.
- *
- * El tamaño es un `<select>` dentro de un `<form method="get">`: seis pastillas
- * ocupaban media barra para algo que se toca una vez al año, y en el teléfono
- * se amontonaban. Al elegir se aplica solo —`AutoEnviar` esconde el botón y
- * envía—; sin JavaScript el botón sigue ahí y el formulario funciona igual.
- *
- * Las flechas están SIEMPRE, no solo cuando hay varias páginas: un control que
- * aparece y desaparece obliga a buscarlo cada vez. Cuando no aplican se ven
- * apagadas y no se pueden tocar.
- *
- * Cambiar el tamaño siempre vuelve a la página 1, que es lo único que no
- * confunde: quedarse en la página 7 al bajar de 200 a 10 deja a alguien mirando
- * el final de la lista sin saber por qué.
+ * Las flechas para moverse entre páginas, con «Página 2 de 5» en medio. El
+ * selector de «cuántas por página» salió (22-oct-2026): era un control para
+ * algo que nadie cambia, y en el teléfono ocupaba un renglón entero. `?por=`
+ * sigue funcionando en la URL.
  */
-function Paginacion({
+export function Paginacion({
   pagina,
   paginas,
-  porPagina,
-  total,
-  ruta,
-  extra,
+  anterior,
+  siguiente,
+  etiqueta = 'Navegar las publicaciones',
 }: {
   pagina: number
   paginas: number
-  porPagina: number
-  total: number
-  ruta: string
-  extra: Record<string, string>
+  /** Ya armadas: el componente se usa también desde páginas del servidor. */
+  anterior: string
+  siguiente: string
+  etiqueta?: string
 }) {
-  const href = (p: number) => {
-    const params = new URLSearchParams(extra)
-    if (p > 1) params.set('p', String(p))
-    if (porPagina !== 10) params.set('por', String(porPagina))
-    const cadena = params.toString()
-    return cadena ? `${ruta}?${cadena}` : ruta
-  }
-
-  const TAMANOS = [
-    { valor: 10, etiqueta: '10 por página' },
-    { valor: 25, etiqueta: '25 por página' },
-    { valor: 50, etiqueta: '50 por página' },
-    { valor: 100, etiqueta: '100 por página' },
-    { valor: 200, etiqueta: '200 por página' },
-    { valor: 0, etiqueta: 'Todas' },
-  ]
+  if (paginas <= 1) return null
 
   const claseFlecha = (habilitada: boolean) =>
     cn(
-      'inline-flex min-h-10 items-center gap-1.5 rounded-full border px-4 text-sm font-medium pointer-coarse:min-h-11',
+      'inline-flex h-11 items-center gap-1.5 rounded-full border px-4 text-sm font-medium',
       'transition-colors focus-visible:ring-3 focus-visible:ring-ring/50 focus-visible:outline-none',
-      habilitada
-        ? 'border-border hover:bg-muted'
-        : 'pointer-events-none border-border/40 text-muted-foreground/40'
+      habilitada ? 'border-border bg-card hover:bg-muted' : 'pointer-events-none border-border/40 text-muted-foreground/40'
     )
 
   return (
-    <nav
-      aria-label="Navegar las publicaciones"
-      className="flex flex-col gap-3 border-t border-border pt-4 sm:flex-row sm:items-center sm:justify-between"
-    >
-      <form method="get" className="flex items-center gap-2">
-        {Object.entries(extra).map(([nombre, valor]) => (
-          <input key={nombre} type="hidden" name={nombre} value={valor} />
-        ))}
-
-        <label htmlFor="com-por" className="text-sm text-muted-foreground">
-          Ver
-        </label>
-        <select
-          id="com-por"
-          name="por"
-          defaultValue={String(porPagina >= total && total > 0 ? porPagina : porPagina)}
-          className="h-9 rounded-lg border border-input bg-transparent px-3 text-sm outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 dark:bg-input/30"
-        >
-          {TAMANOS.map((t) => (
-            <option key={t.valor} value={t.valor}>
-              {t.etiqueta}
-            </option>
-          ))}
-        </select>
-
-        <Button type="submit" variant="outline" size="sm" data-aplicar>
-          Aplicar
-        </Button>
-        <AutoEnviar />
-
-        <span className="hidden text-sm text-muted-foreground sm:inline">
-          {total === 0
-            ? 'Sin publicaciones'
-            : `${total} publicación${total === 1 ? '' : 'es'}`}
-        </span>
-      </form>
-
-      <div className="flex items-center justify-between gap-2 sm:justify-end">
-        <span className="text-sm text-muted-foreground tabular-nums">
-          {paginas > 1 ? `Página ${pagina} de ${paginas}` : null}
-        </span>
-
-        <div className="flex items-center gap-2">
-          <Link
-            href={href(Math.max(1, pagina - 1))}
-            scroll={false}
-            rel="prev"
-            aria-disabled={pagina <= 1}
-            tabIndex={pagina <= 1 ? -1 : undefined}
-            className={claseFlecha(pagina > 1)}
-          >
-            <span aria-hidden>←</span> Anterior
-          </Link>
-
-          <Link
-            href={href(Math.min(paginas, pagina + 1))}
-            scroll={false}
-            rel="next"
-            aria-disabled={pagina >= paginas}
-            tabIndex={pagina >= paginas ? -1 : undefined}
-            className={claseFlecha(pagina < paginas)}
-          >
-            Siguiente <span aria-hidden>→</span>
-          </Link>
-        </div>
-      </div>
+    <nav aria-label={etiqueta} className="flex items-center justify-between gap-3 pt-2">
+      <Link
+        href={anterior}
+        rel="prev"
+        aria-disabled={pagina <= 1}
+        tabIndex={pagina <= 1 ? -1 : undefined}
+        className={claseFlecha(pagina > 1)}
+      >
+        <span aria-hidden>←</span> Anterior
+      </Link>
+      <span className="text-sm text-muted-foreground tabular-nums">
+        Página {pagina} de {paginas}
+      </span>
+      <Link
+        href={siguiente}
+        rel="next"
+        aria-disabled={pagina >= paginas}
+        tabIndex={pagina >= paginas ? -1 : undefined}
+        className={claseFlecha(pagina < paginas)}
+      >
+        Siguiente <span aria-hidden>→</span>
+      </Link>
     </nav>
   )
 }
+
+// --- El feed ----------------------------------------------------------------
 
 export function Comunidad({
   posts,
@@ -688,6 +608,8 @@ export function Comunidad({
   cursoSlug,
   soyEquipo,
   ruta,
+  rutaDetalle,
+  rutaNoticias,
   pagina,
   paginas,
   porPagina,
@@ -695,6 +617,9 @@ export function Comunidad({
   extra = {},
   temas = [],
   temaActual = null,
+  temasOcultos = [],
+  yo = null,
+  invitacion = 'Escribe algo…',
 }: {
   posts: PostDeComunidad[]
   cursoId: string
@@ -705,49 +630,45 @@ export function Comunidad({
   soyEquipo: boolean
   /** Qué ruta revalidar al reaccionar o moderar: este mismo feed. */
   ruta: string
+  /** Dónde vive cada publicación: `${rutaDetalle}/${id}`. */
+  rutaDetalle: string
+  /** V-AI-P: las noticias se abren en su sección (`${rutaNoticias}/${id}`). */
+  rutaNoticias?: string
   pagina: number
   paginas: number
   porPagina: number
   total: number
-  /** Parámetros que la paginación debe conservar (el curso, en /comunidad). */
+  /** Parámetros que la paginación debe conservar (la generación del equipo). */
   extra?: Record<string, string>
   /** M17: los temas del muro. Sin temas, el muro es como siempre. */
   temas?: TemaDelMuro[]
   /** El slug del tema que se está filtrando, o null para el muro principal. */
   temaActual?: string | null
+  /** Temas que no salen como filtro (en V-AI-P, Noticias tiene su pestaña). */
+  temasOcultos?: string[]
+  yo?: Yo | null
+  /** El texto del «Escribe algo…». */
+  invitacion?: string
 }) {
   const nombreDeTema = new Map(temas.map((t) => [t.id, t.nombre]))
   const elegido = temas.find((t) => t.slug === temaActual) ?? null
+  const filtros = temas.filter((t) => !temasOcultos.includes(t.slug))
   const conTema = (slug: string | null) => {
     const q = new URLSearchParams(extra)
     if (slug) q.set('tema', slug)
     const cadena = q.toString()
     return cadena ? `${ruta}?${cadena}` : ruta
   }
+  const hrefPagina = (p: number) => {
+    const params = new URLSearchParams(elegido ? { ...extra, tema: elegido.slug } : extra)
+    if (p > 1) params.set('p', String(p))
+    if (porPagina !== 10) params.set('por', String(porPagina))
+    const cadena = params.toString()
+    return cadena ? `${ruta}?${cadena}` : ruta
+  }
 
   return (
-    <div className="flex flex-col gap-6">
-      {temas.length > 0 ? (
-        <nav aria-label="Temas del muro" className="flex flex-wrap gap-2">
-          {[{ slug: null, nombre: 'Todo' }, ...temas.map((t) => ({ slug: t.slug, nombre: t.nombre }))].map((t) => {
-            const activo = (t.slug ?? null) === (elegido?.slug ?? null)
-            return (
-              <a
-                key={t.slug ?? 'todo'}
-                href={conTema(t.slug)}
-                aria-current={activo ? 'true' : undefined}
-                className={cn(
-                  'rounded-full border px-3 py-1 text-sm transition-colors',
-                  activo ? 'border-primary bg-primary/10 font-medium text-primary' : 'border-border hover:border-primary/50'
-                )}
-              >
-                {t.nombre}
-              </a>
-            )
-          })}
-        </nav>
-      ) : null}
-
+    <div className="flex flex-col gap-4">
       {/* `key` es el reset: al publicarse algo cambia el conteo que manda el
           servidor, el <details> se remonta cerrado y los campos quedan limpios. */}
       <NuevaPublicacion
@@ -760,19 +681,50 @@ export function Comunidad({
         ruta={ruta}
         temas={temas}
         temaActual={elegido}
+        yo={yo}
+        invitacion={invitacion}
       />
 
+      {filtros.length > 0 ? (
+        <nav
+          aria-label="Temas"
+          className="relative -mx-5 flex gap-2 overflow-x-auto px-5 pr-10 [scrollbar-width:none] [mask-image:linear-gradient(to_right,black_calc(100%-2.5rem),transparent)] sm:mx-0 sm:flex-wrap sm:overflow-visible sm:px-0 sm:[mask-image:none] [&::-webkit-scrollbar]:hidden"
+        >
+          {[{ slug: null, nombre: 'Todo' }, ...filtros.map((t) => ({ slug: t.slug, nombre: t.nombre }))].map((t) => {
+            const activo = (t.slug ?? null) === (elegido?.slug ?? null)
+            return (
+              <Link
+                key={t.slug ?? 'todo'}
+                href={conTema(t.slug)}
+                data-slot="destino"
+                aria-current={activo ? 'true' : undefined}
+                className={cn(
+                  'inline-flex h-9 shrink-0 items-center rounded-full border px-4 text-sm font-medium whitespace-nowrap transition-colors',
+                  'focus-visible:ring-3 focus-visible:ring-ring/50 focus-visible:outline-none',
+                  activo
+                    ? 'border-primary bg-primary text-primary-foreground'
+                    : 'border-border bg-card text-muted-foreground hover:border-primary/50 hover:text-foreground'
+                )}
+              >
+                {t.nombre}
+              </Link>
+            )
+          })}
+        </nav>
+      ) : null}
+
       {posts.length === 0 ? (
-        <p className="rounded-lg border border-dashed border-border px-5 py-12 text-center text-sm text-muted-foreground">
-          Todavía no hay publicaciones. Empieza la conversación.
+        <p className="rounded-[14px] border border-dashed border-border px-5 py-12 text-center text-[0.95rem] text-muted-foreground">
+          {elegido ? 'Todavía no hay publicaciones en este tema.' : 'Todavía no hay publicaciones. Empieza la conversación.'}
         </p>
       ) : (
         <>
-          <ul className="flex flex-col gap-4">
+          <ul className="flex flex-col gap-3">
             {posts.map((post) => (
-              <Publicacion
-                key={`${post.id}:${post.comentarios.length}:${post.reacciones.total}`}
+              <TarjetaPublicacion
+                key={`${post.id}:${post.comentarios.length}:${post.reacciones.total}:${post.reacciones.mias.join('')}`}
                 post={post}
+                href={post.noticia && rutaNoticias ? `${rutaNoticias}/${post.id}` : `${rutaDetalle}/${post.id}`}
                 cursoSlug={cursoSlug}
                 ruta={ruta}
                 soyEquipo={soyEquipo}
@@ -784,14 +736,175 @@ export function Comunidad({
           <Paginacion
             pagina={pagina}
             paginas={paginas}
-            porPagina={porPagina}
-            total={total}
-            ruta={ruta}
-            extra={elegido ? { ...extra, tema: elegido.slug } : extra}
+            anterior={hrefPagina(Math.max(1, pagina - 1))}
+            siguiente={hrefPagina(Math.min(paginas, pagina + 1))}
           />
         </>
       )}
     </div>
+  )
+}
+
+// --- La publicación completa ---------------------------------------------------
+
+/** Una respuesta, con su autor, su texto y su reacción. */
+function Respuesta({
+  comentario,
+  ruta,
+  soyEquipo,
+}: {
+  comentario: ComentarioDePost
+  ruta: string
+  soyEquipo: boolean
+}) {
+  return (
+    <li className="flex gap-3">
+      <Avatar nombre={comentario.autor.nombre} foto={comentario.autor.avatar} tamano={32} />
+      <div className="flex min-w-0 flex-1 flex-col gap-2">
+        <div className="rounded-[14px] bg-muted/60 px-4 py-3">
+          <div className="flex items-start justify-between gap-2">
+            <span className="flex flex-wrap items-center gap-x-2 gap-y-0.5 text-sm">
+              <span className="font-medium">{comentario.autor.nombre}</span>
+              <Insignia texto={insigniaDeAutor(comentario.autor, comentario.via)} />
+              <span className="text-[0.8125rem] text-muted-foreground">{fechaCorta(comentario.creadoEn)}</span>
+            </span>
+            {soyEquipo ? <MenuDeRespuesta comentario={comentario} ruta={ruta} /> : null}
+          </div>
+          <p className="mt-1 text-[0.95rem] leading-relaxed break-words whitespace-pre-wrap">
+            <TextoConLigas texto={comentario.contenido} />
+          </p>
+        </div>
+        <div className="flex items-center gap-3">
+          <Reaccionar
+            key={`${comentario.reacciones.total}:${comentario.reacciones.mias.join('')}`}
+            datos={comentario.reacciones}
+            comentarioId={comentario.id}
+            ruta={ruta}
+            chico
+          />
+          <ResumenDeReacciones datos={comentario.reacciones} className="text-xs" />
+        </div>
+      </div>
+    </li>
+  )
+}
+
+/**
+ * La página de una publicación (22-oct-2026): el texto entero con letra de
+ * lectura, la imagen, la noticia con su liga, la reacción y la conversación
+ * abierta con el campo para responder arriba.
+ *
+ * `despues`: a dónde volver si el equipo la oculta o la borra desde aquí.
+ */
+export function PublicacionCompleta({
+  post,
+  cursoSlug,
+  ruta,
+  soyEquipo,
+  temaNombre = null,
+  despues,
+}: {
+  post: PostDeComunidad
+  cursoSlug: string
+  ruta: string
+  soyEquipo: boolean
+  temaNombre?: string | null
+  despues: string
+}) {
+  const imagenesExtra = post.imagenes.slice(post.noticia ? 1 : 0)
+
+  return (
+    <article className="flex flex-col gap-6">
+      <div className="flex items-start gap-2">
+        <Autoria post={post} temaNombre={temaNombre} tamano={44} />
+        {post.fijado ? <Fijado /> : null}
+        <MenuDePublicacion post={post} cursoSlug={cursoSlug} ruta={ruta} soyEquipo={soyEquipo} despues={despues} />
+      </div>
+
+      <h1 className="text-[1.625rem] leading-tight font-medium tracking-tight text-pretty [overflow-wrap:anywhere] sm:text-[2rem]">
+        {post.titulo}
+      </h1>
+
+      {post.noticia && post.imagenes[0] ? (
+        <Image
+          src={post.imagenes[0].url}
+          alt=""
+          width={1200}
+          height={675}
+          unoptimized
+          priority
+          className="-mx-5 aspect-video h-auto w-[calc(100%+2.5rem)] max-w-none object-cover sm:mx-0 sm:w-full sm:rounded-[14px] sm:border sm:border-border"
+        />
+      ) : null}
+
+      {post.noticia?.resumen ? (
+        <p className="rounded-[14px] border-l-4 border-primary bg-primary/6 px-5 py-4 text-[1.0625rem] leading-relaxed text-pretty">
+          {post.noticia.resumen}
+        </p>
+      ) : null}
+
+      {post.contenido ? (
+        <div className="text-[1.0625rem] leading-relaxed">
+          <RenderRico contenido={post.contenido} />
+        </div>
+      ) : null}
+
+      {imagenesExtra.length > 0 ? (
+        <div className={cn('grid gap-2', imagenesExtra.length > 1 && 'sm:grid-cols-2')}>
+          {imagenesExtra.map((img) => (
+            <Image
+              key={img.url}
+              src={img.url}
+              alt=""
+              width={1200}
+              height={800}
+              unoptimized
+              className="h-auto w-full rounded-[10px] border border-border object-cover"
+            />
+          ))}
+        </div>
+      ) : null}
+
+      {post.noticia?.url ? (
+        <a
+          href={post.noticia.url}
+          target="_blank"
+          rel="noopener noreferrer nofollow"
+          className="inline-flex h-12 w-full items-center justify-center gap-2 rounded-full border border-border bg-card px-5 text-[0.95rem] font-medium transition-colors hover:border-primary/50 hover:text-primary focus-visible:ring-3 focus-visible:ring-ring/50 focus-visible:outline-none sm:w-fit"
+        >
+          {post.noticia.medio ? `Leer la nota original en ${post.noticia.medio}` : 'Abrir la nota original'}
+          <span aria-hidden>↗</span>
+        </a>
+      ) : null}
+
+      <div className="flex items-center gap-4 border-y border-border py-3">
+        <Reaccionar
+          key={`${post.reacciones.total}:${post.reacciones.mias.join('')}`}
+          datos={post.reacciones}
+          postId={post.id}
+          ruta={ruta}
+        />
+        <ResumenDeReacciones datos={post.reacciones} />
+      </div>
+
+      <section aria-labelledby="respuestas" className="flex flex-col gap-5">
+        <h2 id="respuestas" className="text-lg font-medium tracking-tight">
+          {post.comentarios.length === 0
+            ? 'Sé el primero en responder'
+            : `${post.comentarios.length} respuesta${post.comentarios.length === 1 ? '' : 's'}`}
+        </h2>
+
+        {post.comentarios.length > 0 ? (
+          <ul className="flex flex-col gap-4">
+            {post.comentarios.map((c) => (
+              <Respuesta key={c.id} comentario={c} ruta={ruta} soyEquipo={soyEquipo} />
+            ))}
+          </ul>
+        ) : null}
+
+        <Comentar key={post.comentarios.length} postId={post.id} cursoSlug={cursoSlug} ruta={ruta} />
+      </section>
+    </article>
   )
 }
 

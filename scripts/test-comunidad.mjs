@@ -436,8 +436,10 @@ async function main() {
       const respondidas = await texto(`${BANDEJA}&estado=respondidas`, admin)
       afirmar(G7, 'y aparece en «Respondidas»', true, respondidas.includes(MARCA_BANDEJA))
 
-      const delAlumno = await texto(RUTA_COMUNIDAD, alumno)
-      afirmar(G7, 'el alumno ve la respuesta en su muro', true, delAlumno.includes(MARCA_RESPUESTA))
+      // 22-oct-2026: el feed enseña tarjetas; la conversación, la página de la publicación.
+      const delAlumno = await texto(`${RUTA_COMUNIDAD}/${post.id}`, alumno)
+      afirmar(G7, 'el alumno ve la respuesta en la publicación', true, delAlumno.includes(MARCA_RESPUESTA))
+      afirmar(G7, '…y el feed la cuenta en la tarjeta', true, (await texto(RUTA_COMUNIDAD, alumno)).includes(`href="${RUTA_COMUNIDAD}/${post.id}"`))
     }
 
     // Contestar la pregunta de la lección: una respuesta al comentario raíz.

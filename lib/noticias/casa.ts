@@ -1,5 +1,6 @@
 import 'server-only'
 
+import { ligaEnGrupo, ligaEnVaip } from '@/lib/comunidad/ligas'
 import { esModoQa } from '@/lib/agente/claude'
 import type { ClienteAgente } from '@/lib/agente/servidor'
 
@@ -29,10 +30,11 @@ export async function casaDeNoticias(db: ClienteAgente): Promise<Casa | null> {
 export function urlDelMuro(casa: Casa, tema: string | null, postId?: string): string {
   const base = (process.env.NEXT_PUBLIC_APP_URL ?? '').replace(/\/+$/, '')
   const consulta = tema ? `?tema=${encodeURIComponent(tema)}` : ''
-  const ancla = postId ? `#publicacion-${postId}` : ''
-  return planDeNoticias() === 'v-ai-p'
-    ? `${base}/vaip${consulta}${ancla}`
-    : `${base}/curso/${casa.slug}/comunidad${consulta}${ancla}`
+  // 22-oct-2026: una noticia ya tiene su página; sin `postId`, la lista.
+  if (postId) {
+    return planDeNoticias() === 'v-ai-p' ? `${base}${ligaEnVaip(postId, true)}` : `${base}${ligaEnGrupo(casa.slug, postId)}`
+  }
+  return planDeNoticias() === 'v-ai-p' ? `${base}/vaip${consulta}` : `${base}/curso/${casa.slug}/comunidad${consulta}`
 }
 
 /** La generación donde se publica en la casa: la abierta, o la más reciente. */

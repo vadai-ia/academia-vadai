@@ -1,5 +1,6 @@
 import 'server-only'
 
+import { ligaEnVaip } from '@/lib/comunidad/ligas'
 import { sesionesDelAlumno } from '@/lib/alumno/sesiones'
 import type { Perfil } from '@/lib/auth/sesion'
 import { describirHorario } from '@/lib/calendario/enlaces'
@@ -153,7 +154,7 @@ export async function notificacionesDelAlumno(perfil: Perfil): Promise<Novedades
     tipo: 'noticia' as const,
     publicadoEn: n.creadoEn,
     detalle: 'V-AI-P',
-    href: `/vaip?tema=noticias#publicacion-${n.id}`,
+    href: ligaEnVaip(n.id, true),
     nueva: new Date(n.creadoEn).getTime() > desde,
   }))
 

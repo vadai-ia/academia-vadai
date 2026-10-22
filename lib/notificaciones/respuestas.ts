@@ -1,5 +1,6 @@
 import 'server-only'
 
+import { ligaEnGrupo, ligaEnVaip } from '@/lib/comunidad/ligas'
 import { crearClienteServidor } from '@/lib/supabase/server'
 import { rutaDeContenido } from '@/lib/vaip/rutas'
 
@@ -145,7 +146,9 @@ export async function misRespuestas(userId: string, casaSlug: string | null): Pr
       titulo: p.title,
       cuantas: g.cuantas,
       ultimaEn: g.ultimaEn,
-      href: esCasa ? `/vaip#publicacion-${p.id}` : `/curso/${c.slug}/comunidad#publicacion-${p.id}`,
+      // 22-oct-2026: a la página de la publicación. En la casa, /vaip/muro
+      // reenvía a /vaip/noticias si resulta ser una noticia.
+      href: esCasa ? ligaEnVaip(p.id, false) : ligaEnGrupo(c.slug, p.id),
       // M25: «Comunidad» es solo V-AI-P; el canal de un curso es su «Grupo».
       donde: esCasa ? 'Muro de V-AI-P' : `Grupo · ${c.title}`,
     })

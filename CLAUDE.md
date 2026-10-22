@@ -422,8 +422,11 @@ avisaba: un menú que se esconde es peor que uno que no existe. En escritorio la
 pastillas **envuelven** si no caben; en móvil se desplazan con un degradado en el
 borde (`mask-image`) que dice "hay más". No es un sidebar a propósito.
 
-**El menú del alumno son cuatro pastillas** (M22, 20-oct-2026): Inicio · V-AI-P · Mis cursos ·
-Perfil, sin icono en el teléfono para que quepan. Eran nueve y había hasta siete formas de llegar
+**El menú del alumno son cuatro destinos** (M22, 20-oct-2026): Inicio · V-AI-P · Mis cursos ·
+Perfil. **En el teléfono van abajo, como app** (22-oct-2026, `components/marca/barra-inferior.tsx`):
+barra fija con icono y texto, y arriba solo marca, campana y cuenta; desde `md` siguen las pastillas.
+Lo que se pega abajo usa `bottom-[var(--alto-barra-inferior,0px)]` para quedar encima de ella. La
+academia se instala en la pantalla de inicio (`app/manifest.ts`, guía en `/instalar`). Eran nueve y había hasta siete formas de llegar
 a lo mismo. **Cada cosa vive en un lugar** (docs/M22.md): una pantalla nueva no agrega una
 pastilla, entra como pestaña de su lugar (V-AI-P, el curso o Mi perfil). La casa de V-AI-P no es un
 curso: no sale en Inicio ni en Mis cursos y sus pestañas redirigen a `/vaip`.
@@ -460,6 +463,14 @@ cada generación de un curso es su «**Grupo**» (pestaña del curso; la URL sig
 Las clases de un curso viven en «**En vivo**»; las de V-AI-P en «**Clases**». «**Avisos**» son de
 V-AI-P: publicaciones fijadas en su Muro (tema Avisos). «**Anuncios**» son de los cursos, con el
 blog; las clases de V-AI-P no publican anuncio.
+
+**El muro y los grupos son un feed de tarjetas** (22-oct-2026, Alejandro: «como un blog
+increíble»): autor, título, tres líneas, imagen y «Me gusta · respuestas»; cada publicación se abre
+en su página (`/vaip/muro/<id>`, `/curso/<slug>/comunidad/<id>`) con el texto entero y la
+conversación. Una sola reacción con selector, y Fijar/Ocultar/Eliminar en un menú «⋯». Las
+**noticias** tienen su pestaña en V-AI-P (`/vaip/noticias`, siete por página) y su página
+(`/vaip/noticias/<id>`, con «Leer la nota original»). Toda liga a una publicación sale de
+`lib/comunidad/ligas.ts`, nunca de un ancla `#publicacion-` del feed.
 
 Estructura copiada de Skool: **pestañas por sección dentro del curso**
 (`components/ui-vadai/pestanas.tsx`) — Contenido · Grupo · En vivo · Dinámicas (M22: el

@@ -83,6 +83,85 @@ async function resolverAutores(userIds: string[]): Promise<Map<string, Autor>> {
   return mapa
 }
 
+/** Lo que se pide de cada publicación: el feed, la noticia y la página propia. */
+const SELECCION =
+  'id, user_id, title, content_rich, images, pinned, created_at, topic_id, via, resumen, enlace_url, enlace_medio, course_id, cohort_id, community_comments(id, user_id, content, created_at, status, via)'
+
+type Anidado = {
+  course_id: string
+  cohort_id: string | null
+  id: string
+  user_id: string
+  title: string
+  content_rich: Json | null
+  images: Json
+  pinned: boolean
+  created_at: string
+  topic_id: string | null
+  via: string
+  resumen: string | null
+  enlace_url: string | null
+  enlace_medio: string | null
+  community_comments: Array<{
+    id: string
+    user_id: string
+    content: string
+    created_at: string
+    status: string
+    via: string
+  }>
+}
+
+/** Filas crudas → publicaciones con autores, reacciones y respuestas visibles. */
+async function armarPosts(filas: Anidado[], usuarioActual: string): Promise<PostDeComunidad[]> {
+  const ids = new Set<string>()
+  for (const p of filas) {
+    ids.add(p.user_id)
+    for (const c of p.community_comments ?? []) ids.add(c.user_id)
+  }
+  // Autores y reacciones solo dependen de las publicaciones ya en mano: en
+  // paralelo son un viaje, no dos encadenados (24-sep-2026).
+  const comentarioIds = filas.flatMap((p) =>
+    (p.community_comments ?? []).filter((c) => c.status === 'visible').map((c) => c.id)
+  )
+  const [autores, reacciones] = await Promise.all([
+    resolverAutores([...ids]),
+    reaccionesDe(
+      filas.map((p) => p.id),
+      comentarioIds,
+      usuarioActual
+    ),
+  ])
+
+  return filas.map((p) => ({
+    id: p.id,
+    titulo: p.title,
+    contenido: p.content_rich,
+    imagenes: leerImagenes(p.images),
+    fijado: p.pinned,
+    creadoEn: p.created_at,
+    temaId: p.topic_id,
+    noticia: p.resumen || p.enlace_url ? { resumen: p.resumen, url: p.enlace_url, medio: p.enlace_medio } : null,
+    autor: autores.get(p.user_id) ?? ANONIMO,
+    via: p.via,
+    esMio: p.user_id === usuarioActual,
+    reacciones: reacciones.posts.get(p.id) ?? SIN_REACCIONES,
+    comentarios: (p.community_comments ?? [])
+      .filter((c) => c.status === 'visible')
+      .sort((a, b) => a.created_at.localeCompare(b.created_at))
+      .map((c) => ({
+        id: c.id,
+        contenido: c.content,
+        creadoEn: c.created_at,
+        autor: autores.get(c.user_id) ?? ANONIMO,
+        via: c.via,
+        esMio: c.user_id === usuarioActual,
+        reacciones: reacciones.comentarios.get(c.id) ?? SIN_REACCIONES,
+      })),
+  }))
+
+}
+
 /**
  * Feed de la comunidad de un curso (§3.8).
  *
@@ -112,7 +191,7 @@ export async function feedDelCurso(
   cursoId: string,
   cohortId: string | null,
   usuarioActual: string,
-  opciones: { pagina?: number; porPagina?: number; temaId?: string | null } = {}
+  opciones: { pagina?: number; porPagina?: number; temaId?: string | null; soloNoticias?: boolean } = {}
 ): Promise<FeedDeComunidad> {
   const supabase = await crearClienteServidor()
 
@@ -129,14 +208,13 @@ export async function feedDelCurso(
   const base = () => {
     let consulta = supabase
       .from('community_posts')
-      .select(
-        'id, user_id, title, content_rich, images, pinned, created_at, topic_id, via, resumen, enlace_url, enlace_medio, community_comments(id, user_id, content, created_at, status, via)',
-        { count: 'exact' }
-      )
+      .select(SELECCION, { count: 'exact' })
       .eq('course_id', cursoId)
       .eq('status', 'visible')
     // M17: el muro principal muestra todo; el tema solo filtra.
     if (opciones.temaId) consulta = consulta.eq('topic_id', opciones.temaId)
+    // 22-oct-2026: la sección Noticias de V-AI-P, solo lo que trae resumen o liga.
+    if (opciones.soloNoticias) consulta = consulta.or('resumen.not.is.null,enlace_url.not.is.null')
     return (cohortId ? consulta.eq('cohort_id', cohortId) : consulta.is('cohort_id', null))
       .order('pinned', { ascending: false })
       .order('created_at', { ascending: false })
@@ -163,78 +241,68 @@ export async function feedDelCurso(
   const paginas = Math.max(1, Math.ceil(total / porPagina))
   const pagina = Math.min(pedida, paginas)
 
-  type Anidado = {
-    id: string
-    user_id: string
-    title: string
-    content_rich: Json | null
-    images: Json
-    pinned: boolean
-    created_at: string
-    topic_id: string | null
-    via: string
-    resumen: string | null
-    enlace_url: string | null
-    enlace_medio: string | null
-    community_comments: Array<{
-      id: string
-      user_id: string
-      content: string
-      created_at: string
-      status: string
-      via: string
-    }>
-  }
-
-  const filas = (data ?? []) as unknown as Anidado[]
-
-  const ids = new Set<string>()
-  for (const p of filas) {
-    ids.add(p.user_id)
-    for (const c of p.community_comments ?? []) ids.add(c.user_id)
-  }
-  // Autores y reacciones solo dependen de las publicaciones ya en mano: en
-  // paralelo son un viaje, no dos encadenados (24-sep-2026).
-  const comentarioIds = filas.flatMap((p) =>
-    (p.community_comments ?? []).filter((c) => c.status === 'visible').map((c) => c.id)
-  )
-  const [autores, reacciones] = await Promise.all([
-    resolverAutores([...ids]),
-    reaccionesDe(
-      filas.map((p) => p.id),
-      comentarioIds,
-      usuarioActual
-    ),
-  ])
-
-  const posts = filas.map((p) => ({
-    id: p.id,
-    titulo: p.title,
-    contenido: p.content_rich,
-    imagenes: leerImagenes(p.images),
-    fijado: p.pinned,
-    creadoEn: p.created_at,
-    temaId: p.topic_id,
-    noticia: p.resumen || p.enlace_url ? { resumen: p.resumen, url: p.enlace_url, medio: p.enlace_medio } : null,
-    autor: autores.get(p.user_id) ?? ANONIMO,
-    via: p.via,
-    esMio: p.user_id === usuarioActual,
-    reacciones: reacciones.posts.get(p.id) ?? SIN_REACCIONES,
-    comentarios: (p.community_comments ?? [])
-      .filter((c) => c.status === 'visible')
-      .sort((a, b) => a.created_at.localeCompare(b.created_at))
-      .map((c) => ({
-        id: c.id,
-        contenido: c.content,
-        creadoEn: c.created_at,
-        autor: autores.get(c.user_id) ?? ANONIMO,
-        via: c.via,
-        esMio: c.user_id === usuarioActual,
-        reacciones: reacciones.comentarios.get(c.id) ?? SIN_REACCIONES,
-      })),
-  }))
+  const posts = await armarPosts((data ?? []) as unknown as Anidado[], usuarioActual)
 
   return { posts, total, pagina, paginas, porPagina }
+}
+
+/**
+ * Una publicación, para su página propia (22-oct-2026: el feed enseña tarjetas
+ * y cada una se abre entera, con sus respuestas). Lo que RLS no deja ver —otra
+ * generación, el acceso vencido, lo oculto— llega como null, igual que lo que
+ * no existe.
+ */
+export async function publicacionPorId(
+  postId: string,
+  usuarioActual: string
+): Promise<{ post: PostDeComunidad; cursoId: string; cohortId: string | null } | null> {
+  if (!/^[0-9a-f-]{36}$/i.test(postId)) return null
+  const supabase = await crearClienteServidor()
+  const { data, error } = await supabase
+    .from('community_posts')
+    .select(SELECCION)
+    .eq('id', postId)
+    .eq('status', 'visible')
+    .maybeSingle()
+
+  if (error) {
+    console.error(JSON.stringify({ operacion: 'publicacionPorId', postId, error: error.message }))
+    return null
+  }
+  if (!data) return null
+  const fila = data as unknown as Anidado
+  const [post] = await armarPosts([fila], usuarioActual)
+  return post ? { post, cursoId: fila.course_id, cohortId: fila.cohort_id } : null
+}
+
+/**
+ * Las noticias más recientes de un muro menos una: el «Sigue leyendo» al pie de
+ * cada noticia, para pasar a la siguiente sin volver a la lista.
+ */
+export async function otrasNoticias(
+  cursoId: string,
+  cohortId: string | null,
+  excepto: string,
+  usuarioActual: string,
+  cuantas = 3
+): Promise<PostDeComunidad[]> {
+  const supabase = await crearClienteServidor()
+  const consulta = supabase
+    .from('community_posts')
+    .select(SELECCION)
+    .eq('course_id', cursoId)
+    .eq('status', 'visible')
+    .neq('id', excepto)
+    .or('resumen.not.is.null,enlace_url.not.is.null')
+  const { data, error } = await (cohortId ? consulta.eq('cohort_id', cohortId) : consulta.is('cohort_id', null))
+    .order('created_at', { ascending: false })
+    .limit(cuantas)
+
+  if (error) {
+    console.error(JSON.stringify({ operacion: 'otrasNoticias', cursoId, error: error.message }))
+    return []
+  }
+  return armarPosts((data ?? []) as unknown as Anidado[], usuarioActual)
 }
 
 /**

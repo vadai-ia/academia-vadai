@@ -328,7 +328,8 @@ async function main() {
       const { rows } = await bd.query(
         `select user_id from academia.community_comments where post_id = $1 and content = $2`, [post.id, MARCA_RESPUESTA])
       afirmar(G5, 'la respuesta queda firmada por el CM', ids.cm, rows[0]?.user_id ?? null)
-      const muro = await texto(`/curso/qa-curso-prueba/comunidad`, alumno)
+      // 22-oct-2026: la conversación vive en la página de la publicación.
+      const muro = await texto(`/curso/qa-curso-prueba/comunidad/${post.id}`, alumno)
       const bloque = muro.slice(Math.max(0, muro.indexOf(MARCA_RESPUESTA) - 1500), muro.indexOf(MARCA_RESPUESTA))
       afirmar(G5, 'el alumno la ve con «Equipo VADAI»', true, muro.includes(MARCA_RESPUESTA) && bloque.includes('Equipo VADAI'))
     }

@@ -585,7 +585,13 @@ try {
   // 6. Lo que ve el alumno, y quién lee qué
   // =========================================================================
   const A = 'El alumno y los permisos'
-  const muro = await (await pedir(`/curso/${CASA}/comunidad?por=100`, sAlumno)).text()
+  // 22-oct-2026: el feed es de tarjetas; las respuestas del agente se leen en la
+  // página de cada publicación.
+  const feed = await (await pedir(`/curso/${CASA}/comunidad?por=100`, sAlumno)).text()
+  const idsDelFeed = [...new Set([...feed.matchAll(new RegExp(`href="/curso/${CASA}/comunidad/([0-9a-f-]{36})"`, 'g'))].map((m) => m[1]))]
+  const paginas = await Promise.all(idsDelFeed.map(async (id) => (await pedir(`/curso/${CASA}/comunidad/${id}`, sAlumno)).text()))
+  const muro = paginas.join(' ')
+  afirmar(A, 'cada tarjeta del feed abre su publicación', true, idsDelFeed.length > 0)
   afirmar(A, 'el alumno ve la firma «con Claude, nuestra IA»', true, muro.includes('con Claude, nuestra IA'))
   afirmar(A, '…y la de lo revisado por el equipo', true, muro.includes('con Claude · revisado por el equipo'))
   afirmar(A, 'la liga de la lección se puede abrir', true, new RegExp(`href="[^"]*/curso/${CASA}/${leccion.id}"`).test(muro))

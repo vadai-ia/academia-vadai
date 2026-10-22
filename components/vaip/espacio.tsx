@@ -36,10 +36,12 @@ export function EncabezadoVaip({ nombre, clase }: { nombre: string; clase: Sesio
   const abierta = estado === 'porEmpezar' || estado === 'enCurso'
 
   return (
-    <div className="flex flex-col gap-5">
-      <header className="flex flex-col gap-3">
-        <MarcaVaip />
-        <h1 className="text-2xl font-semibold tracking-tight text-balance sm:text-3xl">Hola, {primerNombre}.</h1>
+    <div className="flex flex-col gap-4 sm:gap-5">
+      {/* 22-oct-2026: logo y saludo en un renglón en el teléfono; apilados
+          ocupaban 200 px antes de las pestañas. */}
+      <header className="flex flex-wrap items-center gap-x-3 gap-y-3 sm:flex-col sm:items-start">
+        <MarcaVaip className="h-8 sm:h-11" />
+        <h1 className="text-xl font-medium tracking-tight text-balance sm:text-3xl">Hola, {primerNombre}.</h1>
       </header>
 
       {clase && abierta ? (
@@ -65,6 +67,9 @@ export function EncabezadoVaip({ nombre, clase }: { nombre: string; clase: Sesio
         etiqueta="Secciones de V-AI-P"
         pestanas={[
           { href: '/vaip', etiqueta: 'Muro', exacto: true },
+          // 22-oct-2026: las noticias salen del muro a su sección, con
+          // tarjetas por página y una página por noticia.
+          { href: '/vaip/noticias', etiqueta: 'Noticias' },
           { href: '/vaip/clases', etiqueta: 'Clases', insignia: abierta ? 'Ahora' : undefined, tono: 'vivo' },
           { href: '/vaip/herramientas', etiqueta: 'Herramientas' },
           { href: '/vaip/ranking', etiqueta: 'Ranking' },

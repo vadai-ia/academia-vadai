@@ -154,7 +154,7 @@ try {
   const I = 'Inicio'
   afirmar(I, 'sin la tarjeta de nivel (el puntaje por generación ya se premió)', false, inicio.includes('TU NIVEL') || inicio.includes('>Tu nivel<'))
   afirmar(I, 'sin «Tus certificados» (viven en Mi perfil)', false, inicio.includes('Tus certificados'))
-  afirmar(I, 'lo último del muro de su curso, con liga a la publicación', true, new RegExp(`href="/curso/${CURSO_QA.slug}/comunidad#publicacion-`).test(inicio))
+  afirmar(I, 'lo último del muro de su curso, con liga a la publicación', true, new RegExp(`href="/curso/${CURSO_QA.slug}/comunidad/[0-9a-f-]{36}"`).test(inicio))
   afirmar(I, 'a quien no es miembro no le pinta el bloque de V-AI-P', false, inicio.includes('Escribir en el muro'))
   const inicioEquipo = await html('/mis-cursos', sAdmin)
   afirmar(I, 'a quien está en V-AI-P (aquí, el equipo), V-AI-P primero', true, inicioEquipo.includes('Escribir en el muro') && inicioEquipo.includes('href="/vaip"'))
@@ -166,7 +166,7 @@ try {
   const V = 'V-AI-P'
   afirmar(V, 'a quien no es miembro, sus pestañas lo regresan a la invitación', '/vaip', await destino('/vaip/clases', sAlumno))
   const vaipEquipo = await html('/vaip', sAdmin)
-  afirmar(V, 'el espacio abre en el Muro con sus pestañas', '/vaip /vaip/clases /vaip/herramientas /vaip/ranking', enlacesDelNav(vaipEquipo, 'Secciones de V-AI-P')?.join(' '))
+  afirmar(V, 'el espacio abre en el Muro con sus pestañas', '/vaip /vaip/noticias /vaip/clases /vaip/herramientas /vaip/ranking', enlacesDelNav(vaipEquipo, 'Secciones de V-AI-P')?.join(' '))
   for (const pestana of ['/vaip/clases', '/vaip/herramientas', '/vaip/ranking']) {
     afirmar(V, `${pestana} abre`, 200, (await pedir(pestana, sAdmin)).status)
   }
@@ -223,10 +223,10 @@ try {
   const conCampana = await html('/perfil', sAlumno)
   afirmar(B, 'avisa «Te respondieron» en el muro', true, conCampana.includes('Te respondieron') && conCampana.includes(`${MARCA} ¿Cómo concilio el viernes?`))
   afirmar(B, '…diciendo que es el grupo de su curso', true, conCampana.includes(`Grupo · ${CURSO_QA.title}`))
-  afirmar(B, '…y lleva a la publicación', true, conCampana.includes(`/curso/${CURSO_QA.slug}/comunidad#publicacion-${post.id}`))
+  afirmar(B, '…y lleva a la publicación', true, conCampana.includes(`/curso/${CURSO_QA.slug}/comunidad/${post.id}`))
   afirmar(B, 'avisa la respuesta a su pregunta de la lección', true, conCampana.includes(`/curso/${CURSO_QA.slug}/${IDS.leccionVideo}#comentario-${pregunta.id}`))
   const delAdmin = await html('/perfil', sAdmin)
-  afirmar(B, 'a quien respondió no le avisa su propia respuesta', false, delAdmin.includes(`#publicacion-${post.id}`))
+  afirmar(B, 'a quien respondió no le avisa su propia respuesta', false, delAdmin.includes(`/comunidad/${post.id}`))
 
   verde = imprimir()
 } catch (e) {

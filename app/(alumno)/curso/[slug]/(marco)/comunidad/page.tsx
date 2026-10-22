@@ -69,10 +69,6 @@ export default async function PaginaComunidad({
       {/* M22: sin ranking ni «suman puntos». El puntaje era por generación y ya
           se premió al top 3 (Alejandro, 20-oct-2026); el muro queda para
           conversar. El ranking vivo es el de V-AI-P. */}
-      <p className="text-sm text-muted-foreground">
-        Preguntas, avances y lo que quieras compartir con tu generación.
-      </p>
-
       {/* Para el equipo, aunque haya una sola generación: «¿de qué generación
           están escribiendo?» tiene que contestarse sin adivinar (3-oct-2026). */}
       {generaciones.length > 0 ? (
@@ -96,6 +92,9 @@ export default async function PaginaComunidad({
           cursoSlug={slug}
           soyEquipo={soyEquipo}
           ruta={`/curso/${slug}/comunidad`}
+          rutaDetalle={`/curso/${slug}/comunidad`}
+          yo={{ nombre: perfil.full_name || perfil.email, avatar: perfil.avatar_url }}
+          invitacion="Pregunta o comparte con tu generación…"
           pagina={feed.pagina}
           paginas={feed.paginas}
           porPagina={feed.porPagina}

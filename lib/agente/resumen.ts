@@ -2,6 +2,7 @@ import 'server-only'
 
 import { z } from 'zod'
 
+import { ligaEnGrupo } from '@/lib/comunidad/ligas'
 import { ajustesDelAgente } from '@/lib/agente/ajustes'
 import { llamar } from '@/lib/agente/claude'
 import { cursoDelAgente } from '@/lib/agente/cola'
@@ -107,7 +108,7 @@ export async function armarResumenDelDia(ahora = new Date()): Promise<{ fecha: s
       clave: `C${hilos.length + 1}`,
       titulo: p.title,
       curso: curso.title,
-      href: `/curso/${curso.slug}/comunidad#publicacion-${p.id}`,
+      href: ligaEnGrupo(curso.slug, p.id),
       lineas: [
         `Alumno: ${p.title}. ${textoPlano(p.content_rich).slice(0, 500)}`,
         ...nuevos.map((c) => `${quien(c.user_id, c.via)}: ${c.content.slice(0, 400)}`),

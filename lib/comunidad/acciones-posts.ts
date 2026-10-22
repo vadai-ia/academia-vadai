@@ -1,6 +1,7 @@
 'use server'
 
 import { revalidatePath } from 'next/cache'
+import { redirect } from 'next/navigation'
 import { z } from 'zod'
 
 import { esEquipo, exigirPerfil } from '@/lib/auth/sesion'
@@ -228,6 +229,18 @@ function rutaDeVuelta(datos: FormData): string {
   return `/curso/${cursoSlug}/comunidad`
 }
 
+/**
+ * Desde la página de una publicación (22-oct-2026): al ocultarla o borrarla esa
+ * página deja de existir, así que se vuelve al feed. Solo rutas propias: `//x`
+ * sería otro dominio.
+ */
+function irDespues(datos: FormData): void {
+  const despues = String(datos.get('despues') ?? '')
+  if (!despues.startsWith('/') || despues.startsWith('//')) return
+  revalidatePath(despues)
+  redirect(despues)
+}
+
 /** Moderación: ocultar es reversible y no rompe el hilo. */
 export async function moderarPost(datos: FormData): Promise<void> {
   const perfil = await exigirPerfil()
@@ -248,6 +261,7 @@ export async function moderarPost(datos: FormData): Promise<void> {
 
   if (error) registrar('moderarPost', { id, tipo, error: error.message })
   revalidatePath(rutaDeVuelta(datos))
+  if (tipo === 'post' && !error) irDespues(datos)
 }
 
 /**
@@ -281,6 +295,7 @@ export async function eliminarComoEquipo(datos: FormData): Promise<void> {
 
   if (error) registrar('eliminarComoEquipo', { id, tipo, error: error.message })
   revalidatePath(rutaDeVuelta(datos))
+  if (tipo === 'post' && !error) irDespues(datos)
 }
 
 /** El autor borra lo suyo: lógico, para no romper los comentarios que cuelgan. */
@@ -299,4 +314,5 @@ export async function eliminarPostPropio(datos: FormData): Promise<void> {
 
   if (error) registrar('eliminarPostPropio', { id, error: error.message })
   revalidatePath(rutaDeVuelta(datos))
+  if (!error) irDespues(datos)
 }

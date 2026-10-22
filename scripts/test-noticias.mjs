@@ -512,7 +512,9 @@ try {
   afirmar(U, 'un doble clic no publica dos veces', 1, (await una(bd, `select count(*)::int n from academia.community_posts where course_id = $1 and title = 'QA-NOTICIA publicada'`, [casa.id])).n)
   afirmar(U, '…y lo dice', true, doble.includes('ya se publicó'))
   const muro = await html(`/curso/${CASA}/comunidad?tema=noticias`, sAdmin)
-  afirmar(U, 'el muro la enseña con «Leer más en The Verge»', true, muro.includes('Leer más en The Verge') && muro.includes('Lo esencial, corregido.'))
+  afirmar(U, 'el muro la enseña como tarjeta con su resumen y su liga', true, muro.includes('Lo esencial, corregido.') && muro.includes(`/curso/${CASA}/comunidad/${post?.id}`))
+  const noticia = await html(`/curso/${CASA}/comunidad/${post?.id}`, sAdmin)
+  afirmar(U, 'y su página, con «Leer la nota original en The Verge»', true, noticia.includes('Leer la nota original en The Verge') && noticia.includes(URL_A))
 
   const paraDescartar = formularioDonde(await html('/admin/vaip/noticias', sCm), (f) => f.includes(`value="${pOtra?.id}"`) && !f.includes('name="titulo"'))
   await enviarFormulario('/admin/vaip/noticias', paraDescartar, sCm)
