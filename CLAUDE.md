@@ -433,7 +433,10 @@ curso: no sale en Inicio ni en Mis cursos y sus pestañas redirigen a `/vaip`.
 
 **Teléfono, tableta y computadora** (M23, 20-oct-2026). Una pantalla no está lista hasta pasar
 `pnpm capturas -- --auditar` a 390, 768 y 1280 (y 1024 si tiene columna lateral) en los dos temas,
-y MIRAR las hojas. Lo que se toca mide 44 px con `pointer-coarse` (no con el ancho: una tableta
+y MIRAR las hojas. **Desde el 22-oct-2026 la auditoría también falla si un enlace, botón o summary
+visible no recibe el toque** (se prueban varios puntos de su parte en pantalla) **o si una liga
+interna da 404/500 o rebota al login**: un enlace estirado (`after:absolute after:inset-0`) nunca
+va dentro de un `sr-only`, que lo recorta a 1 px. Lo que se toca mide 44 px con `pointer-coarse` (no con el ancho: una tableta
 también es táctil). Lo que se pega arriba usa `--alto-encabezado`; lo que se pega abajo, `.pb-seguro`.
 Un contenedor con scroll horizontal lleva `relative`, o un `sr-only` absoluto se escapa y desborda
 la página. **Página de venta**: cada botón de compra es `BotonSuscribir` (mismo link, nada si la

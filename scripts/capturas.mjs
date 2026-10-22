@@ -425,10 +425,17 @@ const AUDITORIA = `(() => {
       }
       return false
     }
+    // Lo fijo (la barra de abajo) se estira con la página: es síntoma, no causa.
+    const enAlgoFijo = (el) => {
+      for (let p = el; p && p !== document.body; p = p.parentElement) {
+        if (getComputedStyle(p).position === 'fixed') return true
+      }
+      return false
+    }
     for (const el of document.body.querySelectorAll('*')) {
       const r = el.getBoundingClientRect()
       if (r.width === 0 || r.right <= de.clientWidth + 1) continue
-      if (recorta(el)) continue
+      if (recorta(el) || enAlgoFijo(el)) continue
       culpables.push({ el, sobra: Math.round(r.right - de.clientWidth) })
     }
     culpables.sort((a, b) => b.sobra - a.sobra)
@@ -497,6 +504,84 @@ const AUDITORIA = `(() => {
     window.scrollTo(0, 0)
   }
 
+  // 22-oct-2026: lo que se toca y no hace nada. Alejandro: «no funciona el
+  // botón de leer… al hacer click en la noticia no abre nada». El enlace que
+  // cubría la tarjeta vivía dentro de un título sr-only: medía 1 px. Aquí,
+  // cada enlace, botón y summary visible tiene que tener área y recibir el
+  // toque en su centro (nada encima). Y se juntan las ligas internas para
+  // comprobar desde Node que abren (sin 404 ni rebote al login).
+  const rotos = []
+  const enlaces = []
+  const interactivos = document.querySelectorAll('a[href], button, summary')
+  const scrollX0 = window.scrollX
+  const scrollY0 = window.scrollY
+  const hrefsVisibles = new Set()
+  const diminutos = []
+  for (const el of interactivos) {
+    if (el.closest('[popover]:not(:popover-open)')) continue
+    if (el.closest('details:not([open])') && !el.matches('details > summary')) continue
+    if (typeof el.checkVisibility === 'function' && !el.checkVisibility({ checkVisibilityCSS: true })) continue
+    if (el.disabled || el.getAttribute('aria-disabled') === 'true') continue
+    const texto = (el.getAttribute('aria-label') || el.textContent || '').trim().replace(/\\s+/g, ' ').slice(0, 50)
+    const href = el.tagName === 'A' ? el.getAttribute('href') : null
+    if (href && href.startsWith('/') && !href.startsWith('//')) enlaces.push(href)
+    if (/^Saltar al contenido/i.test(texto)) continue
+    let r = el.getBoundingClientRect()
+    if (r.width < 4 || r.height < 4) {
+      diminutos.push({ href, texto, etiqueta: el.tagName.toLowerCase() })
+      continue
+    }
+    if (href) hrefsVisibles.add(href)
+    el.scrollIntoView({ block: 'center', inline: 'center' })
+    r = el.getBoundingClientRect()
+    // Un enlace en línea que se parte en dos renglones tiene un rectángulo por
+    // renglón; el del conjunto incluye texto ajeno. Basta con que UN renglón
+    // reciba el toque.
+    const fragmentos = [...el.getClientRects()].filter((f) => f.width >= 2 && f.height >= 2)
+    if (fragmentos.length > 1) {
+      const tocaAlguno = fragmentos.some((f) => {
+        const p = document.elementFromPoint(
+          Math.min(innerWidth - 1, Math.max(0, f.left + f.width / 2)),
+          Math.min(innerHeight - 1, Math.max(0, f.top + f.height / 2))
+        )
+        return p && el.contains(p)
+      })
+      if (tocaAlguno) continue
+    }
+    // Se prueban varios puntos de la parte que cae en pantalla: un enlace
+    // dentro de un sr-only mide lo que su texto, pero el recorte lo deja sin
+    // un solo pixel tocable (el bug de «Leer», 22-oct-2026).
+    const x0 = Math.max(0, r.left)
+    const x1 = Math.min(innerWidth, r.right)
+    const y0 = Math.max(0, r.top)
+    const y1 = Math.min(innerHeight, r.bottom)
+    if (x1 - x0 < 2 || y1 - y0 < 2) {
+      rotos.push({ critico: true, texto: el.tagName.toLowerCase() + ' "' + texto + '" no se puede poner en pantalla' })
+      continue
+    }
+    let toca = false
+    let arriba = null
+    for (const [fx, fy] of [[0.5, 0.5], [0.12, 0.5], [0.88, 0.5], [0.5, 0.2], [0.5, 0.8]]) {
+      const punto = document.elementFromPoint(x0 + (x1 - x0) * fx, y0 + (y1 - y0) * fy)
+      if (punto && el.contains(punto)) {
+        toca = true
+        break
+      }
+      if (!arriba) arriba = punto
+    }
+    if (toca || !arriba) continue
+    // Un label que envuelve el control, o el control dentro de su label: está bien.
+    if (arriba.closest('label') && arriba.closest('label').contains(el)) continue
+    rotos.push({ critico: true, texto: el.tagName.toLowerCase() + ' "' + texto + '" no recibe el toque (encima: ' + describir(arriba) + ')' })
+  }
+  for (const d of diminutos) {
+    // Un enlace solo para el lector de pantalla está bien si hay otro visible
+    // con la misma liga; si es la única forma de llegar, nadie lo puede tocar.
+    if (d.href && hrefsVisibles.has(d.href)) continue
+    rotos.push({ critico: true, texto: d.etiqueta + ' "' + d.texto + '" no tiene área para tocarlo (' + (d.href || 'sin liga') + ')' })
+  }
+  window.scrollTo(scrollX0, scrollY0)
+
   const criticos = new Set(['button', 'pastilla', 'pestana', 'destino', 'icono-boton', 'cta'])
   const blancos = []
   const selector = 'header a, header button, nav a, nav button, main button, a[data-slot], a[data-cta], main input:not([type=hidden]):not([type=checkbox]):not([type=radio]), main select, main textarea, main summary, [popover] button'
@@ -536,6 +621,8 @@ const AUDITORIA = `(() => {
     recorte,
     manifiestos,
     tema,
+    rotos,
+    enlaces: [...new Set(enlaces)],
   })
 })()`
 
@@ -558,6 +645,7 @@ function hallazgosDe(auditoria, ancho) {
   if (auditoria.tema && !auditoria.tema.ok) {
     lista.push({ critico: true, texto: `theme-color ${auditoria.tema.meta ?? 'ausente'}, se esperaba ${auditoria.tema.esperado}` })
   }
+  for (const r of auditoria.rotos ?? []) lista.push(r)
   for (const h of auditoria.recorte) lista.push({ critico: false, texto: `título recortado: "${h}"` })
   // Los blancos solo cuentan en los viewports táctiles: en escritorio hay ratón.
   if (PERFILES[ancho].tactil) {
@@ -603,9 +691,12 @@ async function capturar(cdp, { sesion, ruta, ancho, tema }) {
   writeFileSync(`${base}-larga.png`, Buffer.from(larga.data, 'base64'))
 
   let hallazgos = []
+  let enlaces = []
   if (AUDITAR) {
     const crudo = await leer(AUDITORIA)
-    hallazgos = hallazgosDe(JSON.parse(crudo), ancho)
+    const auditoria = JSON.parse(crudo)
+    hallazgos = hallazgosDe(auditoria, ancho)
+    enlaces = auditoria.enlaces ?? []
   }
 
   return {
@@ -617,7 +708,44 @@ async function capturar(cdp, { sesion, ruta, ancho, tema }) {
     rutaFinal,
     archivo: path.relative(RAIZ, `${base}.png`).replace(/\\/g, '/'),
     hallazgos,
+    enlaces,
   }
+}
+
+/**
+ * ¿Abre cada liga interna que se vio? (22-oct-2026). Con la cookie de la sesión
+ * y siguiendo redirecciones: una liga que termina en 404/500, o que rebota al
+ * login o a sin-acceso, es una liga rota para quien la ve. Las descargas y las
+ * rutas de auth quedan fuera: se prueban en sus suites.
+ */
+const LIGAS_QUE_NO_SE_ABREN = /^\/(api|auth|acceso)\//
+async function revisarLigas(capturasDeLaSesion, cookies, encabezados) {
+  const deDonde = new Map()
+  for (const c of capturasDeLaSesion) {
+    for (const href of c.enlaces ?? []) if (!deDonde.has(href)) deDonde.set(href, c)
+  }
+  const cabecera = { ...(encabezados ?? {}), Cookie: cookies.map((k) => `${k.name}=${k.value}`).join('; ') }
+  const ligas = [...deDonde.keys()].filter((h) => !LIGAS_QUE_NO_SE_ABREN.test(h) && !h.startsWith('/#'))
+  let rotas = 0
+  for (const href of ligas) {
+    const limpia = href.split('#')[0]
+    if (!limpia) continue
+    try {
+      const r = await fetch(`${BASE}${limpia}`, { headers: cabecera, redirect: 'follow' })
+      const final = new URL(r.url).pathname
+      // Sin sesión (público), que te mande a entrar es lo correcto.
+      const rebote = cookies.length > 0 && /^\/(login|sin-acceso)$/.test(final) && !/^\/(login|sin-acceso)/.test(limpia)
+      const malo = r.status >= 400 ? `responde ${r.status}` : rebote ? `rebota a ${final}` : null
+      if (malo) {
+        rotas++
+        deDonde.get(href).hallazgos.push({ critico: true, texto: `la liga ${href} ${malo}` })
+      }
+    } catch (error) {
+      rotas++
+      deDonde.get(href).hallazgos.push({ critico: true, texto: `la liga ${href} no abre: ${error.message}` })
+    }
+  }
+  return { revisadas: ligas.length, rotas }
 }
 
 // --- hoja de contacto -----------------------------------------------------------
@@ -766,6 +894,10 @@ async function main() {
         }
       }
 
+      if (AUDITAR && deEsta.length > 0) {
+        const { revisadas, rotas } = await revisarLigas(deEsta, email ? await cookiesDe(email) : [], encabezados)
+        console.log(`    ligas: ${revisadas} revisadas, ${rotas} rota(s)`)
+      }
       capturas.push(...deEsta)
       if (deEsta.length > 0) hojas.push(await hojaDeContacto(cdp, sesion, deEsta))
     }

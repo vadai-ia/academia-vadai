@@ -239,11 +239,14 @@ async function main() {
   afirmar(GT, 'el guion de tema va en el <head>', true, cabeza.includes('vadai-tema'))
   afirmar(GT, 'y antes del <body>', true, portada.indexOf('vadai-tema') < portada.indexOf('<body'))
 
-  const hojaRuta = portada.match(/\/_next\/static\/css\/[a-z0-9]+\.css/)?.[0]
+  // Todas las hojas, no la primera: Next separa la de las fuentes (Inter) y el
+  // orden entre ellas cambia de un build a otro (22-oct-2026).
+  const hojas = [...new Set(portada.match(/\/_next\/static\/css\/[a-z0-9]+\.css/g) ?? [])]
+  const hojaRuta = hojas[0]
   afirmar(GT, 'hay hoja de estilos', true, Boolean(hojaRuta))
 
   if (hojaRuta) {
-    const css = await (await fetch(`${APP}${hojaRuta}`)).text()
+    const css = (await Promise.all(hojas.map(async (h) => (await fetch(`${APP}${h}`)).text()))).join(' ')
 
     // Un solo valor por token, con los dos temas dentro.
     afirmar(GT, 'los tokens usan light-dark()', true, css.includes('light-dark('))
