@@ -44,6 +44,7 @@ export function Encabezado({
   accion,
   extra,
   anchoCompleto = false,
+  barraInferior = false,
 }: {
   perfil: Perfil
   navegacion?: Destino[]
@@ -56,6 +57,11 @@ export function Encabezado({
   accion?: ReactNode
   /** Antes de `accion`: la campana de novedades del área de alumno. */
   extra?: ReactNode
+  /**
+   * El portal de alumnos (22-oct-2026): en el teléfono las secciones van en la
+   * barra inferior (`BarraInferior`) y aquí solo queda la primera fila.
+   */
+  barraInferior?: boolean
 }) {
   return (
     <header className="sticky top-0 z-30 border-b border-border bg-background/85 backdrop-blur-md">
@@ -79,7 +85,9 @@ export function Encabezado({
 
         {/* --- Fila 2: secciones ----------------------------------------- */}
         {navegacion.length > 0 ? (
-          <div className="-mx-5 border-t border-border/60 px-5 py-2 sm:mx-0 sm:border-t-0 sm:px-0 sm:pt-0 sm:pb-3">
+          <div
+            className={`-mx-5 border-t border-border/60 px-5 py-2 sm:mx-0 sm:border-t-0 sm:px-0 sm:pt-0 sm:pb-3 ${barraInferior ? 'max-md:hidden' : ''}`}
+          >
             <NavegacionPrincipal destinos={navegacion} />
           </div>
         ) : null}
@@ -163,7 +171,28 @@ function MenuDeCuenta({ perfil, anchoCompleto }: { perfil: Perfil; anchoCompleto
           <CambiarTema />
         </div>
 
+        {/* 22-oct-2026: la academia como app en el teléfono (app/(alumno)/instalar). */}
         <div className="border-t border-border px-2 py-2">
+          <Link
+            href="/instalar"
+            className="flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-sm font-medium transition-colors pointer-coarse:min-h-11 hover:bg-muted focus-visible:ring-3 focus-visible:ring-ring/50 focus-visible:outline-none"
+          >
+            <svg
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              className="size-4 text-muted-foreground"
+              aria-hidden
+            >
+              <rect x="6" y="2" width="12" height="20" rx="2.5" />
+              <path d="M12 7v7" />
+              <path d="m9 11 3 3 3-3" />
+            </svg>
+            Instalar en tu teléfono
+          </Link>
           <BotonSalir variante="menu" />
         </div>
       </div>

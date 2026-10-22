@@ -67,8 +67,9 @@ export function SuscripcionCerrada({ sobreFoto = false, className }: { sobreFoto
 /**
  * La barra de suscribirse, pegada abajo en teléfono y tableta.
  *
- * Va con `sticky bottom-0` como ÚLTIMO hijo del bloque de secciones que sigue
- * al encabezado. Así funciona sin JavaScript y sin tapar nada: no puede
+ * Va con `sticky` como ÚLTIMO hijo del bloque de secciones que sigue al
+ * encabezado, pegada encima de la barra inferior del portal si la hay
+ * (`--alto-barra-inferior`). Así funciona sin JavaScript y sin tapar nada: no puede
  * aparecer encima del encabezado (su bloque todavía no empieza) y al final del
  * scroll se asienta en su lugar, arriba del cierre, en vez de flotar sobre él.
  * Donde el navegador anima con el scroll (`app/globals.css`, `.barra-suscribir`)
@@ -91,7 +92,7 @@ export function BarraSuscribir({
   return (
     <div
       data-barra-inferior
-      className="barra-suscribir sticky bottom-0 z-20 -mx-5 border-t border-border bg-background/95 px-5 pt-3 pb-seguro backdrop-blur-md lg:hidden"
+      className="barra-suscribir sticky bottom-[var(--alto-barra-inferior,0px)] z-20 -mx-5 border-t border-border bg-background/95 px-5 pt-3 pb-seguro backdrop-blur-md lg:hidden"
     >
       <div className="mx-auto flex max-w-3xl items-center justify-between gap-4">
         <div className="flex min-w-0 flex-col leading-tight">

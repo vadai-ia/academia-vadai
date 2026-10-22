@@ -30,6 +30,7 @@
  *   pnpm capturas -- --solo=alumno,admin --ancho=390 --tema=oscuro --auditar
  *   pnpm capturas -- --rutas=/mis-cursos,/perfil
  *   pnpm capturas -- --solo=publico --ancho=390 --sin-js
+ *   pnpm capturas -- --prod --solo=alumno --como=<correo> --rutas=/vaip   # con una cuenta real, solo lee
  *
  * Desde Git Bash en Windows, `--rutas=/login` llega convertido a una ruta de
  * Windows (es MSYS, no este script): antepón `MSYS_NO_PATHCONV=1`.
@@ -728,7 +729,10 @@ async function main() {
     let guionDeTema = null
 
     for (const sesion of sesionesPedidas) {
-      const { email, rutas, encabezados } = SESIONES[sesion]
+      const { email: emailQa, rutas, encabezados } = SESIONES[sesion]
+      // --como=<correo>: entra con otra cuenta (solo lee). Sirve para mirar el
+      // portal con contenido real en --prod; las rutas siguen siendo las de la sesión.
+      const email = emailQa && bandera('como') ? bandera('como') : emailQa
       // --rutas manda: sirve para fotografiar una pantalla con un id que el seed no conoce.
       const rutasDeEsta = rutasPedidas ?? rutas
       if (rutasDeEsta.length === 0) continue

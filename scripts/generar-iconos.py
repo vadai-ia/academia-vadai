@@ -7,6 +7,10 @@ transparente) y de ahí salen los cuatro PNG de `public/`:
     vadai-sello-16/32/64.png  favicon; el navegador elige el tamaño
     vadai-sello.png           512 px, también el sello del encabezado
     vadai-apple.png           180 px para iOS, con el CUADRADO blanco entero
+    vadai-app-192/512.png     la app instalada en Android (app/manifest.ts),
+                              cuadrado blanco opaco como el de iOS
+    vadai-app-maskable.png    512 px con el sello al 70 % dentro de la zona
+                              segura: Android le recorta círculo o gota
 
 El disco blanco va HORNEADO en el PNG, no puesto con CSS: la pestaña la pinta
 el navegador y ahí no llega ninguna hoja de estilos. Si el arte trae su propio
@@ -29,6 +33,8 @@ ORIGINAL = Path(
 DESTINO = Path(__file__).resolve().parent.parent / 'public'
 TAMANOS = {'vadai-sello-16.png': 16, 'vadai-sello-32.png': 32, 'vadai-sello-64.png': 64, 'vadai-sello.png': 512}
 APPLE = ('vadai-apple.png', 180)
+APP = {'vadai-app-192.png': 192, 'vadai-app-512.png': 512}
+MASCARA = ('vadai-app-maskable.png', 512, 0.7)
 
 
 def main() -> int:
@@ -51,6 +57,20 @@ def main() -> int:
     cuadrado.alpha_composite(arte)
     cuadrado.convert('RGB').resize((lado, lado), Image.LANCZOS).save(DESTINO / nombre)
     print(f'  {nombre:<22} {lado}x{lado} (cuadrado blanco para iOS)')
+
+    for nombre, lado in APP.items():
+        cuadrado.convert('RGB').resize((lado, lado), Image.LANCZOS).save(DESTINO / nombre)
+        print(f'  {nombre:<22} {lado}x{lado} (app instalada)')
+
+    # Maskable: Android recorta el icono a la forma del teléfono; solo el
+    # círculo central del 80 % es seguro, así que el sello va más chico.
+    nombre, lado, escala = MASCARA
+    lienzo = Image.new('RGBA', (lado, lado), (255, 255, 255, 255))
+    interior = round(lado * escala)
+    sello = arte.resize((interior, interior), Image.LANCZOS)
+    lienzo.alpha_composite(sello, ((lado - interior) // 2, (lado - interior) // 2))
+    lienzo.convert('RGB').save(DESTINO / nombre)
+    print(f'  {nombre:<22} {lado}x{lado} (maskable)')
     return 0
 
 

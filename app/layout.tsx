@@ -35,6 +35,9 @@ export const metadata: Metadata = {
     // esquinas negras.
     apple: '/vadai-apple.png',
   },
+  // El iPhone no lee el manifiesto para esto (app/manifest.ts): «Agregar a
+  // inicio» toma de aquí el nombre bajo el icono y abre sin barra de Safari.
+  appleWebApp: { capable: true, title: 'VADAI', statusBarStyle: 'default' },
 }
 
 export const viewport: Viewport = {

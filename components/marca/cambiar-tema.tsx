@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react'
 
-import { LLAVE_TEMA, type Tema } from '@/lib/tema/guion'
+import { LLAVE_TEMA, pintarBarra, type Tema } from '@/lib/tema/guion'
 import { cn } from '@/lib/utils'
 
 /**
@@ -33,6 +33,7 @@ export function CambiarTema({ className }: { className?: string }) {
 
     raiz.classList.add('cambiando-tema')
     raiz.classList.toggle('dark', siguiente === 'oscuro')
+    pintarBarra(siguiente)
 
     try {
       localStorage.setItem(LLAVE_TEMA, siguiente)

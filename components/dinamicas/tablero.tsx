@@ -588,7 +588,7 @@ export function Tablero({
             {/* Sin sangrado negativo (-mx-5): en móvil la barra a todo el ancho hacía
                 que la sección midiera 20 px más que su caja y, dentro del marco del
                 admin, la página entera desbordaba. Dentro del contenido, con borde. */}
-            <div className="sticky bottom-0 z-10 flex flex-wrap items-center justify-between gap-3 rounded-lg border border-border bg-background/85 px-3 py-2 backdrop-blur-md">
+            <div className="sticky bottom-[var(--alto-barra-inferior,0px)] z-10 flex flex-wrap items-center justify-between gap-3 rounded-lg border border-border bg-background/85 px-3 py-2 backdrop-blur-md">
               <p
                 role="status"
                 aria-live="polite"

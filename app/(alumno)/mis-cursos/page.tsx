@@ -1,6 +1,7 @@
 import type { Metadata } from 'next'
 import Link from 'next/link'
 
+import { AvisoInstalar } from '@/components/alumno/instalar-app'
 import { AgregarAlCalendario } from '@/components/alumno/agregar-al-calendario'
 import { RenderRico } from '@/components/alumno/render-rico'
 import { TarjetaCurso } from '@/components/alumno/tarjeta-curso'
@@ -67,6 +68,9 @@ export default async function PaginaInicio() {
       <h1 className="text-[1.75rem] leading-tight font-medium tracking-tight">
         {saludo()}, {nombreVisible(perfil)}
       </h1>
+
+      {/* Solo en el teléfono y hasta que la instale o diga «Ahora no». */}
+      <AvisoInstalar />
 
       {/* --- V-AI-P ------------------------------------------------------ */}
       {vaip ? (

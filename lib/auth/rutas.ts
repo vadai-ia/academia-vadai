@@ -31,6 +31,9 @@ const PUBLICAS = [
   // miembro (/vaip/miembros/…) sí exige sesión.
   RUTAS.vaip,
   RUTAS.vaipGracias,
+  // La app instalable (app/manifest.ts): el navegador pide el manifiesto sin
+  // cookies, y si rebotara al login el teléfono no ofrecería instalarla.
+  '/manifest.webmanifest',
 ]
 
 /**

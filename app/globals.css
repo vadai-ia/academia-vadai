@@ -477,6 +477,24 @@
 .pb-seguro {
   padding-bottom: max(0.75rem, env(safe-area-inset-bottom));
 }
+
+/* La barra inferior del portal en el teléfono (components/marca/barra-inferior.tsx,
+   22-oct-2026): 4rem más la zona segura del iPhone, que ella misma cubre. El
+   contenido deja ese espacio al final, y lo que se pega abajo usa
+   `bottom-[var(--alto-barra-inferior,0px)]` para quedar encima de la barra.
+   Fuera del portal —la página de venta sin sesión— vale 0. */
+.con-barra-inferior {
+  --alto-barra-inferior: 0px;
+}
+@media (width < 48rem) {
+  .con-barra-inferior {
+    --alto-barra-inferior: calc(4rem + env(safe-area-inset-bottom));
+  }
+  /* Encima de la barra ya no toca la barrita de inicio: la barra la cubre. */
+  .con-barra-inferior .pb-seguro {
+    padding-bottom: 0.75rem;
+  }
+}
 body {
   padding-left: env(safe-area-inset-left);
   padding-right: env(safe-area-inset-right);

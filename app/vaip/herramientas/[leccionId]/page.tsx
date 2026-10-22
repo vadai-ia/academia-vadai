@@ -74,7 +74,7 @@ export default async function HerramientaDeVaip({
         aria-label="Herramienta anterior y siguiente"
         data-barra-inferior
         className={cn(
-          'sticky bottom-0 z-20 order-5 -mx-5 border-t border-border bg-background/95 px-5 pt-3 pb-seguro backdrop-blur-md',
+          'sticky bottom-[var(--alto-barra-inferior,0px)] z-20 order-5 -mx-5 border-t border-border bg-background/95 px-5 pt-3 pb-seguro backdrop-blur-md',
           'lg:static lg:order-none lg:mx-0 lg:border-t-0 lg:bg-transparent lg:p-0 lg:backdrop-blur-none'
         )}
       >

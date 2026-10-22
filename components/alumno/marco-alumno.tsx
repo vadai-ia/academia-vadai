@@ -1,10 +1,13 @@
 import Link from 'next/link'
 import { Suspense, type ReactNode } from 'react'
 
+import { CapturarInstalacion } from '@/components/alumno/instalar-app'
 import { Campana } from '@/components/marca/campana'
 import { Encabezado } from '@/components/marca/encabezado'
 import { IconoCursos, IconoInicio, IconoPerfil, IconoVaip } from '@/components/marca/iconos-navegacion'
 import { BarraDeNavegacion } from '@/components/marca/barra-de-navegacion'
+import { BarraInferior } from '@/components/marca/barra-inferior'
+import type { Destino } from '@/components/marca/navegacion'
 import { SaltarAlContenido } from '@/components/marca/saltar-al-contenido'
 import { esEquipo, type Perfil } from '@/lib/auth/sesion'
 import { novedadesDeCanales } from '@/lib/notificaciones/canales'
@@ -28,8 +31,24 @@ export async function MarcoAlumno({ perfil, children }: { perfil: Perfil; childr
     novedadesDeCanales(perfil),
   ])
 
+  // M22 (20-oct-2026): cuatro destinos, cada cosa en uno. Eran nueve y en el
+  // teléfono solo se veían tres y media. Lo que salió del menú tiene casa:
+  // Dinámicas dentro de cada curso (y en la campana e Inicio), Blog en Inicio
+  // cuando hay entradas, Comunidad en V-AI-P y en cada curso, Puntos y
+  // Certificaciones en Mi perfil. Las rutas viejas redirigen.
+  // 22-oct-2026: los mismos cuatro van arriba en la computadora y abajo, como
+  // en una app, en el teléfono.
+  const destinos: Destino[] = [
+    { href: '/mis-cursos', etiqueta: 'Inicio', icono: IconoInicio, exacto: true },
+    // Para el miembro es su espacio; para los demás, la invitación. El número:
+    // publicaciones nuevas en el muro de V-AI-P.
+    { href: '/vaip', etiqueta: 'V-AI-P', icono: IconoVaip, novedades: canales.vaip },
+    { href: '/cursos', etiqueta: 'Mis cursos', icono: IconoCursos, tambien: ['/curso/', '/dinamicas'] },
+    { href: '/perfil', etiqueta: 'Perfil', icono: IconoPerfil },
+  ]
+
   return (
-    <div className="relative flex min-h-dvh flex-col">
+    <div className="con-barra-inferior relative flex min-h-dvh flex-col">
       <SaltarAlContenido />
       {/* Sin señal entre el clic y la página nueva, la gente vuelve a apretar.
           Suspense porque lee la URL y algunas rutas del árbol son estáticas. */}
@@ -39,19 +58,8 @@ export async function MarcoAlumno({ perfil, children }: { perfil: Perfil; childr
       <Encabezado
         perfil={perfil}
         extra={<Campana lista={novedades.lista} nuevas={novedades.nuevas} />}
-        // M22 (20-oct-2026): cuatro destinos, cada cosa en uno. Eran nueve y en
-        // el teléfono solo se veían tres y media. Lo que salió del menú tiene
-        // casa: Dinámicas dentro de cada curso (y en la campana e Inicio), Blog
-        // en Inicio cuando hay entradas, Comunidad en V-AI-P y en cada curso,
-        // Puntos y Certificaciones en Mi perfil. Las rutas viejas redirigen.
-        navegacion={[
-          { href: '/mis-cursos', etiqueta: 'Inicio', icono: IconoInicio, exacto: true },
-          // Para el miembro es su espacio; para los demás, la invitación. El
-          // número: publicaciones nuevas en el muro de V-AI-P.
-          { href: '/vaip', etiqueta: 'V-AI-P', icono: IconoVaip, novedades: canales.vaip },
-          { href: '/cursos', etiqueta: 'Mis cursos', icono: IconoCursos, tambien: ['/curso/', '/dinamicas'] },
-          { href: '/perfil', etiqueta: 'Perfil', icono: IconoPerfil },
-        ]}
+        navegacion={destinos}
+        barraInferior
         // Solo para quien puede entrar al panel: un enlace que rebota es peor que
         // no tenerlo. Era una pastilla más al final del menú, "Panel", que nadie
         // leía como "salir de la vista de alumno". Ahora es un botón con ese
@@ -71,9 +79,14 @@ export async function MarcoAlumno({ perfil, children }: { perfil: Perfil; childr
           ) : null
         }
       />
-      <main id="contenido" className="mx-auto w-full max-w-6xl flex-1 px-5 py-8 sm:py-10">
+      <main
+        id="contenido"
+        className="mx-auto w-full max-w-6xl flex-1 px-5 pt-6 pb-[calc(var(--alto-barra-inferior)+2rem)] sm:pt-10 md:pb-10"
+      >
         {children}
       </main>
+      <BarraInferior destinos={destinos} />
+      <CapturarInstalacion />
     </div>
   )
 }
